@@ -1,0 +1,69 @@
+[profile.default]
+src = 'src'
+script = 'script'
+test = 'test'
+out = 'out'
+libs = ["node_modules", "lib"]
+gas_reports = ["TimelockController"]
+auto_detect_solc = true
+cache = true
+#block number
+# block_number = 100
+# The block timestamp in tests
+# block_timestamp = 1500
+# allow ffi
+ffi = true
+# gas limit in tests
+gas_limit = 9223372036854775807
+# optimizer
+optimizer = false
+# optimizer runs
+optimizer_runs = 1_000_000
+# use via-ir optimizer
+via_ir = false
+fs_permissions = [{ access = "read-write", path = "./"}]
+bytecode_hash = "none"
+ignored_error_codes = [1878, 2519, 5574,5667,2072,2018,3420]
+evm_version = "shanghai"
+
+[profile.src]
+test = "_" # Makes building faster
+script = "_"
+optimizer = false
+
+[profile.script]
+src = "_"
+test = "_"
+optimizer = false
+
+[profile.deploy]
+src = "_"
+test = "_"
+optimizer = true
+optimizer_runs = 1_000_000
+via_ir = true
+
+[profile.test]
+src = "_"
+script = "_"
+sparse_mode = true
+optimizer = false
+build_info = false
+extra_output = []
+verbosity = 3
+
+[rpc_endpoints]
+mainnet = "${MAINNET_URL}"
+
+[etherscan]
+fraxtal = {key = "${FRAXTAL_API_KEY}", url = "https://api.fraxscan.com/api", chain = "252"}
+
+
+[fmt]
+line_length = 1000 # This gets overriden by prettier afterwards
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+number_underscore = "thousands"
+
+# See more config options https://github.com/gakonst/foundry/tree/master/config

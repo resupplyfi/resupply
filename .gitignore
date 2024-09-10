@@ -1,0 +1,52 @@
+# directories
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+**/artifacts
+**/build
+**/cache
+**/coverage
+**/.coverage_artifacts
+**/.coverage_cache
+**/.coverage_contracts
+**/dist
+**/node_modules
+out
+data
+
+# files
+*.env
+*.log
+.pnp.*
+coverage.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+
+# factories
+!src/types/factories
+src/types/factories/*
+!src/types/factories/Greeter__factory.ts
+
+# local history
+.lh
+.history
+
+# docgen
+documentation/docgen
+!documentation/docgen/contracts
+
+# deployment info
+.deployment
+deployments/hardhat
+deployments/localhost
+
+# typechain
+typechain
+
+# for other tools which use gitignore
+.git
