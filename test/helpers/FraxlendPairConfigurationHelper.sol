@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "src/libraries/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "frax-std/Logger.sol";
-import "src/FraxlendPair.sol";
+import "src/fraxlend/FraxlendPair.sol";
 import "src/interfaces/IVariableInterestRateV2.sol";
 import "src/interfaces/oracles/abstracts/IEthUsdChainlinkOracleWithMaxDelay.sol";
 import "src/interfaces/oracles/abstracts/IUniswapV3SingleTwapOracle.sol";

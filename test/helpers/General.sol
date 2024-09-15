@@ -6,7 +6,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "src/VariableInterestRate.sol";
+import "src/fraxlend/VariableInterestRate.sol";
 import "src/interfaces/IDualOracle.sol";
 import "src/interfaces/IVariableInterestRateV2.sol";
 import { OracleHelper } from "frax-std/oracles/OracleHelper.sol";

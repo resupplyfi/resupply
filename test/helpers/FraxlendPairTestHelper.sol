@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-import "src/FraxlendPair.sol";
+import "src/fraxlend/FraxlendPair.sol";
 
 library FraxlendPairTestHelper {
     function __getCurrentRate(FraxlendPair _pair) internal view returns (uint256 _currentRate) {

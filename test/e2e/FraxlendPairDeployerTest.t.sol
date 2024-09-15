@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "./BasePairTest.t.sol";
 import "src/interfaces/IFraxlendPair.sol";
-import "src/FraxlendPairDeployer.sol";
+import "src/fraxlend/FraxlendPairDeployer.sol";
 
 contract FraxlendPairDeployerTest is BasePairTest {
     function setUp() public {

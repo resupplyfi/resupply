@@ -25,7 +25,7 @@ pragma solidity ^0.8.19;
 
 // ====================================================================
 
-import { IRateCalculator } from "./interfaces/IRateCalculator.sol";
+import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 
 /// @title A formula for calculating interest rates linearly as a function of utilization
 /// @author Drake Evans github.com/drakeevans

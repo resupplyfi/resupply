@@ -30,10 +30,10 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
-import { IFraxlendWhitelist } from "./interfaces/IFraxlendWhitelist.sol";
-import { IFraxlendPair } from "./interfaces/IFraxlendPair.sol";
-import { IFraxlendPairRegistry } from "./interfaces/IFraxlendPairRegistry.sol";
-import { SafeERC20 } from "./libraries/SafeERC20.sol";
+import { IFraxlendWhitelist } from "../interfaces/IFraxlendWhitelist.sol";
+import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
+import { IFraxlendPairRegistry } from "../interfaces/IFraxlendPairRegistry.sol";
+import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 // solhint-disable no-inline-assembly
 

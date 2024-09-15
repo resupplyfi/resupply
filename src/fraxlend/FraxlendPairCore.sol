@@ -31,11 +31,11 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuar
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
-import { VaultAccount, VaultAccountingLibrary } from "./libraries/VaultAccount.sol";
-import { SafeERC20 } from "./libraries/SafeERC20.sol";
-import { IDualOracle } from "./interfaces/IDualOracle.sol";
-import { IRateCalculatorV2 } from "./interfaces/IRateCalculatorV2.sol";
-import { ISwapper } from "./interfaces/ISwapper.sol";
+import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
+import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { IDualOracle } from "../interfaces/IDualOracle.sol";
+import { IRateCalculatorV2 } from "../interfaces/IRateCalculatorV2.sol";
+import { ISwapper } from "../interfaces/ISwapper.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans

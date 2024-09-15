@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-import "src/FraxlendPairRegistry.sol";
+import "src/fraxlend/FraxlendPairRegistry.sol";
 
 library FraxlendPairRegistryHelper {
     function __setSingleDeployer(FraxlendPairRegistry _fraxlendPairRegistry, address _deployer, bool _bool) internal {

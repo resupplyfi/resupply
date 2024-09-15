@@ -6,14 +6,14 @@ import "src/interfaces/IStableSwap.sol";
 import "src/interfaces/IVariableInterestRateV2.sol";
 import "src/interfaces/IWstEth.sol";
 
-import "src/FraxlendPairConstants.sol";
-import "src/FraxlendPairAccessControlErrors.sol";
-import { FraxlendPairDeployer, ConstructorParams as FraxlendPairDeployerParams } from "src/FraxlendPairDeployer.sol";
-import { FraxlendPairRegistry } from "src/FraxlendPairRegistry.sol";
-import { VariableInterestRate } from "src/VariableInterestRate.sol";
-import { FraxlendWhitelist } from "src/FraxlendWhitelist.sol";
-import { FraxlendPair } from "src/FraxlendPair.sol";
-import { DualOracleChainlinkUniV3 } from "src/oracles/dual-oracles/DualOracleChainlinkUniV3.sol";
+import "src/fraxlend/FraxlendPairConstants.sol";
+import "src/fraxlend/FraxlendPairAccessControlErrors.sol";
+import { FraxlendPairDeployer, ConstructorParams as FraxlendPairDeployerParams } from "src/fraxlend/FraxlendPairDeployer.sol";
+import { FraxlendPairRegistry } from "src/fraxlend/FraxlendPairRegistry.sol";
+import { VariableInterestRate } from "src/fraxlend/VariableInterestRate.sol";
+import { FraxlendWhitelist } from "src/fraxlend/FraxlendWhitelist.sol";
+import { FraxlendPair } from "src/fraxlend/FraxlendPair.sol";
+import { DualOracleChainlinkUniV3 } from "src/fraxlend/oracles/dual-oracles/DualOracleChainlinkUniV3.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 
