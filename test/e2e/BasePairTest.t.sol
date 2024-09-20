@@ -6,14 +6,14 @@ import "src/interfaces/IStableSwap.sol";
 import "src/interfaces/IVariableInterestRateV2.sol";
 import "src/interfaces/IWstEth.sol";
 
-import "src/fraxlend/FraxlendPairConstants.sol";
-import "src/fraxlend/FraxlendPairAccessControlErrors.sol";
-import { FraxlendPairDeployer, ConstructorParams as FraxlendPairDeployerParams } from "src/fraxlend/FraxlendPairDeployer.sol";
-import { FraxlendPairRegistry } from "src/fraxlend/FraxlendPairRegistry.sol";
-import { VariableInterestRate } from "src/fraxlend/VariableInterestRate.sol";
-import { FraxlendWhitelist } from "src/fraxlend/FraxlendWhitelist.sol";
-import { FraxlendPair } from "src/fraxlend/FraxlendPair.sol";
-import { DualOracleChainlinkUniV3 } from "src/fraxlend/oracles/dual-oracles/DualOracleChainlinkUniV3.sol";
+import "src/protocol/fraxlend/FraxlendPairConstants.sol";
+import "src/protocol/fraxlend/FraxlendPairAccessControlErrors.sol";
+import { FraxlendPairDeployer, ConstructorParams as FraxlendPairDeployerParams } from "src/protocol/fraxlend/FraxlendPairDeployer.sol";
+import { FraxlendPairRegistry } from "src/protocol/fraxlend/FraxlendPairRegistry.sol";
+import { VariableInterestRate } from "src/protocol/fraxlend/VariableInterestRate.sol";
+import { FraxlendWhitelist } from "src/protocol/fraxlend/FraxlendWhitelist.sol";
+import { FraxlendPair } from "src/protocol/fraxlend/FraxlendPair.sol";
+import { DualOracleChainlinkUniV3 } from "src/protocol/fraxlend/oracles/dual-oracles/DualOracleChainlinkUniV3.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 

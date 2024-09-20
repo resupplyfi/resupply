@@ -22,7 +22,7 @@ pragma solidity ^0.8.19;
 // ====================================================================
 
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { IRateCalculatorV2 } from "../interfaces/IRateCalculatorV2.sol";
+import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
 
 /// @title A formula for calculating interest rates as a function of utilization and time
 /// @author Drake Evans github.com/drakeevans

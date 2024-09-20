@@ -33,10 +33,10 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { FraxlendPairCore } from "./FraxlendPairCore.sol";
 import { Timelock2Step } from "./Timelock2Step.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
-import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
-import { IRateCalculatorV2 } from "../interfaces/IRateCalculatorV2.sol";
-import { ISwapper } from "../interfaces/ISwapper.sol";
+import { SafeERC20 } from "../../libraries/SafeERC20.sol";
+import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
+import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
+import { ISwapper } from "../../interfaces/ISwapper.sol";
 
 /// @title FraxlendPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
