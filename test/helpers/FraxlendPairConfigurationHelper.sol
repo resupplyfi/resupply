@@ -39,12 +39,12 @@ library FraxlendPairConfigurationHelper {
         console.log("rateContract: ", IERC20(address(_fraxlendPair.rateContract())).safeName());
         Logger.rate("fullUtilizationRate: ", _fraxlendPair.__getFullUtilizationRate());
         Logger.percent("maxLTV: ", _fraxlendPair.maxLTV(), _fraxlendPair.LTV_PRECISION());
-        Logger.percent("cleanLiquidationFee: ", _fraxlendPair.cleanLiquidationFee(), _fraxlendPair.FEE_PRECISION());
-        Logger.percent(
-            "protocolLiquidationFee: ",
-            _fraxlendPair.protocolLiquidationFee(),
-            _fraxlendPair.FEE_PRECISION()
-        );
+        Logger.percent("LiquidationFee: ", _fraxlendPair.liquidationFee(), _fraxlendPair.FEE_PRECISION());
+        // Logger.percent(
+        //     "protocolLiquidationFee: ",
+        //     _fraxlendPair.protocolLiquidationFee(),
+        //     _fraxlendPair.FEE_PRECISION()
+        // );
     }
 
     function displayMetadata(FraxlendPair _fraxlendPair) public {
@@ -205,24 +205,24 @@ library FraxlendPairConfigurationHelper {
 
             uint256 _LIQ_PRECISION = _fraxlendPair.LIQ_PRECISION();
             console.log("_LIQ_PRECISION", _LIQ_PRECISION);
-            uint256 _cleanLiquidationFee = _fraxlendPair.cleanLiquidationFee();
-            uint256 _dirtyLiquidationFee = _fraxlendPair.dirtyLiquidationFee();
-            uint256 _protocolLiquidationFee = _fraxlendPair.protocolLiquidationFee();
-            Logger.percent("_cleanLiquidationFee", _cleanLiquidationFee, _LIQ_PRECISION);
-            Logger.percent("_dirtyLiquidationFee", _dirtyLiquidationFee, _LIQ_PRECISION);
-            Logger.percent("_protocolLiquidationFee", _protocolLiquidationFee, _LIQ_PRECISION);
+            uint256 _liquidationFee = _fraxlendPair.liquidationFee();
+            // uint256 _dirtyLiquidationFee = _fraxlendPair.dirtyLiquidationFee();
+            // uint256 _protocolLiquidationFee = _fraxlendPair.protocolLiquidationFee();
+            Logger.percent("_liquidationFee", _liquidationFee, _LIQ_PRECISION);
+            // Logger.percent("_dirtyLiquidationFee", _dirtyLiquidationFee, _LIQ_PRECISION);
+            // Logger.percent("_protocolLiquidationFee", _protocolLiquidationFee, _LIQ_PRECISION);
 
             // Ensure maxLTV*liquidationFee < 100%
             require(
-                ((_maxLTV * (_dirtyLiquidationFee - _protocolLiquidationFee)) / _LIQ_PRECISION) < _LTV_PRECISION,
+                ((_maxLTV * (_liquidationFee)) / _LIQ_PRECISION) < _LTV_PRECISION,
                 "Ensure maxLTV*liquidationFee < 100%"
             );
-            require(_dirtyLiquidationFee < _cleanLiquidationFee, "Ensure dirtyLiquidationFee < cleanLiquidationFee");
-            require(
-                _protocolLiquidationFee < _dirtyLiquidationFee,
-                "Ensure protocolLiquidationFee < dirtyLiquidationFee"
-            );
-            console.log("maxLTV, liquidationFee, and protocolLiquidationFee configured properly and passed tests");
+            // require(_dirtyLiquidationFee < _cleanLiquidationFee, "Ensure dirtyLiquidationFee < cleanLiquidationFee");
+            // require(
+            //     _protocolLiquidationFee < _dirtyLiquidationFee,
+            //     "Ensure protocolLiquidationFee < dirtyLiquidationFee"
+            // );
+            console.log("maxLTV, liquidationFee configured properly and passed tests");
 
             console.log("");
             console.log("customConfigData:");

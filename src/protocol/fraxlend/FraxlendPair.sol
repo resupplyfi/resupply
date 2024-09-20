@@ -396,42 +396,37 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
     }
 
     /// @notice The ```SetLiquidationFees``` event is emitted when the liquidation fees are set
-    /// @param oldCleanLiquidationFee The old clean liquidation fee
-    /// @param oldDirtyLiquidationFee The old dirty liquidation fee
-    /// @param oldProtocolLiquidationFee The old protocol liquidation fee
-    /// @param newCleanLiquidationFee The new clean liquidation fee
-    /// @param newDirtyLiquidationFee The new dirty liquidation fee
-    /// @param newProtocolLiquidationFee The new protocol liquidation fee
+    /// @param oldLiquidationFee The old clean liquidation fee
+    /// @param newLiquidationFee The new clean liquidation fee
     event SetLiquidationFees(
-        uint256 oldCleanLiquidationFee,
-        uint256 oldDirtyLiquidationFee,
-        uint256 oldProtocolLiquidationFee,
-        uint256 newCleanLiquidationFee,
-        uint256 newDirtyLiquidationFee,
-        uint256 newProtocolLiquidationFee
+        uint256 oldLiquidationFee,
+        // uint256 oldDirtyLiquidationFee,
+        // uint256 oldProtocolLiquidationFee,
+        uint256 newLiquidationFee
+        // uint256 newDirtyLiquidationFee,
+        // uint256 newProtocolLiquidationFee
     );
 
     /// @notice The ```setLiquidationFees``` function sets the liquidation fees
-    /// @param _newCleanLiquidationFee The new clean liquidation fee
-    /// @param _newDirtyLiquidationFee The new dirty liquidation fee
+    /// @param _newLiquidationFee The new clean liquidation fee
     function setLiquidationFees(
-        uint256 _newCleanLiquidationFee,
-        uint256 _newDirtyLiquidationFee,
-        uint256 _newProtocolLiquidationFee
+        uint256 _newLiquidationFee
+        // uint256 _newDirtyLiquidationFee,
+        // uint256 _newProtocolLiquidationFee
     ) external {
         _requireTimelock();
         if (isLiquidationFeeSetterRevoked) revert SetterRevoked();
         emit SetLiquidationFees(
-            cleanLiquidationFee,
-            dirtyLiquidationFee,
-            protocolLiquidationFee,
-            _newCleanLiquidationFee,
-            _newDirtyLiquidationFee,
-            _newProtocolLiquidationFee
+            liquidationFee,
+            // dirtyLiquidationFee,
+            // protocolLiquidationFee,
+            _newLiquidationFee
+            // _newDirtyLiquidationFee,
+            // _newProtocolLiquidationFee
         );
-        cleanLiquidationFee = _newCleanLiquidationFee;
-        dirtyLiquidationFee = _newDirtyLiquidationFee;
-        protocolLiquidationFee = _newProtocolLiquidationFee;
+        liquidationFee = _newLiquidationFee;
+        // dirtyLiquidationFee = _newDirtyLiquidationFee;
+        // protocolLiquidationFee = _newProtocolLiquidationFee;
     }
 
     /// @notice The ```ChangeFee``` event first when the fee is changed

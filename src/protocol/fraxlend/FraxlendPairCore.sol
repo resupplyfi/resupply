@@ -65,15 +65,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     uint256 public maxLTV;
 
     // Liquidation Fees
-    /// @notice The liquidation fee, given as a % of repayment amount, when all collateral is consumed in liquidation
+    /// @notice The liquidation fee, given as a % of repayment amount
     /// @dev 1e5 precision
-    uint256 public cleanLiquidationFee;
-    /// @notice The liquidation fee, given as % of repayment amount, when some collateral remains for borrower
-    /// @dev 1e5 precision
-    uint256 public dirtyLiquidationFee;
-    /// @notice The portion of the liquidation fee given to protocol
-    /// @dev 1e5 precision
-    uint256 public protocolLiquidationFee;
+    uint256 public liquidationFee;
+
 
     // Interest Rate Calculator Contract
     IRateCalculatorV2 public rateContract; // For complex rate calculations
@@ -150,7 +145,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
                 uint256 _liquidationFee,
-                uint256 _protocolLiquidationFee
+                uint256 _protocolLiquidationFee //TODO remove
             ) = abi.decode(
                     _configData,
                     (address, address, address, uint32, address, uint64, uint256, uint256, uint256)
@@ -171,9 +166,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             rateContract = IRateCalculatorV2(_rateContract);
 
             //Liquidation Fee Settings
-            cleanLiquidationFee = _liquidationFee;
-            dirtyLiquidationFee = (_liquidationFee * 90_000) / LIQ_PRECISION; // 90% of clean fee
-            protocolLiquidationFee = _protocolLiquidationFee;
+            liquidationFee = _liquidationFee;
 
             // set maxLTV
             maxLTV = _maxLTV;
@@ -960,27 +953,23 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @notice The ```Liquidate``` event is emitted when a liquidation occurs
     /// @param _borrower The borrower account for which the liquidation occurred
     /// @param _collateralForLiquidator The amount of Collateral Token transferred to the liquidator
-    /// @param _sharesToLiquidate The number of Borrow Shares the liquidator repaid on behalf of the borrower
-    /// @param _sharesToAdjust The number of Borrow Shares that were adjusted on liabilities and assets (a writeoff)
     event Liquidate(
         address indexed _borrower,
         uint256 _collateralForLiquidator,
-        uint256 _sharesToLiquidate,
+        uint256 _sharesLiquidated,
         uint256 _amountLiquidatorToRepay,
-        uint256 _feesAmount,
-        uint256 _sharesToAdjust,
-        uint256 _amountToAdjust
+        uint256 _feesAmount
+        // uint256 _sharesToAdjust,
+        // uint256 _amountToAdjust
     );
 
     /// @notice The ```liquidate``` function allows a third party to repay a borrower's debt if they have become insolvent
     /// @dev Caller must invoke ```ERC20.approve``` on the Asset Token contract prior to calling ```Liquidate()```
-    /// @param _sharesToLiquidate The number of Borrow Shares repaid by the liquidator
-    /// @param _deadline The timestamp after which tx will revert
     /// @param _borrower The account for which the repayment is credited and from whom collateral will be taken
     /// @return _collateralForLiquidator The amount of Collateral Token transferred to the liquidator
     function liquidate(
-        uint128 _sharesToLiquidate,
-        uint256 _deadline,
+        // uint128 _sharesToLiquidate,
+        // uint256 _deadline,
         address _borrower
     ) external nonReentrant returns (uint256 _collateralForLiquidator) {
         if (_borrower == address(0)) revert InvalidReceiver();
@@ -989,7 +978,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if (isLiquidatePaused) revert LiquidatePaused();
 
         // Ensure deadline has not passed
-        if (block.timestamp > _deadline) revert PastDeadline(block.timestamp, _deadline);
+        // if (block.timestamp > _deadline) revert PastDeadline(block.timestamp, _deadline);
 
         // accrue interest if necessary
         _addInterest();
@@ -1013,13 +1002,13 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         {
             // Checks & Calculations
             // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
-            uint256 _liquidationAmountInCollateralUnits = ((_totalBorrow.toAmount(_sharesToLiquidate, false) *
+            uint256 _liquidationAmountInCollateralUnits = ((_totalBorrow.toAmount(_borrowerShares, false) *
                 _exchangeRate) / EXCHANGE_PRECISION);
 
             // We first optimistically calculate the amount of collateral to give the liquidator based on the higher clean liquidation fee
             // This fee only applies if the liquidator does a full liquidation
             uint256 _optimisticCollateralForLiquidator = (_liquidationAmountInCollateralUnits *
-                (LIQ_PRECISION + cleanLiquidationFee)) / LIQ_PRECISION;
+                (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
             // Because interest accrues every block, _liquidationAmountInCollateralUnits from a few lines up is an ever increasing value
             // This means that leftoverCollateral can occasionally go negative by a few hundred wei (cleanLiqFee premium covers this for liquidator)
@@ -1027,54 +1016,57 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
             // If cleanLiquidation fee results in no leftover collateral, give liquidator all the collateral
             // This will only be true when there liquidator is cleaning out the position
+            //edit: just clamp to user
             _collateralForLiquidator = _leftoverCollateral <= 0
                 ? _userCollateralBalance
-                : (_liquidationAmountInCollateralUnits * (LIQ_PRECISION + dirtyLiquidationFee)) / LIQ_PRECISION;
-
-            if (protocolLiquidationFee > 0) {
-                _feesAmount = (protocolLiquidationFee * _collateralForLiquidator) / LIQ_PRECISION;
-                _collateralForLiquidator = _collateralForLiquidator - _feesAmount;
-            }
+                : _collateralForLiquidator;
         }
 
         // Calculated here for use during repayment, grouped with other calcs before effects start
-        uint128 _amountLiquidatorToRepay = (_totalBorrow.toAmount(_sharesToLiquidate, true)).toUint128();
+        uint128 _amountLiquidatorToRepay = (_totalBorrow.toAmount(_borrowerShares, true)).toUint128();
 
         // Determine if and how much debt to adjust
-        uint128 _sharesToAdjust = 0;
-        {
-            uint128 _amountToAdjust = 0;
-            if (_leftoverCollateral <= 0) {
-                // Determine if we need to adjust any shares
-                _sharesToAdjust = _borrowerShares - _sharesToLiquidate;
-                if (_sharesToAdjust > 0) {
-                    // Write off bad debt
-                    _amountToAdjust = (_totalBorrow.toAmount(_sharesToAdjust, false)).toUint128();
+        // uint128 _sharesToAdjust = 0;
+        // {
+        //     uint128 _amountToAdjust = 0;
+        //     if (_leftoverCollateral <= 0) {
+        //         // Determine if we need to adjust any shares
+        //         _sharesToAdjust = _borrowerShares - _borrowerShares;
+        //         if (_sharesToAdjust > 0) {
+        //             // Write off bad debt
+        //             _amountToAdjust = (_totalBorrow.toAmount(_sharesToAdjust, false)).toUint128();
 
-                    // Note: Ensure this memory struct will be passed to _repayAsset for write to state
-                    _totalBorrow.amount -= _amountToAdjust;
+        //             // Note: Ensure this memory struct will be passed to _repayAsset for write to state
+        //             _totalBorrow.amount -= _amountToAdjust;
 
-                    // Effects: write to state
-                    totalAsset.amount -= _amountToAdjust;
-                }
-            }
-            emit Liquidate(
+        //             // Effects: write to state
+        //             totalAsset.amount -= _amountToAdjust;
+        //         }
+        //     }
+        //     emit Liquidate(
+        //         _borrower,
+        //         _collateralForLiquidator,
+        //         _sharesToLiquidate,
+        //         _amountLiquidatorToRepay,
+        //         _feesAmount,
+        //         _sharesToAdjust,
+        //         _amountToAdjust
+        //     );
+        // }
+        emit Liquidate(
                 _borrower,
                 _collateralForLiquidator,
-                _sharesToLiquidate,
+                _borrowerShares,
                 _amountLiquidatorToRepay,
-                _feesAmount,
-                _sharesToAdjust,
-                _amountToAdjust
+                _feesAmount
             );
-        }
 
         // Effects & Interactions
         // NOTE: reverts if _shares > userBorrowShares
         _repayAsset(
             _totalBorrow,
             _amountLiquidatorToRepay,
-            _sharesToLiquidate + _sharesToAdjust,
+            _borrowerShares,
             msg.sender,
             _borrower
         ); // liquidator repays shares on behalf of borrower

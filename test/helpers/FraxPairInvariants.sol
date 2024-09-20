@@ -252,17 +252,17 @@ abstract contract ForkTests is BasePairTest {
 
         vm.startPrank(liquidator);
         asset.approve(address(fraxlendPair), 2_000_000e18);
-        fraxlendPair.liquidate(uint128(sharesToLiquidate), block.timestamp + 100, alice);
+        fraxlendPair.liquidate(alice);
 
         uint256 amtSpent = stdMath.delta(asset.balanceOf(liquidator), 2_000_000e18);
         uint256 amtToLiquidate = fraxlendPair.toBorrowAmount(sharesToLiquidate, false, false);
 
         // console.log(amtSpent, amtToLiquidate);
         uint256 amtSpot = (amtToLiquidate * low) / 1e18;
-        console.log("amtSpot --->", amtSpot, fraxlendPair.dirtyLiquidationFee());
-        uint256 amtSpotDirty = ((1e5 + fraxlendPair.dirtyLiquidationFee()) * amtSpot) / 1e5;
+        console.log("amtSpot --->", amtSpot, fraxlendPair.liquidationFee());
+        uint256 amtSpotDirty = ((1e5 + fraxlendPair.liquidationFee()) * amtSpot) / 1e5;
         console.log("--->", amtSpotDirty);
-        uint256 protocolFees = ((fraxlendPair.protocolLiquidationFee()) * amtSpotDirty) / 1e5;
+        uint256 protocolFees = 0;
         uint256 liqPayment = stdMath.delta(protocolFees, amtSpotDirty);
 
         // Assert that the liquidator receives the calculated payment
@@ -324,7 +324,7 @@ abstract contract ForkTests is BasePairTest {
     function testForkOnlyTimelockToSetLiquidationFees() public {
         vm.prank(badActor);
         vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
-        fraxlendPair.setLiquidationFees(0.5e5, 0.5e5, 0);
+        fraxlendPair.setLiquidationFees(0.5e5);
     }
 
     function testForkOnlyTimelockToChangeFee() public {
@@ -511,7 +511,7 @@ abstract contract ForkTests is BasePairTest {
         asset.approve(address(fraxlendPair), 2_000_000e18);
 
         vm.expectRevert(FraxlendPairAccessControlErrors.LiquidatePaused.selector);
-        fraxlendPair.liquidate(uint128(sharesToLiquidate), block.timestamp + 100, alice);
+        fraxlendPair.liquidate(alice);
     }
 
     /// @notice Test interest accrual paused
