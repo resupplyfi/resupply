@@ -430,8 +430,7 @@ contract BasePairTest is
                 address(_rateContract),
                 _initialMaxRate,
                 75_000, //75%
-                10_000, // 10% clean liquidation fee
-                2000 // 2% protocol liquidation fee
+                10_000 // 10% clean liquidation fee
             )
         );
         pair = FraxlendPair(_pairAddress);

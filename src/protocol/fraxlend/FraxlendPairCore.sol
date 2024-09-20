@@ -75,10 +75,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Swapper
     mapping(address => bool) public swappers; // approved swapper addresses
 
-    // ERC20 Metadata
-    string internal nameOfContract;
-    string internal symbolOfContract;
-    uint8 internal immutable decimalsOfContract;
+    // Metadata
+    string public name;
+    address public immutable registry;
 
     // ============================================================================================
     // Storage
@@ -143,11 +142,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 address _rateContract,
                 uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
-                uint256 _liquidationFee,
-                uint256 _protocolLiquidationFee //TODO remove
+                uint256 _liquidationFee
             ) = abi.decode(
                     _configData,
-                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256)
+                    (address, address, address, uint32, address, uint64, uint256, uint256)
                 );
 
             // Pair Settings
@@ -172,15 +170,14 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
 
         {
-            (string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract) = abi.decode(
+            (string memory _name, address _registry) = abi.decode(
                 _customConfigData,
-                (string, string, uint8)
+                (string, address)
             );
 
-            // ERC20 Metadata
-            nameOfContract = _nameOfContract;
-            symbolOfContract = _symbolOfContract;
-            decimalsOfContract = _decimalsOfContract;
+            // Metadata
+            name = _name;
+            registry = _registry; //todo move registry to main config area as its important
 
             // Instantiate Interest
             _addInterest();
