@@ -138,7 +138,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
             uint256 _totalCollateral
         )
     {
-        (, , , , VaultAccount memory _totalAsset, VaultAccount memory _totalBorrow) = previewAddInterest();
+        (, , VaultAccount memory _totalAsset, VaultAccount memory _totalBorrow) = previewAddInterest();
         _totalAssetAmount = _totalAsset.amount;
         _totalAssetShares = _totalAsset.shares;
         _totalBorrowAmount = _totalBorrow.amount;
@@ -157,7 +157,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
         bool _previewInterest
     ) external view returns (uint256 _shares) {
         if (_previewInterest) {
-            (, , , , , VaultAccount memory _totalBorrow) = previewAddInterest();
+            (, , , VaultAccount memory _totalBorrow) = previewAddInterest();
             _shares = _totalBorrow.toShares(_amount, _roundUp);
         } else {
             _shares = totalBorrow.toShares(_amount, _roundUp);
@@ -175,7 +175,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
         bool _previewInterest
     ) external view returns (uint256 _amount) {
         if (_previewInterest) {
-            (, , , , , VaultAccount memory _totalBorrow) = previewAddInterest();
+            (, , , VaultAccount memory _totalBorrow) = previewAddInterest();
             _amount = _totalBorrow.toAmount(_shares, _roundUp);
         } else {
             _amount = totalBorrow.toAmount(_shares, _roundUp);
@@ -193,7 +193,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
         bool _previewInterest
     ) public view returns (uint256 _amount) {
         if (_previewInterest) {
-            (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
+            (, , VaultAccount memory _totalAsset, ) = previewAddInterest();
             _amount = _totalAsset.toAmount(_shares, _roundUp);
         } else {
             _amount = totalAsset.toAmount(_shares, _roundUp);
@@ -211,7 +211,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
         bool _previewInterest
     ) public view returns (uint256 _shares) {
         if (_previewInterest) {
-            (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
+            (, , VaultAccount memory _totalAsset, ) = previewAddInterest();
             _shares = _totalAsset.toShares(_amount, _roundUp);
         } else {
             _shares = totalAsset.toShares(_amount, _roundUp);
@@ -231,58 +231,58 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
     }
 
     function totalAssets() external view returns (uint256) {
-        (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
+        (, , VaultAccount memory _totalAsset, ) = previewAddInterest();
         return _totalAsset.amount;
     }
 
     function maxDeposit(address _receiver) public view returns (uint256 _maxAssets) {
-        (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
-        _maxAssets = _totalAsset.amount >= depositLimit ? 0 : depositLimit - _totalAsset.amount;
+        // (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
+        _maxAssets = 0;//_totalAsset.amount >= depositLimit ? 0 : depositLimit - _totalAsset.amount;
     }
 
     function maxMint(address _receiver) external view returns (uint256 _maxShares) {
-        (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
-        uint256 _maxDeposit = _totalAsset.amount >= depositLimit ? 0 : depositLimit - _totalAsset.amount;
-        _maxShares = _totalAsset.toShares(_maxDeposit, false);
+        // (, , , , VaultAccount memory _totalAsset, ) = previewAddInterest();
+        // uint256 _maxDeposit = _totalAsset.amount >= depositLimit ? 0 : depositLimit - _totalAsset.amount;
+        _maxShares = 0;//_totalAsset.toShares(_maxDeposit, false);
     }
 
     function maxWithdraw(address _owner) external view returns (uint256 _maxAssets) {
-        if (isWithdrawPaused) return 0;
-        (
-            ,
-            ,
-            uint256 _feesShare,
-            ,
-            VaultAccount memory _totalAsset,
-            VaultAccount memory _totalBorrow
-        ) = previewAddInterest();
-        // Get the owner balance and include the fees share if owner is this contract
-        uint256 _ownerBalance = _owner == address(this) ? balanceOf(_owner) + _feesShare : balanceOf(_owner);
+        // if (isWithdrawPaused) return 0;
+        // (
+        //     ,
+        //     ,
+        //     uint256 _feesShare,
+        //     ,
+        //     VaultAccount memory _totalAsset,
+        //     VaultAccount memory _totalBorrow
+        // ) = previewAddInterest();
+        // // Get the owner balance and include the fees share if owner is this contract
+        // uint256 _ownerBalance = _owner == address(this) ? balanceOf(_owner) + _feesShare : balanceOf(_owner);
 
-        // Return the lower of total assets in contract or total assets available to _owner
-        uint256 _totalAssetsAvailable = _totalAssetAvailable(_totalAsset, _totalBorrow);
-        uint256 _totalUserWithdraw = _totalAsset.toAmount(_ownerBalance, false);
-        _maxAssets = _totalAssetsAvailable < _totalUserWithdraw ? _totalAssetsAvailable : _totalUserWithdraw;
+        // // Return the lower of total assets in contract or total assets available to _owner
+        // uint256 _totalAssetsAvailable = _totalAssetAvailable(_totalAsset, _totalBorrow);
+        // uint256 _totalUserWithdraw = _totalAsset.toAmount(_ownerBalance, false);
+        _maxAssets = 0;//_totalAssetsAvailable < _totalUserWithdraw ? _totalAssetsAvailable : _totalUserWithdraw;
     }
 
     function maxRedeem(address _owner) external view returns (uint256 _maxShares) {
-        if (isWithdrawPaused) return 0;
-        (
-            ,
-            ,
-            uint256 _feesShare,
-            ,
-            VaultAccount memory _totalAsset,
-            VaultAccount memory _totalBorrow
-        ) = previewAddInterest();
+        // if (isWithdrawPaused) return 0;
+        // (
+        //     ,
+        //     ,
+        //     uint256 _feesShare,
+        //     ,
+        //     VaultAccount memory _totalAsset,
+        //     VaultAccount memory _totalBorrow
+        // ) = previewAddInterest();
 
-        // Calculate the total shares available
-        uint256 _totalAssetsAvailable = _totalAssetAvailable(_totalAsset, _totalBorrow);
-        uint256 _totalSharesAvailable = _totalAsset.toShares(_totalAssetsAvailable, false);
+        // // Calculate the total shares available
+        // uint256 _totalAssetsAvailable = _totalAssetAvailable(_totalAsset, _totalBorrow);
+        // uint256 _totalSharesAvailable = _totalAsset.toShares(_totalAssetsAvailable, false);
 
-        // Get the owner balance and include the fees share if owner is this contract
-        uint256 _ownerBalance = _owner == address(this) ? balanceOf(_owner) + _feesShare : balanceOf(_owner);
-        _maxShares = _totalSharesAvailable < _ownerBalance ? _totalSharesAvailable : _ownerBalance;
+        // // Get the owner balance and include the fees share if owner is this contract
+        // uint256 _ownerBalance = _owner == address(this) ? balanceOf(_owner) + _feesShare : balanceOf(_owner);
+        _maxShares = 0;//_totalSharesAvailable < _ownerBalance ? _totalSharesAvailable : _ownerBalance;
     }
 
     // ============================================================================================
@@ -462,17 +462,19 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
         // Grab some data from state to save gas
         VaultAccount memory _totalAsset = totalAsset;
 
+        //TODO; revamp withdraw fee logic
+
         // Take all available if 0 value passed
-        if (_shares == 0) _shares = uint128(balanceOf(address(this)));
+        // if (_shares == 0) _shares = uint128(balanceOf(address(this)));
 
-        // We must calculate this before we subtract from _totalAsset or invoke _burn
-        _amountToTransfer = _totalAsset.toAmount(_shares, true);
+        // // We must calculate this before we subtract from _totalAsset or invoke _burn
+        // _amountToTransfer = _totalAsset.toAmount(_shares, true);
 
-        _approve(address(this), msg.sender, _shares);
-        _redeem(_totalAsset, _amountToTransfer.toUint128(), _shares, _recipient, address(this));
-        uint256 _collateralAmount = userCollateralBalance[address(this)];
-        _removeCollateral(_collateralAmount, _recipient, address(this));
-        emit WithdrawFees(_shares, _recipient, _amountToTransfer, _collateralAmount);
+        // _approve(address(this), msg.sender, _shares);
+        // _redeem(_totalAsset, _amountToTransfer.toUint128(), _shares, _recipient, address(this));
+        // uint256 _collateralAmount = userCollateralBalance[address(this)];
+        // _removeCollateral(_collateralAmount, _recipient, address(this));
+        // emit WithdrawFees(_shares, _recipient, _amountToTransfer, _collateralAmount);
     }
 
     /// @notice The ```SetSwapper``` event fires whenever a swapper is black or whitelisted
@@ -497,7 +499,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
     function pause() external {
         _requireProtocolOrOwner();
         if (!isBorrowAccessControlRevoked) _setBorrowLimit(0);
-        if (!isDepositAccessControlRevoked) _setDepositLimit(0);
+        // if (!isDepositAccessControlRevoked) _setDepositLimit(0);
         if (!isRepayAccessControlRevoked) _pauseRepay(true);
         if (!isWithdrawAccessControlRevoked) _pauseWithdraw(true);
         if (!isLiquidateAccessControlRevoked) _pauseLiquidate(true);
@@ -511,7 +513,7 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
     function unpause() external {
         _requireTimelockOrOwner();
         if (!isBorrowAccessControlRevoked) _setBorrowLimit(type(uint256).max);
-        if (!isDepositAccessControlRevoked) _setDepositLimit(type(uint256).max);
+        // if (!isDepositAccessControlRevoked) _setDepositLimit(type(uint256).max);
         if (!isRepayAccessControlRevoked) _pauseRepay(false);
         if (!isWithdrawAccessControlRevoked) _pauseWithdraw(false);
         if (!isLiquidateAccessControlRevoked) _pauseLiquidate(false);
@@ -543,27 +545,27 @@ contract FraxlendPair is IERC20Metadata, FraxlendPairCore {
         _revokeBorrowAccessControl(_borrowLimit);
     }
 
-    /// @notice The ```pauseDeposit``` function pauses deposit functionality
-    function pauseDeposit() external {
-        _requireProtocolOrOwner();
-        if (isDepositAccessControlRevoked) revert AccessControlRevoked();
-        _setDepositLimit(0);
-    }
+    // /// @notice The ```pauseDeposit``` function pauses deposit functionality
+    // function pauseDeposit() external {
+    //     _requireProtocolOrOwner();
+    //     if (isDepositAccessControlRevoked) revert AccessControlRevoked();
+    //     _setDepositLimit(0);
+    // }
 
-    /// @notice The ```setDepositLimit``` function sets the deposit limit
-    /// @param _limit The new deposit limit
-    function setDepositLimit(uint256 _limit) external {
-        _requireTimelockOrOwner();
-        if (isDepositAccessControlRevoked) revert AccessControlRevoked();
-        _setDepositLimit(_limit);
-    }
+    // /// @notice The ```setDepositLimit``` function sets the deposit limit
+    // /// @param _limit The new deposit limit
+    // function setDepositLimit(uint256 _limit) external {
+    //     _requireTimelockOrOwner();
+    //     if (isDepositAccessControlRevoked) revert AccessControlRevoked();
+    //     _setDepositLimit(_limit);
+    // }
 
-    /// @notice The ```revokeDepositLimitAccessControl``` function revokes deposit limit access control
-    /// @param _depositLimit The new deposit limit
-    function revokeDepositLimitAccessControl(uint256 _depositLimit) external {
-        _requireTimelock();
-        _revokeDepositAccessControl(_depositLimit);
-    }
+    // /// @notice The ```revokeDepositLimitAccessControl``` function revokes deposit limit access control
+    // /// @param _depositLimit The new deposit limit
+    // function revokeDepositLimitAccessControl(uint256 _depositLimit) external {
+    //     _requireTimelock();
+    //     _revokeDepositAccessControl(_depositLimit);
+    // }
 
     /// @notice The ```pauseRepay``` function pauses repay functionality
     /// @param _isPaused The new pause state

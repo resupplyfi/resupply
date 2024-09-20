@@ -820,7 +820,7 @@ contract BasePairTest is
         _sumOfInt = 0;
         for (uint256 i = 0; i < _blocks; i++) {
             mineOneBlock();
-            (, uint256 _interestEarned, , , , ) = pair.addInterest(false);
+            (uint256 _interestEarned,,,) = pair.addInterest(false);
 
             _sumOfInt += _interestEarned;
         }

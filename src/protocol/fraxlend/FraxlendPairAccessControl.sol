@@ -39,8 +39,8 @@ abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, Frax
     uint256 public borrowLimit = type(uint256).max;
     bool public isBorrowAccessControlRevoked;
 
-    uint256 public depositLimit = type(uint256).max;
-    bool public isDepositAccessControlRevoked;
+    // uint256 public depositLimit = type(uint256).max;
+    // bool public isDepositAccessControlRevoked;
 
     bool public isRepayPaused;
     bool public isRepayAccessControlRevoked;
@@ -111,22 +111,22 @@ abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, Frax
 
     /// @notice The ```RevokeDepositAccessControl``` event is emitted when access to deposit limit is revoked
     /// @param depositLimit The final permanent deposit limit
-    event RevokeDepositAccessControl(uint256 depositLimit);
+    // event RevokeDepositAccessControl(uint256 depositLimit);
 
-    function _revokeDepositAccessControl(uint256 _depositLimit) internal {
-        isDepositAccessControlRevoked = true;
-        depositLimit = _depositLimit;
-        emit RevokeDepositAccessControl(_depositLimit);
-    }
+    // function _revokeDepositAccessControl(uint256 _depositLimit) internal {
+    //     isDepositAccessControlRevoked = true;
+    //     depositLimit = _depositLimit;
+    //     emit RevokeDepositAccessControl(_depositLimit);
+    // }
 
-    /// @notice The ```SetDepositLimit``` event is emitted when the deposit limit is set
-    /// @param limit The new deposit limit
-    event SetDepositLimit(uint256 limit);
+    // /// @notice The ```SetDepositLimit``` event is emitted when the deposit limit is set
+    // /// @param limit The new deposit limit
+    // event SetDepositLimit(uint256 limit);
 
-    function _setDepositLimit(uint256 _limit) internal {
-        depositLimit = _limit;
-        emit SetDepositLimit(_limit);
-    }
+    // function _setDepositLimit(uint256 _limit) internal {
+    //     depositLimit = _limit;
+    //     emit SetDepositLimit(_limit);
+    // }
 
     /// @notice The ```RevokeRepayAccessControl``` event is emitted when repay access control is revoked
     event RevokeRepayAccessControl();

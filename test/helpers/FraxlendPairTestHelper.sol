@@ -28,15 +28,11 @@ library FraxlendPairTestHelper {
     function __addInterest(FraxlendPair _pair) internal returns (InterestResults memory _results) {
         (
             uint256 _interestEarned,
-            uint256 _feesAmount,
-            uint256 _feesShare,
             FraxlendPair.CurrentRateInfo memory _currentRateInfo,
             VaultAccount memory _totalAsset,
             VaultAccount memory _totalBorrow
         ) = _pair.addInterest(true);
         _results.interestEarned = _interestEarned;
-        _results.feesAmount = _feesAmount;
-        _results.feesShare = _feesShare;
         _results.currentRateInfo = _currentRateInfo;
         _results.totalAsset = _totalAsset;
         _results.totalBorrow = _totalBorrow;
@@ -53,17 +49,18 @@ library FraxlendPairTestHelper {
     }
 
     function __totalAssetsAvailable(FraxlendPair _pair) internal view returns (uint256 _totalAssetsAvailable) {
-        (, , , , VaultAccount memory _totalAsset, VaultAccount memory _totalBorrow) = _pair.previewAddInterest();
-        return _totalAsset.amount - _totalBorrow.amount;
+        // (, , VaultAccount memory _totalAsset, VaultAccount memory _totalBorrow) = _pair.previewAddInterest();
+        // return _totalAsset.amount - _totalBorrow.amount;
+        return _pair.totalAssetAvailable();
     }
 
     function __totalBorrowAmount(FraxlendPair _pair) internal view returns (uint256 _totalBorrowAmount) {
-        (, , , , , VaultAccount memory _totalBorrow) = _pair.previewAddInterest();
+        (, , , VaultAccount memory _totalBorrow) = _pair.previewAddInterest();
         return _totalBorrow.amount;
     }
 
     function __totalAssetAmount(FraxlendPair _pair) internal view returns (uint256 _totalAssetAmount) {
-        (, , , , VaultAccount memory _totalAsset, ) = _pair.previewAddInterest();
+        (, , VaultAccount memory _totalAsset, ) = _pair.previewAddInterest();
         return _totalAsset.amount;
     }
 

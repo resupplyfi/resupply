@@ -21,7 +21,7 @@ contract FraxlendPairDeployerTest is BasePairTest {
             FraxlendPair _fraxlendPair = FraxlendPair(_addresses[i]);
 
             assertTrue(_fraxlendPair.borrowLimit() == 0);
-            assertTrue(_fraxlendPair.depositLimit() == 0);
+            // assertTrue(_fraxlendPair.depositLimit() == 0);
             assertTrue(_fraxlendPair.isWithdrawPaused());
             assertTrue(_fraxlendPair.isRepayPaused());
             assertTrue(_fraxlendPair.isLiquidatePaused());

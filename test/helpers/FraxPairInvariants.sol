@@ -339,11 +339,11 @@ abstract contract ForkTests is BasePairTest {
         fraxlendPair.revokeBorrowLimitAccessControl(1e18);
     }
 
-    function testForkOnlyTimelockRevokeDepositLimitAC() public {
-        vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
-        fraxlendPair.revokeDepositLimitAccessControl(1e18);
-    }
+    // function testForkOnlyTimelockRevokeDepositLimitAC() public {
+    //     vm.prank(badActor);
+    //     vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+    //     fraxlendPair.revokeDepositLimitAccessControl(1e18);
+    // }
 
     function testForkOnlyTimelockRevokeRepayAC() public {
         vm.prank(badActor);
@@ -375,11 +375,11 @@ abstract contract ForkTests is BasePairTest {
         fraxlendPair.setBorrowLimit(1e18);
     }
 
-    function testForkOnlyTimelockSetDepositLimit() public {
-        vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
-        fraxlendPair.setDepositLimit(1e18);
-    }
+    // function testForkOnlyTimelockSetDepositLimit() public {
+    //     vm.prank(badActor);
+    //     vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
+    //     fraxlendPair.setDepositLimit(1e18);
+    // }
 
     // ============================================================================================
     // Access control level invariants: Only Timelock or Owner
@@ -391,11 +391,11 @@ abstract contract ForkTests is BasePairTest {
         fraxlendPair.unpause();
     }
 
-    function testForkOnlyTimelockOrOwnerSetDepositLimit() public {
-        vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
-        fraxlendPair.setDepositLimit(100e18);
-    }
+    // function testForkOnlyTimelockOrOwnerSetDepositLimit() public {
+    //     vm.prank(badActor);
+    //     vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
+    //     fraxlendPair.setDepositLimit(100e18);
+    // }
 
     function testForkOnlyTimlockOrOwnerUpause() public isPaused {
         vm.prank(badActor);
@@ -437,25 +437,25 @@ abstract contract ForkTests is BasePairTest {
         fraxlendPair.pauseInterest(true);
     }
 
-    function testForkOnlyProtocolOrOwnerPauseDeposit() public {
-        vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
-        fraxlendPair.pauseDeposit();
-    }
+    // function testForkOnlyProtocolOrOwnerPauseDeposit() public {
+    //     vm.prank(badActor);
+    //     vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
+    //     fraxlendPair.pauseDeposit();
+    // }
 
     // ============================================================================================
     // Assert Paused State Functionality
     // ============================================================================================
 
     /// @notice Asset Deposit is paused
-    function testForkPausedDisallowAssetDeposit() public isPaused {
-        deal(address(asset), user, 1e18);
-        vm.startPrank(user);
-        asset.approve(address(fraxlendPair), 1e18);
+    // function testForkPausedDisallowAssetDeposit() public isPaused {
+    //     deal(address(asset), user, 1e18);
+    //     vm.startPrank(user);
+    //     asset.approve(address(fraxlendPair), 1e18);
 
-        vm.expectRevert(FraxlendPairAccessControlErrors.ExceedsDepositLimit.selector);
-        fraxlendPair.deposit(1e18, user);
-    }
+    //     vm.expectRevert(FraxlendPairAccessControlErrors.ExceedsDepositLimit.selector);
+    //     fraxlendPair.deposit(1e18, user);
+    // }
 
     /// @notice Test Borrowing is paused
     function testForkPausedDisAllowBorrow() public {
@@ -468,15 +468,15 @@ abstract contract ForkTests is BasePairTest {
     }
 
     /// @notice Test Asset Withdrawal Paused
-    function testForkPausedDisallowAssetWithdrawal() public {
-        testForkSupplyToLendingPair();
-        pausePair();
+    // function testForkPausedDisallowAssetWithdrawal() public {
+    //     testForkSupplyToLendingPair();
+    //     pausePair();
 
-        uint256 toWithdraw = fraxlendPair.toAssetAmount(fraxlendPair.balanceOf(user), true, true);
-        vm.expectRevert(FraxlendPairAccessControlErrors.WithdrawPaused.selector);
-        vm.prank(user);
-        fraxlendPair.withdraw(toWithdraw, user, user);
-    }
+    //     uint256 toWithdraw = fraxlendPair.toAssetAmount(fraxlendPair.balanceOf(user), true, true);
+    //     vm.expectRevert(FraxlendPairAccessControlErrors.WithdrawPaused.selector);
+    //     vm.prank(user);
+    //     fraxlendPair.withdraw(toWithdraw, user, user);
+    // }
 
     /// @notice Test borrow repayment paused
     function testForkPausedRepayBorrow() public {
@@ -535,13 +535,13 @@ abstract contract ForkTests is BasePairTest {
         bool liquidationPaused = fraxlendPair.isLiquidatePaused();
         bool repaymentPaused = fraxlendPair.isRepayPaused();
         bool withdrawalPaused = fraxlendPair.isWithdrawPaused();
-        uint256 depositLimit = fraxlendPair.depositLimit();
+        // uint256 depositLimit = fraxlendPair.depositLimit();
 
         assertFalse(interestPaused, "Interest was not paused");
         assertFalse(liquidationPaused, "Liquidations were not paused");
         assertFalse(repaymentPaused, "Repayments were not paused");
         assertFalse(withdrawalPaused, "Withdrawals were not paused");
-        assertEq(depositLimit, type(uint256).max, "Asset Deposits were not paused");
+        // assertEq(depositLimit, type(uint256).max, "Asset Deposits were not paused");
     }
 
     function testForkUnpauseTimeLock() public isPaused {
@@ -552,13 +552,13 @@ abstract contract ForkTests is BasePairTest {
         bool liquidationPaused = fraxlendPair.isLiquidatePaused();
         bool repaymentPaused = fraxlendPair.isRepayPaused();
         bool withdrawalPaused = fraxlendPair.isWithdrawPaused();
-        uint256 depositLimit = fraxlendPair.depositLimit();
+        // uint256 depositLimit = fraxlendPair.depositLimit();
 
         assertFalse(interestPaused, "Interest was not paused");
         assertFalse(liquidationPaused, "Liquidations were not paused");
         assertFalse(repaymentPaused, "Repayments were not paused");
         assertFalse(withdrawalPaused, "Withdrawals were not paused");
-        assertEq(depositLimit, type(uint256).max, "Asset Deposits were not paused");
+        // assertEq(depositLimit, type(uint256).max, "Asset Deposits were not paused");
     }
 
     function pausePair() public {
@@ -570,13 +570,13 @@ abstract contract ForkTests is BasePairTest {
         bool liquidationPaused = fraxlendPair.isLiquidatePaused();
         bool repaymentPaused = fraxlendPair.isRepayPaused();
         bool withdrawalPaused = fraxlendPair.isWithdrawPaused();
-        uint256 depositLimit = fraxlendPair.depositLimit();
+        // uint256 depositLimit = fraxlendPair.depositLimit();
 
         assertTrue(interestPaused, "Interest was not paused");
         assertTrue(liquidationPaused, "Liquidations were not paused");
         assertTrue(repaymentPaused, "Repayments were not paused");
         assertTrue(withdrawalPaused, "Withdrawals were not paused");
-        assertEq(depositLimit, 0, "Asset Deposits were not paused");
+        // assertEq(depositLimit, 0, "Asset Deposits were not paused");
     }
 
     modifier isPaused() {
