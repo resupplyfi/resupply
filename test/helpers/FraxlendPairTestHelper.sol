@@ -20,8 +20,8 @@ library FraxlendPairTestHelper {
         uint256 interestEarned;
         uint256 feesAmount;
         uint256 feesShare;
+        uint256 claimableFees;
         FraxlendPair.CurrentRateInfo currentRateInfo;
-        VaultAccount totalAsset;
         VaultAccount totalBorrow;
     }
 
@@ -29,12 +29,12 @@ library FraxlendPairTestHelper {
         (
             uint256 _interestEarned,
             FraxlendPair.CurrentRateInfo memory _currentRateInfo,
-            VaultAccount memory _totalAsset,
+            uint256 _claimableFees,
             VaultAccount memory _totalBorrow
         ) = _pair.addInterest(true);
         _results.interestEarned = _interestEarned;
         _results.currentRateInfo = _currentRateInfo;
-        _results.totalAsset = _totalAsset;
+        _results.claimableFees = _claimableFees;
         _results.totalBorrow = _totalBorrow;
     }
 
@@ -59,9 +59,8 @@ library FraxlendPairTestHelper {
         return _totalBorrow.amount;
     }
 
-    function __totalAssetAmount(FraxlendPair _pair) internal view returns (uint256 _totalAssetAmount) {
-        (, , VaultAccount memory _totalAsset, ) = _pair.previewAddInterest();
-        return _totalAsset.amount;
+    function __totalClaimableFees(FraxlendPair _pair) internal view returns (uint256 _claimableFees) {
+        (, , _claimableFees, ) = _pair.previewAddInterest();
     }
 
     function __updateExchangeRateGetLow(FraxlendPair _pair) internal returns (uint256 _low) {
@@ -93,8 +92,7 @@ library FraxlendPairTestHelper {
     function __getUserSnapshot(
         FraxlendPair _fraxlendPair,
         address _address
-    ) external view returns (uint256 _userAssetShares, uint256 _userBorrowShares, uint256 _userCollateralBalance) {
-        _userAssetShares = _fraxlendPair.balanceOf(_address);
+    ) external view returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
         _userBorrowShares = _fraxlendPair.userBorrowShares(_address);
         _userCollateralBalance = _fraxlendPair.userCollateralBalance(_address);
     }
@@ -105,14 +103,13 @@ library FraxlendPairTestHelper {
         external
         view
         returns (
-            uint128 _totalAssetAmount,
-            uint128 _totalAssetShares,
+            uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
         )
     {
-        (_totalAssetAmount, _totalAssetShares) = _fraxlendPair.totalAsset();
+        _claimableFees = _fraxlendPair.claimableFees();
         (_totalBorrowAmount, _totalBorrowShares) = _fraxlendPair.totalBorrow();
         _totalCollateral = _fraxlendPair.totalCollateral();
     }

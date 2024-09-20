@@ -47,25 +47,25 @@ library FraxlendPairConfigurationHelper {
         // );
     }
 
-    function displayMetadata(FraxlendPair _fraxlendPair) public {
-        {
-            console.log("");
-            console.log("======================================================================================");
-            console.log("The following are metadata parameters of the contract");
-            console.log("======================================================================================");
-            string memory _name = _fraxlendPair.name();
-            console.log("fraxlendPair.name():", _name);
-            uint256 _decimals = _fraxlendPair.decimals();
-            console.log("fraxlendPair.decimals():", _decimals);
-            string memory _symbol = _fraxlendPair.symbol();
-            console.log("fraxlendPair.symbol():", _symbol);
-            require(
-                _decimals == IERC20(_fraxlendPair.asset()).safeDecimals(),
-                "Asset decimals must be equal to FraxlendPair decimals"
-            );
-            console.log("Contract decimals passed tests");
-        }
-    }
+    // function displayMetadata(FraxlendPair _fraxlendPair) public {
+    //     {
+    //         console.log("");
+    //         console.log("======================================================================================");
+    //         console.log("The following are metadata parameters of the contract");
+    //         console.log("======================================================================================");
+    //         string memory _name = _fraxlendPair.name();
+    //         console.log("fraxlendPair.name():", _name);
+    //         uint256 _decimals = _fraxlendPair.decimals();
+    //         console.log("fraxlendPair.decimals():", _decimals);
+    //         string memory _symbol = _fraxlendPair.symbol();
+    //         console.log("fraxlendPair.symbol():", _symbol);
+    //         require(
+    //             _decimals == IERC20(_fraxlendPair.asset()).safeDecimals(),
+    //             "Asset decimals must be equal to FraxlendPair decimals"
+    //         );
+    //         console.log("Contract decimals passed tests");
+    //     }
+    // }
 
     function displayRateContract(FraxlendPair _fraxlendPair) public view {
         {
@@ -224,9 +224,9 @@ library FraxlendPairConfigurationHelper {
             // );
             console.log("maxLTV, liquidationFee configured properly and passed tests");
 
-            console.log("");
-            console.log("customConfigData:");
-            console.logBytes(abi.encode(_fraxlendPair.name(), _fraxlendPair.symbol(), _fraxlendPair.decimals()));
+            // console.log("");
+            // console.log("customConfigData:");
+            // console.logBytes(abi.encode(_fraxlendPair.name(), _fraxlendPair.symbol(), _fraxlendPair.decimals()));
         }
     }
 
@@ -319,7 +319,7 @@ library FraxlendPairConfigurationHelper {
 
     function __displayPostDeploymentData(FraxlendPair _fraxlendPair) public {
         displayConstructorParams(_fraxlendPair);
-        displayMetadata(_fraxlendPair);
+        // displayMetadata(_fraxlendPair);
         displayAssetCollateralInfo(_fraxlendPair);
         displayExchangeRateData(_fraxlendPair);
         displayOracleInfo(_fraxlendPair);
@@ -329,7 +329,7 @@ library FraxlendPairConfigurationHelper {
 
     function __displayPostDeploymentDataFxb(FraxlendPair _fraxlendPair) public {
         displayConstructorParams(_fraxlendPair);
-        displayMetadata(_fraxlendPair);
+        // displayMetadata(_fraxlendPair);
         displayAssetCollateralInfo(_fraxlendPair);
         displayExchangeRateData(_fraxlendPair);
         /// @dev Non-standard Oracles for FXB pairs

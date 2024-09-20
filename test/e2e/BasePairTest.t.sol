@@ -56,9 +56,6 @@ contract BasePairTest is
 
     struct UserAccounting {
         address _address;
-        uint256 assetShares;
-        uint256 assetAmountFalse;
-        uint256 assetAmountTrue;
         uint256 borrowShares;
         uint256 borrowAmountFalse;
         uint256 borrowAmountTrue;
@@ -69,8 +66,7 @@ contract BasePairTest is
 
     struct PairAccounting {
         address fraxlendPairAddress;
-        uint128 totalAssetAmount;
-        uint128 totalAssetShares;
+        uint256 claimableFees;
         uint128 totalBorrowAmount;
         uint128 totalBorrowShares;
         uint256 totalCollateral;
@@ -110,15 +106,12 @@ contract BasePairTest is
         FraxlendPair _fraxlendPair,
         address _userAddress
     ) public view returns (UserAccounting memory) {
-        (uint256 _assetShares, uint256 _borrowShares, uint256 _collateralBalance) = _fraxlendPair.__getUserSnapshot(
+        (uint256 _borrowShares, uint256 _collateralBalance) = _fraxlendPair.__getUserSnapshot(
             _userAddress
         );
         return
             UserAccounting({
                 _address: _userAddress,
-                assetShares: _assetShares,
-                assetAmountFalse: toAssetAmount(_fraxlendPair, _assetShares, false),
-                assetAmountTrue: toAssetAmount(_fraxlendPair, _assetShares, true),
                 borrowShares: _borrowShares,
                 borrowAmountFalse: toBorrowAmount(_fraxlendPair, _borrowShares, false),
                 borrowAmountTrue: toBorrowAmount(_fraxlendPair, _borrowShares, true),
@@ -133,14 +126,11 @@ contract BasePairTest is
         UserAccounting memory _initial
     ) public view returns (UserAccounting memory _final, UserAccounting memory _net) {
         address _userAddress = _initial._address;
-        (uint256 _assetShares, uint256 _borrowShares, uint256 _collateralBalance) = _fraxlendPair.__getUserSnapshot(
+        (uint256 _borrowShares, uint256 _collateralBalance) = _fraxlendPair.__getUserSnapshot(
             _userAddress
         );
         _final = UserAccounting({
             _address: _userAddress,
-            assetShares: _assetShares,
-            assetAmountFalse: toAssetAmount(_fraxlendPair, _assetShares, false),
-            assetAmountTrue: toAssetAmount(_fraxlendPair, _assetShares, true),
             borrowShares: _borrowShares,
             borrowAmountFalse: toBorrowAmount(_fraxlendPair, _borrowShares, false),
             borrowAmountTrue: toBorrowAmount(_fraxlendPair, _borrowShares, true),
@@ -150,9 +140,6 @@ contract BasePairTest is
         });
         _net = UserAccounting({
             _address: _userAddress,
-            assetShares: stdMath.delta(_initial.assetShares, _final.assetShares),
-            assetAmountFalse: stdMath.delta(_initial.assetAmountFalse, _final.assetAmountFalse),
-            assetAmountTrue: stdMath.delta(_initial.assetAmountTrue, _final.assetAmountTrue),
             borrowShares: stdMath.delta(_initial.borrowShares, _final.borrowShares),
             borrowAmountFalse: stdMath.delta(_initial.borrowAmountFalse, _final.borrowAmountFalse),
             borrowAmountTrue: stdMath.delta(_initial.borrowAmountTrue, _final.borrowAmountTrue),
@@ -166,28 +153,22 @@ contract BasePairTest is
         FraxlendPair _fraxlendPair
     ) internal view returns (PairAccounting memory _initial) {
         address _fraxlendPairAddress = address(_fraxlendPair);
-        uint256 _assetShares = _fraxlendPair.balanceOf(_fraxlendPairAddress);
         IERC20 _asset = IERC20(_fraxlendPair.asset());
         IERC20 _collateral = _fraxlendPair.collateralContract();
 
         (
-            uint128 _totalAssetAmount,
-            uint128 _totalAssetShares,
+            uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
         ) = _fraxlendPair.__getPairAccounting();
         _initial.fraxlendPairAddress = _fraxlendPairAddress;
-        _initial.totalAssetAmount = _totalAssetAmount;
-        _initial.totalAssetShares = _totalAssetShares;
+        _initial.claimableFees = _claimableFees;
         _initial.totalBorrowAmount = _totalBorrowAmount;
         _initial.totalBorrowShares = _totalBorrowShares;
         _initial.totalCollateral = _totalCollateral;
         _initial.balanceOfAsset = _asset.balanceOf(_fraxlendPairAddress);
         _initial.balanceOfCollateral = _collateral.balanceOf(_fraxlendPairAddress);
-        _initial.assetShares = _assetShares.toUint128();
-        _initial.assetAmountTrue = _fraxlendPair.toAssetAmount(_assetShares, true, false).toUint128();
-        _initial.assetAmountFalse = _fraxlendPair.toAssetAmount(_assetShares, false, false).toUint128();
         _initial.collateralBalance = _fraxlendPair.userCollateralBalance(_fraxlendPairAddress);
     }
 
@@ -196,42 +177,32 @@ contract BasePairTest is
     ) internal view returns (PairAccounting memory _final, PairAccounting memory _net) {
         address _fraxlendPairAddress = _initial.fraxlendPairAddress;
         FraxlendPair _fraxlendPair = FraxlendPair(_fraxlendPairAddress);
-        uint256 _assetShares = _fraxlendPair.balanceOf(_fraxlendPairAddress);
         IERC20 _asset = IERC20(_fraxlendPair.asset());
         IERC20 _collateral = _fraxlendPair.collateralContract();
 
         (
-            uint128 _totalAssetAmount,
-            uint128 _totalAssetShares,
+            uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
         ) = _fraxlendPair.getPairAccounting();
         // Sorry for mutation syntax
         _final.fraxlendPairAddress = _fraxlendPairAddress;
-        _final.totalAssetAmount = _totalAssetAmount;
-        _final.totalAssetShares = _totalAssetShares;
+        _final.claimableFees = _claimableFees;
         _final.totalBorrowAmount = _totalBorrowAmount;
         _final.totalBorrowShares = _totalBorrowShares;
         _final.totalCollateral = _totalCollateral;
         _final.balanceOfAsset = _asset.balanceOf(_fraxlendPairAddress);
         _final.balanceOfCollateral = _collateral.balanceOf(_fraxlendPairAddress);
-        _final.assetShares = _assetShares.toUint128();
-        _final.assetAmountTrue = _fraxlendPair.toAssetAmount(_assetShares, true, false).toUint128();
-        _final.assetAmountFalse = _fraxlendPair.toAssetAmount(_assetShares, false, false).toUint128();
         _final.collateralBalance = _fraxlendPair.userCollateralBalance(_fraxlendPairAddress);
 
         _net.fraxlendPairAddress = _fraxlendPairAddress;
-        _net.totalAssetAmount = stdMath.delta(_final.totalAssetAmount, _initial.totalAssetAmount).toUint128();
-        _net.totalAssetShares = stdMath.delta(_final.totalAssetShares, _initial.totalAssetShares).toUint128();
+        _net.claimableFees = stdMath.delta(_final.claimableFees, _initial.claimableFees).toUint128();
         _net.totalBorrowAmount = stdMath.delta(_final.totalBorrowAmount, _initial.totalBorrowAmount).toUint128();
         _net.totalBorrowShares = stdMath.delta(_final.totalBorrowShares, _initial.totalBorrowShares).toUint128();
         _net.totalCollateral = stdMath.delta(_final.totalCollateral, _initial.totalCollateral);
         _net.balanceOfAsset = stdMath.delta(_final.balanceOfAsset, _initial.balanceOfAsset);
         _net.balanceOfCollateral = stdMath.delta(_final.balanceOfCollateral, _initial.balanceOfCollateral);
-        _net.assetShares = stdMath.delta(_final.assetShares, _initial.assetShares).toUint128();
-        _net.assetAmountTrue = stdMath.delta(_final.assetAmountTrue, _initial.assetAmountTrue).toUint128();
-        _net.assetAmountFalse = stdMath.delta(_final.assetAmountFalse, _initial.assetAmountFalse).toUint128();
         _net.collateralBalance = stdMath.delta(_final.collateralBalance, _initial.collateralBalance).toUint128();
     }
 
@@ -239,16 +210,16 @@ contract BasePairTest is
         // require(1 == 2, "This is a test function with a very long reason string that should be truncated");
         uint256 _totalUserBorrowShares = pair.userBorrowShares(address(pair));
         uint256 _totalUserCollateralBalance = pair.userCollateralBalance(address(pair));
-        uint256 _totalUserAssetShares = pair.balanceOf(address(pair));
+       // uint256 _totalUserAssetShares = pair.balanceOf(address(pair));
 
         for (uint256 i = 0; i < users.length; i++) {
             _totalUserBorrowShares += pair.userBorrowShares(users[i]);
             _totalUserCollateralBalance += pair.userCollateralBalance(users[i]);
-            _totalUserAssetShares += pair.balanceOf(users[i]);
+            // _totalUserAssetShares += pair.balanceOf(users[i]);
         }
 
         (uint128 _pairTotalBorrowAmount, uint128 _pairTotalBorrowShares) = pair.totalBorrow();
-        (uint128 _pairTotalAssetAmount, uint128 _pairTotalAssetShares) = pair.totalAsset();
+        // (uint128 _pairTotalAssetAmount, uint128 _pairTotalAssetShares) = pair.totalAsset();
         assertEq(
             _totalUserBorrowShares,
             _pairTotalBorrowShares,
@@ -259,21 +230,21 @@ contract BasePairTest is
             pair.totalCollateral(),
             "Sum of users collateral balance equals total collateral accounting"
         );
-        assertEq(
-            _totalUserAssetShares,
-            _pairTotalAssetShares,
-            "Sum of users asset shares equals total asset shares accounting"
-        );
+        // assertEq(
+        //     _totalUserAssetShares,
+        //     _pairTotalAssetShares,
+        //     "Sum of users asset shares equals total asset shares accounting"
+        // );
         assertEq(
             pair.totalCollateral(),
             collateral.balanceOf(address(pair)),
             "Total collateral accounting matches collateral.balanceOf"
         );
-        assertEq(
-            _pairTotalAssetAmount - _pairTotalBorrowAmount,
-            asset.balanceOf(address(pair)),
-            "Total collateral accounting matches collateral.balanceOf"
-        );
+        // assertEq(
+        //     _pairTotalAssetAmount - _pairTotalBorrowAmount,
+        //     asset.balanceOf(address(pair)),
+        //     "Total collateral accounting matches collateral.balanceOf"
+        // );
     }
 
     function assertUnwind(FraxlendPair _pair) public {
@@ -291,13 +262,14 @@ contract BasePairTest is
             vm.stopPrank();
         }
 
-        for (uint256 i = 0; i < users.length; i++) {
-            address _user = users[i];
-            startHoax(_user);
-            uint256 _shares = _pair.balanceOf(_user);
-            _pair.redeem(_shares, _user, _user);
-            vm.stopPrank();
-        }
+        //todo
+        // for (uint256 i = 0; i < users.length; i++) {
+        //     address _user = users[i];
+        //     startHoax(_user);
+        //     uint256 _shares = _pair.balanceOf(_user);
+        //     _pair.redeem(_shares, _user, _user);
+        //     vm.stopPrank();
+        // }
     }
 
     // ============================================================================================
@@ -529,36 +501,36 @@ contract BasePairTest is
     // ============================================================================================
 
     // helper to convert assets shares to amount
-    function toAssetAmount(uint256 _shares, bool roundup) public view returns (uint256 _amount) {
-        (uint256 _amountTotal, uint256 _sharesTotal) = pair.totalAsset();
-        _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
-    }
+    // function toAssetAmount(uint256 _shares, bool roundup) public view returns (uint256 _amount) {
+    //     (uint256 _amountTotal, uint256 _sharesTotal) = pair.totalAsset();
+    //     _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
+    // }
 
-    function toAssetAmount(
-        FraxlendPair _fraxlendPair,
-        uint256 _shares,
-        bool roundup
-    ) public view returns (uint256 _amount) {
-        (uint256 _amountTotal, uint256 _sharesTotal) = _fraxlendPair.totalAsset();
-        _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
-    }
+    // function toAssetAmount(
+    //     FraxlendPair _fraxlendPair,
+    //     uint256 _shares,
+    //     bool roundup
+    // ) public view returns (uint256 _amount) {
+    //     (uint256 _amountTotal, uint256 _sharesTotal) = _fraxlendPair.totalAsset();
+    //     _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
+    // }
 
-    // helper to convert assets shares to amount
-    function toAssetAmount(
-        uint256 _amountTotal,
-        uint256 _sharesTotal,
-        uint256 _shares,
-        bool roundup
-    ) public pure returns (uint256 _amount) {
-        if (_sharesTotal == 0) {
-            _amount = _shares;
-        } else {
-            _amount = (_shares * _amountTotal) / _sharesTotal;
-            if (roundup && (_amount * _sharesTotal) / _amountTotal < _shares) {
-                _amount++;
-            }
-        }
-    }
+    // // helper to convert assets shares to amount
+    // function toAssetAmount(
+    //     uint256 _amountTotal,
+    //     uint256 _sharesTotal,
+    //     uint256 _shares,
+    //     bool roundup
+    // ) public pure returns (uint256 _amount) {
+    //     if (_sharesTotal == 0) {
+    //         _amount = _shares;
+    //     } else {
+    //         _amount = (_shares * _amountTotal) / _sharesTotal;
+    //         if (roundup && (_amount * _sharesTotal) / _amountTotal < _shares) {
+    //             _amount++;
+    //         }
+    //     }
+    // }
 
     // helper to convert borrows shares to amount
     function toBorrowAmount(uint256 _shares, bool roundup) public view returns (uint256 _amount) {
@@ -592,28 +564,28 @@ contract BasePairTest is
         }
     }
 
-    // helper to convert asset amount to shares
-    function toAssetShares(uint256 _amount, bool roundup) public view returns (uint256 _shares) {
-        (uint256 _amountTotal, uint256 _sharesTotal) = pair.totalAsset();
-        _shares = toAssetShares(_amountTotal, _sharesTotal, _amount, roundup);
-    }
+    // // helper to convert asset amount to shares
+    // function toAssetShares(uint256 _amount, bool roundup) public view returns (uint256 _shares) {
+    //     (uint256 _amountTotal, uint256 _sharesTotal) = pair.totalAsset();
+    //     _shares = toAssetShares(_amountTotal, _sharesTotal, _amount, roundup);
+    // }
 
-    // helper to convert asset amount to shares
-    function toAssetShares(
-        uint256 _amountTotal,
-        uint256 _sharesTotal,
-        uint256 _amount,
-        bool roundup
-    ) public pure returns (uint256 _shares) {
-        if (_amountTotal == 0) {
-            _shares = _amount;
-        } else {
-            _shares = (_amount * _sharesTotal) / _amountTotal;
-            if (roundup && (_shares * _amountTotal) / _sharesTotal < _amount) {
-                _shares++;
-            }
-        }
-    }
+    // // helper to convert asset amount to shares
+    // function toAssetShares(
+    //     uint256 _amountTotal,
+    //     uint256 _sharesTotal,
+    //     uint256 _amount,
+    //     bool roundup
+    // ) public pure returns (uint256 _shares) {
+    //     if (_amountTotal == 0) {
+    //         _shares = _amount;
+    //     } else {
+    //         _shares = (_amount * _sharesTotal) / _amountTotal;
+    //         if (roundup && (_shares * _amountTotal) / _sharesTotal < _amount) {
+    //             _shares++;
+    //         }
+    //     }
+    // }
 
     // helper to convert borrow amount to shares
     function toBorrowShares(uint256 _amount, bool roundup) public view returns (uint256 _shares) {
@@ -640,8 +612,8 @@ contract BasePairTest is
 
     function getUtilization() internal view returns (uint256 _utilization) {
         (uint256 _borrowAmount, ) = pair.totalBorrow();
-        (uint256 _assetAmount, ) = pair.totalAsset();
-        _utilization = (_borrowAmount * UTIL_PREC) / _assetAmount;
+        uint256 _borrowLimit = pair.borrowLimit();
+        _utilization = (_borrowAmount * UTIL_PREC) / _borrowLimit;
     }
 
     function ratePerSec(FraxlendPair _pair) internal view returns (uint64 _ratePerSec) {
@@ -682,43 +654,43 @@ contract BasePairTest is
         uint256 shares;
     }
 
-    function _preMintFaucetApprove(FraxlendPair _fraxlendPair, MintAction memory _mintAction) internal {
-        IERC20 _asset = IERC20(_fraxlendPair.asset());
-        uint256 _amount = _fraxlendPair.previewMint(_mintAction.shares);
-        faucetFunds(_asset, _amount, _mintAction.user);
-        _asset.approve(address(_fraxlendPair), _amount);
-    }
+    // function _preMintFaucetApprove(FraxlendPair _fraxlendPair, MintAction memory _mintAction) internal {
+    //     IERC20 _asset = IERC20(_fraxlendPair.asset());
+    //     uint256 _amount = _fraxlendPair.previewMint(_mintAction.shares);
+    //     faucetFunds(_asset, _amount, _mintAction.user);
+    //     _asset.approve(address(_fraxlendPair), _amount);
+    // }
 
-    function lendTokenViaMintWithFaucet(FraxlendPair _pair, MintAction memory _mintAction) internal returns (uint256) {
-        startHoax(_mintAction.user);
-        _preMintFaucetApprove(_pair, _mintAction);
-        uint256 _amount = _pair.mint(_mintAction.shares, _mintAction.user);
-        vm.stopPrank();
-        return _amount;
-    }
+    // function lendTokenViaMintWithFaucet(FraxlendPair _pair, MintAction memory _mintAction) internal returns (uint256) {
+    //     startHoax(_mintAction.user);
+    //     _preMintFaucetApprove(_pair, _mintAction);
+    //     uint256 _amount = _pair.mint(_mintAction.shares, _mintAction.user);
+    //     vm.stopPrank();
+    //     return _amount;
+    // }
 
-    function _preDepositFaucetApprove(FraxlendPair _fraxlendPair, DepositAction memory _depositAction) internal {
-        IERC20 _asset = IERC20(_fraxlendPair.asset());
-        faucetFunds(_asset, _depositAction.amount, _depositAction.user);
-        _asset.approve(address(_fraxlendPair), _depositAction.amount);
-    }
+    // function _preDepositFaucetApprove(FraxlendPair _fraxlendPair, DepositAction memory _depositAction) internal {
+    //     IERC20 _asset = IERC20(_fraxlendPair.asset());
+    //     faucetFunds(_asset, _depositAction.amount, _depositAction.user);
+    //     _asset.approve(address(_fraxlendPair), _depositAction.amount);
+    // }
 
     // helper to approve and lend in one step
-    function lendTokenViaDeposit(FraxlendPair _pair, DepositAction memory _depositAction) internal returns (uint256) {
-        startHoax(_depositAction.user);
-        IERC20(_pair.asset()).approve(address(_pair), _depositAction.amount);
-        uint256 _shares = _pair.deposit(_depositAction.amount, _depositAction.user);
-        vm.stopPrank();
-        return _shares;
-    }
+    // function lendTokenViaDeposit(FraxlendPair _pair, DepositAction memory _depositAction) internal returns (uint256) {
+    //     startHoax(_depositAction.user);
+    //     IERC20(_pair.asset()).approve(address(_pair), _depositAction.amount);
+    //     uint256 _shares = _pair.deposit(_depositAction.amount, _depositAction.user);
+    //     vm.stopPrank();
+    //     return _shares;
+    // }
 
-    function lendTokenViaDepositWithFaucet(
-        FraxlendPair _pair,
-        DepositAction memory _depositAction
-    ) internal returns (uint256) {
-        faucetFunds(IERC20(_pair.asset()), _depositAction.amount, _depositAction.user);
-        return lendTokenViaDeposit(_pair, _depositAction);
-    }
+    // function lendTokenViaDepositWithFaucet(
+    //     FraxlendPair _pair,
+    //     DepositAction memory _depositAction
+    // ) internal returns (uint256) {
+    //     faucetFunds(IERC20(_pair.asset()), _depositAction.amount, _depositAction.user);
+    //     return lendTokenViaDeposit(_pair, _depositAction);
+    // }
 
     // Borrowing
 
@@ -828,32 +800,32 @@ contract BasePairTest is
 
     // Withdraw / Redeeming
 
-    struct WithdrawAction {
-        FraxlendPair fraxlendPair;
-        address user;
-        uint256 amount;
-    }
+    // struct WithdrawAction {
+    //     FraxlendPair fraxlendPair;
+    //     address user;
+    //     uint256 amount;
+    // }
 
-    struct RedeemAction {
-        FraxlendPair fraxlendPair;
-        address user;
-        uint256 shares;
-    }
+    // struct RedeemAction {
+    //     FraxlendPair fraxlendPair;
+    //     address user;
+    //     uint256 shares;
+    // }
 
-    function _preRedeemFaucetApprove(RedeemAction memory _redeemAction) internal {
-        IERC20 _asset = IERC20(_redeemAction.fraxlendPair.asset());
-        faucetFunds(_asset, _redeemAction.shares * 2, _redeemAction.user);
-        _asset.approve(address(_redeemAction.fraxlendPair), _redeemAction.shares * 2);
-    }
+    // function _preRedeemFaucetApprove(RedeemAction memory _redeemAction) internal {
+    //     IERC20 _asset = IERC20(_redeemAction.fraxlendPair.asset());
+    //     faucetFunds(_asset, _redeemAction.shares * 2, _redeemAction.user);
+    //     _asset.approve(address(_redeemAction.fraxlendPair), _redeemAction.shares * 2);
+    // }
 
-    function redeemTokenWithFaucet(RedeemAction memory _redeemAction) internal returns (uint256 _amount) {
-        startHoax(_redeemAction.user);
-        faucetFunds(IERC20(_redeemAction.fraxlendPair.asset()), _redeemAction.shares * 2, _redeemAction.user);
-        _amount = redeemToken(_redeemAction);
-        vm.stopPrank();
-    }
+    // function redeemTokenWithFaucet(RedeemAction memory _redeemAction) internal returns (uint256 _amount) {
+    //     startHoax(_redeemAction.user);
+    //     faucetFunds(IERC20(_redeemAction.fraxlendPair.asset()), _redeemAction.shares * 2, _redeemAction.user);
+    //     _amount = redeemToken(_redeemAction);
+    //     vm.stopPrank();
+    // }
 
-    function redeemToken(RedeemAction memory _redeemAction) internal returns (uint256 _amount) {
-        _amount = _redeemAction.fraxlendPair.redeem(_redeemAction.shares, _redeemAction.user, _redeemAction.user);
-    }
+    // function redeemToken(RedeemAction memory _redeemAction) internal returns (uint256 _amount) {
+    //     _amount = _redeemAction.fraxlendPair.redeem(_redeemAction.shares, _redeemAction.user, _redeemAction.user);
+    // }
 }
