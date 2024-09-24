@@ -26,7 +26,7 @@ pragma solidity ^0.8.19;
 // ====================================================================
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./Ownership.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -40,7 +40,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice Deploys and initializes new FraxlendPairs
 /// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
-contract PairDeployer is Ownership {
+contract PairDeployer is Ownable2Step {
     using Strings for uint256;
     using SafeERC20 for IERC20;
 
@@ -74,9 +74,10 @@ contract PairDeployer is Ownership {
         bytes customConfigData
     );
 
-    constructor(address _registry, address _operators, address _owner) Ownership(_owner){
+    constructor(address _registry, address _operators, address _owner) Ownable2Step(){
         operators = _operators;
         registry = _registry;
+        _transferOwnership(_owner);
     }
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
@@ -115,8 +116,7 @@ contract PairDeployer is Ownership {
     /// @notice The ```setCreationCode``` function sets the bytecode for the fraxlendPair
     /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
     /// @param _creationCode The creationCode for the Fraxlend Pair
-    function setCreationCode(bytes calldata _creationCode) external {
-        _isOwner();
+    function setCreationCode(bytes calldata _creationCode) external onlyOwner{
         bytes memory _firstHalf = BytesLib.slice(_creationCode, 0, 13_000);
         contractAddress1 = SSTORE2.write(_firstHalf);
         if (_creationCode.length > 13_000) {

@@ -22,14 +22,14 @@ pragma solidity ^0.8.19;
 
 // ====================================================================
 
-import "./Ownership.sol";
-import "../interfaces/IOwnership.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-contract FraxlendPairRegistry is Ownership{
-    // /// @notice addresses of deployers allowed to add to the registry
-    // mapping(address => bool) public deployers;
+contract FraxlendPairRegistry is Ownable2Step{
+    using SafeERC20 for IERC20;
 
     /// @notice List of the addresses of all deployed Pairs
     address[] public deployedPairsArray;
@@ -39,11 +39,14 @@ contract FraxlendPairRegistry is Ownership{
 
     // Default swappers
     address[] public defaultSwappers;
-    // Admin contracts
+    // protocol contracts
     address public circuitBreakerAddress;
+    address public collateralHandler;
+    address public feeDeposit;
+    address public redeemer;
 
-    constructor(address _ownerAddress) Ownership(_ownerAddress){
-
+    constructor(address _owner) Ownable2Step(){
+        _transferOwnership(_owner);
     }
 
     // ============================================================================================
@@ -73,10 +76,30 @@ contract FraxlendPairRegistry is Ownership{
 
     /// @notice The ```setCircuitBreaker``` function sets the circuitBreakerAddress
     /// @param _newAddress The new address
-    function setCircuitBreaker(address _newAddress) external {
-        _isOwner();
+    function setCircuitBreaker(address _newAddress) external onlyOwner{
         emit SetCircuitBreaker(circuitBreakerAddress, _newAddress);
         circuitBreakerAddress = _newAddress;
+    }
+
+    event SetCollateralHandler(address oldAddress, address newAddress);
+
+    function setCollateralHandler(address _newAddress) external onlyOwner{
+        emit SetCollateralHandler(collateralHandler, _newAddress);
+        collateralHandler = _newAddress;
+    }
+
+    event SetFeeDeposit(address oldAddress, address newAddress);
+
+    function setFeeDeposit(address _newAddress) external onlyOwner{
+        emit SetFeeDeposit(feeDeposit, _newAddress);
+        feeDeposit = _newAddress;
+    }
+
+    event SetRedeemer(address oldAddress, address newAddress);
+
+    function setRedeemer(address _newAddress) external onlyOwner{
+        emit SetRedeemer(redeemer, _newAddress);
+        redeemer = _newAddress;
     }
 
     /// @notice The ```AddPair``` event is emitted when a new pair is added to the registry
@@ -85,9 +108,7 @@ contract FraxlendPairRegistry is Ownership{
 
     /// @notice The ```addPair``` function adds a pair to the registry and ensures a unique name
     /// @param _pairAddress The address of the pair
-    function addPair(address _pairAddress) external{
-        //check ownership
-        _isOwner();
+    function addPair(address _pairAddress) external onlyOwner{
 
         // Add pair to the global list
         deployedPairsArray.push(_pairAddress);
@@ -112,8 +133,7 @@ contract FraxlendPairRegistry is Ownership{
 
     /// @notice The ```setDefaultSwappers``` function is used to set default list of approved swappers
     /// @param _swappers The list of swappers to set as default allowed
-    function setDefaultSwappers(address[] memory _swappers) external {
-        _isOwner();
+    function setDefaultSwappers(address[] memory _swappers) external onlyOwner{
         defaultSwappers = _swappers;
         emit DefaultSwappersSet(_swappers);
     }
@@ -135,10 +155,16 @@ contract FraxlendPairRegistry is Ownership{
         }
     }
 
+    function withdrawTo(address _asset, uint256 _amount, address _to) external onlyOwner{
+        IERC20(_asset).safeTransfer(_to, _amount);
+        emit WithdrawTo(_to, _amount);
+    }
+
     // ============================================================================================
     // Errors
     // ============================================================================================
 
     error NameMustBeUnique();
     error CircuitBreakerOnly();
+    event WithdrawTo(address indexed user, uint256 amount);
 }
