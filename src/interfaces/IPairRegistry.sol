@@ -30,9 +30,10 @@ interface IPairRegistry {
 
     function transferOwnership(address newOwner) external;
 
+    function claimFees(address _pair) external;
     function withdrawTo(address _asset, uint256 _amount, address _to) external;
     function getMaxMintable(address pair) external view returns(uint256);
-    function mint(uint256 amount, address receiver) external;
+    function mint( address receiver, uint256 amount) external;
     function collateralHandler() external view returns(address);
     function feeDeposit() external view returns(address);
     function redeemer() external view returns(address);

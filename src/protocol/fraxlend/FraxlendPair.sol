@@ -37,6 +37,8 @@ import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
+import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
+import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 
 /// @title FraxlendPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -317,37 +319,27 @@ contract FraxlendPair is FraxlendPairCore {
     }
 
     /// @notice The ```WithdrawFees``` event fires when the fees are withdrawn
-    /// @param shares Number of shares (fTokens) redeemed
     /// @param recipient To whom the assets were sent
     /// @param amountToTransfer The amount of fees redeemed
-    event WithdrawFees(uint128 shares, address recipient, uint256 amountToTransfer, uint256 collateralAmount);
+    event WithdrawFees(address recipient, uint256 amountToTransfer);
 
     /// @notice The ```withdrawFees``` function withdraws fees accumulated
-    /// @param _shares Number of fTokens to redeem
-    /// @param _recipient Address to send the assets
     /// @return _amountToTransfer Amount of assets sent to recipient
-    function withdrawFees(uint128 _shares, address _recipient) external returns (uint256 _amountToTransfer) {
+    function withdrawFees() external nonReentrant returns (uint256 _amountToTransfer) {
 
-        _requireProtocolOrOwner();
+        // Accrue interest if necessary
+        _addInterest();
 
-        if (_recipient == address(0)) revert InvalidReceiver();
-
-        // Grab some data from state to save gas
-        //VaultAccount memory _totalAsset = totalAsset;
-
-        //TODO; revamp withdraw fee logic
-
-        // Take all available if 0 value passed
-        // if (_shares == 0) _shares = uint128(balanceOf(address(this)));
-
-        // // We must calculate this before we subtract from _totalAsset or invoke _burn
-        // _amountToTransfer = _totalAsset.toAmount(_shares, true);
-
-        // _approve(address(this), msg.sender, _shares);
-        // _redeem(_totalAsset, _amountToTransfer.toUint128(), _shares, _recipient, address(this));
-        // uint256 _collateralAmount = userCollateralBalance[address(this)];
-        // _removeCollateral(_collateralAmount, _recipient, address(this));
-        // emit WithdrawFees(_shares, _recipient, _amountToTransfer, _collateralAmount);
+        //get deposit contract
+        address feeDeposit = IPairRegistry(registry).feeDeposit();
+        //check fees and clear
+        uint256 _amountToTransfer = claimableFees;
+        claimableFees = 0;
+        //mint new stables to the receiver
+        IPairRegistry(registry).mint(feeDeposit,_amountToTransfer);
+        //inform deposit contract of this pair's contribution
+        IFeeDeposit(feeDeposit).incrementPairRevenue(_amountToTransfer);
+        emit WithdrawFees(feeDeposit, _amountToTransfer);
     }
 
     /// @notice The ```SetSwapper``` event fires whenever a swapper is black or whitelisted

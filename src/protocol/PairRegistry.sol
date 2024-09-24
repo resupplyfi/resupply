@@ -160,6 +160,17 @@ contract FraxlendPairRegistry is Ownable2Step{
         emit WithdrawTo(_to, _amount);
     }
 
+    function mint(address _receiver, uint256 _amount) external{
+        //ensure caller is a registered pair
+        require(deployedPairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
+
+        //TODO ask minter to mint
+    }
+
+    function claimFees(address _pair) external{
+        IFraxlendPair(_pair).withdrawFees();
+    }
+
     // ============================================================================================
     // Errors
     // ============================================================================================
