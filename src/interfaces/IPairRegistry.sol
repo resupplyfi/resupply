@@ -34,7 +34,8 @@ interface IPairRegistry {
     function withdrawTo(address _asset, uint256 _amount, address _to) external;
     function getMaxMintable(address pair) external view returns(uint256);
     function mint( address receiver, uint256 amount) external;
-    function collateralHandler() external view returns(address);
+    function burn( address target, uint256 amount) external;
+    function liquidationHandler() external view returns(address);
     function feeDeposit() external view returns(address);
     function redeemer() external view returns(address);
 }

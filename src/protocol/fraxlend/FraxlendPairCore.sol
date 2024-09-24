@@ -32,9 +32,11 @@ import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
+import { MathUtil } from "../../libraries/MathUtil.sol";
 import { IDualOracle } from "../../interfaces/IDualOracle.sol";
 import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
+import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -193,11 +195,12 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @return The balance of Asset Tokens held by contract
     function totalAssetAvailable(
     ) public view returns (uint256) {
-        // return _totalAsset.amount - _totalBorrow.amount;
-
-        //TODO maybe include an outside call to do other checks if minting is available.
-        //     ex on L2 there may not be enough stables bridged to borrow even if borrow limit not reached
-        return borrowLimit - totalBorrow.amount;
+        //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
+        //be a limited amount of stables that have been bridged and available
+        uint256 mintable = IPairRegistry(registry).getMaxMintable(address(this));
+        uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
+        //take minimum of mintable and the difference of borrowlimit and current borrowed
+        return MathUtil.min(mintable, borrowable);
     }
 
     /// @notice The ```_isSolvent``` function determines if a given borrower is solvent given an exchange rate
@@ -508,7 +511,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Get borrow accounting from storage to save gas
         VaultAccount memory _totalBorrow = totalBorrow;
 
-        // Check available capital (not strictly necessary because balance will underflow, but better revert message)
+        // Check available capital
         uint256 _assetsAvailable = totalAssetAvailable();
         if (_assetsAvailable < _borrowAmount) {
             revert InsufficientAssetsInContract(_assetsAvailable, _borrowAmount);
@@ -528,7 +531,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Interactions
         if (_receiver != address(this)) {
-            assetContract.safeTransfer(_receiver, _borrowAmount);
+            IPairRegistry(registry).mint(_receiver, _borrowAmount);
         }
         emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded);
     }
@@ -548,9 +551,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Accrue interest if necessary
         _addInterest();
-
-        // Check if borrow will violate the borrow limit and revert if necessary
-        if (borrowLimit < totalBorrow.amount + _borrowAmount) revert ExceedsBorrowLimit();
 
         // Update _exchangeRate and check if borrow is allowed based on deviation
         (bool _isBorrowAllowed, , ) = _updateExchangeRate();
@@ -677,7 +677,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Interactions
         if (_payer != address(this)) {
-            assetContract.safeTransferFrom(_payer, address(this), _amountToRepay);
+            IPairRegistry(registry).burn(_payer, _amountToRepay);
         }
         emit RepayAsset(_payer, _borrower, _amountToRepay, _shares);
     }
@@ -714,10 +714,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         address indexed _borrower,
         uint256 _collateralForLiquidator,
         uint256 _sharesLiquidated,
-        uint256 _amountLiquidatorToRepay,
-        uint256 _feesAmount
-        // uint256 _sharesToAdjust,
-        // uint256 _amountToAdjust
+        uint256 _amountLiquidatorToRepay
     );
 
     /// @notice The ```liquidate``` function allows a third party to repay a borrower's debt if they have become insolvent
@@ -755,7 +752,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Prevent stack-too-deep
         int256 _leftoverCollateral;
-        uint256 _feesAmount;
+        // uint256 _feesAmount;
         {
             // Checks & Calculations
             // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
@@ -786,27 +783,26 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 _borrower,
                 _collateralForLiquidator,
                 _borrowerShares,
-                _amountLiquidatorToRepay,
-                _feesAmount
+                _amountLiquidatorToRepay
             );
 
         // Effects & Interactions
         // NOTE: reverts if _shares > userBorrowShares
+        // repay using this address so that stables are not burnt (yet)
         _repayAsset(
             _totalBorrow,
             _amountLiquidatorToRepay,
             _borrowerShares,
-            msg.sender,
+            address(this),
             _borrower
         ); // liquidator repays shares on behalf of borrower
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
-        // Collateral is removed on behalf of borrower and sent to liquidator
+        // Collateral is removed on behalf of borrower and sent to liquidationHandler
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
-        _removeCollateral(_collateralForLiquidator, msg.sender, _borrower);
-        // Adjust bookkeeping only (decreases collateral held by borrower)
-        _removeCollateral(_feesAmount, address(this), _borrower);
-        // Adjusts bookkeeping only (increases collateral held by protocol)
-        _addCollateral(address(this), _feesAmount, address(this));
+        _removeCollateral(_collateralForLiquidator, IPairRegistry(registry).liquidationHandler(), _borrower);
+
+        //TODO: add hook call to liquidation handler so that distribution and burning can happen
+        // pass _collateralForLiquidator and _amountLiquidatorToRepay
     }
 
     // ============================================================================================

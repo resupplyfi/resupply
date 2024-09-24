@@ -41,7 +41,7 @@ contract FraxlendPairRegistry is Ownable2Step{
     address[] public defaultSwappers;
     // protocol contracts
     address public circuitBreakerAddress;
-    address public collateralHandler;
+    address public liquidationHandler;
     address public feeDeposit;
     address public redeemer;
 
@@ -81,11 +81,11 @@ contract FraxlendPairRegistry is Ownable2Step{
         circuitBreakerAddress = _newAddress;
     }
 
-    event SetCollateralHandler(address oldAddress, address newAddress);
+    event SetLiquidationHandler(address oldAddress, address newAddress);
 
-    function setCollateralHandler(address _newAddress) external onlyOwner{
-        emit SetCollateralHandler(collateralHandler, _newAddress);
-        collateralHandler = _newAddress;
+    function setLiquidationHandler(address _newAddress) external onlyOwner{
+        emit SetLiquidationHandler(liquidationHandler, _newAddress);
+        liquidationHandler = _newAddress;
     }
 
     event SetFeeDeposit(address oldAddress, address newAddress);
@@ -167,8 +167,19 @@ contract FraxlendPairRegistry is Ownable2Step{
         //TODO ask minter to mint
     }
 
+    function burn(address _target, uint256 _amount) external{
+        //ensure caller is a registered pair
+        require(deployedPairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
+
+        //TODO ask minter to burn
+    }
+
     function claimFees(address _pair) external{
         IFraxlendPair(_pair).withdrawFees();
+    }
+
+    function getMaxMintable(address _pair) external view returns(uint256){
+        return type(uint256).max;
     }
 
     // ============================================================================================
