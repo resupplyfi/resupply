@@ -77,7 +77,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     // Metadata
     string public name;
-    address public immutable registry;
+    
 
     // ============================================================================================
     // Storage
@@ -170,14 +170,13 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
 
         {
-            (string memory _name, address _registry) = abi.decode(
+            (string memory _name) = abi.decode(
                 _customConfigData,
-                (string, address)
+                (string)
             );
 
             // Metadata
             name = _name;
-            registry = _registry; //todo move registry to main config area as its important
 
             // Instantiate Interest
             _addInterest();

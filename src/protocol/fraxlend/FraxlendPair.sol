@@ -166,7 +166,7 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```revokeOracleSetter``` function revokes the oracle setter
     function revokeOracleInfoSetter() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         isOracleSetterRevoked = true;
         emit RevokeOracleInfoSetter();
     }
@@ -187,7 +187,7 @@ contract FraxlendPair is FraxlendPairCore {
     /// @param _newOracle The new oracle address
     /// @param _newMaxOracleDeviation The new max oracle deviation
     function setOracle(address _newOracle, uint32 _newMaxOracleDeviation) external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         if (isOracleSetterRevoked) revert SetterRevoked();
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
         emit SetOracleInfo(
@@ -208,7 +208,7 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```revokeMaxLTVSetter``` function revokes the max LTV setter
     function revokeMaxLTVSetter() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         isMaxLTVSetterRevoked = true;
         emit RevokeMaxLTVSetter();
     }
@@ -221,7 +221,7 @@ contract FraxlendPair is FraxlendPairCore {
     /// @notice The ```setMaxLTV``` function sets the max LTV
     /// @param _newMaxLTV The new max LTV
     function setMaxLTV(uint256 _newMaxLTV) external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         if (isMaxLTVSetterRevoked) revert SetterRevoked();
         emit SetMaxLTV(maxLTV, _newMaxLTV);
         maxLTV = _newMaxLTV;
@@ -234,7 +234,7 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```revokeRateContractSetter``` function revokes the rate contract setter
     function revokeRateContractSetter() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         isRateContractSetterRevoked = true;
         emit RevokeRateContractSetter();
     }
@@ -247,7 +247,7 @@ contract FraxlendPair is FraxlendPairCore {
     /// @notice The ```setRateContract``` function sets the rate contract address
     /// @param _newRateContract The new rate contract address
     function setRateContract(address _newRateContract) external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         if (isRateContractSetterRevoked) revert SetterRevoked();
         emit SetRateContract(address(rateContract), _newRateContract);
         rateContract = IRateCalculatorV2(_newRateContract);
@@ -260,7 +260,7 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```revokeLiquidationFeeSetter``` function revokes the liquidation fee setter
     function revokeLiquidationFeeSetter() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         isLiquidationFeeSetterRevoked = true;
         emit RevokeLiquidationFeeSetter();
     }
@@ -284,7 +284,7 @@ contract FraxlendPair is FraxlendPairCore {
         // uint256 _newDirtyLiquidationFee,
         // uint256 _newProtocolLiquidationFee
     ) external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         if (isLiquidationFeeSetterRevoked) revert SetterRevoked();
         emit SetLiquidationFees(
             liquidationFee,
@@ -306,7 +306,7 @@ contract FraxlendPair is FraxlendPairCore {
     /// @notice The ```changeFee``` function changes the protocol fee, max 50%
     /// @param _newFee The new fee
     function changeFee(uint32 _newFee) external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         if (isInterestPaused) revert InterestPaused();
         if (_newFee > MAX_PROTOCOL_FEE) {
             revert BadProtocolFee();
@@ -326,7 +326,10 @@ contract FraxlendPair is FraxlendPairCore {
     /// @param _shares Number of fTokens to redeem
     /// @param _recipient Address to send the assets
     /// @return _amountToTransfer Amount of assets sent to recipient
-    function withdrawFees(uint128 _shares, address _recipient) external onlyOwner returns (uint256 _amountToTransfer) {
+    function withdrawFees(uint128 _shares, address _recipient) external returns (uint256 _amountToTransfer) {
+
+        _requireProtocolOrOwner();
+
         if (_recipient == address(0)) revert InvalidReceiver();
 
         // Grab some data from state to save gas
@@ -356,7 +359,8 @@ contract FraxlendPair is FraxlendPairCore {
     /// @dev
     /// @param _swapper The swapper address
     /// @param _approval The approval
-    function setSwapper(address _swapper, bool _approval) external onlyOwner {
+    function setSwapper(address _swapper, bool _approval) external {
+        _requireProtocolOrOwner();
         swappers[_swapper] = _approval;
         emit SetSwapper(_swapper, _approval);
     }
@@ -365,10 +369,12 @@ contract FraxlendPair is FraxlendPairCore {
     // Functions: Access Control
     // ============================================================================================
 
+    uint256 previousBorrowLimit;
     /// @notice The ```pause``` function is called to pause all contract functionality
     function pause() external {
         _requireProtocolOrOwner();
-        if (!isBorrowAccessControlRevoked) _setBorrowLimit(0);
+        previousBorrowLimit = borrowLimit;
+        _setBorrowLimit(0);
         // if (!isDepositAccessControlRevoked) _setDepositLimit(0);
         if (!isRepayAccessControlRevoked) _pauseRepay(true);
         if (!isWithdrawAccessControlRevoked) _pauseWithdraw(true);
@@ -381,8 +387,8 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality
     function unpause() external {
-        _requireTimelockOrOwner();
-        if (!isBorrowAccessControlRevoked) _setBorrowLimit(type(uint256).max);
+        _requireProtocolOrOwner();
+        _setBorrowLimit(previousBorrowLimit);
         // if (!isDepositAccessControlRevoked) _setDepositLimit(type(uint256).max);
         if (!isRepayAccessControlRevoked) _pauseRepay(false);
         if (!isWithdrawAccessControlRevoked) _pauseWithdraw(false);
@@ -396,24 +402,25 @@ contract FraxlendPair is FraxlendPairCore {
     /// @notice The ```pauseBorrow``` function sets borrow limit to 0
     function pauseBorrow() external {
         _requireProtocolOrOwner();
-        if (isBorrowAccessControlRevoked) revert AccessControlRevoked();
+        // if (isBorrowAccessControlRevoked) revert AccessControlRevoked();
         _setBorrowLimit(0);
     }
 
     /// @notice The ```setBorrowLimit``` function sets the borrow limit
     /// @param _limit The new borrow limit
     function setBorrowLimit(uint256 _limit) external {
-        _requireTimelockOrOwner();
-        if (isBorrowAccessControlRevoked) revert AccessControlRevoked();
+        _requireProtocolOrOwner();
+        // if (isBorrowAccessControlRevoked) revert AccessControlRevoked();
         _setBorrowLimit(_limit);
+        previousBorrowLimit = _limit;
     }
 
-    /// @notice The ```revokeBorrowLimitAccessControl``` function revokes borrow limit access control
-    /// @param _borrowLimit The new borrow limit
-    function revokeBorrowLimitAccessControl(uint256 _borrowLimit) external {
-        _requireTimelock();
-        _revokeBorrowAccessControl(_borrowLimit);
-    }
+    // /// @notice The ```revokeBorrowLimitAccessControl``` function revokes borrow limit access control
+    // /// @param _borrowLimit The new borrow limit
+    // function revokeBorrowLimitAccessControl(uint256 _borrowLimit) external {
+    //     _requireProtocolOrOwner();
+    //     _revokeBorrowAccessControl(_borrowLimit);
+    // }
 
     // /// @notice The ```pauseDeposit``` function pauses deposit functionality
     // function pauseDeposit() external {
@@ -440,65 +447,49 @@ contract FraxlendPair is FraxlendPairCore {
     /// @notice The ```pauseRepay``` function pauses repay functionality
     /// @param _isPaused The new pause state
     function pauseRepay(bool _isPaused) external {
-        if (_isPaused) {
-            _requireProtocolOrOwner();
-        } else {
-            _requireTimelockOrOwner();
-        }
+        _requireProtocolOrOwner();
         if (isRepayAccessControlRevoked) revert AccessControlRevoked();
         _pauseRepay(_isPaused);
     }
 
     /// @notice The ```revokeRepayAccessControl``` function revokes repay access control
     function revokeRepayAccessControl() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         _revokeRepayAccessControl();
     }
 
     /// @notice The ```pauseWithdraw``` function pauses withdraw functionality
     /// @param _isPaused The new pause state
     function pauseWithdraw(bool _isPaused) external {
-        if (_isPaused) {
-            _requireProtocolOrOwner();
-        } else {
-            _requireTimelockOrOwner();
-        }
+        _requireProtocolOrOwner();
         if (isWithdrawAccessControlRevoked) revert AccessControlRevoked();
         _pauseWithdraw(_isPaused);
     }
 
     /// @notice The ```revokeWithdrawAccessControl``` function revokes withdraw access control
     function revokeWithdrawAccessControl() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         _revokeWithdrawAccessControl();
     }
 
     /// @notice The ```pauseLiquidate``` function pauses liquidate functionality
     /// @param _isPaused The new pause state
     function pauseLiquidate(bool _isPaused) external {
-        if (_isPaused) {
-            _requireProtocolOrOwner();
-        } else {
-            _requireTimelockOrOwner();
-        }
+        _requireProtocolOrOwner();
         if (isLiquidateAccessControlRevoked) revert AccessControlRevoked();
         _pauseLiquidate(_isPaused);
     }
 
     /// @notice The ```revokeLiquidateAccessControl``` function revokes liquidate access control
     function revokeLiquidateAccessControl() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         _revokeLiquidateAccessControl();
     }
 
     /// @notice The ```pauseInterest``` function pauses interest functionality
     /// @param _isPaused The new pause state
     function pauseInterest(bool _isPaused) external {
-        if (_isPaused) {
-            _requireProtocolOrOwner();
-        } else {
-            _requireTimelockOrOwner();
-        }
+        _requireProtocolOrOwner();
         if (isInterestAccessControlRevoked) revert AccessControlRevoked();
         // Resets the lastTimestamp which has the effect of no interest accruing over the pause period
         _addInterest();
@@ -507,7 +498,7 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```revokeInterestAccessControl``` function revokes interest access control
     function revokeInterestAccessControl() external {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         _revokeInterestAccessControl();
     }
 }

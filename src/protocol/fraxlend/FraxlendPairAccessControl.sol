@@ -21,23 +21,24 @@ pragma solidity ^0.8.19;
 
 // ====================================================================
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import { Timelock2Step } from "./Timelock2Step.sol";
+import "../../interfaces/IOwnership.sol";
 import { FraxlendPairAccessControlErrors } from "./FraxlendPairAccessControlErrors.sol";
 
 /// @title FraxlendPairAccessControl
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the access control logic for FraxlendPair
-abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, FraxlendPairAccessControlErrors {
+abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
+    address public immutable registry;
+
     // Deployer
-    address public immutable DEPLOYER_ADDRESS;
+    // address public immutable DEPLOYER_ADDRESS;
 
     // Admin contracts
-    address public circuitBreakerAddress;
+    // address public circuitBreakerAddress;
 
     // access control
     uint256 public borrowLimit = type(uint256).max;
-    bool public isBorrowAccessControlRevoked;
+    // bool public isBorrowAccessControlRevoked;
 
     // uint256 public depositLimit = type(uint256).max;
     // bool public isDepositAccessControlRevoked;
@@ -55,18 +56,20 @@ abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, Frax
     bool public isInterestAccessControlRevoked;
 
     /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
-    constructor(bytes memory _immutables) Timelock2Step() Ownable2Step() {
+    constructor(bytes memory _immutables) {
         // Handle Immutables Configuration
-        (address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress) = abi.decode(
+        // (address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress) = abi.decode(
+        (address _registry) = abi.decode(
             _immutables,
-            (address, address, address)
+            (address)
         );
-        _setTimelock(_timelockAddress);
-        _transferOwnership(_comptrollerAddress);
+        // _setTimelock(_timelockAddress);
+        // _transferOwnership(_comptrollerAddress);
 
         // Deployer contract
-        DEPLOYER_ADDRESS = msg.sender;
-        circuitBreakerAddress = _circuitBreakerAddress;
+        // DEPLOYER_ADDRESS = msg.sender;
+        // circuitBreakerAddress = _circuitBreakerAddress;
+        registry = _registry;
     }
 
     // ============================================================================================
@@ -75,30 +78,28 @@ abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, Frax
 
     function _requireProtocolOrOwner() internal view {
         if (
-            msg.sender != circuitBreakerAddress &&
-            msg.sender != owner() &&
-            msg.sender != DEPLOYER_ADDRESS &&
-            msg.sender != timelockAddress
+            msg.sender != registry &&
+            msg.sender != IOwnership(registry).owner()
         ) {
             revert OnlyProtocolOrOwner();
         }
     }
 
-    function _requireTimelockOrOwner() internal view {
-        if (msg.sender != owner() && msg.sender != timelockAddress) {
-            revert OnlyTimelockOrOwner();
-        }
-    }
+    // function _requireTimelockOrOwner() internal view {
+    //     if (msg.sender != owner() && msg.sender != timelockAddress) {
+    //         revert OnlyTimelockOrOwner();
+    //     }
+    // }
 
     /// @notice The ```RevokeBorrowAccessControl``` event is emitted when access to borrow limit is revoked
     /// @param borrowLimit The final permanent borrow limit
-    event RevokeBorrowAccessControl(uint256 borrowLimit);
+    // event RevokeBorrowAccessControl(uint256 borrowLimit);
 
-    function _revokeBorrowAccessControl(uint256 _borrowLimit) internal {
-        isBorrowAccessControlRevoked = true;
-        borrowLimit = _borrowLimit;
-        emit RevokeBorrowAccessControl(_borrowLimit);
-    }
+    // function _revokeBorrowAccessControl(uint256 _borrowLimit) internal {
+    //     isBorrowAccessControlRevoked = true;
+    //     borrowLimit = _borrowLimit;
+    //     emit RevokeBorrowAccessControl(_borrowLimit);
+    // }
 
     /// @notice The ```SetBorrowLimit``` event is emitted when the borrow limit is set
     /// @param limit The new borrow limit
@@ -196,6 +197,7 @@ abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, Frax
         emit PauseInterest(_isPaused);
     }
 
+/*
     /// @notice The ```SetCircuitBreaker``` event is emitted when the circuit breaker address is set
     /// @param oldCircuitBreaker The old circuit breaker address
     /// @param newCircuitBreaker The new circuit breaker address
@@ -212,7 +214,8 @@ abstract contract FraxlendPairAccessControl is Timelock2Step, Ownable2Step, Frax
     /// @notice The ```setCircuitBreaker``` function is called to set the circuit breaker address
     /// @param _newCircuitBreaker The new circuit breaker address
     function setCircuitBreaker(address _newCircuitBreaker) external virtual {
-        _requireTimelock();
+        _requireProtocolOrOwner();
         _setCircuitBreaker(_newCircuitBreaker);
     }
+    */
 }

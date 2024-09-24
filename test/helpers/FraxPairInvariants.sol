@@ -282,63 +282,63 @@ abstract contract ForkTests is BasePairTest {
 
     function testForkOnlyTimelockToRevokeOracleInfoSetter() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeOracleInfoSetter();
     }
 
     function testForkOnlyTimelockToSetOracle() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.setOracle(address(0x456), 0.05 * 1e5);
     }
 
     function testForkOnlyTimelockToRevokeMaxLTVSetter() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeMaxLTVSetter();
     }
 
     function testForkOnlyTimelockToSetMaxLTV() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.setMaxLTV(0.85e5);
     }
 
     function testForkOnlyTimelockToRevokeRateContractSetter() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeRateContractSetter();
     }
 
     function testForkOnlyTimelockToSetRateContract() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.setRateContract(address(0x456));
     }
 
     function testForkOnlyTimelockToRevokeLiquidationFeeSetter() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeLiquidationFeeSetter();
     }
 
     function testForkOnlyTimelockToSetLiquidationFees() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.setLiquidationFees(0.5e5);
     }
 
     function testForkOnlyTimelockToChangeFee() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.changeFee(0.5e5);
     }
 
-    function testForkOnlyTimelockRevokeBorrowLimitAC() public {
-        vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
-        fraxlendPair.revokeBorrowLimitAccessControl(1e18);
-    }
+    // function testForkOnlyTimelockRevokeBorrowLimitAC() public {
+    //     vm.prank(badActor);
+    //     vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+    //     fraxlendPair.revokeBorrowLimitAccessControl(1e18);
+    // }
 
     // function testForkOnlyTimelockRevokeDepositLimitAC() public {
     //     vm.prank(badActor);
@@ -348,31 +348,31 @@ abstract contract ForkTests is BasePairTest {
 
     function testForkOnlyTimelockRevokeRepayAC() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeRepayAccessControl();
     }
 
     function testForkOnlyTimelockRevokeWithdrawAC() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeWithdrawAccessControl();
     }
 
     function testForkOnlyTimelockRevokeLiquidateAC() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeLiquidateAccessControl();
     }
 
     function testForkOnlyTimelockRevokeInterestAC() public {
         vm.prank(badActor);
-        vm.expectRevert(Timelock2Step.OnlyTimelock.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.revokeInterestAccessControl();
     }
 
     function testForkOnlyTimelockSetBorrowLimit() public {
         vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.setBorrowLimit(1e18);
     }
 
@@ -388,7 +388,7 @@ abstract contract ForkTests is BasePairTest {
 
     function testForkOnlyTimelockOrOwnerUnpause() public {
         vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.unpause();
     }
 
@@ -400,7 +400,7 @@ abstract contract ForkTests is BasePairTest {
 
     function testForkOnlyTimlockOrOwnerUpause() public isPaused {
         vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyTimelockOrOwner.selector);
+        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
         fraxlendPair.unpause();
     }
 
@@ -529,7 +529,7 @@ abstract contract ForkTests is BasePairTest {
     }
 
     function testForkUnpauseOwner() public isPaused {
-        vm.prank(fraxlendPair.owner());
+        vm.prank(fraxlendPair.registry());
         fraxlendPair.unpause();
 
         bool interestPaused = fraxlendPair.isInterestPaused();
@@ -546,7 +546,7 @@ abstract contract ForkTests is BasePairTest {
     }
 
     function testForkUnpauseTimeLock() public isPaused {
-        vm.prank(fraxlendPair.timelockAddress());
+        vm.prank(fraxlendPair.registry());
         fraxlendPair.unpause();
 
         bool interestPaused = fraxlendPair.isInterestPaused();
@@ -563,7 +563,7 @@ abstract contract ForkTests is BasePairTest {
     }
 
     function pausePair() public {
-        vm.startPrank(fraxlendPair.owner());
+        vm.startPrank(fraxlendPair.registry());
         fraxlendPair.pause();
         vm.stopPrank();
 
@@ -588,17 +588,17 @@ abstract contract ForkTests is BasePairTest {
     // ============================================================================================
     // Assert Admin Roles Granted Correctly
     // ============================================================================================
-    function testForkTimelockSetCorrectly() public {
-        assertEq(getTimelock(), fraxlendPair.timelockAddress(), "Timelock address does not match expected!");
+    function testForkRegistrySetCorrectly() public {
+        assertEq(getRegistry(), fraxlendPair.registry(), "Registry address does not match expected!");
     }
 
-    function testForkComptrollerSetCorrectly() public {
-        assertEq(getComptroller(), fraxlendPair.owner(), "Comptroller address does not match expected!");
-    }
+    // function testForkComptrollerSetCorrectly() public {
+    //     assertEq(getComptroller(), fraxlendPair.owner(), "Comptroller address does not match expected!");
+    // }
 
-    function testFormCircuitBreakerSetCorrectly() public {
-        assertEq(getCircuitBreaker(), fraxlendPair.circuitBreakerAddress(), "CircuitBreaker does not match expected!");
-    }
+    // function testFormCircuitBreakerSetCorrectly() public {
+    //     assertEq(getCircuitBreaker(), fraxlendPair.circuitBreakerAddress(), "CircuitBreaker does not match expected!");
+    // }
 
     // ============================================================================================
     // Assert Timelock is correct
@@ -652,23 +652,23 @@ abstract contract ForkTests is BasePairTest {
         console.log("       The lastTimestamp:", lastTimestamp);
     }
 
-    function getTimelock() public view returns (address timelock) {
-        if (block.chainid == 1) timelock = Constants.Mainnet.TIMELOCK_ADDRESS;
-        if (block.chainid == 42_161) timelock = Constants.Arbitrum.TIMELOCK_ADDRESS;
-        if (block.chainid == 252) timelock = Constants.Fraxtal.TIMELOCK_ADDRESS;
+    function getRegistry() public view returns (address timelock) {
+        if (block.chainid == 1) timelock = Constants.Mainnet.FRAXLEND_PAIR_REGISTRY_ADDRESS;
+        if (block.chainid == 42_161) timelock = Constants.Arbitrum.FRAXLEND_PAIR_REGISTRY_ADDRESS;
+        if (block.chainid == 252) timelock = Constants.Fraxtal.FRAXLEND_PAIR_REGISTRY_ADDRESS;
     }
 
-    function getCircuitBreaker() public view returns (address circuitBreaker) {
-        if (block.chainid == 1) circuitBreaker = Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS;
-        if (block.chainid == 42_161) circuitBreaker = Constants.Arbitrum.CIRCUIT_BREAKER_ADDRESS;
-        if (block.chainid == 252) circuitBreaker = Constants.Fraxtal.CIRCUIT_BREAKER_ADDRESS;
-    }
+    // function getCircuitBreaker() public view returns (address circuitBreaker) {
+    //     if (block.chainid == 1) circuitBreaker = Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS;
+    //     if (block.chainid == 42_161) circuitBreaker = Constants.Arbitrum.CIRCUIT_BREAKER_ADDRESS;
+    //     if (block.chainid == 252) circuitBreaker = Constants.Fraxtal.CIRCUIT_BREAKER_ADDRESS;
+    // }
 
-    function getComptroller() public view returns (address comptroller) {
-        if (block.chainid == 1) comptroller = Constants.Mainnet.COMPTROLLER_ADDRESS;
-        if (block.chainid == 42_161) comptroller = Constants.Arbitrum.COMPTROLLER_ADDRESS;
-        if (block.chainid == 252) comptroller = Constants.Fraxtal.COMPTROLLER_ADDRESS;
-    }
+    // function getComptroller() public view returns (address comptroller) {
+    //     if (block.chainid == 1) comptroller = Constants.Mainnet.COMPTROLLER_ADDRESS;
+    //     if (block.chainid == 42_161) comptroller = Constants.Arbitrum.COMPTROLLER_ADDRESS;
+    //     if (block.chainid == 252) comptroller = Constants.Fraxtal.COMPTROLLER_ADDRESS;
+    // }
 }
 
 // TODO: Assert Reversions of admin specific functions

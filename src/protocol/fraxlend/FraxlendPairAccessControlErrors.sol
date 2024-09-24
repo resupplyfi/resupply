@@ -26,11 +26,11 @@ pragma solidity ^0.8.19;
 /// @notice  An abstract contract which contains the errors for the Access Control contract
 abstract contract FraxlendPairAccessControlErrors {
     error OnlyProtocolOrOwner();
-    error OnlyTimelockOrOwner();
+    // error OnlyTimelockOrOwner();
     error ExceedsBorrowLimit();
     error AccessControlRevoked();
     error RepayPaused();
-    error ExceedsDepositLimit();
+    // error ExceedsDepositLimit();
     error WithdrawPaused();
     error LiquidatePaused();
     error InterestPaused();

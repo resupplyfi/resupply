@@ -14,7 +14,8 @@ contract FraxlendPairDeployerTest is BasePairTest {
     function testCanGlobalPause() public {
         defaultSetUp();
         deployFraxlendPublic(address(linearRateContract), 25 * ONE_PERCENT);
-        startHoax(Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS);
+        //TODO: wont work until pair registry deployed
+        startHoax(Constants.Mainnet.FRAXLEND_PAIR_REGISTRY_ADDRESS);
         address[] memory _addresses = deployer.getAllPairAddresses();
         deployer.globalPause(_addresses);
         for (uint256 i = 0; i < _addresses.length; i++) {
