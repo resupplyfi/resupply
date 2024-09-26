@@ -37,6 +37,7 @@ import { IDualOracle } from "../../interfaces/IDualOracle.sol";
 import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
+import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -530,9 +531,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         userBorrowShares[msg.sender] += _sharesAdded;
 
         // Interactions
-        if (_receiver != address(this)) {
+        // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
+        // if (_receiver != address(this)) {
             IPairRegistry(registry).mint(_receiver, _borrowAmount);
-        }
+        // }
         emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded);
     }
 
@@ -676,9 +678,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         totalBorrow = _totalBorrow;
 
         // Interactions
-        if (_payer != address(this)) {
+        //unlike fraxlend, we mint on the fly
+        //so stables returned to this contract after repay with collateral still needs to be burnt
+        // if (_payer != address(this)) {
             IPairRegistry(registry).burn(_payer, _amountToRepay);
-        }
+        // }
         emit RepayAsset(_payer, _borrower, _amountToRepay, _shares);
     }
 
@@ -722,8 +726,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _borrower The account for which the repayment is credited and from whom collateral will be taken
     /// @return _collateralForLiquidator The amount of Collateral Token transferred to the liquidator
     function liquidate(
-        // uint128 _sharesToLiquidate,
-        // uint256 _deadline,
         address _borrower
     ) external nonReentrant returns (uint256 _collateralForLiquidator) {
         if (_borrower == address(0)) revert InvalidReceiver();
@@ -797,12 +799,14 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             _borrower
         ); // liquidator repays shares on behalf of borrower
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
+
+        address liquidationHandler = IPairRegistry(registry).liquidationHandler();
         // Collateral is removed on behalf of borrower and sent to liquidationHandler
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
-        _removeCollateral(_collateralForLiquidator, IPairRegistry(registry).liquidationHandler(), _borrower);
+        _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
-        //TODO: add hook call to liquidation handler so that distribution and burning can happen
-        // pass _collateralForLiquidator and _amountLiquidatorToRepay
+        //call liquidation handler to distribute and burn debt
+        ILiquidationHandler(liquidationHandler).processCollateral(address(collateralContract), _collateralForLiquidator, _amountLiquidatorToRepay);
     }
 
     // ============================================================================================
@@ -868,7 +872,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
 
         // Debit borrowers account
-        // setting recipient to address(this) means no transfer will happen
+        // setting recipient to address(this) so that swapping can occur from this contract (debt still goes to msg.sender)
         uint256 _borrowShares = _borrowAsset(_borrowAmount.toUint128(), address(this));
 
         // Interactions
