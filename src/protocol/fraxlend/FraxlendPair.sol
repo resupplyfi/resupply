@@ -98,7 +98,7 @@ contract FraxlendPair is FraxlendPairCore {
         address _address
     ) external view returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
         _userBorrowShares = userBorrowShares[_address];
-        _userCollateralBalance = userCollateralBalance[_address];
+        _userCollateralBalance = userCollateralBalance(_address);
     }
 
     /// @notice The ```getPairAccounting``` function gets all pair level accounting numbers

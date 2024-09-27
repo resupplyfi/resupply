@@ -40,6 +40,7 @@ import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
 import { PairRewards } from "../PairRewards.sol";
+import { RedemptionToken } from "../RedemptionToken.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -117,12 +118,13 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     // Contract Level Accounting
     VaultAccount public totalBorrow; // amount = total borrow amount with interest accrued, shares = total shares outstanding
-    uint256 public totalCollateral; // total amount of collateral in contract
+    uint256 public totalCollateral; // total amount of collateral in contract (todo is this really needed?)
     uint256 public claimableFees; //amount of interest gained that is claimable as fees
+    address public redemptionToken; //token to keep track of redemption write offs
 
     // User Level Accounting
     /// @notice Stores the balance of collateral for each user
-    mapping(address => uint256) public userCollateralBalance; // amount of collateral each user is backed
+    mapping(address => uint256) internal _userCollateralBalance; // amount of collateral each user is backed
     /// @notice Stores the balance of borrow shares for each user
     mapping(address => uint256) public userBorrowShares; // represents the shares held by individuals
 
@@ -178,8 +180,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
 
         //starting reward types
-        //TODO create redeem token
-        _insertRewardToken(address(0));//redeem token
+        redemptionToken = address(new RedemptionToken(address(this)));
+        _insertRewardToken(redemptionToken);//add redemption token as a reward
         
 
         {
@@ -208,8 +210,16 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     }
 
     // ============================================================================================
-    // Internal Helpers
+    // Helpers
     // ============================================================================================
+
+    //get _userCollateralBalance minus redemption tokens
+    function userCollateralBalance(address _account) public view returns(uint256 _collateralAmount){
+        _collateralAmount = _userCollateralBalance[_account];
+        //account for rtokens since can call sync in view function
+        uint256 rTokens = claimable_reward[redemptionToken][_account];
+        _collateralAmount = _collateralAmount > rTokens ? _collateralAmount - rTokens : 0;
+    }
 
     /// @notice The ```totalAssetAvailable``` function returns the total balance of Asset Tokens in the contract
     /// @return The balance of Asset Tokens held by contract
@@ -231,7 +241,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if (maxLTV == 0) return true;
         uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares[_borrower], true);
         if (_borrowerAmount == 0) return true;
-        uint256 _collateralAmount = userCollateralBalance[_borrower];
+        uint256 _collateralAmount = userCollateralBalance(_borrower);
         if (_collateralAmount == 0) return false;
 
         uint256 _ltv = (((_borrowerAmount * _exchangeRate) / EXCHANGE_PRECISION) * LTV_PRECISION) / _collateralAmount;
@@ -251,7 +261,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if (!_isSolvent(_borrower, exchangeRateInfo.highExchangeRate)) {
             revert Insolvent(
                 totalBorrow.toAmount(userBorrowShares[_borrower], true),
-                userCollateralBalance[_borrower],
+                userCollateralBalance(_borrower),
                 exchangeRateInfo.highExchangeRate
             );
         }
@@ -569,6 +579,19 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Functions: Borrowing
     // ============================================================================================
 
+    //sync user collateral by removing account of userCollateralBalance based on
+    //how many "claimable" redemption tokens are available to the user
+    //should be called before anything with userCollateralBalance is used
+    function _syncUserRedemptions(address _account) internal{
+        //get token count
+        uint256 rTokens = claimable_reward[redemptionToken][_account];
+        //reset claimables
+        claimable_reward[redemptionToken][_account] = 0;
+
+        //remove from collateral balance the number of rtokens the user has
+        _userCollateralBalance[_account] = _userCollateralBalance[_account] >= rTokens ? _userCollateralBalance[_account] - rTokens : 0;
+    }
+
     /// @notice The ```BorrowAsset``` event is emitted when a borrower increases their position
     /// @param _borrower The borrower whose account was debited
     /// @param _receiver The address to which the Asset Tokens were transferred
@@ -658,8 +681,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _borrower The borrower account for which the collateral should be credited
     function _addCollateral(address _sender, uint256 _collateralAmount, address _borrower) internal {
+        //could call _syncUserRedemptions to clean things up but can skip to save on gas since adding is always a positive
+
         // Effects: write to state
-        userCollateralBalance[_borrower] += _collateralAmount;
+        _userCollateralBalance[_borrower] += _collateralAmount;
         totalCollateral += _collateralAmount;
 
         // Interactions
@@ -699,9 +724,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _receiver The address to receive the Collateral Token transferred
     /// @param _borrower The borrower whose account will be debited the Collateral amount
     function _removeCollateral(uint256 _collateralAmount, address _receiver, address _borrower) internal {
+        _syncUserRedemptions(_borrower);
+
         // Effects: write to state
         // NOTE: Following line will revert on underflow if _collateralAmount > userCollateralBalance
-        userCollateralBalance[_borrower] -= _collateralAmount;
+        _userCollateralBalance[_borrower] -= _collateralAmount;
         // NOTE: Following line will revert on underflow if totalCollateral < _collateralAmount
         totalCollateral -= _collateralAmount;
 
@@ -831,6 +858,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Update exchange rate and use the lower rate for liquidations
         (, uint256 _exchangeRate, ) = _updateExchangeRate();
 
+        //sync collateral
+        _syncUserRedemptions(_borrower);
+
         // Check if borrower is solvent, revert if they are
         if (_isSolvent(_borrower, _exchangeRate)) {
             revert BorrowerSolvent();
@@ -838,7 +868,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Read from state
         VaultAccount memory _totalBorrow = totalBorrow;
-        uint256 _userCollateralBalance = userCollateralBalance[_borrower];
+        uint256 _userCollateralBalance = _userCollateralBalance[_borrower];
         uint128 _borrowerShares = userBorrowShares[_borrower].toUint128();
 
         // Prevent stack-too-deep
