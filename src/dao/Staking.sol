@@ -31,7 +31,6 @@ contract BoostedStaker {
 
     // Permissioned roles
     address public owner;
-    address public pendingOwner;
     mapping(address account => mapping(address caller => ApprovalStatus approvalStatus)) public approvedCaller;
     mapping(address staker => bool approved) public approvedWeightedStaker;
 
@@ -66,7 +65,6 @@ contract BoostedStaker {
     event Staked(address indexed account, uint indexed week, uint amount, uint newUserWeight, uint weightAdded);
     event Unstaked(address indexed account, uint indexed week, uint amount, uint newUserWeight, uint weightRemoved);
     event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
-    event OwnershipTransferred(address indexed newOwner);
     event WeightedStakerSet(address indexed staker, bool approved);
 
     /**
@@ -80,7 +78,6 @@ contract BoostedStaker {
     */
     constructor(address _token, uint _max_stake_growth_weeks, uint _start_time, address _owner) {
         owner = _owner;
-        emit OwnershipTransferred(_owner);
         stakeToken = IERC20(_token);
         decimals = IERC20Metadata(_token).decimals();
         require(
@@ -491,36 +488,6 @@ contract BoostedStaker {
     function setApprovedCaller(address _caller, ApprovalStatus _status) external {
         approvedCaller[msg.sender][_caller] = _status;
         emit ApprovedCallerSet(msg.sender, _caller, _status);
-    }
-
-    /**
-        @notice Allow owner to specify an account which has ability to stakeAsWeighted.
-        @param _staker Address of account with staker permissions.
-        @param _approved Approve or unapprove the staker.
-    */
-    function setWeightedStaker(address _staker, bool _approved) external {
-        require(msg.sender == owner, "!authorized");
-        approvedWeightedStaker[_staker] = _approved;
-        emit WeightedStakerSet(_staker, _approved);
-    }
-
-    /**
-        @notice Set a pending owner which can later be accepted.
-        @param _pendingOwner Address of the new owner.
-    */
-    function transferOwnership(address _pendingOwner) external {
-        require(msg.sender == owner, "!authorized");
-        pendingOwner = _pendingOwner;
-    }
-
-    /**
-        @notice Allow pending owner to accept ownership
-    */
-    function acceptOwnership() external {
-        require(msg.sender == pendingOwner, "!authorized");
-        owner = msg.sender;
-        pendingOwner = address(0);
-        emit OwnershipTransferred(msg.sender);
     }
 
     function sweep(address _token) external {
