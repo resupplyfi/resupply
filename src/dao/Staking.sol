@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-contract YearnBoostedStaker {
+contract BoostedStaker {
     using SafeERC20 for IERC20;
 
     uint public immutable MAX_STAKE_GROWTH_WEEKS;
@@ -121,15 +121,14 @@ contract YearnBoostedStaker {
     }
 
     function _stake(address _account, uint _amount) internal returns (uint) {
-        require(_amount > 1 && _amount < type(uint112).max, "invalid amount");
+        require(_amount < type(uint112).max, "invalid amount");
 
         // Before going further, let's sync our account and global weights
         uint systemWeek = getWeek();
         (AccountData memory acctData, uint accountWeight) = _checkpointAccount(_account, systemWeek);
         uint112 globalWeight = uint112(_checkpointGlobal(systemWeek));
 
-        uint weight = _amount >> 1;
-        _amount = weight << 1; // This helps prevent balance/weight discrepencies.
+        uint weight = _amount;
         
         acctData.pendingStake += uint112(weight);
         globalGrowthRate += uint112(weight);
@@ -159,48 +158,6 @@ contract YearnBoostedStaker {
     }
 
     /**
-        @notice Allows an option for an approved helper to stake to any account at any weight week.
-        @dev A stake using this method only effects weight in current and future weeks. It does not backfill prior weeks.
-        @param _amount Amount to stake
-        @return amount of tokens staked
-    */
-    function stakeAsMaxWeighted(address _account, uint _amount) external returns (uint) {
-        require(
-            approvedWeightedStaker[msg.sender],
-            "!approvedStaker"
-        );
-        require(_amount > 1 && _amount < type(uint112).max, "invalid amount");
-
-        // Before going further, let's sync our account and global weights
-        uint systemWeek = getWeek();
-        (AccountData memory acctData, uint accountWeight) = _checkpointAccount(_account, systemWeek);
-        uint112 globalWeight = uint112(_checkpointGlobal(systemWeek));
-
-        uint weight = _amount >> 1;
-        _amount = weight << 1;
-        acctData.realizedStake += uint112(weight);
-        weight = weight * (MAX_STAKE_GROWTH_WEEKS + 1);
-
-        // Note: The usage of `stakeAsMaxWeighted` breaks an ability to reliably derive account + global
-        // amount deposited at any week using `weeklyToRealize` variables.
-        // To make up for this, we introduce the following two variables that are meant to recover that same
-        // ability for any on-chain integrators. They may combine this new data with `weeklyToRealize`.
-        accountWeeklyMaxStake[_account][systemWeek] += _amount;
-        globalWeeklyMaxStake[systemWeek] += _amount;
-
-        accountWeeklyWeights[_account][systemWeek] = accountWeight + weight;
-        globalWeeklyWeights[systemWeek] = globalWeight + weight;
-
-        accountData[_account] = acctData;
-        totalSupply += _amount;
-
-        stakeToken.safeTransferFrom(msg.sender, address(this), uint(_amount));
-        emit Staked(_account, systemWeek, _amount, accountWeight + weight, weight);
-
-        return _amount;
-    }
-
-    /**
         @notice Unstake tokens from the contract.
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
@@ -225,7 +182,7 @@ contract YearnBoostedStaker {
     }
 
     function _unstake(address _account, uint _amount, address _receiver) internal returns (uint) {
-        require(_amount > 1 && _amount < type(uint112).max, "invalid amount");
+        require(_amount < type(uint112).max, "invalid amount");
         uint systemWeek = getWeek();
 
         // Before going further, let's sync our account and global weights
@@ -236,8 +193,7 @@ contract YearnBoostedStaker {
         uint8 bitmap = acctData.updateWeeksBitmap;
         uint128 weightToRemove;
 
-        uint128 amountNeeded = uint128(_amount >> 1);
-        _amount = amountNeeded << 1; // This helps prevent balance/weight discrepencies.
+        uint128 amountNeeded = uint128(_amount);
 
         if (bitmap > 0) {
             for (uint128 weekIndex; weekIndex < MAX_STAKE_GROWTH_WEEKS;) {
@@ -276,7 +232,7 @@ contract YearnBoostedStaker {
             acctData.updateWeeksBitmap = bitmap;
         }
         
-        uint pendingRemoved = (_amount >> 1) - amountNeeded;
+        uint pendingRemoved = _amount - amountNeeded;
         if (amountNeeded > 0) {
             weightToRemove += amountNeeded * uint128(1 + MAX_STAKE_GROWTH_WEEKS);
             acctData.realizedStake -= uint112(amountNeeded);
