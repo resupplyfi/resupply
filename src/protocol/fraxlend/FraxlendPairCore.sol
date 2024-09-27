@@ -38,11 +38,13 @@ import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
+import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
+import { PairRewards } from "../PairRewards.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the core logic and storage for the FraxlendPair
-abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, ReentrancyGuard {
+abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, PairRewards {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -81,6 +83,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Metadata
     string public name;
     
+    // Staking Info
+    address convexBooster;
+    uint256 convexPid;
 
     // ============================================================================================
     // Storage
@@ -172,14 +177,28 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             maxLTV = _maxLTV;
         }
 
+        //starting reward types
+        //TODO create redeem token
+        _insertRewardToken(address(0));//redeem token
+        
+
         {
-            (string memory _name) = abi.decode(
+            (string memory _name, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
                 _customConfigData,
-                (string)
+                (string, address, address, uint256)
             );
 
             // Metadata
             name = _name;
+            //add gov token reward
+            _insertRewardToken(_govToken);
+            //convex info
+            if(_convexBooster != address(0)){
+                convexBooster = _convexBooster;
+                convexPid = _convexpid;
+                //approve
+                collateralContract.approve(convexBooster, type(uint256).max);
+            }
 
             // Instantiate Interest
             _addInterest();
@@ -235,6 +254,64 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 userCollateralBalance[_borrower],
                 exchangeRateInfo.highExchangeRate
             );
+        }
+    }
+
+    // ============================================================================================
+    // Reward Implementation
+    // ============================================================================================
+
+    function _isRewardManager() internal view override returns(bool){
+        return _isProtocolOrOwner();
+    }
+
+    function _claimPairRewards() internal override{
+        IPairRegistry(registry).claimRewards(address(this));
+    }
+
+    function _totalRewardShares() internal view override returns(uint256){
+        return totalBorrow.shares;
+    }
+
+    function _userRewardShares(address _account) internal view override returns(uint256){
+        return userBorrowShares[_account];
+    }
+
+    // ============================================================================================
+    // Convex Staking
+    // ============================================================================================
+
+    function _updateConvexPool(uint256 _pid) internal{
+        if(convexPid != _pid){
+            //get previous staking
+            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            //get balance
+            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
+            
+            if(stakedBalance > 0){
+                //withdraw
+                IConvexStaking(convexBooster).withdrawAndUnwrap(stakedBalance,false);
+                require(collateralContract.balanceOf(address(this)) >= stakedBalance, "incorrect balance");
+            }
+
+            //stake in new pool
+            IConvexStaking(convexBooster).deposit(_pid,stakedBalance,false);
+
+            //update pid
+            convexPid = _pid;
+        }
+    }
+
+    function _stakeUnderlying(uint256 _amount) internal{
+        if(convexPid != 0){
+            IConvexStaking(convexBooster).deposit(convexPid,_amount,false);
+        }
+    }
+
+    function _unstakeUnderlying(uint256 _amount) internal{
+        if(convexPid != 0){
+            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            IConvexStaking(rewards).withdrawAndUnwrap(_amount,false);
         }
     }
 
@@ -509,6 +586,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _receiver The address to receive the Asset Tokens
     /// @return _sharesAdded The amount of borrow shares the msg.sender will be debited
     function _borrowAsset(uint128 _borrowAmount, address _receiver) internal returns (uint256 _sharesAdded) {
+        //checkpoint rewards for msg.sender
+        _checkpoint(msg.sender);
+
         // Get borrow accounting from storage to save gas
         VaultAccount memory _totalBorrow = totalBorrow;
 
@@ -586,6 +666,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if (_sender != address(this)) {
             collateralContract.safeTransferFrom(_sender, address(this), _collateralAmount);
         }
+        //stake underlying
+        _stakeUnderlying(_collateralAmount);
+
         emit AddCollateral(_sender, _borrower, _collateralAmount);
     }
 
@@ -621,6 +704,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         userCollateralBalance[_borrower] -= _collateralAmount;
         // NOTE: Following line will revert on underflow if totalCollateral < _collateralAmount
         totalCollateral -= _collateralAmount;
+
+        //unstake underlying
+        _unstakeUnderlying(_collateralAmount);
 
         // Interactions
         if (_receiver != address(this)) {
@@ -669,6 +755,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         address _payer,
         address _borrower
     ) internal {
+        //checkpoint rewards for borrower
+        _checkpoint(_borrower);
+
         // Effects: Bookkeeping
         _totalBorrow.amount -= _amountToRepay;
         _totalBorrow.shares -= _shares;

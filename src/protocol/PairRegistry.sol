@@ -44,6 +44,7 @@ contract FraxlendPairRegistry is Ownable2Step{
     address public liquidationHandler;
     address public feeDeposit;
     address public redeemer;
+    address public rewardClaimer;
 
     constructor(address _owner) Ownable2Step(){
         _transferOwnership(_owner);
@@ -100,6 +101,13 @@ contract FraxlendPairRegistry is Ownable2Step{
     function setRedeemer(address _newAddress) external onlyOwner{
         emit SetRedeemer(redeemer, _newAddress);
         redeemer = _newAddress;
+    }
+
+    event SetRewardClaimer(address oldAddress, address newAddress);
+
+    function setRewardClaimer(address _newAddress) external onlyOwner{
+        emit SetRewardClaimer(rewardClaimer, _newAddress);
+        rewardClaimer = _newAddress;
     }
 
     /// @notice The ```AddPair``` event is emitted when a new pair is added to the registry
@@ -176,6 +184,10 @@ contract FraxlendPairRegistry is Ownable2Step{
 
     function claimFees(address _pair) external{
         IFraxlendPair(_pair).withdrawFees();
+    }
+
+    function claimRewards(address _pair) external{
+        //TODO tell rewardClaimer to process rewards
     }
 
     function getMaxMintable(address _pair) external view returns(uint256){

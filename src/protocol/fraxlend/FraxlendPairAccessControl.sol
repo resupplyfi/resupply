@@ -76,10 +76,13 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     // Functions: Access Control
     // ============================================================================================
 
+    function _isProtocolOrOwner() internal view returns(bool){
+        return msg.sender == registry || msg.sender == IOwnership(registry).owner();
+    }
+
     function _requireProtocolOrOwner() internal view {
         if (
-            msg.sender != registry &&
-            msg.sender != IOwnership(registry).owner()
+            !_isProtocolOrOwner()
         ) {
             revert OnlyProtocolOrOwner();
         }
