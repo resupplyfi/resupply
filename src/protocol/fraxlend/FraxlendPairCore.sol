@@ -39,13 +39,13 @@ import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
-import { PairRewards } from "../PairRewards.sol";
+import { RewardHandler } from "../RewardHandler.sol";
 import { RedemptionToken } from "../RedemptionToken.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the core logic and storage for the FraxlendPair
-abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, PairRewards {
+abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, RewardHandler {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -275,7 +275,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         return _isProtocolOrOwner();
     }
 
-    function _claimPairRewards() internal override{
+    function _claimPoolRewards() internal override{
         IPairRegistry(registry).claimRewards(address(this));
     }
 
