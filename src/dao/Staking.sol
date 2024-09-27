@@ -15,14 +15,13 @@ contract BoostedStaker {
     // Account weight tracking state vars.
     mapping(address account => AccountData data) public accountData;
     mapping(address account => mapping(uint week => uint weight)) private accountWeeklyWeights;
-    mapping(address account => mapping(uint week => ToRealize weight)) public accountWeeklyToRealize;
-    mapping(address account => mapping(uint week => uint amount)) public accountWeeklyMaxStake;
+    mapping(address account => mapping(uint week => uint weight)) public accountWeeklyToRealize;
 
     // Global weight tracking stats vars.
     uint112 public globalGrowthRate;
     uint16 public globalLastUpdateWeek;
     mapping(uint week => uint weight) private globalWeeklyWeights;
-    mapping(uint week => ToRealize weight) public globalWeeklyToRealize;
+    mapping(uint week => uint weight) public globalWeeklyToRealize;
     mapping(uint week => uint amount) public globalWeeklyMaxStake;
 
     // Generic token interface.
@@ -33,11 +32,6 @@ contract BoostedStaker {
     address public owner;
     mapping(address account => mapping(address caller => ApprovalStatus approvalStatus)) public approvedCaller;
     mapping(address staker => bool approved) public approvedWeightedStaker;
-
-    struct ToRealize {
-        uint128 weightPersistent;
-        uint128 weight;
-    }
 
     struct AccountData {
         uint112 realizedStake;  // Amount of stake that has fully realized weight.
@@ -62,10 +56,9 @@ contract BoostedStaker {
         StakeAndUnstake     // 3. Approved for both stake and unstake
     }
 
-    event Staked(address indexed account, uint indexed week, uint amount, uint newUserWeight, uint weightAdded);
-    event Unstaked(address indexed account, uint indexed week, uint amount, uint newUserWeight, uint weightRemoved);
+    event Staked(address indexed account, uint indexed week, uint amount);
+    event Unstaked(address indexed account, uint indexed week, uint amount);
     event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
-    event WeightedStakerSet(address indexed staker, bool approved);
 
     /**
         @param _token The token to be staked.
@@ -131,25 +124,20 @@ contract BoostedStaker {
         globalGrowthRate += uint112(weight);
 
         uint realizeWeek = systemWeek + MAX_STAKE_GROWTH_WEEKS;
-        ToRealize memory toRealize = accountWeeklyToRealize[_account][realizeWeek];
-        toRealize.weight += uint128(weight);
-        toRealize.weightPersistent += uint128(weight);
-        accountWeeklyToRealize[_account][realizeWeek] = toRealize;
 
-        toRealize = globalWeeklyToRealize[realizeWeek];
-        toRealize.weight += uint128(weight);
-        toRealize.weightPersistent += uint128(weight);
-        globalWeeklyToRealize[realizeWeek] = toRealize;
+        accountWeeklyToRealize[_account][realizeWeek] += weight;
+        globalWeeklyToRealize[realizeWeek] += weight;
         
-        accountWeeklyWeights[_account][systemWeek] = accountWeight + weight;
-        globalWeeklyWeights[systemWeek] = globalWeight + weight;
+        // DEV: remove this because we want to start user with 0 weight
+        // accountWeeklyWeights[_account][systemWeek] = accountWeight + weight;
+        // globalWeeklyWeights[systemWeek] = globalWeight + weight;
 
         acctData.updateWeeksBitmap |= 1; // Use bitwise or to ensure bit is flipped at least weighted position.
         accountData[_account] = acctData;
         totalSupply += _amount;
         
         stakeToken.safeTransferFrom(msg.sender, address(this), uint(_amount));
-        emit Staked(_account, systemWeek, _amount, accountWeight + weight, weight);
+        emit Staked(_account, systemWeek, _amount);
         
         return _amount;
     }
@@ -188,37 +176,28 @@ contract BoostedStaker {
 
         // Here we do work to pull from most recent (least weighted) stake first
         uint8 bitmap = acctData.updateWeeksBitmap;
-        uint128 weightToRemove;
-
-        uint128 amountNeeded = uint128(_amount);
-
+        uint amountNeeded = _amount;
+        uint weightToRemove;
+        
         if (bitmap > 0) {
             for (uint128 weekIndex; weekIndex < MAX_STAKE_GROWTH_WEEKS;) {
                 // Move right to left, checking each bit if there's an update for corresponding week.
                 uint8 mask = uint8(1 << weekIndex);
                 if (bitmap & mask == mask) {
                     uint weekToCheck = systemWeek + MAX_STAKE_GROWTH_WEEKS - weekIndex;
-                    uint128 pending = accountWeeklyToRealize[_account][weekToCheck].weight;
+                    uint pending = accountWeeklyToRealize[_account][weekToCheck];
                     if (amountNeeded > pending){
                         weightToRemove += pending * (weekIndex + 1);
-                        accountWeeklyToRealize[_account][weekToCheck].weight = 0;
-                        globalWeeklyToRealize[weekToCheck].weight -= pending;
-                        if (weekIndex == 0) { // Current system week
-                            accountWeeklyToRealize[_account][weekToCheck].weightPersistent = 0;
-                            globalWeeklyToRealize[weekToCheck].weightPersistent -= pending;
-                        }
+                        accountWeeklyToRealize[_account][weekToCheck] = 0;
+                        globalWeeklyToRealize[weekToCheck] -= pending;
                         bitmap = bitmap ^ mask;
                         amountNeeded -= pending;
                     }
                     else { 
                         // handle the case where we have more pending than needed
                         weightToRemove += amountNeeded * (weekIndex + 1);
-                        accountWeeklyToRealize[_account][weekToCheck].weight -= amountNeeded;
-                        globalWeeklyToRealize[weekToCheck].weight -= amountNeeded;
-                        if (weekIndex == 0) { // Current system week
-                            accountWeeklyToRealize[_account][weekToCheck].weightPersistent -= amountNeeded;
-                            globalWeeklyToRealize[weekToCheck].weightPersistent -= amountNeeded;
-                        }
+                        accountWeeklyToRealize[_account][weekToCheck] -= amountNeeded;
+                        globalWeeklyToRealize[weekToCheck] -= amountNeeded;
                         if (amountNeeded == pending) bitmap = bitmap ^ mask;
                         amountNeeded = 0;
                         break;
@@ -231,7 +210,7 @@ contract BoostedStaker {
         
         uint pendingRemoved = _amount - amountNeeded;
         if (amountNeeded > 0) {
-            weightToRemove += amountNeeded * uint128(1 + MAX_STAKE_GROWTH_WEEKS);
+            weightToRemove += amountNeeded * (1 + MAX_STAKE_GROWTH_WEEKS);
             acctData.realizedStake -= uint112(amountNeeded);
             acctData.pendingStake = 0;
         }
@@ -248,7 +227,7 @@ contract BoostedStaker {
         
         totalSupply -= _amount;
 
-        emit Unstaked(_account, systemWeek, _amount, newAccountWeight, weightToRemove);
+        emit Unstaked(_account, systemWeek, _amount);
         
         stakeToken.safeTransfer(_receiver, _amount);
         
@@ -325,7 +304,7 @@ contract BoostedStaker {
             bitmap = bitmap << 1;
             if (bitmap & MAX_WEEK_BIT == MAX_WEEK_BIT){ // If left-most bit is true, we have something to realize; push pending to realized.
                 // Do any updates needed to realize an amount for an account.
-                uint toRealize = accountWeeklyToRealize[_account][lastUpdateWeek].weight;
+                uint toRealize = accountWeeklyToRealize[_account][lastUpdateWeek];
                 pending -= toRealize;
                 realized += toRealize;
                 if (pending == 0) break; // All pending has been realized. No need to continue.
@@ -380,7 +359,7 @@ contract BoostedStaker {
             // Our bitmap is used to determine if week has any amount to realize.
             bitmap = bitmap << 1;
             if (bitmap & MAX_WEEK_BIT == MAX_WEEK_BIT){ // If left-most bit is true, we have something to realize; push pending to realized.
-                pending -= accountWeeklyToRealize[_account][lastUpdateWeek].weight;
+                pending -= accountWeeklyToRealize[_account][lastUpdateWeek];
                 if (pending == 0) break; // All pending has now been realized, let's exit.
             }            
         }
@@ -425,7 +404,7 @@ contract BoostedStaker {
             unchecked{lastUpdateWeek++;}
             weight += rate;
             globalWeeklyWeights[lastUpdateWeek] = weight;
-            rate -= globalWeeklyToRealize[lastUpdateWeek].weight;
+            rate -= globalWeeklyToRealize[lastUpdateWeek];
         }
 
         globalGrowthRate = uint112(rate);
@@ -464,7 +443,7 @@ contract BoostedStaker {
         while (lastUpdateWeek < week) {
             unchecked {lastUpdateWeek++;}
             weight += rate;
-            rate -= globalWeeklyToRealize[lastUpdateWeek].weight;
+            rate -= globalWeeklyToRealize[lastUpdateWeek];
         }
 
         return weight;
