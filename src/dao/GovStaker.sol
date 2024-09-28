@@ -232,12 +232,8 @@ contract GovStaker {
         }
         else {
             stakeToken.safeTransfer(_receiver, _amount);
+            emit Unstaked(_account, _amount);
         }
-
-        // emit Unstaked(_account, systemEpoch, _amount);
-        
-
-        
         
         return _amount;
     }
