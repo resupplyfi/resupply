@@ -20,6 +20,7 @@ contract GovStakerTest is Test {
     address deployer;
     address user1;
     uint256 public constant EPOCH_LENGTH = 60 * 60 * 24 * 2;
+    uint256 public constant MAX_STAKE_GROWTH_EPOCHS = 3;
 
     function setUp() public {
         deployer = address(this);
@@ -33,7 +34,7 @@ contract GovStakerTest is Test {
         staker = new GovStaker(
             address(token),    // stakeToken
             EPOCH_LENGTH,      // EPOCH_LENGTH
-            1,                 // MAX_STAKE_GROWTH_EPOCHS
+            MAX_STAKE_GROWTH_EPOCHS,    // MAX_STAKE_GROWTH_EPOCHS
             block.timestamp,   // START_TIME
             deployer,          // owner
             IGovStakerEscrow(escrowAddress) // Escrow
@@ -56,6 +57,14 @@ contract GovStakerTest is Test {
         staker.stake(amountToStake);
         assertEq(staker.balanceOf(user1), amountToStake, "Stake balance should be updated");
         assertEq(token.balanceOf(address(staker)), amountToStake, "Token should be transferred to staker");
+        assertEq(staker.getAccountWeight(user1), 0, "Weight should be 0");
+        vm.warp(block.timestamp + EPOCH_LENGTH); // Test weight increase
+        assertEq(staker.getAccountWeight(user1), amountToStake, "Weight should be 0");
+        vm.warp(block.timestamp + (MAX_STAKE_GROWTH_EPOCHS - 1) * EPOCH_LENGTH); // Test weight increase
+        assertEq(staker.getAccountWeight(user1), amountToStake * MAX_STAKE_GROWTH_EPOCHS, "Weight should be 0");
+
+        vm.warp(block.timestamp + warmupWait() * 100);
+        staker.checkpointAccount(user1);
     }
 
     function testFailUnapprovedStake() public {
@@ -65,10 +74,7 @@ contract GovStakerTest is Test {
     }
 
     function _checkExpectedStake(address _account, uint expectedStake) internal {
-        (GovStaker.AccountData memory acctData, uint weight) = staker.checkpointAccount(_account);
-        console.log("acctData.realizedStake", acctData.realizedStake);
-        console.log("weight", weight);
-        console.log("balance", staker.balanceOf(_account));
+        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
         assertEq(acctData.realizedStake, expectedStake, "Stake should be updated correctly");
     }
 
@@ -78,7 +84,7 @@ contract GovStakerTest is Test {
         staker.stake(amountToStake);
         assertEq(staker.balanceOf(user1), amountToStake, "Stake should be updated correctly");
         assertEq(token.balanceOf(address(staker)), amountToStake, "Tokens should be transferred to staker");
-        vm.warp(block.timestamp + EPOCH_LENGTH);
+        vm.warp(block.timestamp + warmupWait()); // Warm up wait
         _checkExpectedStake(user1, amountToStake);
 
         // Initiate cooldown and unstake
@@ -97,19 +103,22 @@ contract GovStakerTest is Test {
         vm.startPrank(user1);
         uint amountToStake = 100 * 10 ** 18;
         staker.stake(amountToStake);
-        vm.warp(block.timestamp + EPOCH_LENGTH); // Warm up wait
+        vm.warp(block.timestamp + warmupWait()); // Warm up wait
 
         // Cooldown
         staker.cooldown(amountToStake);
         uint cooldownDuration = staker.cooldownDuration();
         vm.warp(block.timestamp + cooldownDuration);
         uint amount = staker.unstake(user1);
-        console.log("amount", amount);
         assertEq(amount, amountToStake, "Unstake amount should be equal to staked amount");
         vm.stopPrank();
     }
 
-    function getEpochLength() public view returns (uint) {
-        return staker.EPOCH_LENGTH();
+    function warmupWait() internal view returns (uint) {
+        return EPOCH_LENGTH * MAX_STAKE_GROWTH_EPOCHS;
+    }
+
+    function getEpoch() public view returns (uint) {
+        return staker.getEpoch();
     }
 }

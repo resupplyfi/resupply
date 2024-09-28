@@ -8,7 +8,7 @@ import {IGovStakerEscrow} from "../interfaces/IGovStakerEscrow.sol";
 contract GovStaker {
     using SafeERC20 for IERC20;
 
-    uint public immutable MAX_STAKE_GROWTH_WEEKS;
+    uint public immutable MAX_STAKE_GROWTH_EPOCHS;
     uint8 public immutable MAX_WEEK_BIT;
     uint public immutable START_TIME;
     uint public immutable EPOCH_LENGTH;
@@ -23,14 +23,13 @@ contract GovStaker {
     // Global weight tracking state vars.
     uint112 public globalGrowthRate;
     uint16 public globalLastUpdateWeek;
-    mapping(uint epoch => uint weight) private globalWeeklyWeights;
-    mapping(uint epoch => uint weight) public globalWeeklyToRealize;
-    mapping(uint epoch => uint amount) public globalWeeklyMaxStake;
+    mapping(uint epoch => uint weight) private globalWeightInEpoch;
+    mapping(uint epoch => uint weight) public globalToRealizeInEpoch;
 
     // Cooldown tracking vars.
     uint public cooldownDuration;
     mapping(address => UserCooldown) public cooldowns;
-    uint24 public constant MAX_COOLDOWN_DURATION = 30 days;
+    uint24 public immutable MAX_COOLDOWN_DURATION = 30 days;
 
     // Generic token interface.
     uint public totalSupply;
@@ -110,8 +109,8 @@ contract GovStaker {
             _max_stake_growth_epochs <= 7,
             "Invalid epochs"
         );
-        MAX_STAKE_GROWTH_WEEKS = _max_stake_growth_epochs;
-        MAX_WEEK_BIT = uint8(1 << MAX_STAKE_GROWTH_WEEKS);
+        MAX_STAKE_GROWTH_EPOCHS = _max_stake_growth_epochs;
+        MAX_WEEK_BIT = uint8(1 << MAX_STAKE_GROWTH_EPOCHS);
         EPOCH_LENGTH = _epoch_length;
         if (_start_time == 0){
             START_TIME = block.timestamp;
@@ -121,7 +120,7 @@ contract GovStaker {
             START_TIME = _start_time;
         }
         ESCROW = _escrow;
-        cooldownDuration = MAX_COOLDOWN_DURATION;
+        cooldownDuration = min(MAX_COOLDOWN_DURATION, EPOCH_LENGTH * MAX_STAKE_GROWTH_EPOCHS);
     }
 
     /**
@@ -158,10 +157,10 @@ contract GovStaker {
         acctData.pendingStake += uint112(weight);
         globalGrowthRate += uint112(weight);
 
-        uint realizeWeek = systemEpoch + MAX_STAKE_GROWTH_WEEKS;
+        uint realizeEpoch = systemEpoch + MAX_STAKE_GROWTH_EPOCHS;
 
-        accountToRealizeInEpoch[_account][realizeWeek] += weight;
-        globalWeeklyToRealize[realizeWeek] += weight;
+        accountToRealizeInEpoch[_account][realizeEpoch] += weight;
+        globalToRealizeInEpoch[realizeEpoch] += weight;
 
         acctData.updateEpochsBitmap |= 1; // Use bitwise or to ensure bit is flipped at least weighted position.
         accountData[_account] = acctData;
@@ -211,8 +210,8 @@ contract GovStaker {
         acctData.realizedStake -= uint112(_amount);
         accountData[_account] = acctData;
 
-        uint weightToRemove = _amount * MAX_STAKE_GROWTH_WEEKS;
-        globalWeeklyWeights[systemEpoch] -= weightToRemove;
+        uint weightToRemove = _amount * MAX_STAKE_GROWTH_EPOCHS;
+        globalWeightInEpoch[systemEpoch] -= weightToRemove;
         accountWeightInEpoch[_account][systemEpoch] -= weightToRemove;
         
         totalSupply -= _amount;
@@ -318,7 +317,7 @@ contract GovStaker {
 
         weight = accountWeightInEpoch[_account][lastUpdateEpoch];
         uint8 bitmap = acctData.updateEpochsBitmap;
-        uint targetSyncWeek = min(_systemEpoch, lastUpdateEpoch + MAX_STAKE_GROWTH_WEEKS);
+        uint targetSyncWeek = min(_systemEpoch, lastUpdateEpoch + MAX_STAKE_GROWTH_EPOCHS);
 
         // Populate data for missed epochs
         while (lastUpdateEpoch < targetSyncWeek) {
@@ -415,7 +414,7 @@ contract GovStaker {
         uint16 lastUpdateEpoch = globalLastUpdateWeek;
         uint rate = globalGrowthRate;
 
-        uint weight = globalWeeklyWeights[lastUpdateEpoch];
+        uint weight = globalWeightInEpoch[lastUpdateEpoch];
 
         if (lastUpdateEpoch == systemEpoch){
             return weight;
@@ -424,8 +423,8 @@ contract GovStaker {
         while (lastUpdateEpoch < systemEpoch) {
             unchecked{lastUpdateEpoch++;}
             weight += rate;
-            globalWeeklyWeights[lastUpdateEpoch] = weight;
-            rate -= globalWeeklyToRealize[lastUpdateEpoch];
+            globalWeightInEpoch[lastUpdateEpoch] = weight;
+            rate -= globalToRealizeInEpoch[lastUpdateEpoch];
         }
 
         globalGrowthRate = uint112(rate);
@@ -454,9 +453,9 @@ contract GovStaker {
         uint16 lastUpdateEpoch = globalLastUpdateWeek;
         uint rate = globalGrowthRate;
 
-        if (epoch <= lastUpdateEpoch) return globalWeeklyWeights[epoch];
+        if (epoch <= lastUpdateEpoch) return globalWeightInEpoch[epoch];
 
-        uint weight = globalWeeklyWeights[lastUpdateEpoch];
+        uint weight = globalWeightInEpoch[lastUpdateEpoch];
         if (rate == 0) {
             return weight;
         }
@@ -464,7 +463,7 @@ contract GovStaker {
         while (lastUpdateEpoch < epoch) {
             unchecked {lastUpdateEpoch++;}
             weight += rate;
-            rate -= globalWeeklyToRealize[lastUpdateEpoch];
+            rate -= globalToRealizeInEpoch[lastUpdateEpoch];
         }
 
         return weight;
