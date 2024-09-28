@@ -19,6 +19,7 @@ contract GovStakerTest is Test {
     MockERC20 token;
     address deployer;
     address user1;
+    uint256 public constant EPOCH_LENGTH = 60 * 60 * 24 * 2;
 
     function setUp() public {
         deployer = address(this);
@@ -31,7 +32,8 @@ contract GovStakerTest is Test {
         escrow = new GovStakerEscrow(govStakingAddress, address(token));
         staker = new GovStaker(
             address(token),    // stakeToken
-            1,                 // MAX_STAKE_GROWTH_WEEKS
+            EPOCH_LENGTH,      // EPOCH_LENGTH
+            1,                 // MAX_STAKE_GROWTH_EPOCHS
             block.timestamp,   // START_TIME
             deployer,          // owner
             IGovStakerEscrow(escrowAddress) // Escrow
@@ -76,7 +78,7 @@ contract GovStakerTest is Test {
         staker.stake(amountToStake);
         assertEq(staker.balanceOf(user1), amountToStake, "Stake should be updated correctly");
         assertEq(token.balanceOf(address(staker)), amountToStake, "Tokens should be transferred to staker");
-        vm.warp(block.timestamp + 1 weeks);
+        vm.warp(block.timestamp + EPOCH_LENGTH);
         _checkExpectedStake(user1, amountToStake);
 
         // Initiate cooldown and unstake
@@ -92,21 +94,22 @@ contract GovStakerTest is Test {
     }
 
     function testUnstakeAmount() public {
-        vm.prank(user1);
+        vm.startPrank(user1);
         uint amountToStake = 100 * 10 ** 18;
         staker.stake(amountToStake);
-        // Warm up wait
-        vm.warp(block.timestamp + 1 weeks);
-        console.log("xxx", amountToStake);
-        (uint112 realizedStake,,,) = staker.accountData(user1);
-        // console.log("realized_stake", acctData.realizedStake);
-        console.log("user_weight", staker.getAccountWeight(user1), realizedStake);
+        vm.warp(block.timestamp + EPOCH_LENGTH); // Warm up wait
+
+        // Cooldown
         staker.cooldown(amountToStake);
         uint cooldownDuration = staker.cooldownDuration();
         vm.warp(block.timestamp + cooldownDuration);
         uint amount = staker.unstake(user1);
+        console.log("amount", amount);
         assertEq(amount, amountToStake, "Unstake amount should be equal to staked amount");
+        vm.stopPrank();
     }
 
-    // More tests for edge cases and permissions...
+    function getEpochLength() public view returns (uint) {
+        return staker.EPOCH_LENGTH();
+    }
 }
