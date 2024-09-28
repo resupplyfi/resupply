@@ -3,6 +3,7 @@ pragma solidity ^0.8.22;
 
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IGovStakerEscrow} from "../interfaces/IGovStakerEscrow.sol";
 
 contract GovStaker {
     using SafeERC20 for IERC20;
@@ -11,18 +12,24 @@ contract GovStaker {
     uint8 public immutable MAX_WEEK_BIT;
     uint public immutable START_TIME;
     IERC20 public immutable stakeToken;
+    IGovStakerEscrow public immutable ESCROW;
 
     // Account weight tracking state vars.
     mapping(address account => AccountData data) public accountData;
     mapping(address account => mapping(uint week => uint weight)) private accountWeeklyWeights;
     mapping(address account => mapping(uint week => uint weight)) public accountWeeklyToRealize;
 
-    // Global weight tracking stats vars.
+    // Global weight tracking state vars.
     uint112 public globalGrowthRate;
     uint16 public globalLastUpdateWeek;
     mapping(uint week => uint weight) private globalWeeklyWeights;
     mapping(uint week => uint weight) public globalWeeklyToRealize;
     mapping(uint week => uint amount) public globalWeeklyMaxStake;
+
+    // Cooldown tracking vars.
+    uint public cooldownDuration;
+    mapping(address => UserCooldown) public cooldowns;
+    uint24 public constant MAX_COOLDOWN_DURATION = 30 days;
 
     // Generic token interface.
     uint public totalSupply;
@@ -49,6 +56,11 @@ contract GovStaker {
         uint8 updateWeeksBitmap;
     }
 
+    struct UserCooldown {
+        uint104 cooldownEnd;
+        uint152 underlyingAmount;
+    }
+
     enum ApprovalStatus {
         None,               // 0. Default value, indicating no approval
         StakeOnly,          // 1. Approved for stake only
@@ -56,9 +68,20 @@ contract GovStaker {
         StakeAndUnstake     // 3. Approved for both stake and unstake
     }
 
+    modifier ensureCooldownOff() {
+        require(cooldownDuration == 0, "CooldownOn");
+        _;
+    }
+
+    modifier ensureCooldownOn() {
+        require(cooldownDuration != 0, "CooldownOff");
+        _;
+    }
+
     event Staked(address indexed account, uint indexed week, uint amount);
-    event Unstaked(address indexed account, uint indexed week, uint amount);
+    event Unstaked(address indexed account, uint amount);
     event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
+    event Cooldown(address indexed account, uint amount, uint end);
 
     /**
         @param _token The token to be staked.
@@ -69,7 +92,7 @@ contract GovStaker {
                             Passing a value of 0 will start at block.timestamp.
         @param _owner       Owner is able to grant access to stake with max boost.
     */
-    constructor(address _token, uint _max_stake_growth_weeks, uint _start_time, address _owner) {
+    constructor(address _token, uint _max_stake_growth_weeks, uint _start_time, address _owner, IGovStakerEscrow _escrow) {
         owner = _owner;
         stakeToken = IERC20(_token);
         decimals = IERC20Metadata(_token).decimals();
@@ -87,6 +110,8 @@ contract GovStaker {
             require(_start_time <= block.timestamp, "!Past");
             START_TIME = _start_time;
         }
+        ESCROW = _escrow;
+        cooldownDuration = MAX_COOLDOWN_DURATION;
     }
 
     /**
@@ -115,8 +140,8 @@ contract GovStaker {
 
         // Before going further, let's sync our account and global weights
         uint systemWeek = getWeek();
-        (AccountData memory acctData, uint accountWeight) = _checkpointAccount(_account, systemWeek);
-        uint112 globalWeight = uint112(_checkpointGlobal(systemWeek));
+        (AccountData memory acctData, ) = _checkpointAccount(_account, systemWeek);
+        _checkpointGlobal(systemWeek);
 
         uint weight = _amount;
         
@@ -127,10 +152,6 @@ contract GovStaker {
 
         accountWeeklyToRealize[_account][realizeWeek] += weight;
         globalWeeklyToRealize[realizeWeek] += weight;
-        
-        // DEV: remove this because we want to start user with 0 weight
-        // accountWeeklyWeights[_account][systemWeek] = accountWeight + weight;
-        // globalWeeklyWeights[systemWeek] = globalWeight + weight;
 
         acctData.updateWeeksBitmap |= 1; // Use bitwise or to ensure bit is flipped at least weighted position.
         accountData[_account] = acctData;
@@ -146,15 +167,16 @@ contract GovStaker {
         @notice Unstake tokens from the contract.
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
-    function unstake(uint _amount, address _receiver) external returns (uint) {
-        return _unstake(msg.sender, _amount, _receiver);
+    function cooldown(uint _amount) external returns (uint) {
+        return _cooldown(msg.sender, _amount);
     }
 
     /**
         @notice Unstake tokens from the contract on behalf of another user.
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
-    function unstakeFor(address _account, uint _amount, address _receiver) external returns (uint) {
+    // function unstakeFor(address _account, uint _amount, address _receiver) external returns (uint) {
+    function cooldownFor(address _account, uint _amount) external returns (uint) {
         if (msg.sender != _account) {
             ApprovalStatus status = approvedCaller[_account][msg.sender];
             require(
@@ -163,10 +185,10 @@ contract GovStaker {
                 "!Permission"
             );
         }
-        return _unstake(_account, _amount, _receiver);
+        return _cooldown(_account, _amount);
     }
 
-    function _unstake(address _account, uint _amount, address _receiver) internal returns (uint) {
+    function _cooldown(address _account, uint _amount) internal returns (uint) {
         require(_amount < type(uint112).max, "invalid amount");
         uint systemWeek = getWeek();
 
@@ -185,11 +207,47 @@ contract GovStaker {
         
         totalSupply -= _amount;
 
-        emit Unstaked(_account, systemWeek, _amount);
-        
-        stakeToken.safeTransfer(_receiver, _amount);
+        uint end = block.timestamp + cooldownDuration;
+        cooldowns[_account].cooldownEnd = uint104(end);
+        cooldowns[_account].underlyingAmount += uint152(_amount);
+
+        // emit Unstaked(_account, systemWeek, _amount);
+        emit Cooldown(_account, _amount, end);
+
+        stakeToken.safeTransfer(address(ESCROW), _amount);
         
         return _amount;
+    }
+
+    function unstake(address _receiver) external returns (uint) {
+        return _unstake(msg.sender, _receiver);
+    }
+
+    function unstakeFor(address _account, address _receiver) external returns (uint) {
+        if (msg.sender != _account) {
+            ApprovalStatus status = approvedCaller[_account][msg.sender];
+            require(
+                status == ApprovalStatus.StakeAndUnstake ||
+                status == ApprovalStatus.UnstakeOnly,
+                "!Permission"
+            );
+        }
+        return _unstake(_account, _receiver);
+    }
+
+    function _unstake(address _account, address _receiver) internal returns (uint) {
+        UserCooldown storage userCooldown = cooldowns[_account];
+        uint256 amount = userCooldown.underlyingAmount;
+
+        require(block.timestamp >= userCooldown.cooldownEnd || cooldownDuration == 0, "InvalidCooldown");
+
+        userCooldown.cooldownEnd = 0;
+        userCooldown.underlyingAmount = 0;
+
+        ESCROW.withdraw(_receiver, amount);
+
+        emit Unstaked(_account, amount);
+        return amount;
     }
     
     /**

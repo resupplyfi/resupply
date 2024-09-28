@@ -2,7 +2,7 @@
 pragma solidity ^0.8.22;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract USDeSilo {
+contract GovStakerEscrow {
   address immutable GOV_STAKER;
   IERC20 immutable TOKEN;
 

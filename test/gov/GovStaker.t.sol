@@ -3,6 +3,8 @@ pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
 import "../../src/dao/GovStaker.sol";
+import "../../src/dao/GovStakerEscrow.sol";
+import {IGovStakerEscrow} from "../../src/interfaces/IGovStakerEscrow.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
@@ -13,6 +15,7 @@ contract MockERC20 is ERC20 {
 
 contract GovStakerTest is Test {
     GovStaker staker;
+    GovStakerEscrow escrow;
     MockERC20 token;
     address deployer;
     address user1;
@@ -22,11 +25,16 @@ contract GovStakerTest is Test {
         user1 = address(0x1);
 
         token = new MockERC20();
+        uint256 nonce = vm.getNonce(deployer);
+        address escrowAddress = computeCreateAddress(deployer, nonce);
+        address govStakingAddress = computeCreateAddress(deployer, nonce + 1);
+        escrow = new GovStakerEscrow(govStakingAddress, address(token));
         staker = new GovStaker(
             address(token),    // stakeToken
             1,                 // MAX_STAKE_GROWTH_WEEKS
             block.timestamp,   // START_TIME
-            deployer           // owner
+            deployer,          // owner
+            IGovStakerEscrow(escrowAddress) // Escrow
         );
 
         token.approve(address(staker), type(uint256).max);
@@ -70,18 +78,34 @@ contract GovStakerTest is Test {
         assertEq(token.balanceOf(address(staker)), amountToStake, "Tokens should be transferred to staker");
         vm.warp(block.timestamp + 1 weeks);
         _checkExpectedStake(user1, amountToStake);
-        staker.unstake(amountToStake, user1);
+
+        // Initiate cooldown and unstake
+        staker.cooldown(amountToStake);
+        uint cooldownDuration = staker.cooldownDuration();
+        vm.warp(block.timestamp + cooldownDuration);
+        staker.unstake(user1);
+        // staker.unstake(amountToStake, user1);
         vm.stopPrank();
 
         assertEq(staker.balanceOf(user1), 0, "Balance after unstake should be zero");
         assertEq(token.balanceOf(user1), 10000 * 10 ** 18, "Token should be returned to user");
     }
 
-    function testFailUnstakeMoreThanStaked() public {
+    function testUnstakeAmount() public {
         vm.prank(user1);
-        staker.stake(100 * 10 ** 18);
-        vm.expectRevert("insufficient stake available");
-        staker.unstake(200 * 10 ** 18, user1);
+        uint amountToStake = 100 * 10 ** 18;
+        staker.stake(amountToStake);
+        // Warm up wait
+        vm.warp(block.timestamp + 1 weeks);
+        console.log("xxx", amountToStake);
+        (uint112 realizedStake,,,) = staker.accountData(user1);
+        // console.log("realized_stake", acctData.realizedStake);
+        console.log("user_weight", staker.getAccountWeight(user1), realizedStake);
+        staker.cooldown(amountToStake);
+        uint cooldownDuration = staker.cooldownDuration();
+        vm.warp(block.timestamp + cooldownDuration);
+        uint amount = staker.unstake(user1);
+        assertEq(amount, amountToStake, "Unstake amount should be equal to staked amount");
     }
 
     // More tests for edge cases and permissions...
