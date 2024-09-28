@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-contract BoostedStaker {
+contract GovStaker {
     using SafeERC20 for IERC20;
 
     uint public immutable MAX_STAKE_GROWTH_WEEKS;
@@ -172,58 +172,16 @@ contract BoostedStaker {
 
         // Before going further, let's sync our account and global weights
         (AccountData memory acctData, ) = _checkpointAccount(_account, systemWeek);
+        require(acctData.realizedStake >= _amount, "insufficient weight available");
         _checkpointGlobal(systemWeek);
 
-        // Here we do work to pull from most recent (least weighted) stake first
-        uint8 bitmap = acctData.updateWeeksBitmap;
-        uint amountNeeded = _amount;
-        uint weightToRemove;
-        
-        if (bitmap > 0) {
-            for (uint128 weekIndex; weekIndex < MAX_STAKE_GROWTH_WEEKS;) {
-                // Move right to left, checking each bit if there's an update for corresponding week.
-                uint8 mask = uint8(1 << weekIndex);
-                if (bitmap & mask == mask) {
-                    uint weekToCheck = systemWeek + MAX_STAKE_GROWTH_WEEKS - weekIndex;
-                    uint pending = accountWeeklyToRealize[_account][weekToCheck];
-                    if (amountNeeded > pending){
-                        weightToRemove += pending * (weekIndex + 1);
-                        accountWeeklyToRealize[_account][weekToCheck] = 0;
-                        globalWeeklyToRealize[weekToCheck] -= pending;
-                        bitmap = bitmap ^ mask;
-                        amountNeeded -= pending;
-                    }
-                    else { 
-                        // handle the case where we have more pending than needed
-                        weightToRemove += amountNeeded * (weekIndex + 1);
-                        accountWeeklyToRealize[_account][weekToCheck] -= amountNeeded;
-                        globalWeeklyToRealize[weekToCheck] -= amountNeeded;
-                        if (amountNeeded == pending) bitmap = bitmap ^ mask;
-                        amountNeeded = 0;
-                        break;
-                    }
-                }
-                unchecked{weekIndex++;}
-            }
-            acctData.updateWeeksBitmap = bitmap;
-        }
-        
-        uint pendingRemoved = _amount - amountNeeded;
-        if (amountNeeded > 0) {
-            weightToRemove += amountNeeded * (1 + MAX_STAKE_GROWTH_WEEKS);
-            acctData.realizedStake -= uint112(amountNeeded);
-            acctData.pendingStake = 0;
-        }
-        else{
-            acctData.pendingStake -= uint112(pendingRemoved);
-        }
-        
+
+        acctData.realizedStake -= uint112(_amount);
         accountData[_account] = acctData;
 
-        globalGrowthRate -= uint112(pendingRemoved);
+        uint weightToRemove = _amount * MAX_STAKE_GROWTH_WEEKS;
         globalWeeklyWeights[systemWeek] -= weightToRemove;
-        uint newAccountWeight = accountWeeklyWeights[_account][systemWeek] - weightToRemove;
-        accountWeeklyWeights[_account][systemWeek] = newAccountWeight;
+        accountWeeklyWeights[_account][systemWeek] -= weightToRemove;
         
         totalSupply -= _amount;
 
@@ -391,11 +349,6 @@ contract BoostedStaker {
 
         uint weight = globalWeeklyWeights[lastUpdateWeek];
 
-        if (weight == 0) {
-            globalLastUpdateWeek = uint16(systemWeek);
-            return 0;
-        }
-
         if (lastUpdateWeek == systemWeek){
             return weight;
         }
@@ -456,7 +409,7 @@ contract BoostedStaker {
     */
     function balanceOf(address _account) external view returns (uint) {
         AccountData memory acctData = accountData[_account];
-        return 2 * (acctData.pendingStake + acctData.realizedStake);
+        return acctData.pendingStake + acctData.realizedStake;
     }
 
     /**
