@@ -27,7 +27,7 @@ contract GovStaker {
     mapping(uint epoch => uint weight) public globalToRealizeInEpoch;
 
     // Cooldown tracking vars.
-    uint public cooldownDuration;
+    uint public cooldownEpochs; // in epochs
     mapping(address => UserCooldown) public cooldowns;
     uint24 public immutable MAX_COOLDOWN_DURATION = 30 days;
 
@@ -57,7 +57,7 @@ contract GovStaker {
     }
 
     struct UserCooldown {
-        uint104 cooldownEnd;
+        uint104 end;
         uint152 underlyingAmount;
     }
 
@@ -77,7 +77,7 @@ contract GovStaker {
     event Unstaked(address indexed account, uint amount);
     event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
     event Cooldown(address indexed account, uint amount, uint end);
-    event CooldownDurationUpdated(uint24 previousDuration, uint24 newDuration);
+    event CooldownEpochsUpdated(uint24 previousDuration, uint24 newDuration);
     /**
         @param _token The token to be staked.
         @param _epoch_length The length of an epoch in seconds.
@@ -107,15 +107,9 @@ contract GovStaker {
         MAX_STAKE_GROWTH_EPOCHS = _max_stake_growth_epochs;
         MAX_WEEK_BIT = uint8(1 << MAX_STAKE_GROWTH_EPOCHS);
         EPOCH_LENGTH = _epoch_length;
-        if (_start_time == 0){
-            START_TIME = block.timestamp;
-        }
-        else {
-            require(_start_time <= block.timestamp, "!Past");
-            START_TIME = _start_time;
-        }
+        START_TIME = block.timestamp / 1 days * 1 days;
         ESCROW = _escrow;
-        cooldownDuration = min(MAX_COOLDOWN_DURATION, EPOCH_LENGTH * MAX_STAKE_GROWTH_EPOCHS);
+        cooldownEpochs = 1;
     }
 
     /**
@@ -230,8 +224,8 @@ contract GovStaker {
         totalSupply -= _amount;
 
         if (_receiver == address(0) || isCooldownEnabled()) {
-            uint end = block.timestamp + cooldownDuration;
-            cooldowns[_account].cooldownEnd = uint104(end);
+            uint end = block.timestamp + (cooldownEpochs * EPOCH_LENGTH);
+            cooldowns[_account].end = uint104(START_TIME + ((systemEpoch + 2) * EPOCH_LENGTH));
             cooldowns[_account].underlyingAmount += uint152(_amount);
             emit Cooldown(_account, _amount, end);
             stakeToken.safeTransfer(address(ESCROW), _amount);
@@ -268,9 +262,9 @@ contract GovStaker {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.underlyingAmount;
 
-        require(block.timestamp >= userCooldown.cooldownEnd || cooldownDuration == 0, "InvalidCooldown");
+        require(block.timestamp >= userCooldown.end || cooldownEpochs == 0, "InvalidCooldown");
 
-        userCooldown.cooldownEnd = 0;
+        userCooldown.end = 0;
         userCooldown.underlyingAmount = 0;
 
         ESCROW.withdraw(_receiver, amount);
@@ -509,16 +503,16 @@ contract GovStaker {
         emit ApprovedCallerSet(msg.sender, _caller, _status);
     }
 
-    function setCooldownDuration(uint24 _duration) external onlyOwner {
-        require(_duration <= MAX_COOLDOWN_DURATION, "Invalid duration");
+    function setCooldownEpochs(uint24 _epochs) external onlyOwner {
+        require(_epochs * EPOCH_LENGTH <= MAX_COOLDOWN_DURATION, "Invalid duration");
 
-        uint24 previousDuration = uint24(cooldownDuration);
-        cooldownDuration = _duration;
-        emit CooldownDurationUpdated(previousDuration, _duration);
+        uint24 previousDuration = uint24(cooldownEpochs);
+        cooldownEpochs = _epochs;
+        emit CooldownEpochsUpdated(previousDuration, _epochs);
     }
 
     function isCooldownEnabled() public view returns (bool) {
-        return cooldownDuration > 0;
+        return cooldownEpochs > 0;
     }
 
     function sweep(address _token) external onlyOwner{

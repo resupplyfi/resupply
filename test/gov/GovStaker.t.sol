@@ -97,8 +97,9 @@ contract GovStakerTest is Test {
         // Initiate cooldown and unstake
         vm.startPrank(user1);
         staker.cooldown(amountToStake);
-        uint cooldownDuration = staker.cooldownDuration();
-        vm.warp(block.timestamp + cooldownDuration);
+        uint cooldownEpochs = staker.cooldownEpochs();
+        vm.warp(block.timestamp + (cooldownEpochs + 1) * EPOCH_LENGTH);
+        
         staker.unstake(user1);
         // staker.unstake(amountToStake, user1);
         vm.stopPrank();
@@ -122,8 +123,8 @@ contract GovStakerTest is Test {
         // Cooldown
         vm.startPrank(user1);
         staker.cooldown(amountToStake);
-        uint cooldownDuration = staker.cooldownDuration();
-        vm.warp(block.timestamp + cooldownDuration);
+        uint cooldownEpochs = staker.cooldownEpochs();
+        vm.warp(block.timestamp + (cooldownEpochs + 1) * EPOCH_LENGTH);
         uint amount = staker.unstake(user1);
         assertEq(amount, amountToStake, "Unstake amount should be equal to staked amount");
         vm.stopPrank();
@@ -138,24 +139,25 @@ contract GovStakerTest is Test {
         // Cooldown
         vm.startPrank(user1);
         staker.cooldown(amountToStake / 2);
-        uint cooldownDuration = staker.cooldownDuration();
-        vm.warp(block.timestamp + cooldownDuration);
+        uint cooldownEpochs = staker.cooldownEpochs();
+        vm.warp(block.timestamp + (cooldownEpochs + 1) * EPOCH_LENGTH);
+        console.log("cooldown data", getUserCooldownEnd(user1), getUserCooldownAmount(user1));
         uint amount = staker.unstake(user1);
         assertEq(amount, amountToStake / 2, "Unstake amount should be equal to staked amount");
         vm.stopPrank();
     }
 
-    function testSetCooldownDuration() public {
+    function testsetCooldownEpochs() public {
         uint amountToStake = token.balanceOf(user1);
         stakeSomeAndWait(amountToStake);
         vm.startPrank(staker.owner());
-        
-        staker.setCooldownDuration(0);
-        assertEq(staker.cooldownDuration(), 0, "Cooldown duration should be 0");
+
+        staker.setCooldownEpochs(0);
+        assertEq(staker.cooldownEpochs(), 0, "Cooldown duration should be 0");
         assertEq(staker.isCooldownEnabled(), false, "Cooldown should be disabled");
 
-        staker.setCooldownDuration(10 days);
-        assertEq(staker.cooldownDuration(), 10 days, "Cooldown duration should be 10 days");
+        staker.setCooldownEpochs(5);
+        assertEq(staker.cooldownEpochs(), 5, "Cooldown duration should be 5");
         assertEq(staker.isCooldownEnabled(), true, "Cooldown should be enabled");
         vm.stopPrank();
     }
@@ -166,5 +168,14 @@ contract GovStakerTest is Test {
 
     function getEpoch() public view returns (uint) {
         return staker.getEpoch();
+    }
+
+    function getUserCooldownEnd(address _account) public view returns (uint) {
+        (uint104 end,) = staker.cooldowns(_account);
+        return end;
+    }
+    function getUserCooldownAmount(address _account) public view returns (uint) {
+        (, uint152 amount) = staker.cooldowns(_account);
+        return uint(amount);
     }
 }
