@@ -68,13 +68,8 @@ contract GovStaker {
         StakeAndUnstake     // 3. Approved for both stake and unstake
     }
 
-    modifier ensureCooldownOff() {
-        require(cooldownDuration == 0, "CooldownOn");
-        _;
-    }
-
-    modifier ensureCooldownOn() {
-        require(cooldownDuration != 0, "CooldownOff");
+    modifier onlyOwner() {
+        require(msg.sender == owner, "!Owner");
         _;
     }
 
@@ -82,7 +77,7 @@ contract GovStaker {
     event Unstaked(address indexed account, uint amount);
     event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
     event Cooldown(address indexed account, uint amount, uint end);
-
+    event CooldownDurationUpdated(uint24 previousDuration, uint24 newDuration);
     /**
         @param _token The token to be staked.
         @param _epoch_length The length of an epoch in seconds.
@@ -177,7 +172,11 @@ contract GovStaker {
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
     function cooldown(uint _amount) external returns (uint) {
-        return _cooldown(msg.sender, _amount);
+        return _cooldown(msg.sender, _amount, address(0));
+    }
+
+    function cooldownAndUnstake(uint _amount, address _receiver) external returns (uint) {
+        return _cooldown(msg.sender, _amount, _receiver);
     }
 
     /**
@@ -194,16 +193,30 @@ contract GovStaker {
                 "!Permission"
             );
         }
-        return _cooldown(_account, _amount);
+        return _cooldown(_account, _amount, address(0));
     }
 
-    function _cooldown(address _account, uint _amount) internal returns (uint) {
+    function cooldownAndUnstakeFor(address _account, uint _amount, address _receiver) external returns (uint) {
+        require(_receiver != address(0), "Zero address");
+        if (msg.sender != _account) {
+            ApprovalStatus status = approvedCaller[_account][msg.sender];
+            require(
+                status == ApprovalStatus.StakeAndUnstake ||
+                status == ApprovalStatus.UnstakeOnly,
+                "!Permission"
+            );
+        }
+        return _cooldown(_account, _amount, _receiver);
+    }
+
+    function _cooldown(address _account, uint _amount, address _receiver) internal returns (uint) {
         require(_amount < type(uint112).max, "invalid amount");
+        
         uint systemEpoch = getEpoch();
 
         // Before going further, let's sync our account and global weights
         (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
-        require(acctData.realizedStake >= _amount, "insufficient weight available");
+        require(acctData.realizedStake >= _amount, "insufficient realized stake");
         _checkpointGlobal(systemEpoch);
 
 
@@ -216,14 +229,21 @@ contract GovStaker {
         
         totalSupply -= _amount;
 
-        uint end = block.timestamp + cooldownDuration;
-        cooldowns[_account].cooldownEnd = uint104(end);
-        cooldowns[_account].underlyingAmount += uint152(_amount);
+        if (_receiver == address(0) || isCooldownEnabled()) {
+            uint end = block.timestamp + cooldownDuration;
+            cooldowns[_account].cooldownEnd = uint104(end);
+            cooldowns[_account].underlyingAmount += uint152(_amount);
+            emit Cooldown(_account, _amount, end);
+            stakeToken.safeTransfer(address(ESCROW), _amount);
+        }
+        else {
+            stakeToken.safeTransfer(_receiver, _amount);
+        }
 
         // emit Unstaked(_account, systemEpoch, _amount);
-        emit Cooldown(_account, _amount, end);
+        
 
-        stakeToken.safeTransfer(address(ESCROW), _amount);
+        
         
         return _amount;
     }
@@ -489,8 +509,19 @@ contract GovStaker {
         emit ApprovedCallerSet(msg.sender, _caller, _status);
     }
 
-    function sweep(address _token) external {
-        require(msg.sender == owner, "!authorized");
+    function setCooldownDuration(uint24 _duration) external onlyOwner {
+        require(_duration <= MAX_COOLDOWN_DURATION, "Invalid duration");
+
+        uint24 previousDuration = uint24(cooldownDuration);
+        cooldownDuration = _duration;
+        emit CooldownDurationUpdated(previousDuration, _duration);
+    }
+
+    function isCooldownEnabled() public view returns (bool) {
+        return cooldownDuration > 0;
+    }
+
+    function sweep(address _token) external onlyOwner{
         uint amount = IERC20(_token).balanceOf(address(this));
         if (_token == address(stakeToken)) {
             amount = amount - totalSupply;
