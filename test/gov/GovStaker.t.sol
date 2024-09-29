@@ -20,7 +20,6 @@ contract GovStakerTest is Test {
     address deployer;
     address user1;
     uint256 public constant EPOCH_LENGTH = 60 * 60 * 24 * 2;
-    uint256 public constant MAX_STAKE_GROWTH_EPOCHS = 3;
 
     function setUp() public {
         deployer = address(this);
@@ -33,11 +32,10 @@ contract GovStakerTest is Test {
         escrow = new GovStakerEscrow(govStakingAddress, address(token));
         staker = new GovStaker(
             address(token),    // stakeToken
-            EPOCH_LENGTH,      // EPOCH_LENGTH
-            MAX_STAKE_GROWTH_EPOCHS,    // MAX_STAKE_GROWTH_EPOCHS
-            block.timestamp,   // START_TIME
             deployer,          // owner
-            IGovStakerEscrow(escrowAddress) // Escrow
+            EPOCH_LENGTH,      // EPOCH_LENGTH
+            IGovStakerEscrow(escrowAddress), // Escrow
+            10                  // cooldownEpochs
         );
 
         token.approve(address(staker), type(uint256).max);
@@ -61,8 +59,6 @@ contract GovStakerTest is Test {
         assertEq(staker.getAccountWeight(user1), 0, "Weight should be 0");
         vm.warp(block.timestamp + EPOCH_LENGTH); // Test weight increase
         assertEq(staker.getAccountWeight(user1), amountToStake, "Weight should be 0");
-        vm.warp(block.timestamp + (MAX_STAKE_GROWTH_EPOCHS - 1) * EPOCH_LENGTH); // Test weight increase
-        assertEq(staker.getAccountWeight(user1), amountToStake * MAX_STAKE_GROWTH_EPOCHS, "Weight should be 0");
 
         vm.warp(block.timestamp + warmupWait() * 100);
         staker.checkpointAccount(user1);
@@ -163,7 +159,7 @@ contract GovStakerTest is Test {
     }
 
     function warmupWait() internal pure returns (uint) {
-        return EPOCH_LENGTH * MAX_STAKE_GROWTH_EPOCHS;
+        return EPOCH_LENGTH;
     }
 
     function getEpoch() public view returns (uint) {
