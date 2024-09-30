@@ -104,10 +104,66 @@ contract GovStakerTest is Test {
         assertEq(token.balanceOf(user1), amountToStake, "Token should be returned to user");
     }
 
+    function testMultipleStake() public {
+        uint amountToStake = (token.balanceOf(user1) - 1) / 2;
+        stakeSome(amountToStake);
+        checkExpectedBalanceAndWeight(
+            amountToStake,  // balanceOf
+            0,              // expectedWeight
+            amountToStake,  // expectedTotalSupply
+            0               // expectedTotalWeight
+        );
+
+        // Advance to next week, allowing weight to have grown.
+        vm.warp(block.timestamp + warmupWait());
+        checkExpectedBalanceAndWeight(
+            amountToStake,  // balanceOf
+            amountToStake,      // expectedWeight
+            amountToStake ,  // expectedTotalSupply
+            amountToStake       // expectedTotalWeight
+        );
+
+        stakeSome(amountToStake);
+        checkExpectedBalanceAndWeight(
+            amountToStake * 2,  // balanceOf
+            amountToStake,      // expectedWeight
+            amountToStake * 2,  // expectedTotalSupply
+            amountToStake       // expectedTotalWeight
+        );
+
+        vm.warp(block.timestamp + warmupWait());
+        checkExpectedBalanceAndWeight(
+            amountToStake * 2,  // balanceOf
+            amountToStake * 2,  // expectedWeight
+            amountToStake * 2,  // expectedTotalSupply
+            amountToStake * 2   // expectedTotalWeight
+        );
+    }
+
+    function checkExpectedBalanceAndWeight(
+        uint expectedBalance, 
+        uint expectedWeight, 
+        uint expectedTotalSupply, 
+        uint expectedTotalWeight
+    ) internal {
+        assertEq(staker.balanceOf(user1), expectedBalance, "Stake balance doesnt match");
+        assertEq(staker.totalSupply(), expectedTotalSupply, "Total supply doesnt match");
+        assertEq(staker.getAccountWeight(user1), expectedWeight, "Weight doesnt match");
+        assertEq(staker.getAccountWeightAt(user1, getEpoch()), expectedWeight, "getAccountWeightAt doesnt match");
+        assertEq(staker.getTotalWeight(), expectedTotalWeight, "getTotalWeight doesnt match");
+        assertEq(staker.getTotalWeightAt(getEpoch()), expectedTotalWeight, "getTotalWeightAt doesnt match");
+    }
+
+
     function stakeSomeAndWait(uint amountToStake) internal {
         vm.prank(user1);
         staker.stake(amountToStake);
         vm.warp(block.timestamp + warmupWait());
+    }
+
+    function stakeSome(uint amountToStake) internal {
+        vm.prank(user1);
+        staker.stake(amountToStake);
     }
 
     function testUnstake() public {

@@ -18,9 +18,9 @@ contract GovStaker {
     mapping(address account => AccountData data) public accountData;
     mapping(address account => mapping(uint epoch => uint weight)) private accountWeightAt;
 
-    // Global weight tracking state vars.
-    uint120 public globalPending;
-    uint16 public globalLastUpdateWeek;
+    // Total weight tracking state vars.
+    uint120 public totalPending;
+    uint16 public totalLastUpdateEpoch;
     mapping(uint epoch => uint weight) private totalWeightAt;
 
     // Cooldown tracking vars.
@@ -112,13 +112,13 @@ contract GovStaker {
     function _stake(address _account, uint _amount) internal returns (uint) {
         require(_amount < type(uint120).max, "invalid amount");
 
-        // Before going further, let's sync our account and global weights
+        // Before going further, let's sync our account and total weights
         uint systemEpoch = getEpoch();
         (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
-        _checkpointGlobal(systemEpoch);
+        _checkpointTotal(systemEpoch);
         
         acctData.pendingStake += uint120(_amount);
-        globalPending += uint120(_amount);
+        totalPending += uint120(_amount);
 
         accountData[_account] = acctData;
         totalSupply += _amount;
@@ -176,10 +176,10 @@ contract GovStaker {
         
         uint systemEpoch = getEpoch();
 
-        // Before going further, let's sync our account and global weights
+        // Before going further, let's sync our account and total weights
         (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
         require(acctData.realizedStake >= _amount, "insufficient realized stake");
-        _checkpointGlobal(systemEpoch);
+        _checkpointTotal(systemEpoch);
 
 
         acctData.realizedStake -= uint120(_amount);
@@ -345,9 +345,9 @@ contract GovStaker {
              this function over it's `view` counterpart is preferred for
              contract -> contract interactions.
     */
-    function checkpointGlobal() external returns (uint) {
+    function checkpointTotal() external returns (uint) {
         uint systemEpoch = getEpoch();
-        return _checkpointGlobal(systemEpoch);
+        return _checkpointTotal(systemEpoch);
     }
 
     /**
@@ -356,10 +356,10 @@ contract GovStaker {
              this function over it's `view` counterpart is preferred for
              contract -> contract interactions.
     */
-    function _checkpointGlobal(uint systemEpoch) internal returns (uint) {
+    function _checkpointTotal(uint systemEpoch) internal returns (uint) {
         // These two share a storage slot.
-        uint16 lastUpdateEpoch = globalLastUpdateWeek;
-        uint pending = globalPending;
+        uint16 lastUpdateEpoch = totalLastUpdateEpoch;
+        uint pending = totalPending;
 
         uint weight = totalWeightAt[lastUpdateEpoch];
 
@@ -367,8 +367,9 @@ contract GovStaker {
             return weight;
         }
 
+        totalLastUpdateEpoch = uint16(systemEpoch);
         weight += pending;
-        pending = 0;
+        totalPending = 0;
 
         while (lastUpdateEpoch < systemEpoch) {
             unchecked{lastUpdateEpoch++;}
@@ -381,31 +382,26 @@ contract GovStaker {
     /**
         @notice Get the system weight for current epoch.
     */
-    function getGlobalWeight() external view returns (uint) {
-        return getGlobalWeightAt(getEpoch());
+    function getTotalWeight() external view returns (uint) {
+        return getTotalWeightAt(getEpoch());
     }
 
     /**
         @notice Get the system weight for a specified epoch in the past.
         @dev querying a epoch in the future will always return 0.
-        @param epoch the epoch number to query global weight for.
+        @param epoch the epoch number to query total weight for.
     */
-    function getGlobalWeightAt(uint epoch) public view returns (uint) {
+    function getTotalWeightAt(uint epoch) public view returns (uint) {
         uint systemEpoch = getEpoch();
         if (epoch > systemEpoch) return 0;
 
         // Read these together since they are packed in the same slot.
-        uint16 lastUpdateEpoch = globalLastUpdateWeek;
-        uint pending = globalPending;
+        uint16 lastUpdateEpoch = totalLastUpdateEpoch;
+        uint pending = totalPending;
 
         if (epoch <= lastUpdateEpoch) return totalWeightAt[epoch];
 
-        uint weight = totalWeightAt[lastUpdateEpoch];
-        if (pending == 0) {
-            return weight;
-        }
-
-        return weight + pending;
+        return totalWeightAt[lastUpdateEpoch] + pending;
     }
 
     /**
