@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-interface IRateCalculatorV2 {
+interface IRateCalculatorV2Old {
     function name() external view returns (string memory);
 
     function version() external view returns (uint256, uint256, uint256);

@@ -25,11 +25,11 @@ pragma solidity ^0.8.19;
 
 // ====================================================================
 
-import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
+import { IRateCalculatorOld } from "../../interfaces/IRateCalculatorOld.sol";
 
 /// @title A formula for calculating interest rates linearly as a function of utilization
 /// @author Drake Evans github.com/drakeevans
-contract LinearInterestRate is IRateCalculator {
+contract LinearInterestRate is IRateCalculatorOld {
     uint256 private constant MIN_INT = 0; // 0.00% annual rate
     uint256 private constant MAX_INT = 146_248_508_681; // 10,000% annual rate
     uint256 private constant MAX_VERTEX_UTIL = 1e5; // 100%

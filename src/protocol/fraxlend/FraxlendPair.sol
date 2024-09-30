@@ -35,7 +35,7 @@ import { FraxlendPairCore } from "./FraxlendPairCore.sol";
 import { Timelock2Step } from "./Timelock2Step.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
-import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
+import { IRateCalculatorV2Old } from "../../interfaces/IRateCalculatorV2Old.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
@@ -252,7 +252,7 @@ contract FraxlendPair is FraxlendPairCore {
         _requireProtocolOrOwner();
         if (isRateContractSetterRevoked) revert SetterRevoked();
         emit SetRateContract(address(rateContract), _newRateContract);
-        rateContract = IRateCalculatorV2(_newRateContract);
+        rateContract = IRateCalculatorV2Old(_newRateContract);
     }
 
     bool public isLiquidationFeeSetterRevoked;

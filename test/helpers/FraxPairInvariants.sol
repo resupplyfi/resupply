@@ -186,7 +186,7 @@ abstract contract ForkTests is BasePairTest {
         // assertGt(fraxlendPair.convertToAssets(fraxlendPair.balanceOf(user)), totalAssetSupplied);
 
         // Assert that the total interest earned is equal to the change in totalAssets:
-        (uint256 newRate, ) = IRateCalculatorV2(fraxlendPair.rateContract()).getNewRate(
+        (uint256 newRate, ) = IRateCalculatorV2Old(fraxlendPair.rateContract()).getNewRate(
             1 days,
             (1e5 * totalBorrow) / borrowLimit,
             fullUtilRate

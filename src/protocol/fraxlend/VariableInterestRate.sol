@@ -22,12 +22,12 @@ pragma solidity ^0.8.19;
 // ====================================================================
 
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
+import { IRateCalculatorV2Old } from "../../interfaces/IRateCalculatorV2Old.sol";
 
 /// @title A formula for calculating interest rates as a function of utilization and time
 /// @author Drake Evans github.com/drakeevans
 /// @notice A Contract for calculating interest rates as a function of utilization and time
-contract VariableInterestRate is IRateCalculatorV2 {
+contract VariableInterestRate is IRateCalculatorV2Old {
     using Strings for uint256;
 
     /// @notice The name suffix for the interest rate calculator

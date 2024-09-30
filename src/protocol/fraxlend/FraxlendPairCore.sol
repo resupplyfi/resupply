@@ -34,7 +34,7 @@ import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccou
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { MathUtil } from "../../libraries/MathUtil.sol";
 import { IDualOracle } from "../../interfaces/IDualOracle.sol";
-import { IRateCalculatorV2 } from "../../interfaces/IRateCalculatorV2.sol";
+import { IRateCalculatorV2Old } from "../../interfaces/IRateCalculatorV2Old.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
@@ -76,7 +76,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
 
     // Interest Rate Calculator Contract
-    IRateCalculatorV2 public rateContract; // For complex rate calculations
+    IRateCalculatorV2Old public rateContract; // For complex rate calculations
 
     // Swapper
     mapping(address => bool) public swappers; // approved swapper addresses
@@ -170,7 +170,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             exchangeRateInfo.oracle = _oracle;
             exchangeRateInfo.maxOracleDeviation = _maxOracleDeviation;
 
-            rateContract = IRateCalculatorV2(_rateContract);
+            rateContract = IRateCalculatorV2Old(_rateContract);
 
             //Liquidation Fee Settings
             liquidationFee = _liquidationFee;
@@ -434,7 +434,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 : (UTIL_PREC * _results.totalBorrow.amount) / borrowLimit;
 
             // Request new interest rate and full utilization rate from the rate calculator
-            (_results.newRate, _results.newFullUtilizationRate) = IRateCalculatorV2(rateContract).getNewRate(
+            (_results.newRate, _results.newFullUtilizationRate) = IRateCalculatorV2Old(rateContract).getNewRate(
                 _deltaTime,
                 _utilizationRate,
                 _currentRateInfo.fullUtilizationRate

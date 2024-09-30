@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: ISC
-pragma solidity >=0.8.19;
+pragma solidity ^0.8.19;
 
 interface IRateCalculator {
-    function name() external pure returns (string memory);
+    function name() external view returns (string memory);
 
-    function requireValidInitData(bytes calldata _initData) external pure;
+    function version() external view returns (uint256, uint256, uint256);
 
-    function getConstants() external pure returns (bytes memory _calldata);
-
-    function getNewRate(bytes calldata _data, bytes calldata _initData) external pure returns (uint64 _newRatePerSec);
+    function getNewRate(
+        address _vault,
+        uint256 _deltaTime,
+        uint256 _previousPrice
+    ) external view returns (uint64 _newRatePerSec, uint256 _newPrice);
 }
