@@ -9,6 +9,7 @@ interface IRateCalculator {
     function getNewRate(
         address _vault,
         uint256 _deltaTime,
+        uint256 _previousShares,
         uint256 _previousPrice
-    ) external view returns (uint64 _newRatePerSec, uint256 _newPrice);
+    ) external view returns (uint64 _newRatePerSec, uint256 _newPrice, uint256 _newShares);
 }
