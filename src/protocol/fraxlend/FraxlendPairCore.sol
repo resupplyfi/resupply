@@ -182,7 +182,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         //starting reward types
         redemptionToken = address(new RedemptionToken(address(this)));
         _insertRewardToken(redemptionToken);//add redemption token as a reward
-        
+        //set the redemption token as non claimable via getReward
+        rewards[0].is_non_claimable = true;
 
         {
             (string memory _name, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(

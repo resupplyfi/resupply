@@ -20,6 +20,7 @@ abstract contract RewardHandler is ReentrancyGuard{
         address reward_token;
         uint256 reward_integral;
         uint256 reward_remaining;
+        bool is_non_claimable; //a bit unothrodox setting but need to block claims on our redemption tokens as they will be processed differently
     }
 
     //rewards
@@ -157,7 +158,7 @@ abstract contract RewardHandler is ReentrancyGuard{
         uint userI = reward_integral_for[reward.reward_token][_account];
         if(_claimTo != address(0) || userI < reward.reward_integral){
             //_claimTo address non-zero means its a claim 
-            if(_claimTo != address(0)){
+            if(_claimTo != address(0) && !reward.is_non_claimable){
                 uint256 receiveable = claimable_reward[reward.reward_token][_account] + (_userRewardShares(_account) * (reward.reward_integral - userI) / 1e20);
                 if(receiveable > 0){
                     claimable_reward[reward.reward_token][_account] = 0;
