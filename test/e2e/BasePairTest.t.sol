@@ -439,9 +439,9 @@ contract BasePairTest is
         pair.setSwapper(Constants.Mainnet.UNIV2_ROUTER, true);
         vm.stopPrank();
 
-        startHoax(Constants.Mainnet.TIMELOCK_ADDRESS);
-        pair.changeFee(uint16((10 * FEE_PRECISION) / 100));
-        vm.stopPrank();
+        // startHoax(Constants.Mainnet.TIMELOCK_ADDRESS);
+        // pair.changeFee(uint16((10 * FEE_PRECISION) / 100));
+        // vm.stopPrank();
     }
 
     function _encodeConfigData(
@@ -490,9 +490,9 @@ contract BasePairTest is
         pair.setSwapper(Constants.Mainnet.UNIV2_ROUTER, true);
         vm.stopPrank();
 
-        startHoax(Constants.Mainnet.TIMELOCK_ADDRESS);
-        pair.changeFee(uint16((10 * FEE_PRECISION) / 100));
-        vm.stopPrank();
+        // startHoax(Constants.Mainnet.TIMELOCK_ADDRESS);
+        // pair.changeFee(uint16((10 * FEE_PRECISION) / 100));
+        // vm.stopPrank();
     }
 
     // ============================================================================================
@@ -616,7 +616,7 @@ contract BasePairTest is
     }
 
     function ratePerSec(FraxlendPair _pair) internal view returns (uint64 _ratePerSec) {
-        (, , , _ratePerSec, ) = _pair.currentRateInfo();
+        (, , _ratePerSec,, ) = _pair.currentRateInfo();
     }
 
     function feeToProtocolRate(FraxlendPair _pair) internal view returns (uint64 _feeToProtocolRate) {

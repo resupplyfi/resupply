@@ -34,13 +34,14 @@ import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccou
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { MathUtil } from "../../libraries/MathUtil.sol";
 import { IDualOracle } from "../../interfaces/IDualOracle.sol";
-import { IRateCalculatorV2Old } from "../../interfaces/IRateCalculatorV2Old.sol";
+import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
 import { RewardHandler } from "../RewardHandler.sol";
 import { RedemptionToken } from "../RedemptionToken.sol";
+import { IERC4626 } from "../../interfaces/IERC4626.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -76,7 +77,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
 
     // Interest Rate Calculator Contract
-    IRateCalculatorV2Old public rateContract; // For complex rate calculations
+    IRateCalculator public rateContract; // For complex rate calculations
 
     // Swapper
     mapping(address => bool) public swappers; // approved swapper addresses
@@ -93,15 +94,14 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // ============================================================================================
 
     /// @notice Stores information about the current interest rate
-    /// @dev struct is packed to reduce SLOADs. feeToProtocolRate is 1e5 precision, ratePerSec & fullUtilizationRate is 1e18 precision
     CurrentRateInfo public currentRateInfo;
 
     struct CurrentRateInfo {
         uint32 lastBlock;
-        uint32 feeToProtocolRate; // Fee amount 1e5 precision
         uint64 lastTimestamp;
         uint64 ratePerSec;
-        uint64 fullUtilizationRate;
+        uint256 lastPrice;
+        uint256 lastShares;
     }
 
     /// @notice Stores information about the current exchange rate. Collateral:Asset ratio
@@ -162,15 +162,16 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             assetContract = IERC20(_asset);
             collateralContract = IERC20(_collateral);
 
-            currentRateInfo.feeToProtocolRate = 0;
-            currentRateInfo.fullUtilizationRate = _fullUtilizationRate;
-            currentRateInfo.lastTimestamp = uint64(block.timestamp - 1);
+
+            currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastBlock = uint32(block.number - 1);
+            currentRateInfo.lastShares = IERC4626(_collateral).convertToShares(1e18);
+            currentRateInfo.lastPrice = IERC4626(_collateral).convertToAssets(currentRateInfo.lastShares);
 
             exchangeRateInfo.oracle = _oracle;
             exchangeRateInfo.maxOracleDeviation = _maxOracleDeviation;
 
-            rateContract = IRateCalculatorV2Old(_rateContract);
+            rateContract = IRateCalculator(_rateContract);
 
             //Liquidation Fee Settings
             liquidationFee = _liquidationFee;
@@ -337,14 +338,18 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     /// @notice The ```UpdateRate``` event is emitted when the interest rate is updated
     /// @param oldRatePerSec The old interest rate (per second)
-    /// @param oldFullUtilizationRate The old full utilization rate
+    /// @param oldShares previous used shares
+    /// @param oldPrice  previous used price
     /// @param newRatePerSec The new interest rate (per second)
-    /// @param newFullUtilizationRate The new full utilization rate
+    /// @param newShares new shares
+    /// @param newPrice new price
     event UpdateRate(
         uint256 oldRatePerSec,
-        uint256 oldFullUtilizationRate,
+        uint256 oldShares,
+        uint256 oldPrice,
         uint256 newRatePerSec,
-        uint256 newFullUtilizationRate
+        uint256 newShares,
+        uint256 newPrice
     );
 
     /// @notice The ```addInterest``` function is a public implementation of _addInterest and allows 3rd parties to trigger interest accrual
@@ -394,7 +399,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             _interestEarned = _results.interestEarned;
 
             _newCurrentRateInfo.ratePerSec = _results.newRate;
-            _newCurrentRateInfo.fullUtilizationRate = _results.newFullUtilizationRate;
+            _newCurrentRateInfo.lastPrice = _results.newPrice;
+            _newCurrentRateInfo.lastShares = _results.newShares;
 
             _claimableFees = claimableFees + uint128(_interestEarned);
             _totalBorrow = _results.totalBorrow;
@@ -407,7 +413,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     struct InterestCalculationResults {
         bool isInterestUpdated;
         uint64 newRate;
-        uint64 newFullUtilizationRate;
+        uint256 newPrice;
+        uint256 newShares;
         uint256 interestEarned;
         VaultAccount totalBorrow;
     }
@@ -419,7 +426,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         CurrentRateInfo memory _currentRateInfo
     ) internal view returns (InterestCalculationResults memory _results) {
         // Short circuit if interest already calculated this block OR if interest is paused
-        if (_currentRateInfo.lastTimestamp != block.timestamp && !isInterestPaused) {
+        if (_currentRateInfo.lastTimestamp + 1 hours < block.timestamp && !isInterestPaused) {
             // Indicate that interest is updated and calculated
             _results.isInterestUpdated = true;
 
@@ -429,16 +436,12 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             // Time elapsed since last interest update
             uint256 _deltaTime = block.timestamp - _currentRateInfo.lastTimestamp;
 
-            // Get the utilization rate
-            uint256 _utilizationRate = borrowLimit == 0
-                ? 0
-                : (UTIL_PREC * _results.totalBorrow.amount) / borrowLimit;
-
             // Request new interest rate and full utilization rate from the rate calculator
-            (_results.newRate, _results.newFullUtilizationRate) = IRateCalculatorV2Old(rateContract).getNewRate(
+            (_results.newRate, _results.newPrice, _results.newShares) = IRateCalculator(rateContract).getNewRate(
+                address(collateralContract),
                 _deltaTime,
-                _utilizationRate,
-                _currentRateInfo.fullUtilizationRate
+                _currentRateInfo.lastShares,
+                _currentRateInfo.lastPrice
             );
 
             // Calculate interest accrued
@@ -452,6 +455,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             ) {
                 // Increment totalBorrow by interestEarned
                 _results.totalBorrow.amount += uint128(_results.interestEarned);
+            }else{
+                //reset interest earned
+                _results.interestEarned = 0;
             }
         }
     }
@@ -483,15 +489,18 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             // emit here so that we have access to the old values
             emit UpdateRate(
                 _currentRateInfo.ratePerSec,
-                _currentRateInfo.fullUtilizationRate,
+                _currentRateInfo.lastShares,
+                _currentRateInfo.lastPrice,
                 _results.newRate,
-                _results.newFullUtilizationRate
+                _results.newShares,
+                _results.newPrice
             );
             emit AddInterest(_interestEarned, _results.newRate);
 
             // overwrite original values
             _currentRateInfo.ratePerSec = _results.newRate;
-            _currentRateInfo.fullUtilizationRate = _results.newFullUtilizationRate;
+            _currentRateInfo.lastShares = _results.newShares;
+            _currentRateInfo.lastPrice = _results.newPrice;
             _currentRateInfo.lastTimestamp = uint64(block.timestamp);
             _currentRateInfo.lastBlock = uint32(block.number);
 

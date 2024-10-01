@@ -133,34 +133,35 @@ library FraxlendPairConfigurationHelper {
 
             (
                 uint32 _lastBlock,
-                uint32 _feeToProtocolRate, // Fee amount 1e5 precision
                 uint64 _lastTimestamp,
                 uint64 _ratePerSec,
-                uint64 _fullUtilizationRate
+                uint256 _lastPrice,
+                uint256 _lastShares
             ) = _fraxlendPair.currentRateInfo();
             console.log("");
             console.log("_currentRateInfo.lastBlock", _lastBlock);
-            console.log("_currentRateInfo.feeToProtocolRate", _feeToProtocolRate);
+            // console.log("_currentRateInfo.feeToProtocolRate", _feeToProtocolRate);
             console.log("_currentRateInfo.lastTimestamp", _lastTimestamp);
             Logger.rate("_currentRateInfo.ratePerSec", uint256(_ratePerSec));
-            Logger.rate("_currentRateInfo.fullUtilizationRate", _fullUtilizationRate);
+            Logger.rate("_currentRateInfo.lastPrice", _lastPrice);
+            Logger.rate("_currentRateInfo.lastShares", _lastShares);
 
             console.log("");
-            console.log("Currently the interest rate curve has the following values");
-            (uint256 _zeroRatePerSec, ) = _rateContract.getNewRate(12, 0, _fullUtilizationRate);
-            Logger.rate("0% Utilization rate:", _zeroRatePerSec);
-            (uint256 _vertexRatePerSec, ) = _rateContract.getNewRate(
-                0,
-                _rateCalculatorParams.VERTEX_UTILIZATION,
-                _fullUtilizationRate
-            );
-            Logger.rate("vertex utilization rate:", _vertexRatePerSec);
-            (uint256 _fullRatePerSec, ) = _rateContract.getNewRate(
-                0,
-                _rateCalculatorParams.UTIL_PREC,
-                _fullUtilizationRate
-            );
-            Logger.rate("100% Utilization rate:", _fullRatePerSec);
+            // console.log("Currently the interest rate curve has the following values");
+            // (uint256 _zeroRatePerSec, ) = _rateContract.getNewRate(12, 0, _fullUtilizationRate);
+            // Logger.rate("0% Utilization rate:", _zeroRatePerSec);
+            // (uint256 _vertexRatePerSec, ) = _rateContract.getNewRate(
+            //     0,
+            //     _rateCalculatorParams.VERTEX_UTILIZATION,
+            //     _fullUtilizationRate
+            // );
+            // Logger.rate("vertex utilization rate:", _vertexRatePerSec);
+            // (uint256 _fullRatePerSec, ) = _rateContract.getNewRate(
+            //     0,
+            //     _rateCalculatorParams.UTIL_PREC,
+            //     _fullUtilizationRate
+            // );
+            // Logger.rate("100% Utilization rate:", _fullRatePerSec);
         }
     }
 

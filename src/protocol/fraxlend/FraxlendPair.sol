@@ -35,7 +35,7 @@ import { FraxlendPairCore } from "./FraxlendPairCore.sol";
 import { Timelock2Step } from "./Timelock2Step.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
-import { IRateCalculatorV2Old } from "../../interfaces/IRateCalculatorV2Old.sol";
+import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
@@ -252,7 +252,7 @@ contract FraxlendPair is FraxlendPairCore {
         _requireProtocolOrOwner();
         if (isRateContractSetterRevoked) revert SetterRevoked();
         emit SetRateContract(address(rateContract), _newRateContract);
-        rateContract = IRateCalculatorV2Old(_newRateContract);
+        rateContract = IRateCalculator(_newRateContract);
     }
 
     bool public isLiquidationFeeSetterRevoked;
@@ -299,23 +299,6 @@ contract FraxlendPair is FraxlendPairCore {
         liquidationFee = _newLiquidationFee;
         // dirtyLiquidationFee = _newDirtyLiquidationFee;
         // protocolLiquidationFee = _newProtocolLiquidationFee;
-    }
-
-    /// @notice The ```ChangeFee``` event first when the fee is changed
-    /// @param newFee The new fee
-    event ChangeFee(uint32 newFee);
-
-    /// @notice The ```changeFee``` function changes the protocol fee, max 50%
-    /// @param _newFee The new fee
-    function changeFee(uint32 _newFee) external {
-        _requireProtocolOrOwner();
-        if (isInterestPaused) revert InterestPaused();
-        if (_newFee > MAX_PROTOCOL_FEE) {
-            revert BadProtocolFee();
-        }
-        _addInterest();
-        currentRateInfo.feeToProtocolRate = _newFee;
-        emit ChangeFee(_newFee);
     }
 
     /// @notice The ```WithdrawFees``` event fires when the fees are withdrawn

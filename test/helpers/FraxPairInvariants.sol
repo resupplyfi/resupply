@@ -170,31 +170,31 @@ abstract contract ForkTests is BasePairTest {
     //TODO, update test
     function testForkDepositAccruesInterest() public {
         testForkBorrowingPowerInvariant();
-        (, , , , uint64 fullUtilRate) = fraxlendPair.currentRateInfo();
+        // (, , , , uint64 fullUtilRate) = fraxlendPair.currentRateInfo();
 
-        /// @notice Interest Math uses prior balances
-        (uint256 totalBorrow, ) = fraxlendPair.totalBorrow();
-        uint256 borrowLimit = fraxlendPair.borrowLimit();
+        // /// @notice Interest Math uses prior balances
+        // (uint256 totalBorrow, ) = fraxlendPair.totalBorrow();
+        // uint256 borrowLimit = fraxlendPair.borrowLimit();
 
-        vm.warp(block.timestamp + 1 days);
-        fraxlendPair.updateExchangeRate();
-        printRateInfo();
+        // vm.warp(block.timestamp + 1 days);
+        // fraxlendPair.updateExchangeRate();
+        // printRateInfo();
 
-        fraxlendPair.updateExchangeRate();
+        // fraxlendPair.updateExchangeRate();
 
-        // assertEq(fraxlendPair.balanceOf(user), totalAssetSupplied);
-        // assertGt(fraxlendPair.convertToAssets(fraxlendPair.balanceOf(user)), totalAssetSupplied);
+        // // assertEq(fraxlendPair.balanceOf(user), totalAssetSupplied);
+        // // assertGt(fraxlendPair.convertToAssets(fraxlendPair.balanceOf(user)), totalAssetSupplied);
 
-        // Assert that the total interest earned is equal to the change in totalAssets:
-        (uint256 newRate, ) = IRateCalculatorV2Old(fraxlendPair.rateContract()).getNewRate(
-            1 days,
-            (1e5 * totalBorrow) / borrowLimit,
-            fullUtilRate
-        );
+        // // Assert that the total interest earned is equal to the change in totalAssets:
+        // (uint256 newRate, ) = IRateCalculatorV2Old(fraxlendPair.rateContract()).getNewRate(
+        //     1 days,
+        //     (1e5 * totalBorrow) / borrowLimit,
+        //     fullUtilRate
+        // );
 
-        uint256 calcIE = ((1 days * newRate * totalBorrow) / 1e18);
-        console.log("The calculated interest is: ", calcIE);
-        console.log("The new rate: ", newRate);
+        // uint256 calcIE = ((1 days * newRate * totalBorrow) / 1e18);
+        // console.log("The calculated interest is: ", calcIE);
+        // console.log("The new rate: ", newRate);
 
         // uint256 totalAssetEnd = fraxlendPair.totalAssets();
         // assertEq(calcIE, totalAssetEnd - totalAssetStart, "All interest must be accounted for");
@@ -328,11 +328,11 @@ abstract contract ForkTests is BasePairTest {
         fraxlendPair.setLiquidationFees(0.5e5);
     }
 
-    function testForkOnlyTimelockToChangeFee() public {
-        vm.prank(badActor);
-        vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
-        fraxlendPair.changeFee(0.5e5);
-    }
+    // function testForkOnlyTimelockToChangeFee() public {
+    //     vm.prank(badActor);
+    //     vm.expectRevert(FraxlendPairAccessControlErrors.OnlyProtocolOrOwner.selector);
+    //     fraxlendPair.changeFee(0.5e5);
+    // }
 
     // function testForkOnlyTimelockRevokeBorrowLimitAC() public {
     //     vm.prank(badActor);
@@ -639,15 +639,15 @@ abstract contract ForkTests is BasePairTest {
 
         (
             uint32 lastBlock,
-            uint32 feeToProtocolRate,
             uint64 lastTimestamp,
             uint64 ratePerSec,
-            uint64 fullUtilRate
+            uint256 lastPrice,
+            uint256 lastShares
         ) = fraxlendPair.currentRateInfo();
 
         console.log("       The rate per seond is: ", ratePerSec);
-        console.log("       The full util rate: ", fullUtilRate);
-        console.log("       The feeToProtocolRate: ", feeToProtocolRate);
+        console.log("       The lastPrice: ", lastPrice);
+        console.log("       The lastShares: ", lastShares);
         console.log("       The  lastBlock:", lastBlock);
         console.log("       The lastTimestamp:", lastTimestamp);
     }
