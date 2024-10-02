@@ -51,6 +51,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
+    //forked fraxlend at version 3,0,0
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
         _major = 3;
         _minor = 0;
@@ -64,6 +65,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Asset and collateral contracts
     IERC20 internal immutable assetContract;
     IERC20 public immutable collateralContract;
+    IERC20 public immutable underlyingAsset;
 
     // LTV Settings
     /// @notice The maximum LTV allowed for this pair
@@ -161,7 +163,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             // Pair Settings
             assetContract = IERC20(_asset);
             collateralContract = IERC20(_collateral);
-
+            underlyingAsset = IERC20(IERC4626(_collateral).asset());
+            //approve so this contract can deposit
+            underlyingAsset.approve(address(collateralContract), type(uint256).max);
 
             currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastBlock = uint32(block.number - 1);
@@ -716,6 +720,16 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         _addInterest();
         _addCollateral(msg.sender, _collateralAmount, _borrower);
+    }
+
+    function addCollateralUnderlying(uint256 _collateralAmount, address _borrower) external nonReentrant {
+        if (_borrower == address(0)) revert InvalidReceiver();
+
+        _addInterest();
+
+        underlyingAsset.safeTransferFrom(msg.sender, address(this), _collateralAmount);
+        IERC4626(address(collateralContract)).deposit(_collateralAmount, address(this));
+        _addCollateral(address(this), _collateralAmount, _borrower);
     }
 
     /// @notice The ```RemoveCollateral``` event is emitted when collateral is removed from a borrower's position
