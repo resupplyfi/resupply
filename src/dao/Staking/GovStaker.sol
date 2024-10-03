@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
-import {RewardsDistributor} from "./RewardsDistributor.sol";
+import {MultiRewardsDistributor} from "./MultiRewardsDistributor.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IGovStakerEscrow} from "../../interfaces/IGovStakerEscrow.sol";
 
-contract GovStaker is RewardsDistributor {
+contract GovStaker is MultiRewardsDistributor {
     using SafeERC20 for IERC20;
 
     IERC20 private immutable _stakeToken;
@@ -361,36 +361,6 @@ contract GovStaker is RewardsDistributor {
     }
 
     /**
-        @notice View function to get the current weight for an account
-    */
-    function getAccountWeight(address account) external view returns (uint) {
-        return getAccountWeightAt(account, getEpoch());
-    }
-
-    /**
-        @notice Get the weight for an account in a given epoch
-    */
-    function getAccountWeightAt(
-        address _account,
-        uint _epoch
-    ) public view returns (uint) {
-        if (_epoch > getEpoch()) return 0;
-
-        AccountData memory acctData = accountData[_account];
-
-        uint16 lastUpdateEpoch = acctData.lastUpdateEpoch;
-
-        if (lastUpdateEpoch >= _epoch) return accountWeightAt[_account][_epoch];
-
-        uint weight = accountWeightAt[_account][lastUpdateEpoch];
-
-        uint pending = uint(acctData.pendingStake);
-        if (pending == 0) return weight;
-
-        return pending + weight;
-    }
-
-    /**
         @notice Get the current total system weight
         @dev Also updates local storage values for total weights. Using
              this function over it's `view` counterpart is preferred for
@@ -433,53 +403,6 @@ contract GovStaker is RewardsDistributor {
     }
 
     /**
-        @notice Get the system weight for current epoch.
-    */
-    function getTotalWeight() external view returns (uint) {
-        return getTotalWeightAt(getEpoch());
-    }
-
-    /**
-        @notice Get the system weight for a specified epoch in the past.
-        @dev querying a epoch in the future will always return 0.
-        @param epoch the epoch number to query total weight for.
-    */
-    function getTotalWeightAt(uint epoch) public view returns (uint) {
-        uint systemEpoch = getEpoch();
-        if (epoch > systemEpoch) return 0;
-
-        // Read these together since they are packed in the same slot.
-        uint16 lastUpdateEpoch = totalLastUpdateEpoch;
-        uint pending = totalPending;
-
-        if (epoch <= lastUpdateEpoch) return totalWeightAt[epoch];
-
-        return totalWeightAt[lastUpdateEpoch] + pending;
-    }
-
-    function stakeToken() public view override returns (address) {
-        return address(_stakeToken);
-    }
-
-    /**
-        @notice Returns the balance of underlying staked tokens for an account
-        @param _account Account to query balance.
-        @return balance of account.
-    */
-    function balanceOf(address _account) public view override returns (uint) {
-        AccountData memory acctData = accountData[_account];
-        return acctData.pendingStake + acctData.realizedStake;
-    }
-
-    function owner() public view override returns (address) {
-        return _owner;
-    }
-
-    function totalSupply() public view override returns (uint) {
-        return _totalSupply;
-    }
-
-    /**
         @notice Allow another address to stake or unstake on behalf of. Useful for zaps and other functionality.
         @param _caller Address of the caller to approve or unapprove.
         @param _status Enum representing various approval status states.
@@ -503,7 +426,86 @@ contract GovStaker is RewardsDistributor {
         emit CooldownEpochsUpdated(_epochs);
     }
 
+    function stakeToken() public view override returns (address) {
+        return address(_stakeToken);
+    }
+
+    /* ========== OVERRIDES ========== */
+
+    /**
+        @notice Returns the balance of underlying staked tokens for an account
+        @param _account Account to query balance.
+        @return balance of account.
+    */
+    function balanceOf(address _account) public view override returns (uint) {
+        AccountData memory acctData = accountData[_account];
+        return acctData.pendingStake + acctData.realizedStake;
+    }
+
+    function owner() public view override returns (address) {
+        return _owner;
+    }
+
+    function totalSupply() public view override returns (uint) {
+        return _totalSupply;
+    }
+
     /* ========== VIEWS ========== */
+
+    /**
+        @notice View function to get the current weight for an account
+    */
+    function getAccountWeight(address account) external view returns (uint) {
+        return getAccountWeightAt(account, getEpoch());
+    }
+
+    /**
+        @notice Get the weight for an account in a given epoch
+    */
+    function getAccountWeightAt(
+        address _account,
+        uint _epoch
+    ) public view returns (uint) {
+        if (_epoch > getEpoch()) return 0;
+
+        AccountData memory acctData = accountData[_account];
+
+        uint16 lastUpdateEpoch = acctData.lastUpdateEpoch;
+
+        if (lastUpdateEpoch >= _epoch) return accountWeightAt[_account][_epoch];
+
+        uint weight = accountWeightAt[_account][lastUpdateEpoch];
+
+        uint pending = uint(acctData.pendingStake);
+        if (pending == 0) return weight;
+
+        return pending + weight;
+    }
+
+    /**
+        @notice Get the system weight for current epoch.
+    */
+    function getTotalWeight() external view returns (uint) {
+        return getTotalWeightAt(getEpoch());
+    }
+
+    /**
+        @notice Get the system weight for a specified epoch in the past.
+        @dev querying a epoch in the future will always return 0.
+        @param epoch the epoch number to query total weight for.
+    */
+    function getTotalWeightAt(uint epoch) public view returns (uint) {
+        uint systemEpoch = getEpoch();
+        if (epoch > systemEpoch) return 0;
+
+        // Read these together since they are packed in the same slot.
+        uint16 lastUpdateEpoch = totalLastUpdateEpoch;
+        uint pending = totalPending;
+
+        if (epoch <= lastUpdateEpoch) return totalWeightAt[epoch];
+
+        return totalWeightAt[lastUpdateEpoch] + pending;
+    }
 
     /// @notice Get the amount of tokens that have passed cooldown.
     /// @param _account The account to query.
