@@ -4,19 +4,16 @@ pragma solidity ^0.8.22;
 import "forge-std/Test.sol";
 import "../../src/dao/GovStaker.sol";
 import "../../src/dao/GovStakerEscrow.sol";
+import {MockToken} from "../mocks/MockToken.sol";
 import {IGovStakerEscrow} from "../../src/interfaces/IGovStakerEscrow.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-contract MockERC20 is ERC20 {
-    constructor() ERC20("Mock Token", "MTK") {
-        _mint(msg.sender, 1000000 * 10 ** 18);
-    }
-}
 
 contract GovStakerTest is Test {
     GovStaker staker;
     GovStakerEscrow escrow;
-    MockERC20 token;
+    MockToken token;
+    MockToken rewardToken1;
+    MockToken rewardToken2;
     address deployer;
     address user1;
     uint256 public constant EPOCH_LENGTH = 60 * 60 * 24 * 2;
@@ -25,7 +22,10 @@ contract GovStakerTest is Test {
         deployer = address(this);
         user1 = address(0x1);
 
-        token = new MockERC20();
+        token = new MockToken("GovToken", "GOV");
+        rewardToken1 = new MockToken("RewardToken1", "RT1");
+        rewardToken2 = new MockToken("RewardToken2", "RT2");
+
         uint256 nonce = vm.getNonce(deployer);
         address escrowAddress = computeCreateAddress(deployer, nonce);
         address govStakingAddress = computeCreateAddress(deployer, nonce + 1);
@@ -42,14 +42,17 @@ contract GovStakerTest is Test {
         token.transfer(user1, 10000 * 10 ** 18);
         vm.prank(user1);
         token.approve(address(staker), type(uint256).max);
+
+        rewardToken1.approve(address(staker), type(uint256).max);
+        rewardToken2.approve(address(staker), type(uint256).max);
     }
 
-    function testInitialDeployment() public {
+    function test_InitialDeployment() public {
         assertEq(staker.owner(), deployer, "Owner should be deployer");
         assertEq(address(staker.stakeToken()), address(token), "Stake token should be set correctly");
     }
 
-    function testStake() public {
+    function test_Stake() public {
         uint amountToStake = 100 * 10 ** 18;
         vm.prank(user1);
         staker.stake(amountToStake);
@@ -64,10 +67,39 @@ contract GovStakerTest is Test {
         staker.checkpointAccount(user1);
     }
 
-    function testFailUnapprovedStake() public {
+    function test_AddReward() public {
+        uint amountToStake = 100 * 10 ** 18;
+        
+        // Add rewards
+        staker.addReward(
+            address(rewardToken1), // rewardsToken
+            address(this),         // distributor
+            60 * 60 * 24           // duration
+        );
+        staker.addReward(
+            address(rewardToken2), // rewardsToken
+            address(this),         // distributor
+            60 * 60 * 24        // duration
+        );
+
+        vm.warp(block.timestamp + 1 days);
+
+        uint earned1 = staker.earned(user1, address(rewardToken1));
+        uint earned2 = staker.earned(user1, address(rewardToken2));
+        console.log("earned", earned1, earned2);
+
         vm.prank(user1);
-        staker.stakeFor(deployer, 100 * 10 ** 18);
-        // This should fail since user1 is not approved to stake for deployer
+        staker.stake(amountToStake);
+
+        staker.notifyRewardAmount(address(rewardToken1), 1_000 * 10 ** 18);
+        staker.notifyRewardAmount(address(rewardToken2), 2_000 * 10 ** 18);
+
+        vm.warp(block.timestamp + 1 days);
+
+        earned1 = staker.earned(user1, address(rewardToken1));
+        earned2 = staker.earned(user1, address(rewardToken2));
+
+        console.log("earned", earned1/1e18, earned2/1e18);
     }
 
     function _getRealizedStake(address _account) internal returns (uint) {
@@ -80,7 +112,7 @@ contract GovStakerTest is Test {
         return acctData.pendingStake;
     }
 
-    function testStakeAndUnstake() public {
+    function test_StakeAndUnstake() public {
         uint amountToStake = token.balanceOf(user1);
         stakeSomeAndWait(amountToStake);
         
@@ -104,7 +136,7 @@ contract GovStakerTest is Test {
         assertEq(token.balanceOf(user1), amountToStake, "Token should be returned to user");
     }
 
-    function testMultipleStake() public {
+    function test_MultipleStake() public {
         uint amountToStake = (token.balanceOf(user1) - 1) / 2;
         stakeSome(amountToStake);
         checkExpectedBalanceAndWeight(
@@ -114,7 +146,7 @@ contract GovStakerTest is Test {
             0               // expectedTotalWeight
         );
 
-        // Advance to next week, allowing weight to have grown.
+        // Advance to next epoch, allowing weight to have grown.
         vm.warp(block.timestamp + warmupWait());
         checkExpectedBalanceAndWeight(
             amountToStake,  // balanceOf
@@ -138,6 +170,26 @@ contract GovStakerTest is Test {
             amountToStake * 2,  // expectedTotalSupply
             amountToStake * 2   // expectedTotalWeight
         );
+    }
+
+    function test_MultipleUserStake() public {
+        // TODO
+    }
+
+    function test_StakeForCooldownForAndUnstakeFor() public {
+        // TODO
+    }
+
+    function testFail_StakeForCooldownForAndUnstakeFor() public {
+        vm.prank(user1);
+        staker.stakeFor(deployer, 100 * 10 ** 18);
+        staker.cooldownFor(deployer, 100 * 10 ** 18);
+        staker.unstakeFor(deployer, deployer);
+        // This should fail since user1 is not approved to stake for deployer
+    }
+
+    function test_CoolDown() public {
+        // TODO
     }
 
     function checkExpectedBalanceAndWeight(
@@ -166,7 +218,7 @@ contract GovStakerTest is Test {
         staker.stake(amountToStake);
     }
 
-    function testUnstake() public {
+    function test_Unstake() public {
         uint amountToStake = token.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
         stakeSomeAndWait(amountToStake);
@@ -182,7 +234,7 @@ contract GovStakerTest is Test {
         vm.stopPrank();
     }
 
-    function testUnstakePartial() public {
+    function test_UnstakePartial() public {
         uint amountToStake = token.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
         stakeSomeAndWait(amountToStake);
@@ -199,7 +251,7 @@ contract GovStakerTest is Test {
         vm.stopPrank();
     }
 
-    function testsetCooldownEpochs() public {
+    function test_SetCooldownEpochs() public {
         uint amountToStake = token.balanceOf(user1);
         stakeSomeAndWait(amountToStake);
         vm.startPrank(staker.owner());
