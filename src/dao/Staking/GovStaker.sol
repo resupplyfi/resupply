@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
-import {MultiRewardsDistributor} from "./MultiRewardsDistributor.sol";
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IGovStakerEscrow} from "../../interfaces/IGovStakerEscrow.sol";
+import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
+import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import { IERC20Metadata } from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
+import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
 
 contract GovStaker is MultiRewardsDistributor {
     using SafeERC20 for IERC20;
@@ -17,8 +17,7 @@ contract GovStaker is MultiRewardsDistributor {
 
     // Account weight tracking state vars.
     mapping(address account => AccountData data) public accountData;
-    mapping(address account => mapping(uint epoch => uint weight))
-        private accountWeightAt;
+    mapping(address account => mapping(uint epoch => uint weight)) private accountWeightAt;
 
     // Total weight tracking state vars.
     uint120 public totalPending;
@@ -35,8 +34,7 @@ contract GovStaker is MultiRewardsDistributor {
 
     // Permissioned roles
     address private _owner;
-    mapping(address account => mapping(address caller => ApprovalStatus approvalStatus))
-        public approvedCaller;
+    mapping(address account => mapping(address caller => ApprovalStatus approvalStatus)) public approvedCaller;
     mapping(address staker => bool approved) public approvedWeightedStaker;
 
     struct AccountData {
@@ -61,13 +59,10 @@ contract GovStaker is MultiRewardsDistributor {
 
     event Staked(address indexed account, uint indexed epoch, uint amount);
     event Unstaked(address indexed account, uint amount);
-    event ApprovedCallerSet(
-        address indexed account,
-        address indexed caller,
-        ApprovalStatus status
-    );
+    event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
     event Cooldown(address indexed account, uint amount, uint end);
     event CooldownEpochsUpdated(uint24 newDuration);
+
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -105,25 +100,18 @@ contract GovStaker is MultiRewardsDistributor {
     function stakeFor(address _account, uint _amount) external returns (uint) {
         if (msg.sender != _account) {
             ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(
-                status == ApprovalStatus.StakeAndUnstake ||
-                    status == ApprovalStatus.StakeOnly,
-                "!Permission"
-            );
+            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.StakeOnly, '!Permission');
         }
 
         return _stake(_account, _amount);
     }
 
-    function _stake(address _account, uint _amount) internal returns (uint) {
-        require(_amount < type(uint120).max, "invalid amount");
+    function _stake(address _account, uint _amount) internal updateReward(_account) returns (uint) {
+        require(_amount > 0 && _amount < type(uint120).max, "invalid amount");
 
         // Before going further, let's sync our account and total weights
         uint systemEpoch = getEpoch();
-        (AccountData memory acctData, ) = _checkpointAccount(
-            _account,
-            systemEpoch
-        );
+        (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
         _checkpointTotal(systemEpoch);
 
         acctData.pendingStake += uint120(_amount);
@@ -143,7 +131,7 @@ contract GovStaker is MultiRewardsDistributor {
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
     function cooldown(uint _amount) external returns (uint) {
-        return _cooldown(msg.sender, _amount);
+        return _cooldown(msg.sender, _amount); // triggers updateReward
     }
 
     /**
@@ -151,59 +139,44 @@ contract GovStaker is MultiRewardsDistributor {
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
     // function unstakeFor(address _account, uint _amount, address _receiver) external returns (uint) {
-    function cooldownFor(
-        address _account,
-        uint _amount
-    ) external returns (uint) {
+    function cooldownFor(address _account, uint _amount) external returns (uint) {
         if (msg.sender != _account) {
             ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(
-                status == ApprovalStatus.StakeAndUnstake ||
-                    status == ApprovalStatus.UnstakeOnly,
-                "!Permission"
-            );
+            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.UnstakeOnly, '!Permission');
         }
-        return _cooldown(_account, _amount);
+        if (_amount == type(uint).max) _amount = balanceOf(_account);
+        return _cooldown(_account, _amount); // triggers updateReward
     }
 
-    function exit(address _account) external returns (uint) {
-        if (msg.sender != _account) {
-            ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(
-                status == ApprovalStatus.StakeAndUnstake ||
-                    status == ApprovalStatus.UnstakeOnly,
-                "!Permission"
-            );
-        }
-        return _cooldown(_account, balanceOf(_account));
+    /**
+     * @notice Initiate cooldown and claim any outstanding rewards.
+     */
+    function exit() external returns (uint) {
+        uint balance = balanceOf(msg.sender);
+        _cooldown(msg.sender, balance); // triggers updateReward
+        _getRewardFor(msg.sender);
+        return balance;
     }
 
     function exitFor(address _account) external returns (uint) {
         if (msg.sender != _account) {
             ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(
-                status == ApprovalStatus.StakeAndUnstake ||
-                    status == ApprovalStatus.UnstakeOnly,
-                "!Permission"
-            );
+            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.UnstakeOnly, '!Permission');
         }
-        return _cooldown(_account, balanceOf(_account));
+        uint balance = balanceOf(_account);
+        _cooldown(_account, balance); // triggers updateReward
+        _getRewardFor(_account);
+        return balance;
     }
 
-    function _cooldown(address _account, uint _amount) internal returns (uint) {
-        require(_amount < type(uint120).max, "invalid amount");
+    function _cooldown(address _account, uint _amount) internal updateReward(_account) returns (uint) {
+        require(_amount > 0 && _amount < type(uint120).max, 'invalid amount');
 
         uint systemEpoch = getEpoch();
 
         // Before going further, let's sync our account and total weights
-        (AccountData memory acctData, ) = _checkpointAccount(
-            _account,
-            systemEpoch
-        );
-        require(
-            acctData.realizedStake >= _amount,
-            "insufficient realized stake"
-        );
+        (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
+        require(acctData.realizedStake >= _amount, 'insufficient realized stake');
         _checkpointTotal(systemEpoch);
 
         acctData.realizedStake -= uint120(_amount);
@@ -233,32 +206,19 @@ contract GovStaker is MultiRewardsDistributor {
     /// @param _account The account from which the tokens are to be unstaked.
     /// @param _receiver The address to which the unstaked tokens will be transferred.
     /// @return The amount of tokens unstaked.
-    function unstakeFor(
-        address _account,
-        address _receiver
-    ) external returns (uint) {
+    function unstakeFor(address _account, address _receiver) external returns (uint) {
         if (msg.sender != _account) {
             ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(
-                status == ApprovalStatus.StakeAndUnstake ||
-                    status == ApprovalStatus.UnstakeOnly,
-                "!Permission"
-            );
+            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.UnstakeOnly, '!Permission');
         }
         return _unstake(_account, _receiver);
     }
 
-    function _unstake(
-        address _account,
-        address _receiver
-    ) internal returns (uint) {
+    function _unstake(address _account, address _receiver) internal returns (uint) {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.underlyingAmount;
 
-        require(
-            block.timestamp >= userCooldown.end || cooldownEpochs == 0,
-            "InvalidCooldown"
-        );
+        require(block.timestamp >= userCooldown.end || cooldownEpochs == 0, 'InvalidCooldown');
 
         userCooldown.end = 0;
         userCooldown.underlyingAmount = 0;
@@ -277,9 +237,7 @@ contract GovStaker is MultiRewardsDistributor {
         @dev Prefer to use this function over it's view counterpart for
              contract -> contract interactions.
     */
-    function checkpointAccount(
-        address _account
-    ) external returns (AccountData memory acctData, uint weight) {
+    function checkpointAccount(address _account) external returns (AccountData memory acctData, uint weight) {
         (acctData, weight) = _checkpointAccount(_account, getEpoch());
         accountData[_account] = acctData;
     }
@@ -314,10 +272,7 @@ contract GovStaker is MultiRewardsDistributor {
             return (acctData, accountWeightAt[_account][lastUpdateEpoch]);
         }
 
-        require(
-            _systemEpoch > lastUpdateEpoch,
-            "specified epoch is older than last update."
-        );
+        require(_systemEpoch > lastUpdateEpoch, 'specified epoch is older than last update.');
 
         uint pending = uint(acctData.pendingStake);
         uint realized = acctData.realizedStake;
@@ -407,10 +362,7 @@ contract GovStaker is MultiRewardsDistributor {
         @param _caller Address of the caller to approve or unapprove.
         @param _status Enum representing various approval status states.
     */
-    function setApprovedCaller(
-        address _caller,
-        ApprovalStatus _status
-    ) external {
+    function setApprovedCaller(address _caller, ApprovalStatus _status) external {
         approvedCaller[msg.sender][_caller] = _status;
         emit ApprovedCallerSet(msg.sender, _caller, _status);
     }
@@ -418,10 +370,7 @@ contract GovStaker is MultiRewardsDistributor {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function setCooldownEpochs(uint24 _epochs) external onlyOwner {
-        require(
-            _epochs * EPOCH_LENGTH <= MAX_COOLDOWN_DURATION,
-            "Invalid duration"
-        );
+        require(_epochs * EPOCH_LENGTH <= MAX_COOLDOWN_DURATION, 'Invalid duration');
         cooldownEpochs = _epochs;
         emit CooldownEpochsUpdated(_epochs);
     }
@@ -462,10 +411,7 @@ contract GovStaker is MultiRewardsDistributor {
     /**
         @notice Get the weight for an account in a given epoch
     */
-    function getAccountWeightAt(
-        address _account,
-        uint _epoch
-    ) public view returns (uint) {
+    function getAccountWeightAt(address _account, uint _epoch) public view returns (uint) {
         if (_epoch > getEpoch()) return 0;
 
         AccountData memory acctData = accountData[_account];
@@ -510,9 +456,7 @@ contract GovStaker is MultiRewardsDistributor {
     /// @notice Get the amount of tokens that have passed cooldown.
     /// @param _account The account to query.
     /// @return . amount of tokens that have passed cooldown.
-    function getUnstakableAmount(
-        address _account
-    ) external view returns (uint) {
+    function getUnstakableAmount(address _account) external view returns (uint) {
         UserCooldown memory userCooldown = cooldowns[_account];
         if (block.timestamp < userCooldown.end) return 0;
         return userCooldown.underlyingAmount;

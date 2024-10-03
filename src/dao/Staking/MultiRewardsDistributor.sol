@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import { ReentrancyGuard } from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
-abstract contract MultiRewardsDistributor {
+abstract contract MultiRewardsDistributor is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    // Reward tracking state vars.
     address[] public rewardTokens;
-    bool public isRetired;
     mapping(address => Reward) public rewardData;
     mapping(address => mapping(address => uint256)) public rewards;
-    mapping(address => mapping(address => uint256))
-        public userRewardPerTokenPaid;
+    mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
 
     uint256 public constant PRECISION = 1e18;
 
@@ -23,40 +21,23 @@ abstract contract MultiRewardsDistributor {
 
     struct Reward {
         address rewardsDistributor; // address with permission to update reward amount.
-        /// @notice The duration of our rewards distribution for staking, default is 7 days.
         uint256 rewardsDuration;
-        /// @notice The end (timestamp) of our current or most recent reward period.
         uint256 periodFinish;
-        /// @notice The distribution rate of reward token per second.
         uint256 rewardRate;
-        /**
-         * @notice The last time rewards were updated, triggered by updateReward() or notifyRewardAmount().
-         * @dev  Will be the timestamp of the update or the end of the period, whichever is earlier.
-         */
         uint256 lastUpdateTime;
-        /**
-         * @notice The most recent stored amount for rewardPerToken().
-         * @dev Updated every time anyone calls the updateReward() modifier.
-         */
         uint256 rewardPerTokenStored;
     }
 
     /* ========== EVENTS ========== */
     event RewardAdded(address indexed rewardToken, uint256 amount);
-    event RewardTokenAdded(
-        address indexed rewardsToken,
-        address indexed rewardsDistributor,
-        uint256 rewardsDuration
-    );
+    event RewardTokenAdded(address indexed rewardsToken, address indexed rewardsDistributor, uint256 rewardsDuration);
     event Recovered(address indexed token, uint256 amount);
-    event RewardsDurationUpdated(
-        address indexed rewardsToken,
-        uint256 duration
-    );
+    event RewardsDurationUpdated(address indexed rewardsToken, uint256 duration);
+    event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
 
     /* ========== MODIFIERS ========== */
     modifier onlyOwner() {
-        require(msg.sender == owner(), "!Owner");
+        require(msg.sender == owner(), "!authorized");
         _;
     }
 
@@ -67,11 +48,45 @@ abstract contract MultiRewardsDistributor {
             rewardData[token].lastUpdateTime = lastTimeRewardApplicable(token);
             if (_account != address(0)) {
                 rewards[_account][token] = earned(_account, token);
-                userRewardPerTokenPaid[_account][token] = rewardData[token]
-                    .rewardPerTokenStored;
+                userRewardPerTokenPaid[_account][token] = rewardData[token].rewardPerTokenStored;
             }
         }
         _;
+    }
+
+    /**
+     * @notice Claim any (and all) earned reward tokens.
+     * @dev Can claim rewards even if no tokens still staked.
+     */
+    function getReward() external nonReentrant updateReward(msg.sender) {
+        _getRewardFor(msg.sender);
+    }
+
+    // internal function to get rewards.
+    function _getRewardFor(address _recipient) internal {
+        for (uint256 i; i < rewardTokens.length; ++i) {
+            address _rewardsToken = rewardTokens[i];
+            uint256 reward = rewards[_recipient][_rewardsToken];
+            if (reward > 0) {
+                rewards[_recipient][_rewardsToken] = 0;
+                IERC20(_rewardsToken).safeTransfer(_recipient, reward);
+                emit RewardPaid(_recipient, _rewardsToken, reward);
+            }
+        }
+    }
+
+    /**
+     * @notice Claim any one earned reward token.
+     * @dev Can claim rewards even if no tokens still staked.
+     * @param _rewardsToken Address of the rewards token to claim.
+     */
+    function getOneReward(address _rewardsToken) external nonReentrant updateReward(msg.sender) {
+        uint256 reward = rewards[msg.sender][_rewardsToken];
+        if (reward > 0) {
+            rewards[msg.sender][_rewardsToken] = 0;
+            IERC20(_rewardsToken).safeTransfer(msg.sender, reward);
+            emit RewardPaid(msg.sender, _rewardsToken, reward);
+        }
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
@@ -89,25 +104,15 @@ abstract contract MultiRewardsDistributor {
         address _rewardsDistributor,
         uint256 _rewardsDuration
     ) external onlyOwner {
-        require(
-            _rewardsToken != address(0) && _rewardsDistributor != address(0),
-            "No zero address"
-        );
-        require(_rewardsDuration > 0, "Must be >0");
-        require(
-            rewardData[_rewardsToken].rewardsDuration == 0,
-            "Reward already added"
-        );
+        require(_rewardsToken != address(0) && _rewardsDistributor != address(0), 'No zero address');
+        require(_rewardsDuration > 0, 'Must be >0');
+        require(rewardData[_rewardsToken].rewardsDuration == 0, 'Reward already added');
 
         rewardTokens.push(_rewardsToken);
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
         rewardData[_rewardsToken].rewardsDuration = _rewardsDuration;
 
-        emit RewardTokenAdded(
-            _rewardsToken,
-            _rewardsDistributor,
-            _rewardsDuration
-        );
+        emit RewardTokenAdded(_rewardsToken, _rewardsDistributor, _rewardsDuration);
     }
 
     /**
@@ -116,22 +121,15 @@ abstract contract MultiRewardsDistributor {
      * @param _rewardsToken Address of the rewards token.
      * @param _rewardAmount Amount of reward tokens to add.
      */
-    function notifyRewardAmount(
-        address _rewardsToken,
-        uint256 _rewardAmount
-    ) external updateReward(address(0)) {
+    function notifyRewardAmount(address _rewardsToken, uint256 _rewardAmount) external updateReward(address(0)) {
         Reward memory _rewardData = rewardData[_rewardsToken];
-        require(_rewardData.rewardsDistributor == msg.sender, "!authorized");
-        require(_rewardAmount > 0, "Reward must be >0");
-        require(totalSupply() > 0, "Supply must be >0");
+        require(_rewardData.rewardsDistributor == msg.sender, '!authorized');
+        require(_rewardAmount > 0, 'Reward must be >0');
+        require(totalSupply() > 0, 'Supply must be >0');
 
         // handle the transfer of reward tokens via `transferFrom` to reduce the number
         // of transactions required and ensure correctness of the reward amount
-        IERC20(_rewardsToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _rewardAmount
-        );
+        IERC20(_rewardsToken).safeTransferFrom(msg.sender, address(this), _rewardAmount);
 
         // store locally to save gas
         uint256 newRewardRate;
@@ -140,9 +138,7 @@ abstract contract MultiRewardsDistributor {
             newRewardRate = _rewardAmount / _rewardData.rewardsDuration;
         } else {
             newRewardRate =
-                (_rewardAmount +
-                    (_rewardData.periodFinish - block.timestamp) *
-                    _rewardData.rewardRate) /
+                (_rewardAmount + (_rewardData.periodFinish - block.timestamp) * _rewardData.rewardRate) /
                 _rewardData.rewardsDuration;
         }
 
@@ -151,21 +147,14 @@ abstract contract MultiRewardsDistributor {
         // very high values of rewardRate in the earned and rewardsPerToken functions;
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
         require(
-            newRewardRate <=
-                (IERC20(_rewardsToken).balanceOf(address(this)) /
-                    _rewardData.rewardsDuration),
-            "Provided reward too high"
+            newRewardRate <= (IERC20(_rewardsToken).balanceOf(address(this)) / _rewardData.rewardsDuration),
+            'Provided reward too high'
         );
 
-        // store everything locally
         _rewardData.rewardRate = newRewardRate;
         _rewardData.lastUpdateTime = block.timestamp;
-        _rewardData.periodFinish =
-            block.timestamp +
-            _rewardData.rewardsDuration;
-
-        // write to storage
-        rewardData[_rewardsToken] = _rewardData;
+        _rewardData.periodFinish = block.timestamp + _rewardData.rewardsDuration;
+        rewardData[_rewardsToken] = _rewardData; // Write to storage
 
         emit RewardAdded(_rewardsToken, _rewardAmount);
     }
@@ -177,14 +166,8 @@ abstract contract MultiRewardsDistributor {
      * @param _rewardsDistributor Address of the rewards distributor. This is the only address that can add new rewards
      *  for this token.
      */
-    function setRewardsDistributor(
-        address _rewardsToken,
-        address _rewardsDistributor
-    ) external onlyOwner {
-        require(
-            _rewardsToken != address(0) && _rewardsDistributor != address(0),
-            "No zero address"
-        );
+    function setRewardsDistributor(address _rewardsToken, address _rewardsDistributor) external onlyOwner {
+        require(_rewardsToken != address(0) && _rewardsDistributor != address(0), 'No zero address');
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
     }
 
@@ -194,14 +177,11 @@ abstract contract MultiRewardsDistributor {
      * @param _rewardsToken Address of the rewards token.
      * @param _rewardsDuration New length of period in seconds.
      */
-    function setRewardsDuration(
-        address _rewardsToken,
-        uint256 _rewardsDuration
-    ) external {
+    function setRewardsDuration(address _rewardsToken, uint256 _rewardsDuration) external {
         Reward memory _rewardData = rewardData[_rewardsToken];
-        require(block.timestamp > _rewardData.periodFinish, "Rewards active");
-        require(_rewardData.rewardsDistributor == msg.sender, "!authorized");
-        require(_rewardsDuration > 0, "Must be >0");
+        require(block.timestamp > _rewardData.periodFinish, 'Rewards active');
+        require(_rewardData.rewardsDistributor == msg.sender, '!authorized');
+        require(_rewardsDuration > 0, 'Must be >0');
 
         rewardData[_rewardsToken].rewardsDuration = _rewardsDuration;
 
@@ -214,40 +194,22 @@ abstract contract MultiRewardsDistributor {
      * @param _tokenAddress Address of token to sweep.
      * @param _tokenAmount Amount of tokens to sweep.
      */
-    function recoverERC20(
-        address _tokenAddress,
-        uint256 _tokenAmount
-    ) external onlyOwner {
-        if (_tokenAddress == address(stakeToken())) revert("!staking token");
-
-        // can only recover reward tokens 90 days after last reward token ends
-        bool isRewardToken;
-        address[] memory _rewardTokens = rewardTokens;
-        uint256 maxPeriodFinish;
-
-        for (uint256 i; i < _rewardTokens.length; ++i) {
-            uint256 rewardPeriodFinish = rewardData[_rewardTokens[i]]
-                .periodFinish;
-            if (rewardPeriodFinish > maxPeriodFinish) {
-                maxPeriodFinish = rewardPeriodFinish;
+    function recoverERC20(address _tokenAddress, uint256 _tokenAmount) external onlyOwner {
+        if (_tokenAddress == stakeToken()) {
+            _tokenAmount = IERC20(_tokenAddress).balanceOf(address(this)) - totalSupply();
+            if (_tokenAmount > 0) {
+                IERC20(_tokenAddress).safeTransfer(owner(), _tokenAmount);
+                emit Recovered(_tokenAddress, _tokenAmount);
             }
-
-            if (_rewardTokens[i] == _tokenAddress) {
-                isRewardToken = true;
-            }
+            return;
         }
 
-        if (isRewardToken) {
-            require(
-                block.timestamp > maxPeriodFinish + 90 days,
-                "wait >90 days"
-            );
+        address[] memory _rewardTokens = rewardTokens;
 
-            // if we do this, automatically sweep all reward token
-            _tokenAmount = IERC20(_tokenAddress).balanceOf(address(this));
-
-            // retire this staking contract, this wipes all rewards but still allows all users to withdraw
-            isRetired = true;
+        for (uint256 i; i < _rewardTokens.length; ++i) {
+            if (_rewardTokens[i] == _tokenAddress) {
+                return; // Can't recover reward token
+            }
         }
 
         IERC20(_tokenAddress).safeTransfer(owner(), _tokenAmount);
@@ -262,18 +224,9 @@ abstract contract MultiRewardsDistributor {
      * @param _rewardsToken Rewards token to check.
      * @return pending Amount of reward token pending claim.
      */
-    function earned(
-        address _account,
-        address _rewardsToken
-    ) public view returns (uint256 pending) {
-        if (isRetired) {
-            return 0;
-        }
-
+    function earned(address _account, address _rewardsToken) public view returns (uint256 pending) {
         pending =
-            (balanceOf(_account) *
-                (rewardPerToken(_rewardsToken) -
-                    userRewardPerTokenPaid[_account][_rewardsToken])) /
+            (balanceOf(_account) * (rewardPerToken(_rewardsToken) - userRewardPerTokenPaid[_account][_rewardsToken])) /
             PRECISION +
             rewards[_account][_rewardsToken];
     }
@@ -284,9 +237,7 @@ abstract contract MultiRewardsDistributor {
      * @param _account Account to check earned balance for.
      * @return pending Amount of reward token(s) pending claim.
      */
-    function earnedMulti(
-        address _account
-    ) public view returns (uint256[] memory pending) {
+    function earnedMulti(address _account) public view returns (uint256[] memory pending) {
         address[] memory _rewardTokens = rewardTokens;
         uint256 length = _rewardTokens.length;
         pending = new uint256[](length);
@@ -301,28 +252,19 @@ abstract contract MultiRewardsDistributor {
      * @param _rewardsToken Reward token to check.
      * @return rewardAmount Reward paid out per whole token.
      */
-    function rewardPerToken(
-        address _rewardsToken
-    ) public view returns (uint256 rewardAmount) {
+    function rewardPerToken(address _rewardsToken) public view returns (uint256 rewardAmount) {
         if (totalSupply() == 0) {
             return rewardData[_rewardsToken].rewardPerTokenStored;
         }
 
-        if (isRetired) {
-            return 0;
-        }
-
         rewardAmount =
             rewardData[_rewardsToken].rewardPerTokenStored +
-            (((lastTimeRewardApplicable(_rewardsToken) -
-                rewardData[_rewardsToken].lastUpdateTime) *
+            (((lastTimeRewardApplicable(_rewardsToken) - rewardData[_rewardsToken].lastUpdateTime) *
                 rewardData[_rewardsToken].rewardRate *
                 PRECISION) / totalSupply());
     }
 
-    function lastTimeRewardApplicable(
-        address _rewardsToken
-    ) public view returns (uint256) {
+    function lastTimeRewardApplicable(address _rewardsToken) public view returns (uint256) {
         return min(block.timestamp, rewardData[_rewardsToken].periodFinish);
     }
 
@@ -337,12 +279,8 @@ abstract contract MultiRewardsDistributor {
      * @param _rewardsToken Reward token to check.
      * @return Total reward token remaining to be paid out.
      */
-    function getRewardForDuration(
-        address _rewardsToken
-    ) external view returns (uint256) {
-        return
-            rewardData[_rewardsToken].rewardRate *
-            rewardData[_rewardsToken].rewardsDuration;
+    function getRewardForDuration(address _rewardsToken) external view returns (uint256) {
+        return rewardData[_rewardsToken].rewardRate * rewardData[_rewardsToken].rewardsDuration;
     }
 
     function min(uint a, uint b) internal pure returns (uint) {

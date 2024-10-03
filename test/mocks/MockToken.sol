@@ -5,7 +5,8 @@ contract MockToken is ERC20 {
         _mint(msg.sender, 1_000_000e18);
     }
 
-    function mint(address to, uint256 amount) external {
+    function mint(address to, uint256 amount) external returns (uint256) {
         _mint(to, amount);
+        return amount;
     }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 contract GovStakerEscrow {
     address immutable GOV_STAKER;
@@ -12,7 +12,7 @@ contract GovStakerEscrow {
     }
 
     modifier onlyStaker() {
-        require(msg.sender == GOV_STAKER, "!Staker");
+        require(msg.sender == GOV_STAKER, '!Staker');
         _;
     }
 
