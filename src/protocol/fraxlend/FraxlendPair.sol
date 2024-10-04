@@ -119,7 +119,7 @@ contract FraxlendPair is FraxlendPairCore {
         (, , uint256 _claimableFees, VaultAccount memory _totalBorrow) = previewAddInterest();
         _totalBorrowAmount = _totalBorrow.amount;
         _totalBorrowShares = _totalBorrow.shares;
-        _totalCollateral = totalCollateral;
+        _totalCollateral = totalCollateral();
     }
 
     /// @notice The ```toBorrowShares``` function converts a given amount of borrow debt into the number of shares

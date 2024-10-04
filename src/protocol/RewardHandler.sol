@@ -219,8 +219,8 @@ abstract contract RewardHandler is ReentrancyGuard{
         for (uint256 i = 0; i < rewardCount; i++) {
             RewardType storage reward = rewards[i];
 
-            //skip invalidated rewards
-            if(reward.reward_token == address(0)){
+            //skip invalidated and non claimable rewards
+            if(reward.reward_token == address(0) || reward.is_non_claimable){
                 continue;
             }
     

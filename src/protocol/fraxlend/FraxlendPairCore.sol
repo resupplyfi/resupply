@@ -40,7 +40,7 @@ import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
 import { RewardHandler } from "../RewardHandler.sol";
-import { RedemptionToken } from "../RedemptionToken.sol";
+import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 
 /// @title FraxlendPairCore
@@ -120,9 +120,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     // Contract Level Accounting
     VaultAccount public totalBorrow; // amount = total borrow amount with interest accrued, shares = total shares outstanding
-    uint256 public totalCollateral; // total amount of collateral in contract (todo is this really needed?)
+    // uint256 public totalCollateral; // total amount of collateral in contract (todo is this really needed?)
     uint256 public claimableFees; //amount of interest gained that is claimable as fees
-    address public redemptionToken; //token to keep track of redemption write offs
+    address public redemptionWriteOff; //token to keep track of redemption write offs
 
     // User Level Accounting
     /// @notice Stores the balance of collateral for each user
@@ -185,8 +185,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
 
         //starting reward types
-        redemptionToken = address(new RedemptionToken(address(this)));
-        _insertRewardToken(redemptionToken);//add redemption token as a reward
+        redemptionWriteOff = address(new WriteOffToken(address(this)));
+        _insertRewardToken(redemptionWriteOff);//add redemption token as a reward
         //set the redemption token as non claimable via getReward
         rewards[0].is_non_claimable = true;
 
@@ -219,12 +219,30 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Helpers
     // ============================================================================================
 
+
+    //get total collateral, either parked here or staked 
+    function totalCollateral() public view returns(uint256 _totalCollateralBalance){
+        if(convexPid != 0){
+            //get staking
+            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            //get balance
+            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
+        }else{
+            _totalCollateralBalance = collateralContract.balanceOf(address(this));   
+        }
+    }
+
     //get _userCollateralBalance minus redemption tokens
     function userCollateralBalance(address _account) public view returns(uint256 _collateralAmount){
         _collateralAmount = _userCollateralBalance[_account];
         //account for rtokens since can call sync in view function
-        uint256 rTokens = claimable_reward[redemptionToken][_account];
+        uint256 rTokens = claimable_reward[redemptionWriteOff][_account];
         _collateralAmount = _collateralAmount > rTokens ? _collateralAmount - rTokens : 0;
+
+        //since there are some very small dust during distribution there could be a few wei
+        //in user collateral that is over total collateral. clamp to total
+        uint256 total = totalCollateral();
+        _collateralAmount = _collateralAmount > total ? total : _collateralAmount;
     }
 
     /// @notice The ```totalAssetAvailable``` function returns the total balance of Asset Tokens in the contract
@@ -598,9 +616,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     //should be called before anything with userCollateralBalance is used
     function _syncUserRedemptions(address _account) internal{
         //get token count
-        uint256 rTokens = claimable_reward[redemptionToken][_account];
+        uint256 rTokens = claimable_reward[redemptionWriteOff][_account];
         //reset claimables
-        claimable_reward[redemptionToken][_account] = 0;
+        claimable_reward[redemptionWriteOff][_account] = 0;
 
         //remove from collateral balance the number of rtokens the user has
         _userCollateralBalance[_account] = _userCollateralBalance[_account] >= rTokens ? _userCollateralBalance[_account] - rTokens : 0;
@@ -699,7 +717,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Effects: write to state
         _userCollateralBalance[_borrower] += _collateralAmount;
-        totalCollateral += _collateralAmount;
+        // totalCollateral += _collateralAmount;
 
         // Interactions
         if (_sender != address(this)) {
@@ -754,9 +772,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // NOTE: Following line will revert on underflow if _collateralAmount > userCollateralBalance
         _userCollateralBalance[_borrower] -= _collateralAmount;
         // NOTE: Following line will revert on underflow if totalCollateral < _collateralAmount
-        totalCollateral -= _collateralAmount;
+        // totalCollateral -= _collateralAmount;
 
         //unstake underlying
+        //NOTE: following will revert on underflow if total collateral < _collateralAmount
         _unstakeUnderlying(_collateralAmount);
 
         // Interactions

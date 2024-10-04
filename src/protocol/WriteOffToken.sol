@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 /*
-A token-like contract to track redemption write offs via erc20 interfaces to use
+A token-like contract to track write offs via erc20 interfaces to be used
 in reward distribution logic
 
 interfaces needed:
@@ -11,7 +11,7 @@ interfaces needed:
 - mint
 
 */
-contract RedemptionToken {
+contract WriteOffToken {
 
     address public immutable owner;
     uint256 public totalSupply;
