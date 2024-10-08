@@ -39,14 +39,14 @@ import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
-import { RewardHandler } from "../RewardHandler.sol";
+import { RewardHandlerMultiEpoch } from "../RewardHandlerMultiEpoch.sol";
 import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the core logic and storage for the FraxlendPair
-abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, RewardHandler {
+abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, RewardHandlerMultiEpoch {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -128,9 +128,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @notice Stores the balance of collateral for each user
     mapping(address => uint256) internal _userCollateralBalance; // amount of collateral each user is backed
     /// @notice Stores the balance of borrow shares for each user
-    mapping(address => uint256) public userBorrowShares; // represents the shares held by individuals
-
-    // NOTE: user shares of assets are represented as ERC-20 tokens and accessible via balanceOf()
+    mapping(address => uint256) internal _userBorrowShares; // represents the shares held by individuals
+    //reward epoch to share change. ex shareReactoring(0) is factor of userBorrowShares to be reduced to move an account from epoch 0 to epoch 1
+    mapping(uint256 => uint256) public shareRefactoring; 
 
     // ============================================================================================
     // Constructor
@@ -232,6 +232,25 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
     }
 
+    function userBorrowShares(address _account) public view returns(uint256 borrowShares){
+        borrowShares = _userBorrowShares[_account];
+
+        uint256 globalEpoch = currentRewardEpoch;
+        uint256 userEpoch = userRewardEpoch[_account];
+
+        if(userEpoch < globalEpoch){
+            //need to calculate shares while keeping this as a view function
+            for(;;){
+                //reduce shares by refactoring amount (will never be 0)
+                borrowShares /= shareRefactoring[userEpoch];
+                userEpoch += 1;
+                if(userEpoch == globalEpoch){
+                    break;
+                }
+            }
+        }
+    }
+
     //get _userCollateralBalance minus redemption tokens
     function userCollateralBalance(address _account) public view returns(uint256 _collateralAmount){
         _collateralAmount = _userCollateralBalance[_account];
@@ -263,7 +282,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @return Whether borrower is solvent
     function _isSolvent(address _borrower, uint256 _exchangeRate) internal view returns (bool) {
         if (maxLTV == 0) return true;
-        uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares[_borrower], true);
+        //must look at borrow shares of current epoch so user helper function
+        uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares(_borrower), true);
         if (_borrowerAmount == 0) return true;
         uint256 _collateralAmount = userCollateralBalance(_borrower);
         if (_collateralAmount == 0) return false;
@@ -284,7 +304,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         if (!_isSolvent(_borrower, exchangeRateInfo.highExchangeRate)) {
             revert Insolvent(
-                totalBorrow.toAmount(userBorrowShares[_borrower], true),
+                totalBorrow.toAmount(userBorrowShares(_borrower), true),
                 userCollateralBalance(_borrower),
                 exchangeRateInfo.highExchangeRate
             );
@@ -308,7 +328,15 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     }
 
     function _userRewardShares(address _account) internal view override returns(uint256){
-        return userBorrowShares[_account];
+        return _userBorrowShares[_account];
+    }
+
+    function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
+        //convert shares to next epoch shares
+        //share refactoring will never be 0
+        _userBorrowShares[_account] = _userBorrowShares[_account] / shareRefactoring[_currentUserEpoch];
+        //update user reward epoch
+        userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
 
     // ============================================================================================
@@ -641,7 +669,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _receiver The address to receive the Asset Tokens
     /// @return _sharesAdded The amount of borrow shares the msg.sender will be debited
     function _borrowAsset(uint128 _borrowAmount, address _receiver) internal returns (uint256 _sharesAdded) {
-        //checkpoint rewards for msg.sender
+        //checkpoint rewards and sync borrow shares for msg.sender
         _checkpoint(msg.sender);
 
         // Get borrow accounting from storage to save gas
@@ -663,7 +691,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
-        userBorrowShares[msg.sender] += _sharesAdded;
+        _userBorrowShares[msg.sender] += _sharesAdded;
 
         // Interactions
         // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
@@ -797,7 +825,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         _addInterest();
         // Note: exchange rate is irrelevant when borrower has no debt shares
-        if (userBorrowShares[msg.sender] > 0) {
+        if (_userBorrowShares[msg.sender] > 0) {
             (bool _isBorrowAllowed, , ) = _updateExchangeRate();
             if (!_isBorrowAllowed) revert ExceedsMaxOracleDeviation();
         }
@@ -825,7 +853,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         address _payer,
         address _borrower
     ) internal {
-        //checkpoint rewards for borrower
+        //checkpoint rewards and sync borrow shares for borrower
         _checkpoint(_borrower);
 
         // Effects: Bookkeeping
@@ -833,7 +861,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _totalBorrow.shares -= _shares;
 
         // Effects: write to state
-        userBorrowShares[_borrower] -= _shares;
+        _userBorrowShares[_borrower] -= _shares;
         totalBorrow = _totalBorrow;
 
         // Interactions
@@ -903,6 +931,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         //sync collateral
         _syncUserRedemptions(_borrower);
+        //sync rewards and borrow shares
+        _checkpoint(_borrower);
 
         // Check if borrower is solvent, revert if they are
         if (_isSolvent(_borrower, _exchangeRate)) {
@@ -912,7 +942,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Read from state
         VaultAccount memory _totalBorrow = totalBorrow;
         uint256 _userCollateralBalance = _userCollateralBalance[_borrower];
-        uint128 _borrowerShares = userBorrowShares[_borrower].toUint128();
+        uint128 _borrowerShares = _userBorrowShares[_borrower].toUint128();
 
         // Prevent stack-too-deep
         int256 _leftoverCollateral;
@@ -951,7 +981,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             );
 
         // Effects & Interactions
-        // NOTE: reverts if _shares > userBorrowShares
+        // NOTE: reverts if _shares > _userBorrowShares
         // repay using this address so that stables are not burnt (yet)
         _repayAsset(
             _totalBorrow,
