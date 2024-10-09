@@ -340,6 +340,19 @@ contract FraxlendPair is FraxlendPairCore {
         emit SetSwapper(_swapper, _approval);
     }
 
+    /// @notice The ```SetConvexPool``` event fires when convex pool id is updated
+    /// @param pid the convex pool id
+    event SetConvexPool(uint256 pid);
+
+    /// @notice The ```setConvexPool``` function is called update the underlying convex pool
+    /// @dev
+    /// @param pid the convex pool id
+    function setConvexPool(uint256 pid) external {
+        _requireProtocolOrOwner();
+        _updateConvexPool(pid);
+        emit SetConvexPool(pid);
+    }
+
     // ============================================================================================
     // Functions: Access Control
     // ============================================================================================

@@ -56,4 +56,5 @@ abstract contract FraxlendPairConstants {
     error SetterRevoked();
     error ExceedsMaxOracleDeviation();
     error InvalidReceiver();
+    error InvalidLiquidator();
 }

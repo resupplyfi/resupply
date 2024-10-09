@@ -196,6 +196,8 @@ abstract contract RewardHandlerMultiEpoch is ReentrancyGuard{
 
         //move epoch up
         currentRewardEpoch += 1;
+
+        emit NewEpoch(currentRewardEpoch);
     }
 
     //checkpoint without claiming
@@ -228,7 +230,7 @@ abstract contract RewardHandlerMultiEpoch is ReentrancyGuard{
             
             //calc reward integrals
             uint256 rewardCount = rewards.length;
-            for(uint256 i = 0; i < rewardCount; i++){
+            for(uint256 i = 0; i < rewardCount;){
                 _calcRewardIntegral(userEpoch, globalEpoch, i,_account,_claimTo);
                 unchecked { i += 1; }
             }
@@ -249,7 +251,7 @@ abstract contract RewardHandlerMultiEpoch is ReentrancyGuard{
 
     //get earned token info
     //change ABI to view to use this off chain
-    function earned(address _account) external returns(EarnedData[] memory claimable) {
+    function earned(address _account) public virtual returns(EarnedData[] memory claimable) {
         
         //because this is a state mutative function
         //we can simplify the earned() logic of all rewards (internal and external)
@@ -259,7 +261,7 @@ abstract contract RewardHandlerMultiEpoch is ReentrancyGuard{
         uint256 rewardCount = rewards.length;
         claimable = new EarnedData[](rewardCount);
 
-        for (uint256 i = 0; i < rewardCount; i++) {
+        for (uint256 i = 0; i < rewardCount;) {
             RewardType storage reward = rewards[i];
 
             //skip invalidated and non claimable rewards
@@ -269,6 +271,8 @@ abstract contract RewardHandlerMultiEpoch is ReentrancyGuard{
     
             claimable[i].amount = claimable_reward[reward.reward_token][_account];
             claimable[i].token = reward.reward_token;
+
+            unchecked{ i += 1; }
         }
         return claimable;
     }

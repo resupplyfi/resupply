@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 
 
 //Receive collateral from pairs during liquidations and process
@@ -35,6 +36,13 @@ contract LiquidationHandler is Ownable2Step{
     function setOperator(address _newAddress) external onlyOwner{
         emit SetOperator(operator, _newAddress);
         operator = _newAddress;
+    }
+
+    function liquidate(
+        address _pair,
+        address _borrower
+    ) external returns (uint256 _collateralForLiquidator){
+        return IFraxlendPair(_pair).liquidate(_borrower);
     }
 
     function processCollateral(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{

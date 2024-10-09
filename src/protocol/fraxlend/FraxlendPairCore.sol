@@ -206,6 +206,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 convexPid = _convexpid;
                 //approve
                 collateralContract.approve(convexBooster, type(uint256).max);
+                //add rewards
+                _insertRewardToken(address(0xD533a949740bb3306d119CC777fa900bA034cd52)); //crv
+                _insertRewardToken(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B)); //cvx
             }
 
             // Instantiate Interest
@@ -337,6 +340,19 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _userBorrowShares[_account] = _userBorrowShares[_account] / shareRefactoring[_currentUserEpoch];
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
+    }
+
+    function earned(address _account) public override returns(EarnedData[] memory claimable){
+        EarnedData[] memory earneddata = super.earned(_account);
+        uint256 rewardCount = earneddata.length - 1;
+        claimable = new EarnedData[](rewardCount);
+
+        //remove index 0 as we dont need to report the write off tokens
+        for (uint256 i = 1; i <= rewardCount; ) {
+            claimable[i].amount = earneddata[i-1].amount;
+            claimable[i].token = earneddata[i-1].token;
+            unchecked{ i += 1; }
+        }
     }
 
     // ============================================================================================
@@ -915,6 +931,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     function liquidate(
         address _borrower
     ) external nonReentrant returns (uint256 _collateralForLiquidator) {
+        address liquidationHandler = IPairRegistry(registry).liquidationHandler();
+        if(msg.sender != liquidationHandler) revert InvalidLiquidator();
+
         if (_borrower == address(0)) revert InvalidReceiver();
 
         // Check if liquidate is paused revert if necessary
@@ -992,7 +1011,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         ); // liquidator repays shares on behalf of borrower
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
 
-        address liquidationHandler = IPairRegistry(registry).liquidationHandler();
+        
         // Collateral is removed on behalf of borrower and sent to liquidationHandler
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);

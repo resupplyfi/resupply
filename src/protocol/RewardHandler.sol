@@ -206,7 +206,7 @@ abstract contract RewardHandler is ReentrancyGuard{
 
     //get earned token info
     //change ABI to view to use this off chain
-    function earned(address _account) external returns(EarnedData[] memory claimable) {
+    function earned(address _account) external virtual returns(EarnedData[] memory claimable) {
         
         //because this is a state mutative function
         //we can simplify the earned() logic of all rewards (internal and external)

@@ -134,8 +134,6 @@ interface IFraxlendPair {
     ) external returns (uint256 _totalCollateralBalance);
 
     function liquidate(
-        uint128 _sharesToLiquidate,
-        uint256 _deadline,
         address _borrower
     ) external returns (uint256 _collateralForLiquidator);
 
