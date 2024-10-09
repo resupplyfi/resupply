@@ -52,6 +52,9 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     bool public isLiquidatePaused;
     bool public isLiquidateAccessControlRevoked;
 
+    bool public isRedemptionPaused;
+    // bool public isLiquidateAccessControlRevoked;
+
     bool public isInterestPaused;
     bool public isInterestAccessControlRevoked;
 
@@ -180,6 +183,13 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
 
     function _pauseLiquidate(bool _isPaused) internal {
         isLiquidatePaused = _isPaused;
+        emit PauseLiquidate(_isPaused);
+    }
+
+    event PauseRedemption(bool isPaused);
+
+    function _pauseRedemption(bool _isPaused) internal {
+        isRedemptionPaused = _isPaused;
         emit PauseLiquidate(_isPaused);
     }
 

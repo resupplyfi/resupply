@@ -122,7 +122,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     VaultAccount public totalBorrow; // amount = total borrow amount with interest accrued, shares = total shares outstanding
     // uint256 public totalCollateral; // total amount of collateral in contract (todo is this really needed?)
     uint256 public claimableFees; //amount of interest gained that is claimable as fees
-    address public redemptionWriteOff; //token to keep track of redemption write offs
+    WriteOffToken public redemptionWriteOff; //token to keep track of redemption write offs
 
     // User Level Accounting
     /// @notice Stores the balance of collateral for each user
@@ -185,8 +185,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
 
         //starting reward types
-        redemptionWriteOff = address(new WriteOffToken(address(this)));
-        _insertRewardToken(redemptionWriteOff);//add redemption token as a reward
+        redemptionWriteOff = new WriteOffToken(address(this));
+        _insertRewardToken(address(redemptionWriteOff));//add redemption token as a reward
         //set the redemption token as non claimable via getReward
         rewards[0].is_non_claimable = true;
 
@@ -258,7 +258,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     function userCollateralBalance(address _account) public view returns(uint256 _collateralAmount){
         _collateralAmount = _userCollateralBalance[_account];
         //account for rtokens since can call sync in view function
-        uint256 rTokens = claimable_reward[redemptionWriteOff][_account];
+        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account];
         _collateralAmount = _collateralAmount > rTokens ? _collateralAmount - rTokens : 0;
 
         //since there are some very small dust during distribution there could be a few wei
@@ -660,9 +660,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     //should be called before anything with userCollateralBalance is used
     function _syncUserRedemptions(address _account) internal{
         //get token count
-        uint256 rTokens = claimable_reward[redemptionWriteOff][_account];
+        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account];
         //reset claimables
-        claimable_reward[redemptionWriteOff][_account] = 0;
+        claimable_reward[address(redemptionWriteOff)][_account] = 0;
 
         //remove from collateral balance the number of rtokens the user has
         _userCollateralBalance[_account] = _userCollateralBalance[_account] >= rTokens ? _userCollateralBalance[_account] - rTokens : 0;
@@ -909,6 +909,64 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Execute repayment effects
         _repayAsset(_totalBorrow, _amountToRepay.toUint128(), _shares.toUint128(), msg.sender, _borrower);
+    }
+
+    // ============================================================================================
+    // Functions: Redemptions
+    // ============================================================================================
+    event Redeem(
+        address indexed _redeemer,
+        uint256 _inAmount,
+        uint256 _outAmount
+    );
+
+    function redeem(uint256 _amount, uint256 _fee, address _redeemer) external nonReentrant returns(uint256 _collateralReturned){
+        address redeemer = IPairRegistry(registry).redeemer();
+        if(msg.sender != redeemer) revert InvalidRedeemer();
+
+        if (_redeemer == address(0) || _redeemer == address(this)) revert InvalidReceiver();
+
+        // Check if redemption is paused revert if necessary
+        if (isRedemptionPaused) revert RedemptionPaused();
+
+
+        //check if theres enough to be redeemed
+        VaultAccount memory _totalBorrow = totalBorrow;
+        if(_amount > _totalBorrow.amount || _totalBorrow.amount - _amount < MINIMUM_LEFTOVER_ASSETS ){
+            revert InsufficientAssetsForRedemption();
+        }
+
+        // Effects: Bookkeeping
+        _totalBorrow.amount -= uint128(_amount);
+
+        if(_totalBorrow.amount * 1e18 < _totalBorrow.shares){
+            //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
+            uint256 ratio = _totalBorrow.shares / _totalBorrow.amount;
+            _totalBorrow.shares /= uint128(ratio);
+            shareRefactoring[currentRewardEpoch] = ratio;
+            _increaseRewardEpoch();
+        }
+
+        // Effects: write to state
+        totalBorrow = _totalBorrow;
+
+        
+        // Update exchange rate
+        (, uint256 _exchangeRate, ) = _updateExchangeRate();
+        //calc collateral units
+        uint256 _redemptionAmountInCollateralUnits = ((_amount * _exchangeRate) / EXCHANGE_PRECISION);
+        //unstake
+        _unstakeUnderlying(_redemptionAmountInCollateralUnits);
+        //send to redeemer
+        collateralContract.safeTransfer(_redeemer, _redemptionAmountInCollateralUnits);
+
+        //todo: redemption fees
+
+        //distribute write off tokens to adjust userCollateralbalances
+        redemptionWriteOff.mint(_redemptionAmountInCollateralUnits);
+
+        // burn
+        IPairRegistry(registry).burn(_redeemer, _amount);
     }
 
     // ============================================================================================

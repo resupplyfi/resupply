@@ -77,7 +77,7 @@ contract FraxlendPair is FraxlendPairCore {
             uint256 _EXCHANGE_PRECISION,
             uint256 _DEVIATION_PRECISION,
             uint256 _RATE_PRECISION,
-            uint256 _MAX_PROTOCOL_FEE
+            uint256 _MINIMUM_LEFTOVER_ASSETS
         )
     {
         _LTV_PRECISION = LTV_PRECISION;
@@ -87,7 +87,7 @@ contract FraxlendPair is FraxlendPairCore {
         _EXCHANGE_PRECISION = EXCHANGE_PRECISION;
         _DEVIATION_PRECISION = DEVIATION_PRECISION;
         _RATE_PRECISION = RATE_PRECISION;
-        _MAX_PROTOCOL_FEE = MAX_PROTOCOL_FEE;
+        _MINIMUM_LEFTOVER_ASSETS = MINIMUM_LEFTOVER_ASSETS;
     }
 
     /// @notice The ```getUserSnapshot``` function gets user level accounting data

@@ -43,7 +43,9 @@ abstract contract FraxlendPairConstants {
     uint256 public constant RATE_PRECISION = 1e18;
 
     // Protocol Fee
-    uint256 public constant MAX_PROTOCOL_FEE = 5e4; // 50% 1e5 precision
+    // uint256 public constant MAX_PROTOCOL_FEE = 5e4; // 50% 1e5 precision
+
+    uint256 public constant MINIMUM_LEFTOVER_ASSETS = 10000 * 1e18;
 
     error Insolvent(uint256 _borrow, uint256 _collateral, uint256 _exchangeRate);
     error BorrowerSolvent();
@@ -57,4 +59,6 @@ abstract contract FraxlendPairConstants {
     error ExceedsMaxOracleDeviation();
     error InvalidReceiver();
     error InvalidLiquidator();
+    error InvalidRedeemer();
+    error InsufficientAssetsForRedemption();
 }

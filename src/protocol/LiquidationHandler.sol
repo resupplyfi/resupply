@@ -14,15 +14,17 @@ contract LiquidationHandler is Ownable2Step{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
+    address public immutable insurancepool;
 
-    address public receiverPlatform;
-    address public receiverInsurance;
+    // address public receiverPlatform;
+    // address public receiverInsurance;
     address public operator;
 
     event CollateralProccessed(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
 
-    constructor(address _owner, address _registry) Ownable2Step(){
+    constructor(address _owner, address _registry, address _insurancepool) Ownable2Step(){
         registry = _registry;
+        insurancepool = _insurancepool;
         _transferOwnership(_owner);
     }
 
@@ -51,7 +53,6 @@ contract LiquidationHandler is Ownable2Step{
 
         /*TODO
             withdraw max possible from collateral
-            detemine amount to send to protocol and amount to send to insurance pool
             send whats possible
             handle non withdrawable
             burn debt off insurance pool

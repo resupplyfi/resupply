@@ -34,4 +34,5 @@ abstract contract FraxlendPairAccessControlErrors {
     error WithdrawPaused();
     error LiquidatePaused();
     error InterestPaused();
+    error RedemptionPaused();
 }
