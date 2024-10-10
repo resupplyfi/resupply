@@ -483,6 +483,11 @@ contract FraxlendPair is FraxlendPairCore {
         _pauseLiquidate(_isPaused);
     }
 
+    function pauseRedemption(bool _isPaused) external {
+        _requireProtocolOrOwner();
+        _pauseRedemption(_isPaused);
+    }
+
     /// @notice The ```revokeLiquidateAccessControl``` function revokes liquidate access control
     function revokeLiquidateAccessControl() external {
         _requireProtocolOrOwner();
