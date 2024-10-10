@@ -927,11 +927,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         uint256 _debtReduction
     );
 
-    function redeem(uint256 _amount, uint256 _fee, address _redeemer) external nonReentrant returns(uint256 _collateralReturned){
-        address redeemer = IPairRegistry(registry).redeemer();
-        if(msg.sender != redeemer) revert InvalidRedeemer();
+    function redeem(uint256 _amount, uint256 _fee, address _receiver) external nonReentrant returns(uint256 _collateralReturned){
+        //check sender. must go through the registry's redeemer
+        if(msg.sender != IPairRegistry(registry).redeemer()) revert InvalidRedeemer();
 
-        if (_redeemer == address(0) || _redeemer == address(this)) revert InvalidReceiver();
+        if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
         // Check if redemption is paused revert if necessary
         if (isRedemptionPaused) revert RedemptionPaused();
@@ -980,17 +980,17 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _collateralReturned = ((collateralValue * _exchangeRate) / EXCHANGE_PRECISION);
         //unstake
         _unstakeUnderlying(_collateralReturned);
-        //send to redeemer
-        collateralContract.safeTransfer(_redeemer, _collateralReturned);
+        //send to receiver
+        collateralContract.safeTransfer(_receiver, _collateralReturned);
 
         //distribute write off tokens to adjust userCollateralbalances
         redemptionWriteOff.mint(_collateralReturned);
 
         ///// burn ////
-        // burn from _redeemer the total _amount
-        IPairRegistry(registry).burn(_redeemer, _amount);
+        // burn from msg.sender the total _amount
+        IPairRegistry(registry).burn(msg.sender, _amount);
 
-        emit Redeemed(_redeemer, _amount, _collateralReturned, platformFee, debtReduction);
+        emit Redeemed(_receiver, _amount, _collateralReturned, platformFee, debtReduction);
     }
 
     // ============================================================================================
