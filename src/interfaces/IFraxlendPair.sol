@@ -161,7 +161,7 @@ interface IFraxlendPair {
 
     function rateContract() external view returns (address);
 
-    function redeem(uint256 _shares, address _receiver, address _owner) external returns (uint256 _amountToReturn);
+    function redeem(uint256 _amount, uint256 _fee, address _redeemer) external returns(uint256 _collateralReturned);
 
     function removeCollateral(uint256 _collateralAmount, address _receiver) external;
 

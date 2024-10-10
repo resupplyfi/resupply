@@ -45,8 +45,6 @@ abstract contract FraxlendPairConstants {
     // Protocol Fee
     // uint256 public constant MAX_PROTOCOL_FEE = 5e4; // 50% 1e5 precision
 
-    uint256 public constant MINIMUM_LEFTOVER_ASSETS = 10000 * 1e18;
-
     error Insolvent(uint256 _borrow, uint256 _collateral, uint256 _exchangeRate);
     error BorrowerSolvent();
     error InsufficientAssetsInContract(uint256 _assets, uint256 _request);

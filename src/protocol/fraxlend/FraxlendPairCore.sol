@@ -76,6 +76,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @notice The liquidation fee, given as a % of repayment amount
     /// @dev 1e5 precision
     uint256 public liquidationFee;
+    uint256 public minimumLeftoverAssets = 10000 * 1e18; //minimum amount of assets left over via redemptions
+    uint256 public protocolRedemptionFee;
 
 
     // Interest Rate Calculator Contract
@@ -154,10 +156,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 address _rateContract,
                 uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
-                uint256 _liquidationFee
+                uint256 _liquidationFee,
+                uint256 _protocolRedemptionFee
             ) = abi.decode(
                     _configData,
-                    (address, address, address, uint32, address, uint64, uint256, uint256)
+                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256)
                 );
 
             // Pair Settings
@@ -179,6 +182,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
             //Liquidation Fee Settings
             liquidationFee = _liquidationFee;
+            protocolRedemptionFee = _protocolRedemptionFee;
+
 
             // set maxLTV
             maxLTV = _maxLTV;
@@ -914,10 +919,12 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // ============================================================================================
     // Functions: Redemptions
     // ============================================================================================
-    event Redeem(
+    event Redeemed(
         address indexed _redeemer,
-        uint256 _inAmount,
-        uint256 _outAmount
+        uint256 _amount,
+        uint256 _redemptionAmountInCollateralUnits,
+        uint256 _platformFee,
+        uint256 _debtReduction
     );
 
     function redeem(uint256 _amount, uint256 _fee, address _redeemer) external nonReentrant returns(uint256 _collateralReturned){
@@ -930,14 +937,26 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if (isRedemptionPaused) revert RedemptionPaused();
 
 
-        //check if theres enough to be redeemed
+        //redemption fees
+        //assuming 1% redemption fee(0.5% to protocol, 0.5% to borrowers) and a redemption of $100
+        // reduce totalBorrow.amount by 99.5$
+        // add 0.5$ to protocol earned fees
+        // return 99$ of collateral
+        // burn $100 of stables
+        uint256 collateralValue = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
+        uint256 platformFee = (_amount - collateralValue) * protocolRedemptionFee / EXCHANGE_PRECISION;
+        uint256 debtReduction = (_amount - collateralValue) - platformFee;
+
+        //// reduce total pool debt by debtReduction///
+
+        //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
-        if(_amount > _totalBorrow.amount || _totalBorrow.amount - _amount < MINIMUM_LEFTOVER_ASSETS ){
+        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverAssets ){
             revert InsufficientAssetsForRedemption();
         }
 
         // Effects: Bookkeeping
-        _totalBorrow.amount -= uint128(_amount);
+        _totalBorrow.amount -= uint128(debtReduction);
 
         if(_totalBorrow.amount * 1e18 < _totalBorrow.shares){
             //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
@@ -950,23 +969,28 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Effects: write to state
         totalBorrow = _totalBorrow;
 
-        
+        //// add platform fees using platformFee////
+        claimableFees += platformFee; //increase claimable fees
+
+        ///// return collateral using collateralValue////
+
         // Update exchange rate
         (, uint256 _exchangeRate, ) = _updateExchangeRate();
         //calc collateral units
-        uint256 _redemptionAmountInCollateralUnits = ((_amount * _exchangeRate) / EXCHANGE_PRECISION);
+        _collateralReturned = ((collateralValue * _exchangeRate) / EXCHANGE_PRECISION);
         //unstake
-        _unstakeUnderlying(_redemptionAmountInCollateralUnits);
+        _unstakeUnderlying(_collateralReturned);
         //send to redeemer
-        collateralContract.safeTransfer(_redeemer, _redemptionAmountInCollateralUnits);
-
-        //todo: redemption fees
+        collateralContract.safeTransfer(_redeemer, _collateralReturned);
 
         //distribute write off tokens to adjust userCollateralbalances
-        redemptionWriteOff.mint(_redemptionAmountInCollateralUnits);
+        redemptionWriteOff.mint(_collateralReturned);
 
-        // burn
+        ///// burn ////
+        // burn from _redeemer the total _amount
         IPairRegistry(registry).burn(_redeemer, _amount);
+
+        emit Redeemed(_redeemer, _amount, _collateralReturned, platformFee, debtReduction);
     }
 
     // ============================================================================================

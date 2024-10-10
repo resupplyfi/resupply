@@ -76,8 +76,7 @@ contract FraxlendPair is FraxlendPairCore {
             uint256 _FEE_PRECISION,
             uint256 _EXCHANGE_PRECISION,
             uint256 _DEVIATION_PRECISION,
-            uint256 _RATE_PRECISION,
-            uint256 _MINIMUM_LEFTOVER_ASSETS
+            uint256 _RATE_PRECISION
         )
     {
         _LTV_PRECISION = LTV_PRECISION;
@@ -87,7 +86,6 @@ contract FraxlendPair is FraxlendPairCore {
         _EXCHANGE_PRECISION = EXCHANGE_PRECISION;
         _DEVIATION_PRECISION = DEVIATION_PRECISION;
         _RATE_PRECISION = RATE_PRECISION;
-        _MINIMUM_LEFTOVER_ASSETS = MINIMUM_LEFTOVER_ASSETS;
     }
 
     /// @notice The ```getUserSnapshot``` function gets user level accounting data
@@ -299,6 +297,23 @@ contract FraxlendPair is FraxlendPairCore {
         liquidationFee = _newLiquidationFee;
         // dirtyLiquidationFee = _newDirtyLiquidationFee;
         // protocolLiquidationFee = _newProtocolLiquidationFee;
+    }
+
+    event SetMinimumLeftover(uint256 min);
+
+    function setMinimumLeftoverAssets(uint256 _min) internal {
+        _requireProtocolOrOwner();
+        minimumLeftoverAssets = _min;
+        emit SetMinimumLeftover(_min);
+    }
+
+    event SetProtocolRedemptionFee(uint256 fee);
+
+    function setProtocolRedemptionFee(uint256 _fee) internal {
+        require(_fee <= EXCHANGE_PRECISION, "min fee");
+        _requireProtocolOrOwner();
+        protocolRedemptionFee = _fee;
+        emit SetProtocolRedemptionFee(_fee);
     }
 
     /// @notice The ```WithdrawFees``` event fires when the fees are withdrawn
