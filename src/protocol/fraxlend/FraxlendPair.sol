@@ -329,6 +329,14 @@ contract FraxlendPair is FraxlendPairCore {
         emit SetMinimumLeftover(_min);
     }
 
+    event SetMinimumBorrowAmount(uint256 min);
+
+    function setMinimumBorrowAmount(uint256 _min) internal {
+        _requireProtocolOrOwner();
+        minimumBorrowAmount = _min;
+        emit SetMinimumBorrowAmount(_min);
+    }
+
     event SetProtocolRedemptionFee(uint256 fee);
 
     function setProtocolRedemptionFee(uint256 _fee) internal {

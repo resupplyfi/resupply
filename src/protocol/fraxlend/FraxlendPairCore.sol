@@ -82,6 +82,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
     uint256 public minimumLeftoverAssets = 10000 * 1e18; //minimum amount of assets left over via redemptions
+    uint256 public minimumBorrowAmount = 1000 * 1e18; //minimum amount of assets to borrow
     
 
     // Interest Rate Calculator Contract
@@ -710,6 +711,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Get borrow accounting from storage to save gas
         VaultAccount memory _totalBorrow = totalBorrow;
 
+        if(_borrowAmount < minimumBorrowAmount){
+            revert InsufficientBorrowAmount();
+        }
+
         // Check available capital
         uint256 _assetsAvailable = totalAssetAvailable();
         if (_assetsAvailable < _borrowAmount) {
@@ -900,8 +905,15 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _totalBorrow.amount -= _amountToRepay;
         _totalBorrow.shares -= _shares;
 
-        // Effects: write to state
+        // Effects: write user state
         _userBorrowShares[_borrower] -= _shares;
+    
+        //check that any remaining user amount is greater than minimumBorrowAmount
+        if(_userBorrowShares[_borrower] > 0 && _totalBorrow.toAmount(_userBorrowShares[_borrower], true) < minimumBorrowAmount){
+            revert InsufficientBorrowAmount();
+        }
+
+        // Effects: write global state
         totalBorrow = _totalBorrow;
 
         // Interactions

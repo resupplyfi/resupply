@@ -59,4 +59,5 @@ abstract contract FraxlendPairConstants {
     error InvalidLiquidator();
     error InvalidRedeemer();
     error InsufficientAssetsForRedemption();
+    error InsufficientBorrowAmount();
 }
