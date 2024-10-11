@@ -72,13 +72,15 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @dev 1e5 precision
     uint256 public maxLTV;
 
-    // Liquidation Fees
+    //Fees
     /// @notice The liquidation fee, given as a % of repayment amount
     /// @dev 1e5 precision
+    uint256 public mintFee;
     uint256 public liquidationFee;
-    uint256 public minimumLeftoverAssets = 10000 * 1e18; //minimum amount of assets left over via redemptions
+    /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
-
+    uint256 public minimumLeftoverAssets = 10000 * 1e18; //minimum amount of assets left over via redemptions
+    
 
     // Interest Rate Calculator Contract
     IRateCalculator public rateContract; // For complex rate calculations
@@ -157,10 +159,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
                 uint256 _liquidationFee,
+                uint256 _mintFee,
                 uint256 _protocolRedemptionFee
             ) = abi.decode(
                     _configData,
-                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256)
+                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256, uint256)
                 );
 
             // Pair Settings
@@ -182,6 +185,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
             //Liquidation Fee Settings
             liquidationFee = _liquidationFee;
+            mintFee = _mintFee;
             protocolRedemptionFee = _protocolRedemptionFee;
 
 
@@ -682,7 +686,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         address indexed _borrower,
         address indexed _receiver,
         uint256 _borrowAmount,
-        uint256 _sharesAdded
+        uint256 _sharesAdded,
+        uint256 _mintFees
     );
 
     /// @notice The ```_borrowAsset``` function is the internal implementation for borrowing assets
@@ -702,24 +707,29 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             revert InsufficientAssetsInContract(_assetsAvailable, _borrowAmount);
         }
 
+        //mint fees
+        uint128 debtForMint = uint128((_borrowAmount * (LIQ_PRECISION + mintFee)) / LIQ_PRECISION);
+
         // Calculate the number of shares to add based on the amount to borrow
-        _sharesAdded = _totalBorrow.toShares(_borrowAmount, true);
+        _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
-        _totalBorrow.amount += _borrowAmount;
+        _totalBorrow.amount += debtForMint;
         _totalBorrow.shares += uint128(_sharesAdded);
-        // NOTE: we can safely cast here because shares are always less than amount and _borrowAmount is uint128
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
         _userBorrowShares[msg.sender] += _sharesAdded;
+
+        // add platform fee
+        claimableFees += (debtForMint - _borrowAmount);
 
         // Interactions
         // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
         // if (_receiver != address(this)) {
             IPairRegistry(registry).mint(_receiver, _borrowAmount);
         // }
-        emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded);
+        emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded, debtForMint - _borrowAmount);
     }
 
     /// @notice The ```borrowAsset``` function allows a user to open/increase a borrow position

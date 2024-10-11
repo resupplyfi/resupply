@@ -270,33 +270,42 @@ contract FraxlendPair is FraxlendPairCore {
     /// @param newLiquidationFee The new clean liquidation fee
     event SetLiquidationFees(
         uint256 oldLiquidationFee,
-        // uint256 oldDirtyLiquidationFee,
-        // uint256 oldProtocolLiquidationFee,
         uint256 newLiquidationFee
-        // uint256 newDirtyLiquidationFee,
-        // uint256 newProtocolLiquidationFee
     );
 
     /// @notice The ```setLiquidationFees``` function sets the liquidation fees
     /// @param _newLiquidationFee The new clean liquidation fee
     function setLiquidationFees(
         uint256 _newLiquidationFee
-        // uint256 _newDirtyLiquidationFee,
-        // uint256 _newProtocolLiquidationFee
     ) external {
         _requireProtocolOrOwner();
         if (isLiquidationFeeSetterRevoked) revert SetterRevoked();
         emit SetLiquidationFees(
             liquidationFee,
-            // dirtyLiquidationFee,
-            // protocolLiquidationFee,
             _newLiquidationFee
-            // _newDirtyLiquidationFee,
-            // _newProtocolLiquidationFee
         );
         liquidationFee = _newLiquidationFee;
-        // dirtyLiquidationFee = _newDirtyLiquidationFee;
-        // protocolLiquidationFee = _newProtocolLiquidationFee;
+    }
+
+    /// @notice The ```SetMintFees``` event is emitted when the liquidation fees are set
+    /// @param oldMintFee The old mint fee
+    /// @param newMintFee The new mint fee
+    event SetMintFees(
+        uint256 oldMintFee,
+        uint256 newMintFee
+    );
+
+    /// @notice The ```setMintFees``` function sets the mint
+    /// @param _newMintFee The new mint fee
+    function setMintFees(
+        uint256 _newMintFee
+    ) external {
+        _requireProtocolOrOwner();
+        emit SetMintFees(
+            mintFee,
+            _newMintFee
+        );
+        mintFee = _newMintFee;
     }
 
     event SetMinimumLeftover(uint256 min);
