@@ -32,7 +32,7 @@ import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
-import { IDualOracle } from "../../interfaces/IDualOracle.sol";
+import { IOracle } from "../../interfaces/IOracle.sol";
 import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
@@ -127,7 +127,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     // Contract Level Accounting
     VaultAccount public totalBorrow; // amount = total borrow amount with interest accrued, shares = total shares outstanding
-    // uint256 public totalCollateral; // total amount of collateral in contract (todo is this really needed?)
     uint256 public claimableFees; //amount of interest gained that is claimable as fees
     WriteOffToken public redemptionWriteOff; //token to keep track of redemption write offs
 
@@ -637,9 +636,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Short circuit if already updated this block
         if (_exchangeRateInfo.lastTimestamp != block.timestamp) {
-            // Get the latest exchange rate from the dual oracle
+            // Get the latest exchange rate from the oracle
             bool _oneOracleBad;
-            (_oneOracleBad, _lowExchangeRate, _highExchangeRate) = IDualOracle(_exchangeRateInfo.oracle).getPrices();
+            (_oneOracleBad, _lowExchangeRate, _highExchangeRate) = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateralContract));
 
             // If one oracle is bad data, emit an event for off-chain monitoring
             if (_oneOracleBad) emit WarnOracleData(_exchangeRateInfo.oracle);
@@ -656,12 +655,15 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             _highExchangeRate = _exchangeRateInfo.highExchangeRate;
         }
 
-        uint256 _deviation = (DEVIATION_PRECISION *
-            (_exchangeRateInfo.highExchangeRate - _exchangeRateInfo.lowExchangeRate)) /
-            _exchangeRateInfo.highExchangeRate;
-        if (_deviation <= _exchangeRateInfo.maxOracleDeviation) {
-            _isBorrowAllowed = true;
-        }
+        //TODO consider writing this to exchangerateinfo when _isBadData is returned
+        _isBorrowAllowed = true;
+
+        // uint256 _deviation = (DEVIATION_PRECISION *
+        //     (_exchangeRateInfo.highExchangeRate - _exchangeRateInfo.lowExchangeRate)) /
+        //     _exchangeRateInfo.highExchangeRate;
+        // if (_deviation <= _exchangeRateInfo.maxOracleDeviation) {
+            // _isBorrowAllowed = true;
+        // }
     }
 
     // ============================================================================================
