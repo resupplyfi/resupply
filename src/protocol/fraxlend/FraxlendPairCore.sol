@@ -32,7 +32,6 @@ import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
-import { MathUtil } from "../../libraries/MathUtil.sol";
 import { IDualOracle } from "../../interfaces/IDualOracle.sol";
 import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
@@ -71,6 +70,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @notice The maximum LTV allowed for this pair
     /// @dev 1e5 precision
     uint256 public maxLTV;
+
+    //max borrow
+    uint256 public borrowLimit;
 
     //Fees
     /// @notice The liquidation fee, given as a % of repayment amount
@@ -158,12 +160,13 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 address _rateContract,
                 uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
+                uint256 _initialBorrowLimit,
                 uint256 _liquidationFee,
                 uint256 _mintFee,
                 uint256 _protocolRedemptionFee
             ) = abi.decode(
                     _configData,
-                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256, uint256)
+                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256, uint256, uint256)
                 );
 
             // Pair Settings
@@ -182,6 +185,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             exchangeRateInfo.maxOracleDeviation = _maxOracleDeviation;
 
             rateContract = IRateCalculator(_rateContract);
+
+            borrowLimit = _initialBorrowLimit;
 
             //Liquidation Fee Settings
             liquidationFee = _liquidationFee;
@@ -285,7 +290,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         uint256 mintable = IPairRegistry(registry).getMaxMintable(address(this));
         uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
-        return MathUtil.min(mintable, borrowable);
+        return borrowable < mintable ? borrowable : mintable;
+    }
+
+    function currentUtilization() public view returns (uint256) {
+        return totalBorrow.amount * 1e18 / borrowLimit;
     }
 
     /// @notice The ```_isSolvent``` function determines if a given borrower is solvent given an exchange rate

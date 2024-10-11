@@ -19,6 +19,10 @@ contract FeeDeposit is Ownable2Step{
     address public receiverInsurance;
     address public operator;
 
+    uint256 public lastDistributedEpoch;
+
+    uint256 private constant WEEK = 7 * 86400;
+
     event FeesDistributed(address indexed _address, uint256 _amount);
 
     constructor(address _owner, address _registry, address _feeToken) Ownable2Step(){
@@ -40,8 +44,12 @@ contract FeeDeposit is Ownable2Step{
     }
 
     function distributeFees(address _to, uint256 _amount) external onlyOperator{
-        emit FeesDistributed(_to,_amount);
+        uint256 currentEpoch = block.timestamp/WEEK * WEEK;
+        require(currentEpoch > lastDistributedEpoch, "!new epoch");
+
+        lastDistributedEpoch = currentEpoch;
         IERC20(feeToken).safeTransfer(_to, _amount);
+        emit FeesDistributed(_to,_amount);
     }
 
     function incrementPairRevenue(uint256 _amount) external{

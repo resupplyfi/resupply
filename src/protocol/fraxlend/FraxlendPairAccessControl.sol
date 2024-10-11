@@ -37,7 +37,7 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     // address public circuitBreakerAddress;
 
     // access control
-    uint256 public borrowLimit = type(uint256).max;
+    
     // bool public isBorrowAccessControlRevoked;
 
     // uint256 public depositLimit = type(uint256).max;
@@ -106,15 +106,6 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     //     borrowLimit = _borrowLimit;
     //     emit RevokeBorrowAccessControl(_borrowLimit);
     // }
-
-    /// @notice The ```SetBorrowLimit``` event is emitted when the borrow limit is set
-    /// @param limit The new borrow limit
-    event SetBorrowLimit(uint256 limit);
-
-    function _setBorrowLimit(uint256 _limit) internal {
-        borrowLimit = _limit;
-        emit SetBorrowLimit(_limit);
-    }
 
     /// @notice The ```RevokeDepositAccessControl``` event is emitted when access to deposit limit is revoked
     /// @param depositLimit The final permanent deposit limit

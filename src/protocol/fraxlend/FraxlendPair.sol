@@ -48,6 +48,10 @@ contract FraxlendPair is FraxlendPairCore {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
+    uint256 private constant WEEK = 7 * 86400;
+    uint256 public lastFeeEpoch;
+    error InvalidFeeTimestamp();
+
     /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
     /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
@@ -308,6 +312,15 @@ contract FraxlendPair is FraxlendPairCore {
         mintFee = _newMintFee;
     }
 
+    /// @notice The ```SetBorrowLimit``` event is emitted when the borrow limit is set
+    /// @param limit The new borrow limit
+    event SetBorrowLimit(uint256 limit);
+
+    function _setBorrowLimit(uint256 _limit) internal {
+        borrowLimit = _limit;
+        emit SetBorrowLimit(_limit);
+    }
+
     event SetMinimumLeftover(uint256 min);
 
     function setMinimumLeftoverAssets(uint256 _min) internal {
@@ -339,6 +352,15 @@ contract FraxlendPair is FraxlendPairCore {
 
         //get deposit contract
         address feeDeposit = IPairRegistry(registry).feeDeposit();
+        uint256 depositEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
+        uint256 currentEpoch = block.timestamp/WEEK * WEEK;
+
+        //current epoch must be greater than last claimed epoch
+        //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)
+        if(currentEpoch <= lastFeeEpoch || currentEpoch != depositEpoch){
+            revert InvalidFeeTimestamp();
+        }
+
         //check fees and clear
         uint256 _amountToTransfer = claimableFees;
         claimableFees = 0;
@@ -426,35 +448,6 @@ contract FraxlendPair is FraxlendPairCore {
         _setBorrowLimit(_limit);
         previousBorrowLimit = _limit;
     }
-
-    // /// @notice The ```revokeBorrowLimitAccessControl``` function revokes borrow limit access control
-    // /// @param _borrowLimit The new borrow limit
-    // function revokeBorrowLimitAccessControl(uint256 _borrowLimit) external {
-    //     _requireProtocolOrOwner();
-    //     _revokeBorrowAccessControl(_borrowLimit);
-    // }
-
-    // /// @notice The ```pauseDeposit``` function pauses deposit functionality
-    // function pauseDeposit() external {
-    //     _requireProtocolOrOwner();
-    //     if (isDepositAccessControlRevoked) revert AccessControlRevoked();
-    //     _setDepositLimit(0);
-    // }
-
-    // /// @notice The ```setDepositLimit``` function sets the deposit limit
-    // /// @param _limit The new deposit limit
-    // function setDepositLimit(uint256 _limit) external {
-    //     _requireTimelockOrOwner();
-    //     if (isDepositAccessControlRevoked) revert AccessControlRevoked();
-    //     _setDepositLimit(_limit);
-    // }
-
-    // /// @notice The ```revokeDepositLimitAccessControl``` function revokes deposit limit access control
-    // /// @param _depositLimit The new deposit limit
-    // function revokeDepositLimitAccessControl(uint256 _depositLimit) external {
-    //     _requireTimelock();
-    //     _revokeDepositAccessControl(_depositLimit);
-    // }
 
     /// @notice The ```pauseRepay``` function pauses repay functionality
     /// @param _isPaused The new pause state
