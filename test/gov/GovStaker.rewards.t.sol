@@ -21,6 +21,8 @@ contract OperationTest is Test {
 
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
+    address public user2 = address(12);
+    address public user3 = address(13);
     address public keeper = address(4);
     address public management = address(this);
 
@@ -54,15 +56,19 @@ contract OperationTest is Test {
         );
 
         stakingToken.approve(address(staker), type(uint256).max);
-        stakingToken.transfer(user, 10000 * 10 ** 18);
-        vm.prank(user);
-        stakingToken.approve(address(staker), type(uint256).max);
 
-        rewardToken.approve(address(staker), type(uint256).max);
-        rewardToken2.approve(address(staker), type(uint256).max);
+        address[] memory users = new address[](3);
+        users[0] = user;
+        users[1] = user2;
+        users[2] = user3;
+        for (uint256 i = 0; i < users.length; i++) {    
+            vm.prank(users[i]);
+            stakingToken.approve(address(staker), type(uint256).max);
+            stakingToken.mint(users[i], 1_000_000 * 10 ** 18);
+        }
     }
 
-    function test_operation_basic() public {
+    function test_basicOperation() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
         uint256 amountToStake = stakingToken.mint(user, amount);
@@ -137,7 +143,7 @@ contract OperationTest is Test {
         assertEq(staker.balanceOf(user), 0);
     }
 
-    function test_multiple_rewards() public {
+    function test_multipleRewards() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
         uint256 amountToStake = stakingToken.mint(user, amount);
@@ -243,7 +249,7 @@ contract OperationTest is Test {
         vm.stopPrank();
     }
 
-    function test_extend_rewards() public {
+    function test_extendRewards() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
         uint256 amountToStake = stakingToken.mint(user, amount);
@@ -305,7 +311,6 @@ contract OperationTest is Test {
         staker.getReward();
         assertGe(rewardToken.balanceOf(user), earned);
         assertGe(rewardToken2.balanceOf(user), earnedTwo);
-        uint256 currentProfitsTwo = rewardToken2.balanceOf(user);
 
         // add some more rewards
         vm.prank(management);
@@ -322,8 +327,66 @@ contract OperationTest is Test {
         // TODO: ADD MORE TESTING HERE
     }
 
+
+    function test_multiUserMultiRewards() public {
+        // Here we should have multiple users, each with different amount
+        // we rewards over time at an irregular interval, and also simulate
+        // irregular staking and unstaking to make sure that at the end, all
+        // rewards are distributed.
+        uint amountToStake = 100 * 10 ** 18;
+
+        addRewards(address(rewardToken));
+        addRewards(address(rewardToken2));
+
+        address[] memory users = new address[](3);
+        users[0] = user;
+        users[1] = user2;
+        users[2] = user3;
+
+        uint256 i;
+        for (; i < 20; i++) {
+            for (uint256 x = 0; x < users.length; x++) {
+                uint bal = staker.balanceOf(users[x]);
+                if (i % 2 == 0 || x > 0) {
+                    vm.prank(users[x]);
+                    staker.stake(amountToStake / (x + 1));
+                }
+                if (bal > 0) {
+                    vm.prank(users[x]);
+                    staker.cooldown(bal / (x + 2));
+                }
+                if (i % 2 == 0) airdropAndNotify(rewardToken2, users[x], 500e18);
+                airdropAndNotify(rewardToken, users[x], 250e18);
+            }
+            skip(1 weeks);
+        }
+        
+        for (i = 0; i < users.length; i++) {
+            console2.log("User getting reward", i, staker.earned(users[i], address(rewardToken)) / 1e18);
+            vm.prank(users[i]);
+            staker.getReward();
+        }
+
+        // check that the rewards are gone
+        assertLt(rewardToken.balanceOf(address(staker)), 1e18);
+        assertLt(rewardToken2.balanceOf(address(staker)), 1e18);
+    }
+
+    function addRewards(address _token) public {
+        vm.prank(management);
+        staker.addReward(_token, management, 1 weeks);
+        rewardToken.approve(address(staker), type(uint256).max);
+    }
+
+    // Helpers
     function airdrop(ERC20 _asset, address _to, uint256 _amount) public {
         uint256 balanceBefore = _asset.balanceOf(_to);
         deal(address(_asset), _to, balanceBefore + _amount);
+    }
+
+    function airdropAndNotify(ERC20 _asset, address _to, uint256 _amount) public {
+        airdrop(_asset, _to, _amount);
+        vm.prank(management);
+        staker.notifyRewardAmount(address(rewardToken), 1e18);
     }
 }

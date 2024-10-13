@@ -28,14 +28,18 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
         uint256 rewardPerTokenStored;
     }
 
+
     /* ========== EVENTS ========== */
+
     event RewardAdded(address indexed rewardToken, uint256 amount);
     event RewardTokenAdded(address indexed rewardsToken, address indexed rewardsDistributor, uint256 rewardsDuration);
     event Recovered(address indexed token, uint256 amount);
     event RewardsDurationUpdated(address indexed rewardsToken, uint256 duration);
     event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
 
+
     /* ========== MODIFIERS ========== */
+
     modifier onlyOwner() {
         require(msg.sender == owner(), "!authorized");
         _;
@@ -54,25 +58,14 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
         _;
     }
 
+     /* ========== EXTERNAL STATE CHANGE FUNCTIONS ========== */
+
     /**
      * @notice Claim any (and all) earned reward tokens.
      * @dev Can claim rewards even if no tokens still staked.
      */
     function getReward() external nonReentrant updateReward(msg.sender) {
         _getRewardFor(msg.sender);
-    }
-
-    // internal function to get rewards.
-    function _getRewardFor(address _recipient) internal {
-        for (uint256 i; i < rewardTokens.length; ++i) {
-            address _rewardsToken = rewardTokens[i];
-            uint256 reward = rewards[_recipient][_rewardsToken];
-            if (reward > 0) {
-                rewards[_recipient][_rewardsToken] = 0;
-                IERC20(_rewardsToken).safeTransfer(_recipient, reward);
-                emit RewardPaid(_recipient, _rewardsToken, reward);
-            }
-        }
     }
 
     /**
@@ -89,7 +82,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
         }
     }
 
-    /* ========== RESTRICTED FUNCTIONS ========== */
+    /* ========== EXTERNAL RESTRICTED FUNCTIONS ========== */
 
     /**
      * @notice Add a new reward token to the staking contract.
@@ -216,6 +209,26 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
         emit Recovered(_tokenAddress, _tokenAmount);
     }
 
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    // internal function to get rewards.
+    function _getRewardFor(address _recipient) internal {
+        for (uint256 i; i < rewardTokens.length; ++i) {
+            address _rewardsToken = rewardTokens[i];
+            uint256 reward = rewards[_recipient][_rewardsToken];
+            if (reward > 0) {
+                rewards[_recipient][_rewardsToken] = 0;
+                IERC20(_rewardsToken).safeTransfer(_recipient, reward);
+                emit RewardPaid(_recipient, _rewardsToken, reward);
+            }
+        }
+    }
+
+    function min(uint a, uint b) internal pure returns (uint) {
+        return a < b ? a : b;
+    }
+
     /* ========== VIEWS ========== */
 
     /**
@@ -281,9 +294,5 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
      */
     function getRewardForDuration(address _rewardsToken) external view returns (uint256) {
         return rewardData[_rewardsToken].rewardRate * rewardData[_rewardsToken].rewardsDuration;
-    }
-
-    function min(uint a, uint b) internal pure returns (uint) {
-        return a < b ? a : b;
     }
 }
