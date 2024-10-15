@@ -20,6 +20,16 @@ contract CoreOwnable {
         _;
     }
 
+    modifier onlyGuardian() {
+        require(msg.sender == CORE.guardian(), "Only guardian");
+        _;
+    }
+
+    modifier onlyGuardianOrOwner() {
+        require(msg.sender == CORE.guardian() || msg.sender == CORE.owner(), "Only guardian or owner");
+        _;
+    }
+
     function owner() public view returns (address) {
         return CORE.owner();
     }

@@ -24,13 +24,6 @@ contract CorePausable is CoreOwnable {
         _;
     }
 
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
     modifier whenPaused() {
         _requirePaused();
         _;
@@ -44,14 +37,14 @@ contract CorePausable is CoreOwnable {
     }
 
     /**
-     * @dev Throws if the contract is paused.
+     * @dev Reverts if the contract is paused.
      */
     function _requireNotPaused() internal view virtual {
         require(!CORE.paused(), "Paused");
     }
 
     /**
-     * @dev Throws if the contract is not paused.
+     * @dev Reverts if the contract is not paused.
      */
     function _requirePaused() internal view virtual {
         require(CORE.paused(), "Not paused");
