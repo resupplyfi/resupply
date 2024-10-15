@@ -12,41 +12,17 @@ contract CorePausable is CoreOwnable {
     constructor(address _core) CoreOwnable(_core) {
     }
 
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
     modifier whenNotPaused() {
-        _requireNotPaused();
+        require(!CORE.paused(), "Paused");
         _;
     }
 
     modifier whenPaused() {
-        _requirePaused();
+        require(CORE.paused(), "!Paused");
         _;
     }
 
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
     function paused() public view virtual returns (bool) {
         return CORE.paused();
-    }
-
-    /**
-     * @dev Reverts if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!CORE.paused(), "Paused");
-    }
-
-    /**
-     * @dev Reverts if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(CORE.paused(), "Not paused");
     }
 }
