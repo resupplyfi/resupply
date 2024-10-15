@@ -13,20 +13,23 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract GovStakerTest is Setup {
     MockToken rewardToken1;
     MockToken rewardToken2;
-    uint256 public constant EPOCH_LENGTH = 60 * 60 * 24 * 2;
+    uint256 epochLength;
 
     function setUp() public override {
         // Deployments are made in Setup.sol
         super.setUp();
         rewardToken1 = new MockToken("RewardToken1", "RT1");
+        rewardToken1.approve(address(staker), type(uint256).max);
         rewardToken2 = new MockToken("RewardToken2", "RT2");
+        rewardToken2.approve(address(staker), type(uint256).max);
         stakingToken.mint(user1, 1_000_000 * 10 ** 18);
-        vm.startPrank(user1);
+        vm.prank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
+        epochLength = staker.epochLength();
     }
 
     function test_InitialDeployment() public {
-        assertEq(staker.owner(), dev, "Owner should be dev");
+        assertEq(staker.owner(), tempGov, "Owner should be dev");
         assertEq(address(staker.stakeToken()), address(stakingToken), "Stake token should be set correctly");
     }
 
@@ -38,7 +41,7 @@ contract GovStakerTest is Setup {
         assertEq(staker.balanceOf(user1), amountToStake, "Stake balance should be updated");
         assertEq(stakingToken.balanceOf(address(staker)), amountToStake, "Token should be transferred to staker");
         assertEq(staker.getAccountWeight(user1), 0, "Weight should be 0");
-        vm.warp(block.timestamp + EPOCH_LENGTH); // Test weight increase
+        vm.warp(block.timestamp + epochLength); // Test weight increase
         assertEq(staker.getAccountWeight(user1), amountToStake, "Weight should be 0");
 
         vm.warp(block.timestamp + warmupWait() * 100);
@@ -93,7 +96,7 @@ contract GovStakerTest is Setup {
 
     function test_StakeAndUnstake() public {
         uint amountToStake = stakingToken.balanceOf(user1);
-        stakeSomeAndWait(amountToStake);
+        stakeSomeAndWait(user1, amountToStake);
         
         assertEq(staker.balanceOf(user1), amountToStake, "Stake should be updated correctly");
         assertEq(stakingToken.balanceOf(address(staker)), amountToStake, "Tokens should be transferred to staker");
@@ -105,10 +108,13 @@ contract GovStakerTest is Setup {
         vm.startPrank(user1);
         staker.cooldown(amountToStake);
         uint cooldownEpochs = staker.cooldownEpochs();
-        vm.warp(block.timestamp + (cooldownEpochs + 1) * EPOCH_LENGTH);
+        skip(cooldownEpochs * epochLength + 1);
         
+        uint amt = staker.cooldowns(user1).amount;
+        console.log("amtxxx", amt);
+        assertGt(amt, 0, "Amount should be greater than 0");
+        assertGt(block.timestamp, staker.cooldowns(user1).end, "Cooldown should be over");
         staker.unstake(user1);
-        // staker.unstake(amountToStake, user1);
         vm.stopPrank();
 
         assertEq(staker.balanceOf(user1), 0, "Balance after unstake should be zero");
@@ -186,10 +192,10 @@ contract GovStakerTest is Setup {
     }
 
 
-    function stakeSomeAndWait(uint amountToStake) internal {
-        vm.prank(user1);
+    function stakeSomeAndWait(address user, uint amountToStake) internal {
+        vm.prank(user);
         staker.stake(amountToStake);
-        vm.warp(block.timestamp + warmupWait());
+        skip(warmupWait());
     }
 
     function stakeSome(uint amountToStake) internal {
@@ -200,14 +206,14 @@ contract GovStakerTest is Setup {
     function test_Unstake() public {
         uint amountToStake = stakingToken.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
-        stakeSomeAndWait(amountToStake);
+        stakeSomeAndWait(user1, amountToStake);
         console.log("weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
 
         // Cooldown
         vm.startPrank(user1);
         staker.cooldown(amountToStake);
         uint cooldownEpochs = staker.cooldownEpochs();
-        vm.warp(block.timestamp + (cooldownEpochs + 1) * EPOCH_LENGTH);
+        vm.warp(block.timestamp + (cooldownEpochs + 1) * epochLength);
         uint amount = staker.unstake(user1);
         assertEq(amount, amountToStake, "Unstake amount should be equal to staked amount");
         vm.stopPrank();
@@ -216,14 +222,16 @@ contract GovStakerTest is Setup {
     function test_UnstakePartial() public {
         uint amountToStake = stakingToken.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
-        stakeSomeAndWait(amountToStake);
-        console.log("weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
+        stakeSomeAndWait(user1, amountToStake);
+        skip(warmupWait() * 2);
+        console.log("warmup", warmupWait(), "epoch", getEpoch());
+        console.log(getEpoch(), "weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
 
         // Cooldown
         vm.startPrank(user1);
         staker.cooldown(amountToStake / 2);
-        uint cooldownEpochs = staker.cooldownEpochs();
-        vm.warp(block.timestamp + (cooldownEpochs + 1) * EPOCH_LENGTH);
+        vm.warp(getUserCooldownEnd(user1));
+        console.log("escrow balance", stakingToken.balanceOf(address(escrow)));
         console.log("cooldown data", getUserCooldownEnd(user1), getUserCooldownAmount(user1));
         uint amount = staker.unstake(user1);
         assertEq(amount, amountToStake / 2, "Unstake amount should be equal to staked amount");
@@ -232,21 +240,24 @@ contract GovStakerTest is Setup {
 
     function test_SetCooldownEpochs() public {
         uint amountToStake = stakingToken.balanceOf(user1);
-        stakeSomeAndWait(amountToStake);
+        stakeSomeAndWait(user1, amountToStake);
         vm.startPrank(staker.owner());
 
         staker.setCooldownEpochs(0);
         assertEq(staker.cooldownEpochs(), 0, "Cooldown duration should be 0");
         assertEq(staker.isCooldownEnabled(), false, "Cooldown should be disabled");
 
+        vm.expectRevert("Invalid duration");
         staker.setCooldownEpochs(5);
-        assertEq(staker.cooldownEpochs(), 5, "Cooldown duration should be 5");
+
+        staker.setCooldownEpochs(2);
+        assertEq(staker.cooldownEpochs(), 2, "Cooldown duration should be 5");
         assertEq(staker.isCooldownEnabled(), true, "Cooldown should be enabled");
         vm.stopPrank();
     }
 
-    function warmupWait() internal pure returns (uint) {
-        return EPOCH_LENGTH;
+    function warmupWait() internal view returns (uint) {
+        return epochLength;
     }
 
     function getEpoch() public view returns (uint) {
@@ -260,6 +271,6 @@ contract GovStakerTest is Setup {
 
     function getUserCooldownAmount(address _account) public view returns (uint) {
         IGovStaker.UserCooldown memory cooldown = staker.cooldowns(_account);
-        return uint(cooldown.underlyingAmount);
+        return uint(cooldown.amount);
     }
 }

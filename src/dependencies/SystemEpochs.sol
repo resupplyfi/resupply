@@ -4,12 +4,12 @@ pragma solidity ^0.8.22;
 import "../interfaces/ICore.sol";
 
 /**
-    @title Prisma System Start Time
-    @dev Provides a unified `startTime` and `getWeek`, used for emissions.
+    @title System Epochs
+    @dev Provides a unified `startTime` and `getEpoch`, used for tracking epochs.
  */
-contract SystemStart {
-    uint256 immutable startTime;
-    uint256 immutable epochLength;
+contract SystemEpochs {
+    uint256 public immutable startTime;
+    uint256 public immutable epochLength;
 
     constructor(address _core) {
         startTime = ICore(_core).startTime();

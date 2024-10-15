@@ -32,7 +32,7 @@ interface IGovStaker {
 
     struct UserCooldown {
         uint104 end;
-        uint152 underlyingAmount;
+        uint152 amount;
     }
 
     enum ApprovalStatus {
@@ -49,8 +49,6 @@ interface IGovStaker {
     function userRewardPerTokenPaid(address account, address token) external view returns (uint256);
     function CORE() external view returns (address);
     function PRECISION() external view returns (uint256);
-    function EPOCH_LENGTH() external view returns (uint256);
-    function START_TIME() external view returns (uint256);
     function ESCROW() external view returns (address);
     function MAX_COOLDOWN_DURATION() external view returns (uint24);
     function totalPending() external view returns (uint120);

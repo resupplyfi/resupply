@@ -15,7 +15,7 @@ import {IGovStakerEscrow} from "../../../src/interfaces/IGovStakerEscrow.sol";
 contract Setup is Test {
     ICore public core;
     IGovStaker public staker;
-    GovStakerEscrow escrow;
+    GovStakerEscrow public escrow;
     MockToken public stakingToken;
     address user1 = address(0x1);
     address user2 = address(0x2);
@@ -27,10 +27,9 @@ contract Setup is Test {
 
     function setUp() public virtual {
         // Deploy the mock factory first for deterministic location
-        core = ICore(address(new Core(tempGov, 1 weeks, guardian, feeReceiver)));
         stakingToken = new MockToken("GovToken", "GOV");
 
-        staker = IGovStaker(setupStaker());
+        staker = IGovStaker(deployStaker());
 
         // label all the used addresses for traces
         vm.label(address(stakingToken), "Gov Token");
@@ -40,10 +39,11 @@ contract Setup is Test {
         vm.label(address(core), "Core");
     }
 
-    function setupStaker() public returns (address) {
-        uint256 nonce = vm.getNonce(dev);
-        address escrowAddress = computeCreateAddress(dev, nonce);
-        address govStakingAddress = computeCreateAddress(dev, nonce + 1);
+    function deployStaker() public returns (address) {
+        core = ICore(address(new Core(tempGov, 1 weeks, guardian, feeReceiver)));
+        uint256 nonce = vm.getNonce(address(this));
+        address escrowAddress = computeCreateAddress(address(this), nonce);
+        address govStakingAddress = computeCreateAddress(address(this), nonce + 1);
         escrow = new GovStakerEscrow(govStakingAddress, address(stakingToken));
 
         return address(

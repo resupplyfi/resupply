@@ -5,14 +5,12 @@ import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IERC20Metadata } from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
-import { SystemStart } from '../../dependencies/SystemStart.sol';
+import { SystemEpochs } from '../../dependencies/SystemEpochs.sol';
 
-contract GovStaker is MultiRewardsDistributor, SystemStart {
+contract GovStaker is MultiRewardsDistributor, SystemEpochs {
     using SafeERC20 for IERC20;
 
     IERC20 private immutable _stakeToken;
-    uint public immutable START_TIME;
-    uint public immutable EPOCH_LENGTH;
     IGovStakerEscrow public immutable ESCROW;
     uint24 public constant MAX_COOLDOWN_DURATION = 30 days;
 
@@ -44,7 +42,7 @@ contract GovStaker is MultiRewardsDistributor, SystemStart {
 
     struct UserCooldown {
         uint104 end;
-        uint152 underlyingAmount;
+        uint152 amount;
     }
 
     enum ApprovalStatus {
@@ -76,9 +74,7 @@ contract GovStaker is MultiRewardsDistributor, SystemStart {
         address _token,
         IGovStakerEscrow _escrow,
         uint24 _cooldownEpochs
-    ) MultiRewardsDistributor(_core) SystemStart(_core) {
-        EPOCH_LENGTH = CORE.epochLength();
-        START_TIME = (block.timestamp / EPOCH_LENGTH) * EPOCH_LENGTH;
+    ) MultiRewardsDistributor(_core) SystemEpochs(_core) {
         _stakeToken = IERC20(_token);
         decimals = IERC20Metadata(_token).decimals();
         ESCROW = _escrow;
@@ -183,12 +179,12 @@ contract GovStaker is MultiRewardsDistributor, SystemStart {
 
         _totalSupply -= _amount;
 
-        uint end = block.timestamp + (cooldownEpochs * EPOCH_LENGTH);
-        cooldowns[_account].end = uint104(
-            START_TIME + EPOCH_LENGTH * (systemEpoch + 2) // Must complete the active + full next epoch.
-        );
-        cooldowns[_account].underlyingAmount += uint152(_amount);
-        emit Cooldown(_account, _amount, end);
+        UserCooldown memory userCooldown = cooldowns[_account]; 
+        userCooldown.end = uint104(startTime + (epochLength * (systemEpoch + 2))); // 2nd epoch from now
+        userCooldown.amount += uint152(_amount);
+        cooldowns[_account] = userCooldown;
+
+        emit Cooldown(_account, userCooldown.amount, userCooldown.end);
         _stakeToken.safeTransfer(address(ESCROW), _amount);
 
         return _amount;
@@ -212,12 +208,11 @@ contract GovStaker is MultiRewardsDistributor, SystemStart {
 
     function _unstake(address _account, address _receiver) internal returns (uint) {
         UserCooldown storage userCooldown = cooldowns[_account];
-        uint256 amount = userCooldown.underlyingAmount;
+        uint256 amount = userCooldown.amount;
 
         require(block.timestamp >= userCooldown.end || cooldownEpochs == 0, 'InvalidCooldown');
 
-        userCooldown.end = 0;
-        userCooldown.underlyingAmount = 0;
+        delete cooldowns[_account];
 
         ESCROW.withdraw(_receiver, amount);
 
@@ -366,7 +361,7 @@ contract GovStaker is MultiRewardsDistributor, SystemStart {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function setCooldownEpochs(uint24 _epochs) external onlyOwner {
-        require(_epochs * EPOCH_LENGTH <= MAX_COOLDOWN_DURATION, 'Invalid duration');
+        require(_epochs * epochLength <= MAX_COOLDOWN_DURATION, 'Invalid duration');
         cooldownEpochs = _epochs;
         emit CooldownEpochsUpdated(_epochs);
     }
@@ -451,7 +446,7 @@ contract GovStaker is MultiRewardsDistributor, SystemStart {
     function getUnstakableAmount(address _account) external view returns (uint) {
         UserCooldown memory userCooldown = cooldowns[_account];
         if (block.timestamp < userCooldown.end) return 0;
-        return userCooldown.underlyingAmount;
+        return userCooldown.amount;
     }
 
     function isCooldownEnabled() public view returns (bool) {

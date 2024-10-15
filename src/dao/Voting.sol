@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 import { GovStaker } from './staking/GovStaker.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
-import { SystemStart } from '../dependencies/SystemStart.sol';
+import { SystemEpochs } from '../dependencies/SystemEpochs.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
 
@@ -15,7 +15,7 @@ import { ICore } from '../interfaces/ICore.sol';
             arbitrary function calls only after a required percentage of stakers
             have signalled in favor of performing the action.
  */
-contract AdminVoting is DelegatedOps, SystemStart {
+contract AdminVoting is DelegatedOps, SystemEpochs {
     using Address for address;
 
     event ProposalCreated(
@@ -88,7 +88,7 @@ contract AdminVoting is DelegatedOps, SystemStart {
         IGovStaker _staker,
         uint256 _minCreateProposalPct,
         uint256 _passingPct
-    ) SystemStart(_core) {
+    ) SystemEpochs(_core) {
         STAKER = _staker;
         CORE = ICore(_core);
 

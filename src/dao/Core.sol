@@ -43,7 +43,9 @@ contract Core {
     event Unpaused();
 
     constructor(address _owner, uint256 _epochLength, address _guardian, address _feeReceiver) {
-        startTime = (block.timestamp / 1 weeks) * 1 weeks;
+        require(_epochLength > 0, "Epoch length must be greater than 0");
+        require(_epochLength <= 100 days, "Epoch length must be less than 100 days");
+        startTime = (block.timestamp / _epochLength) * _epochLength;
         epochLength = _epochLength;
         owner = _owner;
         guardian = _guardian;
