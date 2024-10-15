@@ -6,50 +6,28 @@ import {GovStaker} from "../../src/dao/Staking/GovStaker.sol";
 import {GovStakerEscrow} from "../../src/dao/staking/GovStakerEscrow.sol";
 import {MockToken} from "../mocks/MockToken.sol";
 import {IGovStakerEscrow} from "../../src/interfaces/IGovStakerEscrow.sol";
+import {IGovStaker} from "../../src/interfaces/IGovStaker.sol";
+import {Setup} from "./utils/Setup.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract GovStakerTest is Test {
-    GovStaker staker;
-    GovStakerEscrow escrow;
-    MockToken token;
+contract GovStakerTest is Setup {
     MockToken rewardToken1;
     MockToken rewardToken2;
-    address deployer;
-    address user1;
     uint256 public constant EPOCH_LENGTH = 60 * 60 * 24 * 2;
 
-    function setUp() public {
-        deployer = address(this);
-        user1 = address(0x1);
-
-        token = new MockToken("GovToken", "GOV");
+    function setUp() public override {
+        // Deployments are made in Setup.sol
+        super.setUp();
         rewardToken1 = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
-
-        uint256 nonce = vm.getNonce(deployer);
-        address escrowAddress = computeCreateAddress(deployer, nonce);
-        address govStakingAddress = computeCreateAddress(deployer, nonce + 1);
-        escrow = new GovStakerEscrow(govStakingAddress, address(token));
-        staker = new GovStaker(
-            address(token),    // stakeToken
-            deployer,          // owner
-            EPOCH_LENGTH,      // EPOCH_LENGTH
-            IGovStakerEscrow(escrowAddress), // Escrow
-            10                  // cooldownEpochs
-        );
-
-        token.approve(address(staker), type(uint256).max);
-        token.transfer(user1, 10000 * 10 ** 18);
-        vm.prank(user1);
-        token.approve(address(staker), type(uint256).max);
-
-        rewardToken1.approve(address(staker), type(uint256).max);
-        rewardToken2.approve(address(staker), type(uint256).max);
+        stakingToken.mint(user1, 1_000_000 * 10 ** 18);
+        vm.startPrank(user1);
+        stakingToken.approve(address(staker), type(uint256).max);
     }
 
     function test_InitialDeployment() public {
-        assertEq(staker.owner(), deployer, "Owner should be deployer");
-        assertEq(address(staker.stakeToken()), address(token), "Stake token should be set correctly");
+        assertEq(staker.owner(), dev, "Owner should be dev");
+        assertEq(address(staker.stakeToken()), address(stakingToken), "Stake token should be set correctly");
     }
 
     function test_Stake() public {
@@ -58,7 +36,7 @@ contract GovStakerTest is Test {
         staker.stake(amountToStake);
 
         assertEq(staker.balanceOf(user1), amountToStake, "Stake balance should be updated");
-        assertEq(token.balanceOf(address(staker)), amountToStake, "Token should be transferred to staker");
+        assertEq(stakingToken.balanceOf(address(staker)), amountToStake, "Token should be transferred to staker");
         assertEq(staker.getAccountWeight(user1), 0, "Weight should be 0");
         vm.warp(block.timestamp + EPOCH_LENGTH); // Test weight increase
         assertEq(staker.getAccountWeight(user1), amountToStake, "Weight should be 0");
@@ -71,6 +49,7 @@ contract GovStakerTest is Test {
         uint amountToStake = 100 * 10 ** 18;
         
         // Add rewards
+        vm.startPrank(staker.owner());
         staker.addReward(
             address(rewardToken1), // rewardsToken
             address(this),         // distributor
@@ -81,7 +60,7 @@ contract GovStakerTest is Test {
             address(this),         // distributor
             60 * 60 * 24        // duration
         );
-
+        vm.stopPrank();
         vm.warp(block.timestamp + 1 days);
 
         uint earned1 = staker.earned(user1, address(rewardToken1));
@@ -103,21 +82,21 @@ contract GovStakerTest is Test {
     }
 
     function _getRealizedStake(address _account) internal returns (uint) {
-        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
+        (IGovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
         return acctData.realizedStake;
     }
 
     function _getPendingStake(address _account) internal returns (uint) {
-        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
+        (IGovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
         return acctData.pendingStake;
     }
 
     function test_StakeAndUnstake() public {
-        uint amountToStake = token.balanceOf(user1);
+        uint amountToStake = stakingToken.balanceOf(user1);
         stakeSomeAndWait(amountToStake);
         
         assertEq(staker.balanceOf(user1), amountToStake, "Stake should be updated correctly");
-        assertEq(token.balanceOf(address(staker)), amountToStake, "Tokens should be transferred to staker");
+        assertEq(stakingToken.balanceOf(address(staker)), amountToStake, "Tokens should be transferred to staker");
         vm.warp(block.timestamp + warmupWait()); // Warm up wait
         uint realizedStake = _getRealizedStake(user1);
         assertEq(realizedStake, amountToStake, "Realized stake should be equal to staked amount");
@@ -133,11 +112,11 @@ contract GovStakerTest is Test {
         vm.stopPrank();
 
         assertEq(staker.balanceOf(user1), 0, "Balance after unstake should be zero");
-        assertEq(token.balanceOf(user1), amountToStake, "Token should be returned to user");
+        assertEq(stakingToken.balanceOf(user1), amountToStake, "Token should be returned to user");
     }
 
     function test_MultipleStake() public {
-        uint amountToStake = (token.balanceOf(user1) - 1) / 2;
+        uint amountToStake = (stakingToken.balanceOf(user1) - 1) / 2;
         stakeSome(amountToStake);
         checkExpectedBalanceAndWeight(
             amountToStake,  // balanceOf
@@ -182,10 +161,10 @@ contract GovStakerTest is Test {
 
     function testFail_StakeForCooldownForAndUnstakeFor() public {
         vm.prank(user1);
-        staker.stakeFor(deployer, 100 * 10 ** 18);
-        staker.cooldownFor(deployer, 100 * 10 ** 18);
-        staker.unstakeFor(deployer, deployer);
-        // This should fail since user1 is not approved to stake for deployer
+        staker.stakeFor(dev, 100 * 10 ** 18);
+        staker.cooldownFor(dev, 100 * 10 ** 18);
+        staker.unstakeFor(dev, dev);
+        // This should fail since user1 is not approved to stake for dev
     }
 
     function test_CoolDown() public {
@@ -219,7 +198,7 @@ contract GovStakerTest is Test {
     }
 
     function test_Unstake() public {
-        uint amountToStake = token.balanceOf(user1);
+        uint amountToStake = stakingToken.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
         stakeSomeAndWait(amountToStake);
         console.log("weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
@@ -235,7 +214,7 @@ contract GovStakerTest is Test {
     }
 
     function test_UnstakePartial() public {
-        uint amountToStake = token.balanceOf(user1);
+        uint amountToStake = stakingToken.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
         stakeSomeAndWait(amountToStake);
         console.log("weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
@@ -252,7 +231,7 @@ contract GovStakerTest is Test {
     }
 
     function test_SetCooldownEpochs() public {
-        uint amountToStake = token.balanceOf(user1);
+        uint amountToStake = stakingToken.balanceOf(user1);
         stakeSomeAndWait(amountToStake);
         vm.startPrank(staker.owner());
 
@@ -275,11 +254,12 @@ contract GovStakerTest is Test {
     }
 
     function getUserCooldownEnd(address _account) public view returns (uint) {
-        (uint104 end,) = staker.cooldowns(_account);
-        return end;
+        IGovStaker.UserCooldown memory cooldown = staker.cooldowns(_account);
+        return uint(cooldown.end);
     }
+
     function getUserCooldownAmount(address _account) public view returns (uint) {
-        (, uint152 amount) = staker.cooldowns(_account);
-        return uint(amount);
+        IGovStaker.UserCooldown memory cooldown = staker.cooldowns(_account);
+        return uint(cooldown.underlyingAmount);
     }
 }

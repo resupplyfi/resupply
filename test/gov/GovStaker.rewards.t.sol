@@ -7,12 +7,9 @@ import {GovStaker} from "../../src/dao/staking/GovStaker.sol";
 import {GovStakerEscrow} from "../../src/dao/staking/GovStakerEscrow.sol";
 import {MockToken} from "../mocks/MockToken.sol";
 import {IGovStakerEscrow} from "../../src/interfaces/IGovStakerEscrow.sol";
+import {Setup} from "./utils/Setup.sol";
 
-contract OperationTest is Test {
-    GovStaker staker;
-    GovStakerEscrow escrow;
-    MockToken public stakingToken;
-    ERC20 public underlying;
+contract OperationTest is Setup {
     MockToken public rewardToken;
     MockToken public rewardToken2;
     uint256 public constant EPOCH_LENGTH = 2 days;
@@ -20,9 +17,7 @@ contract OperationTest is Test {
     mapping(string => address) public tokenAddrs;
 
     // Addresses for different roles we will use repeatedly.
-    address public user = address(10);
-    address public user2 = address(12);
-    address public user3 = address(13);
+
     address public keeper = address(4);
     address public management = address(this);
 
@@ -36,29 +31,16 @@ contract OperationTest is Test {
 
     event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
 
-    function setUp() public {
-        user = address(0x1);
+    function setUp() public override {
+        super.setUp();
 
-        stakingToken = new MockToken("GovToken", "GOV");
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
-
-        uint256 nonce = vm.getNonce(address(this));
-        address escrowAddress = computeCreateAddress(address(this), nonce);
-        address govStakingAddress = computeCreateAddress(address(this), nonce + 1);
-        escrow = new GovStakerEscrow(govStakingAddress, address(stakingToken));
-        staker = new GovStaker(
-            address(stakingToken),    // stakeToken
-            address(this),          // owner
-            EPOCH_LENGTH,      // EPOCH_LENGTH
-            IGovStakerEscrow(escrowAddress), // Escrow
-            10                  // cooldownEpochs
-        );
 
         stakingToken.approve(address(staker), type(uint256).max);
 
         address[] memory users = new address[](3);
-        users[0] = user;
+        users[0] = user1;
         users[1] = user2;
         users[2] = user3;
         for (uint256 i = 0; i < users.length; i++) {    
@@ -71,17 +53,17 @@ contract OperationTest is Test {
     function test_basicOperation() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
-        uint256 amountToStake = stakingToken.mint(user, amount);
-        assertGt(stakingToken.balanceOf(user), 0);
+        uint256 amountToStake = stakingToken.mint(user1, amount);
+        assertGt(stakingToken.balanceOf(user1), 0);
 
         // stake our assets
-        vm.startPrank(user);
+        vm.startPrank(user1);
         vm.expectRevert("invalid amount");
         staker.stake(0);
         stakingToken.approve(address(staker), type(uint256).max);
         staker.stake(amountToStake);
         vm.stopPrank();
-        assertEq(staker.balanceOf(user), amountToStake);
+        assertEq(staker.balanceOf(user1), amountToStake);
 
         // airdrop some token to use for rewards
         airdrop(rewardToken, management, 10e18);
@@ -99,7 +81,7 @@ contract OperationTest is Test {
 
         // only owner can setup rewards
         vm.expectRevert("!authorized");
-        vm.prank(user);
+        vm.prank(user1);
         staker.addReward(address(rewardToken), management, WEEK);
 
         // check how much rewards we have for the week
@@ -113,16 +95,16 @@ contract OperationTest is Test {
         skip(1 weeks);
 
         // check earnings, get reward
-        uint256 earned = staker.earned(user, address(rewardToken));
+        uint256 earned = staker.earned(user1, address(rewardToken));
         assertGt(earned, 0);
         console2.log("User Rewards earned after 24 hours:%e", earned);
-        vm.prank(user);
+        vm.prank(user1);
         staker.getReward();
-        assertGe(rewardToken.balanceOf(user), earned);
-        uint256 currentProfits = rewardToken.balanceOf(user);
+        assertGe(rewardToken.balanceOf(user1), earned);
+        uint256 currentProfits = rewardToken.balanceOf(user1);
 
         // can't withdraw zero
-        vm.startPrank(user);
+        vm.startPrank(user1);
         vm.expectRevert("invalid amount");
         staker.cooldown(0);
 
@@ -133,30 +115,30 @@ contract OperationTest is Test {
         skip(86400);
 
         // user fully exits
-        assertGt(staker.balanceOf(user), 0, "ABC");
+        assertGt(staker.balanceOf(user1), 0, "ABC");
 
 
         staker.exit();
-        uint256 totalGains = rewardToken.balanceOf(user);
+        uint256 totalGains = rewardToken.balanceOf(user1);
         assertGt(totalGains, currentProfits);
         console2.log("User Rewards earned after 48 hours:%e", totalGains);
-        assertEq(staker.balanceOf(user), 0);
+        assertEq(staker.balanceOf(user1), 0);
     }
 
     function test_multipleRewards() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
-        uint256 amountToStake = stakingToken.mint(user, amount);
-        assertGt(stakingToken.balanceOf(user), 0);
+        uint256 amountToStake = stakingToken.mint(user1, amount);
+        assertGt(stakingToken.balanceOf(user1), 0);
 
         // stake our assets
-        vm.startPrank(user);
+        vm.startPrank(user1);
         vm.expectRevert("invalid amount");
         staker.stake(0);
         stakingToken.approve(address(staker), type(uint256).max);
         staker.stake(amountToStake);
         vm.stopPrank();
-        assertEq(staker.balanceOf(user), amountToStake);
+        assertEq(staker.balanceOf(user1), amountToStake);
 
         // airdrop some token to use for rewards
         airdrop(rewardToken, management, 10e18);
@@ -209,22 +191,22 @@ contract OperationTest is Test {
         skip(1 weeks);
 
         // check earnings
-        uint256 earned = staker.earned(user, address(rewardToken));
+        uint256 earned = staker.earned(user1, address(rewardToken));
         assertGt(earned, 0);
-        uint256 earnedTwo = staker.earned(user, address(rewardToken2));
+        uint256 earnedTwo = staker.earned(user1, address(rewardToken2));
         assertGt(earnedTwo, 0);
 
         uint256[] memory earnedAmounts = new uint256[](2);
-        earnedAmounts = staker.earnedMulti(user);
+        earnedAmounts = staker.earnedMulti(user1);
         assertEq(earned, earnedAmounts[0]);
         assertEq(earnedTwo, earnedAmounts[1]);
 
         // user gets reward, withdraws
-        vm.startPrank(user);
+        vm.startPrank(user1);
         staker.getReward();
-        assertGe(rewardToken.balanceOf(user), earned);
-        assertGe(rewardToken2.balanceOf(user), earnedTwo);
-        uint256 currentProfitsTwo = rewardToken2.balanceOf(user);
+        assertGe(rewardToken.balanceOf(user1), earned);
+        assertGe(rewardToken2.balanceOf(user1), earnedTwo);
+        uint256 currentProfitsTwo = rewardToken2.balanceOf(user1);
 
         // user withdraws ~half of their assets
         // staker.cooldown(amount / 2);
@@ -233,34 +215,34 @@ contract OperationTest is Test {
         skip(1 weeks);
 
         // user fully exits
-        console.log("User balance before exit: %e", staker.balanceOf(user));
-        earned = staker.earned(user, address(rewardToken2));
+        console.log("User balance before exit: %e", staker.balanceOf(user1));
+        earned = staker.earned(user1, address(rewardToken2));
         console.log("User earned before exit: %e", earned);
-        assertGt(staker.balanceOf(user), 0);
+        assertGt(staker.balanceOf(user1), 0);
         vm.expectEmit(true, true, false, true);
-        emit RewardPaid(user, address(rewardToken2), earned);
+        emit RewardPaid(user1, address(rewardToken2), earned);
 
         staker.exit();
-        assertEq(staker.balanceOf(user), 0);
-        uint256 totalGainsTwo = rewardToken2.balanceOf(user);
+        assertEq(staker.balanceOf(user1), 0);
+        uint256 totalGainsTwo = rewardToken2.balanceOf(user1);
         console.log("User balance after exit: %e", totalGainsTwo);
         assertGt(totalGainsTwo, currentProfitsTwo);
-        assertEq(staker.balanceOf(user), 0);
+        assertEq(staker.balanceOf(user1), 0);
         vm.stopPrank();
     }
 
     function test_extendRewards() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
-        uint256 amountToStake = stakingToken.mint(user, amount);
-        assertGt(stakingToken.balanceOf(user), 0);
+        uint256 amountToStake = stakingToken.mint(user1, amount);
+        assertGt(stakingToken.balanceOf(user1), 0);
 
         // stake our assets
-        vm.startPrank(user);
+        vm.startPrank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
         staker.stake(amountToStake);
         vm.stopPrank();
-        assertEq(staker.balanceOf(user), amountToStake);
+        assertEq(staker.balanceOf(user1), amountToStake);
 
         // airdrop some token to use for rewards
         airdrop(rewardToken, management, 10e18);
@@ -296,21 +278,21 @@ contract OperationTest is Test {
         skip(86400);
 
         // check earnings
-        uint256 earned = staker.earned(user, address(rewardToken));
+        uint256 earned = staker.earned(user1, address(rewardToken));
         assertGt(earned, 0);
-        uint256 earnedTwo = staker.earned(user, address(rewardToken2));
+        uint256 earnedTwo = staker.earned(user1, address(rewardToken2));
         assertGt(earnedTwo, 0);
 
         uint256[] memory earnedAmounts = new uint256[](2);
-        earnedAmounts = staker.earnedMulti(user);
+        earnedAmounts = staker.earnedMulti(user1);
         assertEq(earned, earnedAmounts[0]);
         assertEq(earnedTwo, earnedAmounts[1]);
 
         // user gets reward, withdraws
-        vm.prank(user);
+        vm.prank(user1);
         staker.getReward();
-        assertGe(rewardToken.balanceOf(user), earned);
-        assertGe(rewardToken2.balanceOf(user), earnedTwo);
+        assertGe(rewardToken.balanceOf(user1), earned);
+        assertGe(rewardToken2.balanceOf(user1), earnedTwo);
 
         // add some more rewards
         vm.prank(management);
@@ -339,7 +321,7 @@ contract OperationTest is Test {
         addRewards(address(rewardToken2));
 
         address[] memory users = new address[](3);
-        users[0] = user;
+        users[0] = user1;
         users[1] = user2;
         users[2] = user3;
 

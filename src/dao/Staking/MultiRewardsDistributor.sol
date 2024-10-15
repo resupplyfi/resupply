@@ -3,8 +3,10 @@ pragma solidity ^0.8.22;
 
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ReentrancyGuard } from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import { ICore } from '../../interfaces/ICore.sol';
+import { Ownable } from '../../dependencies/Ownable.sol';
 
-abstract contract MultiRewardsDistributor is ReentrancyGuard {
+abstract contract MultiRewardsDistributor is ReentrancyGuard, Ownable{
     using SafeERC20 for IERC20;
 
     address[] public rewardTokens;
@@ -13,9 +15,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
     mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
 
     uint256 public constant PRECISION = 1e18;
+    ICore public immutable CORE;
 
     function stakeToken() public view virtual returns (address);
-    function owner() public view virtual returns (address);
     function balanceOf(address account) public view virtual returns (uint256);
     function totalSupply() public view virtual returns (uint256);
 
@@ -40,11 +42,6 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
 
     /* ========== MODIFIERS ========== */
 
-    modifier onlyOwner() {
-        require(msg.sender == owner(), "!authorized");
-        _;
-    }
-
     modifier updateReward(address _account) {
         for (uint256 i; i < rewardTokens.length; ++i) {
             address token = rewardTokens[i];
@@ -58,7 +55,13 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard {
         _;
     }
 
-     /* ========== EXTERNAL STATE CHANGE FUNCTIONS ========== */
+    /* ========== CONSTRUCTOR ========== */
+
+    constructor(address _core) Ownable(_core) {
+        CORE = ICore(_core);
+    }
+
+    /* ========== EXTERNAL STATE CHANGE FUNCTIONS ========== */
 
     /**
      * @notice Claim any (and all) earned reward tokens.

@@ -5,8 +5,9 @@ import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IERC20Metadata } from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
+import { SystemStart } from '../../dependencies/SystemStart.sol';
 
-contract GovStaker is MultiRewardsDistributor {
+contract GovStaker is MultiRewardsDistributor, SystemStart {
     using SafeERC20 for IERC20;
 
     IERC20 private immutable _stakeToken;
@@ -33,9 +34,7 @@ contract GovStaker is MultiRewardsDistributor {
     uint8 public immutable decimals;
 
     // Permissioned roles
-    address private _owner;
     mapping(address account => mapping(address caller => ApprovalStatus approvalStatus)) public approvedCaller;
-    mapping(address staker => bool approved) public approvedWeightedStaker;
 
     struct AccountData {
         uint120 realizedStake; // Amount of stake that has fully realized weight.
@@ -67,24 +66,21 @@ contract GovStaker is MultiRewardsDistributor {
     /* ========== CONSTRUCTOR ========== */
 
     /**
+        @param _core           The core contract address.
         @param _token           The token to be staked.
-        @param _epochLength    The length of an epoch in seconds.
-        @param _ownerAddress           Owner is able to control cooldown parameters.
         @param _escrow          Escrow contract to hold cooldown tokens.
         @param _cooldownEpochs  The number of epochs to cooldown for.
     */
     constructor(
+        address _core,
         address _token,
-        address _ownerAddress,
-        uint _epochLength,
         IGovStakerEscrow _escrow,
         uint24 _cooldownEpochs
-    ) {
-        _owner = _ownerAddress;
+    ) MultiRewardsDistributor(_core) SystemStart(_core) {
+        EPOCH_LENGTH = CORE.epochLength();
+        START_TIME = (block.timestamp / EPOCH_LENGTH) * EPOCH_LENGTH;
         _stakeToken = IERC20(_token);
         decimals = IERC20Metadata(_token).decimals();
-        EPOCH_LENGTH = _epochLength;
-        START_TIME = (block.timestamp / _epochLength) * _epochLength;
         ESCROW = _escrow;
         cooldownEpochs = _cooldownEpochs;
     }
@@ -391,10 +387,6 @@ contract GovStaker is MultiRewardsDistributor {
         return acctData.pendingStake + acctData.realizedStake;
     }
 
-    function owner() public view override returns (address) {
-        return _owner;
-    }
-
     function totalSupply() public view override returns (uint) {
         return _totalSupply;
     }
@@ -460,10 +452,6 @@ contract GovStaker is MultiRewardsDistributor {
         UserCooldown memory userCooldown = cooldowns[_account];
         if (block.timestamp < userCooldown.end) return 0;
         return userCooldown.underlyingAmount;
-    }
-
-    function getEpoch() public view returns (uint256) {
-        return (block.timestamp - START_TIME) / EPOCH_LENGTH;
     }
 
     function isCooldownEnabled() public view returns (bool) {
