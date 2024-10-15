@@ -6,7 +6,7 @@ import { ReentrancyGuard } from '@openzeppelin/contracts/security/ReentrancyGuar
 import { ICore } from '../../interfaces/ICore.sol';
 import { Ownable } from '../../dependencies/Ownable.sol';
 
-abstract contract MultiRewardsDistributor is ReentrancyGuard, Ownable{
+abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     using SafeERC20 for IERC20;
 
     address[] public rewardTokens;
@@ -15,7 +15,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, Ownable{
     mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
 
     uint256 public constant PRECISION = 1e18;
-    ICore public immutable CORE;
+    ICore public immutable core;
 
     function stakeToken() public view virtual returns (address);
     function balanceOf(address account) public view virtual returns (uint256);
@@ -58,7 +58,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, Ownable{
     /* ========== CONSTRUCTOR ========== */
 
     constructor(address _core) Ownable(_core) {
-        CORE = ICore(_core);
+        core = ICore(_core);
     }
 
     /* ========== EXTERNAL STATE CHANGE FUNCTIONS ========== */

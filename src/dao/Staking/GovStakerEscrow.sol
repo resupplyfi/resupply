@@ -3,20 +3,20 @@ pragma solidity ^0.8.22;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 contract GovStakerEscrow {
-    address immutable GOV_STAKER;
-    IERC20 immutable TOKEN;
+    address immutable staker;
+    IERC20 immutable token;
 
-    constructor(address govStaker, address token) {
-        GOV_STAKER = govStaker;
-        TOKEN = IERC20(token);
+    constructor(address _staker, address _token) {
+        staker = _staker;
+        token = IERC20(_token);
     }
 
     modifier onlyStaker() {
-        require(msg.sender == GOV_STAKER, '!Staker');
+        require(msg.sender == staker, '!Staker');
         _;
     }
 
     function withdraw(address to, uint256 amount) external onlyStaker {
-        TOKEN.transfer(to, amount);
+        token.transfer(to, amount);
     }
 }

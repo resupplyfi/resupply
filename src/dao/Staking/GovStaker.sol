@@ -5,13 +5,13 @@ import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IERC20Metadata } from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
-import { SystemEpochs } from '../../dependencies/SystemEpochs.sol';
+import { EpochTracker } from '../../dependencies/EpochTracker.sol';
 
-contract GovStaker is MultiRewardsDistributor, SystemEpochs {
+contract GovStaker is MultiRewardsDistributor, EpochTracker {
     using SafeERC20 for IERC20;
 
     IERC20 private immutable _stakeToken;
-    IGovStakerEscrow public immutable ESCROW;
+    IGovStakerEscrow public immutable escrow;
     uint24 public constant MAX_COOLDOWN_DURATION = 30 days;
 
     // Account weight tracking state vars.
@@ -64,7 +64,7 @@ contract GovStaker is MultiRewardsDistributor, SystemEpochs {
     /* ========== CONSTRUCTOR ========== */
 
     /**
-        @param _core           The core contract address.
+        @param _core            The Core protocol contract address.
         @param _token           The token to be staked.
         @param _escrow          Escrow contract to hold cooldown tokens.
         @param _cooldownEpochs  The number of epochs to cooldown for.
@@ -74,10 +74,10 @@ contract GovStaker is MultiRewardsDistributor, SystemEpochs {
         address _token,
         IGovStakerEscrow _escrow,
         uint24 _cooldownEpochs
-    ) MultiRewardsDistributor(_core) SystemEpochs(_core) {
+    ) MultiRewardsDistributor(_core) EpochTracker(_core) {
         _stakeToken = IERC20(_token);
         decimals = IERC20Metadata(_token).decimals();
-        ESCROW = _escrow;
+        escrow = _escrow;
         cooldownEpochs = _cooldownEpochs;
     }
 
@@ -185,7 +185,7 @@ contract GovStaker is MultiRewardsDistributor, SystemEpochs {
         cooldowns[_account] = userCooldown;
 
         emit Cooldown(_account, userCooldown.amount, userCooldown.end);
-        _stakeToken.safeTransfer(address(ESCROW), _amount);
+        _stakeToken.safeTransfer(address(escrow), _amount);
 
         return _amount;
     }
@@ -214,7 +214,7 @@ contract GovStaker is MultiRewardsDistributor, SystemEpochs {
 
         delete cooldowns[_account];
 
-        ESCROW.withdraw(_receiver, amount);
+        escrow.withdraw(_receiver, amount);
 
         emit Unstaked(_account, amount);
         return amount;

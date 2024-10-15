@@ -3,12 +3,12 @@ pragma solidity ^0.8.22;
 import "../interfaces/ICore.sol";
 
 /**
-    @title Ownable
+    @title Core Ownable
     @author Prisma Finance (with edits by Relend.fi)
-    @notice Contracts inheriting `Ownable` have the same owner as `Core`.
+    @notice Contracts inheriting `CoreOwnable` have the same owner as `Core`.
             The ownership cannot be independently modified or renounced.
  */
-contract Ownable {
+contract CoreOwnable {
     ICore public immutable RELEND_CORE;
 
     constructor(address _core) {

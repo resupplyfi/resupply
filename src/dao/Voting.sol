@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 import { GovStaker } from './staking/GovStaker.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
-import { SystemEpochs } from '../dependencies/SystemEpochs.sol';
+import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
 
@@ -15,7 +15,7 @@ import { ICore } from '../interfaces/ICore.sol';
             arbitrary function calls only after a required percentage of stakers
             have signalled in favor of performing the action.
  */
-contract AdminVoting is DelegatedOps, SystemEpochs {
+contract AdminVoting is DelegatedOps, EpochTracker {
     using Address for address;
 
     event ProposalCreated(
@@ -65,7 +65,7 @@ contract AdminVoting is DelegatedOps, SystemEpochs {
     uint256 public constant MAX_PCT = 10000;
 
     IGovStaker public immutable STAKER;
-    ICore public immutable CORE;
+    ICore public immutable core;
 
     Proposal[] proposalData;
     // Proposal ID -> Action[]
@@ -88,9 +88,9 @@ contract AdminVoting is DelegatedOps, SystemEpochs {
         IGovStaker _staker,
         uint256 _minCreateProposalPct,
         uint256 _passingPct
-    ) SystemEpochs(_core) {
+    ) EpochTracker(_core) {
         STAKER = _staker;
-        CORE = ICore(_core);
+        core = ICore(_core);
 
         minCreateProposalPct = _minCreateProposalPct;
         passingPct = _passingPct;
@@ -256,7 +256,7 @@ contract AdminVoting is DelegatedOps, SystemEpochs {
         @param id Proposal ID
      */
     function cancelProposal(uint256 id) external {
-        require(msg.sender == CORE.guardian(), "Only guardian can cancel proposals");
+        require(msg.sender == core.guardian(), "Only guardian can cancel proposals");
         require(id < proposalData.length, "Invalid ID");
 
         Action[] storage payload = proposalPayloads[id];
@@ -337,18 +337,18 @@ contract AdminVoting is DelegatedOps, SystemEpochs {
              at the end of the deployment sequence
      */
     function acceptTransferOwnership() external {
-        CORE.acceptTransferOwnership();
+        core.acceptTransferOwnership();
     }
 
     function _isSetGuardianPayload(uint256 payloadLength, Action memory action) internal view returns (bool) {
-        if (payloadLength == 1 && action.target == address(CORE)) {
+        if (payloadLength == 1 && action.target == address(core)) {
             bytes memory data = action.data;
             // Extract the call sig from payload data
             bytes4 sig;
             assembly {
                 sig := mload(add(data, 0x20))
             }
-            return sig == CORE.setGuardian.selector;
+            return sig == core.setGuardian.selector;
         }
         return false;
     }

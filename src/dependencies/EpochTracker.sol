@@ -4,10 +4,10 @@ pragma solidity ^0.8.22;
 import "../interfaces/ICore.sol";
 
 /**
-    @title System Epochs
+    @title EpochTracker
     @dev Provides a unified `startTime` and `getEpoch`, used for tracking epochs.
  */
-contract SystemEpochs {
+contract EpochTracker {
     uint256 public immutable startTime;
     uint256 public immutable epochLength;
 
