@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ReentrancyGuard } from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import { ICore } from '../../interfaces/ICore.sol';
-import { Ownable } from '../../dependencies/Ownable.sol';
+import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
 abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     using SafeERC20 for IERC20;
@@ -57,7 +57,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(address _core) Ownable(_core) {
+    constructor(address _core) CoreOwnable(_core) {
         core = ICore(_core);
     }
 

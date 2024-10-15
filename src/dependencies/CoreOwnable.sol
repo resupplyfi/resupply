@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
-import "../interfaces/ICore.sol";
+import {ICore} from "../interfaces/ICore.sol";
 
 /**
     @title Core Ownable
@@ -9,22 +9,22 @@ import "../interfaces/ICore.sol";
             The ownership cannot be independently modified or renounced.
  */
 contract CoreOwnable {
-    ICore public immutable RELEND_CORE;
+    ICore public immutable CORE;
 
     constructor(address _core) {
-        RELEND_CORE = ICore(_core);
+        CORE = ICore(_core);
     }
 
     modifier onlyOwner() {
-        require(msg.sender == RELEND_CORE.owner(), "Only owner");
+        require(msg.sender == CORE.owner(), "Only owner");
         _;
     }
 
     function owner() public view returns (address) {
-        return RELEND_CORE.owner();
+        return CORE.owner();
     }
 
     function guardian() public view returns (address) {
-        return RELEND_CORE.guardian();
+        return CORE.guardian();
     }
 }
