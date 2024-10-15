@@ -6,7 +6,8 @@ import {CoreOwnable} from "./CoreOwnable.sol";
 /**
     @title  Core Pausable
     @author Relend.fi
-    @notice Contracts inheriting `CorePausable` can access the core contract's paused state.
+    @notice Contracts inheriting `CorePausable` automatically get `CoreOwnable` 
+            and can access the core contract's paused state.
  */
 contract CorePausable is CoreOwnable {
     constructor(address _core) CoreOwnable(_core) {

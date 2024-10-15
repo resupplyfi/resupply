@@ -11,23 +11,22 @@ import { ICore } from '../interfaces/ICore.sol';
 /**
     @title Relend DAO Voting
     @author Prisma Finance (with edits by Relend.fi)
-    @notice Primary ownership contract for all Relend contracts. Allows executing
+    @notice Primary ownership contract for all protocol contracts. Allows executing
             arbitrary function calls only after a required percentage of stakers
             have signalled in favor of performing the action.
  */
-contract AdminVoting is DelegatedOps, EpochTracker {
+contract Voting is DelegatedOps, EpochTracker {
     using Address for address;
 
     event ProposalCreated(
         address indexed account,
-        uint256 id,
+        uint256 indexed id,
         Action[] payload,
         uint256 epoch,
         uint256 quorumWeight
     );
-    event ProposalHasMetQuorum(uint256 id, uint256 canExecuteAfter);
-    event ProposalExecuted(uint256 proposalId);
-    event ProposalCancelled(uint256 proposalId);
+    event ProposalExecuted(uint256 indexed proposalId);
+    event ProposalCancelled(uint256 indexed proposalId);
     event VoteCast(
         address indexed account,
         uint256 indexed id,
@@ -58,13 +57,13 @@ contract AdminVoting is DelegatedOps, EpochTracker {
     uint256 public immutable BOOTSTRAP_FINISH;
     uint256 public immutable TOKEN_DECIMALS;
     uint256 public constant VOTING_PERIOD = 1 weeks;
-    uint256 public constant MIN_TIME_TO_EXECUTION = 1 days;
+    uint256 public constant EXECUTION_DELAY = 1 days;
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
-    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 1 weeks;
+    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
     uint256 public constant SET_GUARDIAN_PASSING_PCT = 5010;
     uint256 public constant MAX_PCT = 10000;
 
-    IGovStaker public immutable STAKER;
+    IGovStaker public immutable staker;
     ICore public immutable core;
 
     Proposal[] proposalData;
@@ -83,18 +82,25 @@ contract AdminVoting is DelegatedOps, EpochTracker {
     // percent of total weight that must vote for a proposal before it can be executed
     uint256 public passingPct;
 
+    /**
+        @notice Constructor for Voting contract
+        @param _core Address of the core contract
+        @param _staker Address of the staker contract
+        @param _minCreateProposalPct Percent (in BPS) of total weight required to create a proposal
+        @param _passingPct Percent (in BPS) of total weight that must vote for a proposal before it can be executed
+    */
     constructor(
         address _core,
         IGovStaker _staker,
         uint256 _minCreateProposalPct,
         uint256 _passingPct
     ) EpochTracker(_core) {
-        STAKER = _staker;
+        staker = _staker;
         core = ICore(_core);
 
         minCreateProposalPct = _minCreateProposalPct;
         passingPct = _passingPct;
-        TOKEN_DECIMALS = STAKER.decimals();
+        TOKEN_DECIMALS = _staker.decimals();
     }
 
     /**
@@ -109,7 +115,7 @@ contract AdminVoting is DelegatedOps, EpochTracker {
         if (epoch == 0) return 0;
         epoch -= 1;
 
-        uint256 totalWeight = STAKER.getTotalWeightAt(epoch);
+        uint256 totalWeight = staker.getTotalWeightAt(epoch);
         return (totalWeight * minCreateProposalPct) / MAX_PCT;
     }
 
@@ -151,7 +157,7 @@ contract AdminVoting is DelegatedOps, EpochTracker {
         @param payload Tuple of [(target address, calldata), ... ] to be
                        executed if the proposal is passed.
      */
-    function createNewProposal(address account, Action[] calldata payload) external callerOrDelegated(account) {
+    function createNewProposal(address account, Action[] calldata payload) external callerOrDelegated(account) returns (uint256) {
         require(payload.length > 0, "Empty payload");
 
         require(
@@ -164,7 +170,7 @@ contract AdminVoting is DelegatedOps, EpochTracker {
         require(epoch > 0, "No proposals in first epoch");
         epoch -= 1;
 
-        uint256 accountWeight = STAKER.getAccountWeightAt(account, epoch);
+        uint256 accountWeight = staker.getAccountWeightAt(account, epoch);
         require(accountWeight >= minCreateProposalWeight(), "Not enough weight to propose");
 
         // if the only action is `core.setGuardian()`, use
@@ -176,15 +182,15 @@ contract AdminVoting is DelegatedOps, EpochTracker {
             _passingPct = SET_GUARDIAN_PASSING_PCT;
         } else _passingPct = passingPct;
 
-        uint256 totalWeight = STAKER.getTotalWeightAt(epoch);
-        uint40 requiredWeight = uint40((totalWeight * _passingPct) / MAX_PCT);
-        require(requiredWeight > 0, "Not enough total lock weight");
+        uint256 totalWeight = staker.getTotalWeightAt(epoch) / 10 ** TOKEN_DECIMALS;
+        uint40 quorumWeight = uint40((totalWeight * _passingPct) / MAX_PCT);
+        require(quorumWeight > 0, "Too little stake weight");
         uint256 proposalId = proposalData.length;
         proposalData.push(
             Proposal({
                 epoch: uint16(epoch),
                 createdAt: uint32(block.timestamp),
-                quorumWeight: requiredWeight,
+                quorumWeight: quorumWeight,
                 processed: false,
                 results: Vote(0, 0)
             })
@@ -194,7 +200,8 @@ contract AdminVoting is DelegatedOps, EpochTracker {
             proposalPayloads[proposalId].push(payload[i]);
         }
         latestProposalTimestamp[account] = block.timestamp;
-        emit ProposalCreated(account, proposalId, payload, epoch, requiredWeight);
+        emit ProposalCreated(account, proposalId, payload, epoch, quorumWeight);
+        return proposalId;
     }
 
     /**
@@ -228,7 +235,7 @@ contract AdminVoting is DelegatedOps, EpochTracker {
         require(proposal.createdAt + VOTING_PERIOD > block.timestamp, "Voting period has closed");
 
         // Reduce the account weight by the token decimals to help storage efficiency.
-        uint256 accountWeight = STAKER.getAccountWeightAt(account, proposal.epoch) / 10 ** TOKEN_DECIMALS;
+        uint256 accountWeight = staker.getAccountWeightAt(account, proposal.epoch) / 10 ** TOKEN_DECIMALS;
         require(accountWeight > 0, "Account weight is zero");
 
         vote.weightYes = uint40(accountWeight * pctYes / MAX_PCT);
@@ -293,15 +300,24 @@ contract AdminVoting is DelegatedOps, EpochTracker {
 
     function _canExecute(Proposal memory proposal) internal view returns (bool) {
         if (proposal.processed) return false;
-        if (block.timestamp < proposal.createdAt + VOTING_PERIOD) return false;
+        if (block.timestamp < proposal.createdAt + VOTING_PERIOD + EXECUTION_DELAY) return false;
         if (block.timestamp > proposal.createdAt + EXECUTION_DEADLINE) return false;
 
         // Ensure proposal has met quorum and received more weight in favor.
-        Vote memory result = proposal.results;
-        if (proposal.quorumWeight < result.weightYes + result.weightNo) return false;
-        if (result.weightYes <= result.weightNo) return false;
+        if (!_quorumReached(proposal.quorumWeight, proposal.results)) return false;
+        if (proposal.results.weightYes <= proposal.results.weightNo) return false;
         
         return true;
+    }
+
+    function quorumReached(uint256 id) external view returns (bool) {
+        require(id < proposalData.length, "Invalid proposalID");
+        Proposal memory proposal = proposalData[id];
+        return _quorumReached(proposal.quorumWeight, proposal.results);
+    }
+
+    function _quorumReached(uint256 quorumWeight, Vote memory results) internal pure returns (bool) {
+        return results.weightYes + results.weightNo >= quorumWeight;
     }
 
     /**
@@ -333,7 +349,7 @@ contract AdminVoting is DelegatedOps, EpochTracker {
     }
 
     /**
-        @dev Unguarded method to allow accepting ownership transfer of `CORE`
+        @dev Unguarded method to allow accepting ownership transfer of `core`
              at the end of the deployment sequence
      */
     function acceptTransferOwnership() external {

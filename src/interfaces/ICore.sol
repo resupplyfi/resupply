@@ -4,15 +4,16 @@ pragma solidity ^0.8.22;
 interface ICore {
     event FeeReceiverSet(address feeReceiver);
     event GuardianSet(address guardian);
-    event NewOwnerAccepted(address oldOwner, address owner);
-    event NewOwnerCommitted(address owner, address pendingOwner, uint256 deadline);
-    event NewOwnerRevoked(address owner, address revokedOwner);
+    event OwnershipTransferred(address oldOwner, address owner);
+    event OwnershipTransferStarted(address owner, address pendingOwner, uint256 deadline);
     event Paused();
     event Unpaused();
 
+    function acceptOwnership() external;
+
     function acceptTransferOwnership() external;
 
-    function commitTransferOwnership(address newOwner) external;
+    function transferOwnership(address newOwner) external;
 
     function revokeTransferOwnership() external;
 

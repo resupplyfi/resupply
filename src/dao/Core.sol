@@ -28,11 +28,9 @@ contract Core {
     // System-wide pause. When true, disables trove adjustments across all collaterals.
     bool public paused;
 
-    event NewOwnerCommitted(address owner, address pendingOwner, uint256 deadline);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner, uint256 deadline);
 
-    event NewOwnerAccepted(address oldOwner, address owner);
-
-    event NewOwnerRevoked(address owner, address revokedOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     event FeeReceiverSet(address feeReceiver);
 
@@ -93,27 +91,20 @@ contract Core {
         }
     }
 
-    function commitTransferOwnership(address newOwner) external onlyOwner {
+    function transferOwnership(address newOwner) external onlyOwner {
         pendingOwner = newOwner;
         ownershipTransferDeadline = block.timestamp + OWNERSHIP_TRANSFER_DELAY;
 
-        emit NewOwnerCommitted(msg.sender, newOwner, block.timestamp + OWNERSHIP_TRANSFER_DELAY);
+        emit OwnershipTransferStarted(msg.sender, newOwner, block.timestamp + OWNERSHIP_TRANSFER_DELAY);
     }
 
     function acceptTransferOwnership() external {
         require(msg.sender == pendingOwner, "Only new owner");
         require(block.timestamp >= ownershipTransferDeadline, "Deadline not passed");
 
-        emit NewOwnerAccepted(owner, msg.sender);
+        emit OwnershipTransferred(owner, pendingOwner);
 
         owner = pendingOwner;
-        pendingOwner = address(0);
-        ownershipTransferDeadline = 0;
-    }
-
-    function revokeTransferOwnership() external onlyOwner {
-        emit NewOwnerRevoked(msg.sender, pendingOwner);
-
         pendingOwner = address(0);
         ownershipTransferDeadline = 0;
     }
