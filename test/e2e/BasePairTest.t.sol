@@ -5,17 +5,24 @@ import "../helpers/Helpers.sol";
 import "src/interfaces/IStableSwap.sol";
 import "src/interfaces/IVariableInterestRateV2.sol";
 import "src/interfaces/IWstEth.sol";
+import "src/interfaces/IOracle.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "src/protocol/fraxlend/FraxlendPairConstants.sol";
 import "src/protocol/fraxlend/FraxlendPairAccessControlErrors.sol";
-import { FraxlendPairDeployer, ConstructorParams as FraxlendPairDeployerParams } from "src/protocol/fraxlend/FraxlendPairDeployer.sol";
-import { FraxlendPairRegistry } from "src/protocol/fraxlend/FraxlendPairRegistry.sol";
-import { VariableInterestRate } from "src/protocol/fraxlend/VariableInterestRate.sol";
-import { FraxlendWhitelist } from "src/protocol/fraxlend/FraxlendWhitelist.sol";
+import "src/protocol/BasicVaultOracle.sol";
+import { RelendPairDeployer } from "src/protocol/RelendPairDeployer.sol";
+import { RelendPairRegistry } from "src/protocol/RelendPairRegistry.sol";
+import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { FraxlendPair } from "src/protocol/fraxlend/FraxlendPair.sol";
-import { DualOracleChainlinkUniV3 } from "src/protocol/fraxlend/oracles/dual-oracles/DualOracleChainlinkUniV3.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
+// import "frax-std/NumberFormat.sol";
+// import "frax-std/Logger.sol";
+// import "frax-std/StringsHelper.sol";
+// import "frax-std/oracles/OracleHelper.sol";
+// import "frax-std/ArrayHelper.sol";
 
 struct CurrentRateInfo {
     uint32 lastBlock;
@@ -29,30 +36,31 @@ contract BasePairTest is
     FraxlendPairConstants,
     FraxlendPairAccessControlErrors,
     TestHelper,
-    Constants.Helper,
+    // Constants.Helper,
     FraxTest
 {
     using stdStorage for StdStorage;
-    using OracleHelper for AggregatorV3Interface;
+    // using OracleHelper for AggregatorV3Interface;
     using SafeCast for uint256;
     using Strings for uint256;
-    using FraxlendPairTestHelper for FraxlendPair;
+    using RelendPairTestHelper for FraxlendPair;
     using NumberFormat for *;
     using StringsHelper for *;
 
     // contracts
     FraxlendPair public pair;
-    FraxlendPairDeployer public deployer;
-    FraxlendPairRegistry public fraxlendPairRegistry;
+    RelendPairDeployer public deployer;
+    RelendPairRegistry public pairRegistry;
     // FraxlendPairHelper public fraxlendPairHelper;
     IERC20 public asset;
     IERC20 public collateral;
-    VariableInterestRate public variableRateContract;
-    VariableInterestRate public linearRateContract;
+    // VariableInterestRate public variableRateContract;
+    InterestRateCalculator public rateContract;
 
-    FraxlendWhitelist public fraxlendWhitelist;
+    // FraxlendWhitelist public fraxlendWhitelist;
 
-    IDualOracle public oracle;
+    IOracle public oracle;
+    uint256 public uniqueId;
 
     struct UserAccounting {
         address _address;
@@ -103,40 +111,40 @@ contract BasePairTest is
     // ============================================================================================
 
     function initialUserAccountingSnapshot(
-        FraxlendPair _fraxlendPair,
+        FraxlendPair _relendPair,
         address _userAddress
     ) public view returns (UserAccounting memory) {
-        (uint256 _borrowShares, uint256 _collateralBalance) = _fraxlendPair.__getUserSnapshot(
+        (uint256 _borrowShares, uint256 _collateralBalance) = _relendPair.getUserSnapshot(
             _userAddress
         );
         return
             UserAccounting({
                 _address: _userAddress,
                 borrowShares: _borrowShares,
-                borrowAmountFalse: toBorrowAmount(_fraxlendPair, _borrowShares, false),
-                borrowAmountTrue: toBorrowAmount(_fraxlendPair, _borrowShares, true),
+                borrowAmountFalse: toBorrowAmount(_relendPair, _borrowShares, false),
+                borrowAmountTrue: toBorrowAmount(_relendPair, _borrowShares, true),
                 collateralBalance: _collateralBalance,
-                balanceOfAsset: IERC20(_fraxlendPair.asset()).balanceOf(_userAddress),
-                balanceOfCollateral: IERC20(address(_fraxlendPair.collateralContract())).balanceOf(_userAddress)
+                balanceOfAsset: IERC20(_relendPair.asset()).balanceOf(_userAddress),
+                balanceOfCollateral: IERC20(address(_relendPair.collateralContract())).balanceOf(_userAddress)
             });
     }
 
     function finalUserAccountingSnapshot(
-        FraxlendPair _fraxlendPair,
+        FraxlendPair _relendPair,
         UserAccounting memory _initial
     ) public view returns (UserAccounting memory _final, UserAccounting memory _net) {
         address _userAddress = _initial._address;
-        (uint256 _borrowShares, uint256 _collateralBalance) = _fraxlendPair.__getUserSnapshot(
+        (uint256 _borrowShares, uint256 _collateralBalance) = _relendPair.getUserSnapshot(
             _userAddress
         );
         _final = UserAccounting({
             _address: _userAddress,
             borrowShares: _borrowShares,
-            borrowAmountFalse: toBorrowAmount(_fraxlendPair, _borrowShares, false),
-            borrowAmountTrue: toBorrowAmount(_fraxlendPair, _borrowShares, true),
+            borrowAmountFalse: toBorrowAmount(_relendPair, _borrowShares, false),
+            borrowAmountTrue: toBorrowAmount(_relendPair, _borrowShares, true),
             collateralBalance: _collateralBalance,
-            balanceOfAsset: IERC20(_fraxlendPair.asset()).balanceOf(_userAddress),
-            balanceOfCollateral: IERC20(address(_fraxlendPair.collateralContract())).balanceOf(_userAddress)
+            balanceOfAsset: IERC20(_relendPair.asset()).balanceOf(_userAddress),
+            balanceOfCollateral: IERC20(address(_relendPair.collateralContract())).balanceOf(_userAddress)
         });
         _net = UserAccounting({
             _address: _userAddress,
@@ -150,18 +158,18 @@ contract BasePairTest is
     }
 
     function takeInitialAccountingSnapshot(
-        FraxlendPair _fraxlendPair
+        FraxlendPair _relendPair
     ) internal view returns (PairAccounting memory _initial) {
-        address _fraxlendPairAddress = address(_fraxlendPair);
-        IERC20 _asset = IERC20(_fraxlendPair.asset());
-        IERC20 _collateral = _fraxlendPair.collateralContract();
+        address _fraxlendPairAddress = address(_relendPair);
+        IERC20 _asset = IERC20(_relendPair.asset());
+        IERC20 _collateral = _relendPair.collateralContract();
 
         (
             uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
-        ) = _fraxlendPair.__getPairAccounting();
+        ) = _relendPair.__getPairAccounting();
         _initial.fraxlendPairAddress = _fraxlendPairAddress;
         _initial.claimableFees = _claimableFees;
         _initial.totalBorrowAmount = _totalBorrowAmount;
@@ -169,7 +177,7 @@ contract BasePairTest is
         _initial.totalCollateral = _totalCollateral;
         _initial.balanceOfAsset = _asset.balanceOf(_fraxlendPairAddress);
         _initial.balanceOfCollateral = _collateral.balanceOf(_fraxlendPairAddress);
-        _initial.collateralBalance = _fraxlendPair.userCollateralBalance(_fraxlendPairAddress);
+        _initial.collateralBalance = _relendPair.userCollateralBalance(_fraxlendPairAddress);
     }
 
     function takeFinalAccountingSnapshot(
@@ -276,12 +284,12 @@ contract BasePairTest is
     // Setup / Initial Environment Helpers
     // ============================================================================================
 
-    function setWhitelistTrue() public {
-        // Deployers to whitelist
-        address[] memory _deployerAddresses = new address[](1);
-        _deployerAddresses[0] = Constants.Mainnet.COMPTROLLER_ADDRESS;
-        fraxlendWhitelist.setFraxlendDeployerWhitelist(_deployerAddresses, true);
-    }
+    // function setWhitelistTrue() public {
+    //     // Deployers to whitelist
+    //     address[] memory _deployerAddresses = new address[](1);
+    //     _deployerAddresses[0] = Constants.Mainnet.COMPTROLLER_ADDRESS;
+    //     fraxlendWhitelist.setFraxlendDeployerWhitelist(_deployerAddresses, true);
+    // }
 
     /// @notice The ```deployNonDynamicExternalContracts``` function deploys all contracts other than the pairs using default values
     /// @dev
@@ -299,23 +307,28 @@ contract BasePairTest is
         */
 
         // Set code for Whitelist
-        fraxlendWhitelist = FraxlendWhitelist(Constants.Mainnet.FRAXLEND_WHITELIST_ADDRESS);
+        // fraxlendWhitelist = FraxlendWhitelist(Constants.Mainnet.FRAXLEND_WHITELIST_ADDRESS);
         // fraxlendPairHelper = new FraxlendPairHelper();
-        setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
-        setSingleDeployerWhitelist(address(this), true);
-        fraxlendPairRegistry = new FraxlendPairRegistry(Constants.Mainnet.COMPTROLLER_ADDRESS, new address[](0));
-        deployer = new FraxlendPairDeployer(
-            FraxlendPairDeployerParams({
-                circuitBreaker: Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS,
-                comptroller: Constants.Mainnet.COMPTROLLER_ADDRESS,
-                timelock: Constants.Mainnet.TIMELOCK_ADDRESS,
-                fraxlendWhitelist: address(fraxlendWhitelist),
-                fraxlendPairRegistry: address(fraxlendPairRegistry)
-            })
+        // setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
+        // setSingleDeployerWhitelist(address(this), true);
+        pairRegistry = new RelendPairRegistry(Constants.Mainnet.COMPTROLLER_ADDRESS);
+        // deployer = new FraxlendPairDeployer(
+        //     FraxlendPairDeployerParams({
+        //         circuitBreaker: Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS,
+        //         comptroller: Constants.Mainnet.COMPTROLLER_ADDRESS,
+        //         timelock: Constants.Mainnet.TIMELOCK_ADDRESS,
+        //         fraxlendWhitelist: address(fraxlendWhitelist),
+        //         fraxlendPairRegistry: address(fraxlendPairRegistry)
+        //     })
+        // );
+        deployer = new RelendPairDeployer(
+            address(pairRegistry),
+            address(Constants.Mainnet.COMPTROLLER_ADDRESS),
+            address(Constants.Mainnet.COMPTROLLER_ADDRESS)
         );
         address[] memory _deployers = new address[](1);
         _deployers[0] = address(deployer);
-        fraxlendPairRegistry.setDeployers(_deployers, true);
+        // pairRegistry.setDeployers(_deployers, true);
         deployer.setCreationCode(type(FraxlendPair).creationCode);
         uint256 _vertexUtilization = 80_000; // 80%
         uint256 _vertexInterestPercentOfMax = 1e17; // 10%
@@ -326,44 +339,42 @@ contract BasePairTest is
         uint64 _maxInterest = 146_248_476_607; // 10k %
         uint256 _rateHalfLife = 4 days;
 
-        variableRateContract = new VariableInterestRate(
-            "suffix",
-            _vertexUtilization,
-            _vertexInterestPercentOfMax,
-            _minUtil,
-            _maxUtil,
-            _minInterest,
-            _minInterest,
-            _maxInterest,
-            _rateHalfLife
-        );
 
-        linearRateContract = new VariableInterestRate(
+        rateContract = new InterestRateCalculator(
             "suffix",
-            _vertexUtilization,
-            _vertexInterestPercentOfMax,
-            0,
-            1e5,
-            79_123_523, // 0.25%
-            79_123_523, // 0.25%
-            79_123_523 * 400, // 0.25% * 400 = 100%
-            _rateHalfLife
+            32_000_000_000, //2% todo check
+            2
         );
+        // variableRateContract = new VariableInterestRate(
+        //     "suffix",
+        //     _vertexUtilization,
+        //     _vertexInterestPercentOfMax,
+        //     _minUtil,
+        //     _maxUtil,
+        //     _minInterest,
+        //     _minInterest,
+        //     _maxInterest,
+        //     _rateHalfLife
+        // );
+
+        // linearRateContract = new VariableInterestRate(
+        //     "suffix",
+        //     _vertexUtilization,
+        //     _vertexInterestPercentOfMax,
+        //     0,
+        //     1e5,
+        //     79_123_523, // 0.25%
+        //     79_123_523, // 0.25%
+        //     79_123_523 * 400, // 0.25% * 400 = 100%
+        //     _rateHalfLife
+        // );
     }
 
-    function deployDefaultOracle() public returns (IDualOracle _oracle) {
-        _oracle = IDualOracle(
+    function deployDefaultOracle() public returns (IOracle _oracle) {
+        _oracle = IOracle(
             address(
-                new DualOracleChainlinkUniV3(
-                    address(asset),
-                    address(collateral),
-                    address(0),
-                    Constants.Mainnet.ETH_USD_CHAINLINK_ORACLE,
-                    86_400,
-                    Constants.Mainnet.WETH_FRAX_V3_POOL,
-                    600,
-                    Constants.Mainnet.TIMELOCK_ADDRESS,
-                    "weth usdc dual oracle"
+                new BasicVaultOracle(
+                    "Basic Vault Oracle"
                 )
             )
         );
@@ -376,18 +387,10 @@ contract BasePairTest is
         // Deploy contracts
         collateral = IERC20(Constants.Mainnet.WETH_ERC20);
         asset = IERC20(Constants.Mainnet.FRAX_ERC20);
-        oracle = IDualOracle(
+        oracle = IOracle(
             address(
-                new DualOracleChainlinkUniV3(
-                    address(asset),
-                    address(collateral),
-                    address(0),
-                    Constants.Mainnet.ETH_USD_CHAINLINK_ORACLE,
-                    86_400,
-                    Constants.Mainnet.WETH_FRAX_V3_POOL,
-                    600,
-                    Constants.Mainnet.TIMELOCK_ADDRESS,
-                    "weth usdc dual oracle"
+                new BasicVaultOracle(
+                    "Basic Vault Oracle"
                 )
             )
         );
@@ -397,23 +400,23 @@ contract BasePairTest is
     function defaultSetUp() public virtual {
         setExternalContracts();
         startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
-        setWhitelistTrue();
+        // setWhitelistTrue();
         // Set initial oracle prices
-        setSingleDeployerWhitelist(address(this), true);
-        setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
+        // setSingleDeployerWhitelist(address(this), true);
+        // setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
         vm.stopPrank();
-        deployFraxlendPublic(address(variableRateContract), 25 * ONE_PERCENT);
+        deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
     }
 
     // ============================================================================================
     // Whitelist Helpers
     // ============================================================================================
 
-    function setSingleDeployerWhitelist(address _address, bool _bool) public {
-        address[] memory _addresses = new address[](1);
-        _addresses[0] = _address;
-        fraxlendWhitelist.setFraxlendDeployerWhitelist(_addresses, _bool);
-    }
+    // function setSingleDeployerWhitelist(address _address, bool _bool) public {
+    //     address[] memory _addresses = new address[](1);
+    //     _addresses[0] = _address;
+    //     fraxlendWhitelist.setFraxlendDeployerWhitelist(_addresses, _bool);
+    // }
 
     // ============================================================================================
     // Deployment Helpers
@@ -431,8 +434,10 @@ contract BasePairTest is
                 _initialMaxRate,
                 75_000, //75%
                 10_000 // 10% clean liquidation fee
-            )
+            ),
+            uniqueId
         );
+        uniqueId += 1;
         pair = FraxlendPair(_pairAddress);
 
         startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
@@ -480,9 +485,11 @@ contract BasePairTest is
                         _maxLTV,
                         _liquidationFee,
                         _protocolLiquidationFee
-                    )
+                    ),
+                    uniqueId
                 )
             );
+            uniqueId += 1;
         }
         vm.stopPrank();
 

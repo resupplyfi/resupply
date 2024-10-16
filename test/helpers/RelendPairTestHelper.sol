@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "src/protocol/fraxlend/FraxlendPair.sol";
 
-library FraxlendPairTestHelper {
+library RelendPairTestHelper {
     function __getCurrentRate(FraxlendPair _pair) internal view returns (uint256 _currentRate) {
         (, , , _currentRate, ) = _pair.currentRateInfo();
     }

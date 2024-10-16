@@ -32,7 +32,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuar
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { FraxlendPairCore } from "./FraxlendPairCore.sol";
-import { Timelock2Step } from "./Timelock2Step.sol";
+// import { Timelock2Step } from "./Timelock2Step.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";

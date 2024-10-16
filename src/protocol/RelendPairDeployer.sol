@@ -40,7 +40,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice Deploys and initializes new FraxlendPairs
 /// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
-contract PairDeployer is Ownable2Step {
+contract RelendPairDeployer is Ownable2Step {
     using Strings for uint256;
     using SafeERC20 for IERC20;
 

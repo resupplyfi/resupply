@@ -28,7 +28,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-contract FraxlendPairRegistry is Ownable2Step{
+contract RelendPairRegistry is Ownable2Step{
     using SafeERC20 for IERC20;
 
     /// @notice List of the addresses of all deployed Pairs
