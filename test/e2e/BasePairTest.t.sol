@@ -342,7 +342,7 @@ contract BasePairTest is
 
         rateContract = new InterestRateCalculator(
             "suffix",
-            32_000_000_000, //2% todo check
+            634_195_840,//(2 * 1e16) / 365 / 86400, //2% todo check
             2
         );
         // variableRateContract = new VariableInterestRate(
@@ -407,16 +407,6 @@ contract BasePairTest is
         vm.stopPrank();
         deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
     }
-
-    // ============================================================================================
-    // Whitelist Helpers
-    // ============================================================================================
-
-    // function setSingleDeployerWhitelist(address _address, bool _bool) public {
-    //     address[] memory _addresses = new address[](1);
-    //     _addresses[0] = _address;
-    //     fraxlendWhitelist.setFraxlendDeployerWhitelist(_addresses, _bool);
-    // }
 
     // ============================================================================================
     // Deployment Helpers

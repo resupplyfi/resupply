@@ -30,19 +30,6 @@ import { FraxlendPairAccessControlErrors } from "./FraxlendPairAccessControlErro
 abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     address public immutable registry;
 
-    // Deployer
-    // address public immutable DEPLOYER_ADDRESS;
-
-    // Admin contracts
-    // address public circuitBreakerAddress;
-
-    // access control
-    
-    // bool public isBorrowAccessControlRevoked;
-
-    // uint256 public depositLimit = type(uint256).max;
-    // bool public isDepositAccessControlRevoked;
-
     bool public isRepayPaused;
     bool public isRepayAccessControlRevoked;
 
@@ -53,7 +40,6 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     bool public isLiquidateAccessControlRevoked;
 
     bool public isRedemptionPaused;
-    // bool public isLiquidateAccessControlRevoked;
 
     bool public isInterestPaused;
     bool public isInterestAccessControlRevoked;
@@ -61,17 +47,10 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
     /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
     constructor(bytes memory _immutables) {
         // Handle Immutables Configuration
-        // (address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress) = abi.decode(
         (address _registry) = abi.decode(
             _immutables,
             (address)
         );
-        // _setTimelock(_timelockAddress);
-        // _transferOwnership(_comptrollerAddress);
-
-        // Deployer contract
-        // DEPLOYER_ADDRESS = msg.sender;
-        // circuitBreakerAddress = _circuitBreakerAddress;
         registry = _registry;
     }
 
@@ -90,41 +69,6 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
             revert OnlyProtocolOrOwner();
         }
     }
-
-    // function _requireTimelockOrOwner() internal view {
-    //     if (msg.sender != owner() && msg.sender != timelockAddress) {
-    //         revert OnlyTimelockOrOwner();
-    //     }
-    // }
-
-    /// @notice The ```RevokeBorrowAccessControl``` event is emitted when access to borrow limit is revoked
-    /// @param borrowLimit The final permanent borrow limit
-    // event RevokeBorrowAccessControl(uint256 borrowLimit);
-
-    // function _revokeBorrowAccessControl(uint256 _borrowLimit) internal {
-    //     isBorrowAccessControlRevoked = true;
-    //     borrowLimit = _borrowLimit;
-    //     emit RevokeBorrowAccessControl(_borrowLimit);
-    // }
-
-    /// @notice The ```RevokeDepositAccessControl``` event is emitted when access to deposit limit is revoked
-    /// @param depositLimit The final permanent deposit limit
-    // event RevokeDepositAccessControl(uint256 depositLimit);
-
-    // function _revokeDepositAccessControl(uint256 _depositLimit) internal {
-    //     isDepositAccessControlRevoked = true;
-    //     depositLimit = _depositLimit;
-    //     emit RevokeDepositAccessControl(_depositLimit);
-    // }
-
-    // /// @notice The ```SetDepositLimit``` event is emitted when the deposit limit is set
-    // /// @param limit The new deposit limit
-    // event SetDepositLimit(uint256 limit);
-
-    // function _setDepositLimit(uint256 _limit) internal {
-    //     depositLimit = _limit;
-    //     emit SetDepositLimit(_limit);
-    // }
 
     /// @notice The ```RevokeRepayAccessControl``` event is emitted when repay access control is revoked
     event RevokeRepayAccessControl();
@@ -201,25 +145,4 @@ abstract contract FraxlendPairAccessControl is FraxlendPairAccessControlErrors {
         emit PauseInterest(_isPaused);
     }
 
-/*
-    /// @notice The ```SetCircuitBreaker``` event is emitted when the circuit breaker address is set
-    /// @param oldCircuitBreaker The old circuit breaker address
-    /// @param newCircuitBreaker The new circuit breaker address
-    event SetCircuitBreaker(address oldCircuitBreaker, address newCircuitBreaker);
-
-    /// @notice The ```_setCircuitBreaker``` function is called to set the circuit breaker address
-    /// @param _newCircuitBreaker The new circuit breaker address
-    function _setCircuitBreaker(address _newCircuitBreaker) internal {
-        address oldCircuitBreaker = circuitBreakerAddress;
-        circuitBreakerAddress = _newCircuitBreaker;
-        emit SetCircuitBreaker(oldCircuitBreaker, _newCircuitBreaker);
-    }
-
-    /// @notice The ```setCircuitBreaker``` function is called to set the circuit breaker address
-    /// @param _newCircuitBreaker The new circuit breaker address
-    function setCircuitBreaker(address _newCircuitBreaker) external virtual {
-        _requireProtocolOrOwner();
-        _setCircuitBreaker(_newCircuitBreaker);
-    }
-    */
 }
