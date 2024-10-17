@@ -6,33 +6,31 @@ import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/Saf
 import { IERC20Metadata } from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
 import { EpochTracker } from '../../dependencies/EpochTracker.sol';
+import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 
-contract GovStaker is MultiRewardsDistributor, EpochTracker {
+contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;
 
     IERC20 private immutable _stakeToken;
     IGovStakerEscrow public immutable escrow;
-    uint24 public constant MAX_COOLDOWN_DURATION = 30 days;
+    uint24 public constant MAX_COOLDOWN_DURATION = 90 days;
 
-    // Account weight tracking state vars.
+    // Account tracking state vars.
     mapping(address account => AccountData data) public accountData;
     mapping(address account => mapping(uint epoch => uint weight)) private accountWeightAt;
 
-    // Total weight tracking state vars.
+    // Global weight tracking state vars.
     uint120 public totalPending;
     uint16 public totalLastUpdateEpoch;
     mapping(uint epoch => uint weight) private totalWeightAt;
 
     // Cooldown tracking vars.
-    uint public cooldownEpochs; // in epochs
+    uint public cooldownEpochs;
     mapping(address => UserCooldown) public cooldowns;
 
     // Generic token interface.
     uint private _totalSupply;
     uint8 public immutable decimals;
-
-    // Permissioned roles
-    mapping(address account => mapping(address caller => ApprovalStatus approvalStatus)) public approvedCaller;
 
     struct AccountData {
         uint120 realizedStake; // Amount of stake that has fully realized weight.
@@ -45,18 +43,10 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker {
         uint152 amount;
     }
 
-    enum ApprovalStatus {
-        None, // 0. Default value, indicating no approval
-        StakeOnly, // 1. Approved for stake only
-        UnstakeOnly, // 2. Approved for unstake only
-        StakeAndUnstake // 3. Approved for both stake and unstake
-    }
-
     /* ========== EVENTS ========== */
 
     event Staked(address indexed account, uint indexed epoch, uint amount);
     event Unstaked(address indexed account, uint amount);
-    event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
     event Cooldown(address indexed account, uint amount, uint end);
     event CooldownEpochsUpdated(uint24 newDuration);
 
@@ -81,24 +71,8 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker {
         cooldownEpochs = _cooldownEpochs;
     }
 
-    /**
-        @notice Stake tokens into the staking contract.
-        @param _amount Amount of tokens to stake.
-    */
-    function stake(uint _amount) external returns (uint) {
-        return _stake(msg.sender, _amount);
-    }
 
-    function stakeFor(address _account, uint _amount) external returns (uint) {
-        if (msg.sender != _account) {
-            ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.StakeOnly, '!Permission');
-        }
-
-        return _stake(_account, _amount);
-    }
-
-    function _stake(address _account, uint _amount) internal updateReward(_account) returns (uint) {
+    function stake(address _account, uint _amount) external callerOrDelegated(_account) returns (uint) {
         require(_amount > 0 && _amount < type(uint120).max, "invalid amount");
 
         // Before going further, let's sync our account and total weights
@@ -122,39 +96,14 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker {
         @notice Request a cooldown tokens from the contract.
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
-    function cooldown(uint _amount) external returns (uint) {
-        return _cooldown(msg.sender, _amount); // triggers updateReward
-    }
-
-    /**
-        @notice Unstake tokens from the contract on behalf of another user.
-        @dev During partial unstake, this will always remove from the least-weighted first.
-    */
-    // function unstakeFor(address _account, uint _amount, address _receiver) external returns (uint) {
-    function cooldownFor(address _account, uint _amount) external returns (uint) {
-        if (msg.sender != _account) {
-            ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.UnstakeOnly, '!Permission');
-        }
-        if (_amount == type(uint).max) _amount = balanceOf(_account);
-        return _cooldown(_account, _amount); // triggers updateReward
+    function cooldown(address _account, uint _amount) external callerOrDelegated(_account) returns (uint) {
+        return _cooldown(_account, _amount);
     }
 
     /**
      * @notice Initiate cooldown and claim any outstanding rewards.
      */
-    function exit() external returns (uint) {
-        uint balance = balanceOf(msg.sender);
-        _cooldown(msg.sender, balance); // triggers updateReward
-        _getRewardFor(msg.sender);
-        return balance;
-    }
-
-    function exitFor(address _account) external returns (uint) {
-        if (msg.sender != _account) {
-            ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.UnstakeOnly, '!Permission');
-        }
+    function exit(address _account) external callerOrDelegated(_account) returns (uint) {
         uint balance = balanceOf(_account);
         _cooldown(_account, balance); // triggers updateReward
         _getRewardFor(_account);
@@ -190,23 +139,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker {
         return _amount;
     }
 
-    function unstake(address _receiver) external returns (uint) {
-        return _unstake(msg.sender, _receiver);
-    }
-
-    /// @notice Unstake tokens all tokens that have passed cooldown.
-    /// @param _account The account from which the tokens are to be unstaked.
-    /// @param _receiver The address to which the unstaked tokens will be transferred.
-    /// @return The amount of tokens unstaked.
-    function unstakeFor(address _account, address _receiver) external returns (uint) {
-        if (msg.sender != _account) {
-            ApprovalStatus status = approvedCaller[_account][msg.sender];
-            require(status == ApprovalStatus.StakeAndUnstake || status == ApprovalStatus.UnstakeOnly, '!Permission');
-        }
-        return _unstake(_account, _receiver);
-    }
-
-    function _unstake(address _account, address _receiver) internal returns (uint) {
+    function unstake(address _account, address _receiver) external callerOrDelegated(_account) returns (uint) {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.amount;
 
@@ -346,16 +279,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker {
         }
 
         return weight;
-    }
-
-    /**
-        @notice Allow another address to stake or unstake on behalf of. Useful for zaps and other functionality.
-        @param _caller Address of the caller to approve or unapprove.
-        @param _status Enum representing various approval status states.
-    */
-    function setApprovedCaller(address _caller, ApprovalStatus _status) external {
-        approvedCaller[msg.sender][_caller] = _status;
-        emit ApprovedCallerSet(msg.sender, _caller, _status);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */

@@ -15,8 +15,7 @@ contract Core {
 
     address public owner;
     address public pendingOwner;
-    uint256 public ownershipTransferDeadline;
-
+    uint256 public ownershipTransferDelay;
     address public guardian;
 
     // We enforce a three day delay between committing and applying
@@ -27,6 +26,7 @@ contract Core {
     uint256 public immutable epochLength;
     // System-wide pause. When true, disables trove adjustments across all collaterals.
     bool public paused;
+    mapping(address => bool) public assetPaused;
 
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner, uint256 deadline);
 
@@ -36,9 +36,9 @@ contract Core {
 
     event GuardianSet(address guardian);
 
-    event Paused();
+    event ProtocolPaused(bool indexed paused);
 
-    event Unpaused();
+    event AssetPaused(address indexed asset, bool indexed paused);
 
     constructor(address _owner, uint256 _epochLength, address _guardian, address _feeReceiver) {
         require(_epochLength > 0, "Epoch length must be greater than 0");
@@ -81,31 +81,42 @@ contract Core {
      *         Pausing is used to mitigate risks in exceptional circumstances.
      * @param _paused If true the protocol is paused
      */
-    function setPaused(bool _paused) external {
+    function pauseProtocol(bool _paused) external {
         require((_paused && msg.sender == guardian) || msg.sender == owner, "Unauthorized");
         paused = _paused;
-        if (_paused) {
-            emit Paused();
-        } else {
-            emit Unpaused();
-        }
+        emit ProtocolPaused(_paused);
+    }
+
+    /**
+     * @notice Pauses a specific asset within the protocol.
+     * @param _asset Address of the asset to pause
+     * @param _paused If true the asset is paused
+     */
+    function pauseAsset(address _asset, bool _paused) external {
+        require((_paused && msg.sender == guardian) || msg.sender == owner, "Unauthorized");
+        assetPaused[_asset] = _paused;
+        emit AssetPaused(_asset, _paused);
+    }
+
+    function isPaused(address _asset) external view returns (bool) {
+        return paused || assetPaused[_asset];
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
         pendingOwner = newOwner;
-        ownershipTransferDeadline = block.timestamp + OWNERSHIP_TRANSFER_DELAY;
+        ownershipTransferDelay = block.timestamp + OWNERSHIP_TRANSFER_DELAY;
 
         emit OwnershipTransferStarted(msg.sender, newOwner, block.timestamp + OWNERSHIP_TRANSFER_DELAY);
     }
 
     function acceptTransferOwnership() external {
         require(msg.sender == pendingOwner, "Only new owner");
-        require(block.timestamp >= ownershipTransferDeadline, "Deadline not passed");
+        require(block.timestamp >= ownershipTransferDelay, "Delay not passed");
 
         emit OwnershipTransferred(owner, pendingOwner);
 
         owner = pendingOwner;
         pendingOwner = address(0);
-        ownershipTransferDeadline = 0;
+        ownershipTransferDelay = 0;
     }
 }

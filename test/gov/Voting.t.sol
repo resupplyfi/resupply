@@ -14,17 +14,14 @@ contract OperationTest is Setup {
     MockPair pair;
     function setUp() public override {
         super.setUp();
-        skip(voting.MIN_TIME_BETWEEN_PROPOSALS()); // Skip to ensure the first proposal can be created
-        vm.prank(core.owner());
-        core.transferOwnership(address(voting));
         // Create a mock contract for us to test with
         pair = new MockPair(address(core));
 
         // Give user1 some stake so they can create a proposal + vote.
         vm.prank(user1);
-        staker.stake(100e18);
+        staker.stake(user1, 100e18);
         skip(staker.epochLength() * 2); // We skip 2, so that the stake can be registered (first epoch) and finalized (second epoch).
-        voting.acceptTransferOwnership();
+        
     }
 
     function test_createProposal() public {

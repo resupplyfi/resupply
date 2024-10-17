@@ -19,9 +19,9 @@ contract Setup is Test {
     IGovStaker public staker;
     GovStakerEscrow public escrow;
     Voting public voting;
-    address user1 = address(0x1);
-    address user2 = address(0x2);
-    address user3 = address(0x3);
+    address user1 = address(0x11);
+    address user2 = address(0x22);
+    address user3 = address(0x33);
     address dev = address(0x42069);
     address tempGov = address(987);
     address guardian = address(654);
@@ -32,10 +32,19 @@ contract Setup is Test {
         stakingToken = new MockToken("GovToken", "GOV");
 
         deployContracts();
-        vm.prank(user1);
+
+        skip(voting.MIN_TIME_BETWEEN_PROPOSALS()); // Skip to ensure the first proposal can be created
+        vm.prank(core.owner());
+        core.transferOwnership(address(voting));
+        
+        skip(core.OWNERSHIP_TRANSFER_DELAY());
+        voting.acceptTransferOwnership();
+
+        vm.startPrank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
         stakingToken.mint(user1, 1_000_000 * 10 ** 18);
-        
+        vm.stopPrank();
+
         // label all the used addresses for traces
         vm.label(address(stakingToken), "Gov Token");
         vm.label(address(tempGov), "Temp Gov");

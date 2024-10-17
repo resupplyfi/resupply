@@ -15,7 +15,6 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
 
     uint256 public constant PRECISION = 1e18;
-    ICore public immutable core;
 
     function stakeToken() public view virtual returns (address);
     function balanceOf(address account) public view virtual returns (uint256);
@@ -57,9 +56,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(address _core) CoreOwnable(_core) {
-        core = ICore(_core);
-    }
+    constructor(address _core) CoreOwnable(_core) {}
 
     /* ========== EXTERNAL STATE CHANGE FUNCTIONS ========== */
 

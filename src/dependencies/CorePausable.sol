@@ -10,20 +10,19 @@ import {CoreOwnable} from "./CoreOwnable.sol";
             and can access the core contract's paused state.
  */
 contract CorePausable is CoreOwnable {
-    constructor(address _core) CoreOwnable(_core) {
-    }
+    constructor(address _core) CoreOwnable(_core) {}
 
     modifier whenNotPaused() {
-        require(!CORE.paused(), "Paused");
+        require(!isPaused(), "Paused");
         _;
     }
 
     modifier whenPaused() {
-        require(CORE.paused(), "!Paused");
+        require(isPaused(), "!Paused");
         _;
     }
 
-    function paused() public view virtual returns (bool) {
-        return CORE.paused();
+    function isPaused() public view returns (bool) {
+        return CORE.isPaused(address(this));
     }
 }

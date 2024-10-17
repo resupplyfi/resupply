@@ -7,6 +7,7 @@ import {GovStaker} from "../../src/dao/staking/GovStaker.sol";
 import {GovStakerEscrow} from "../../src/dao/staking/GovStakerEscrow.sol";
 import {MockToken} from "../mocks/MockToken.sol";
 import {IGovStakerEscrow} from "../../src/interfaces/IGovStakerEscrow.sol";
+import {IGovStaker} from "../../src/interfaces/IGovStaker.sol";
 import {Setup} from "./utils/Setup.sol";
 
 contract OperationTest is Setup {
@@ -17,9 +18,8 @@ contract OperationTest is Setup {
     mapping(string => address) public tokenAddrs;
 
     // Addresses for different roles we will use repeatedly.
-
     address public keeper = address(4);
-    address public management = address(this);
+    address public owner;
 
     // Integer variables that will be used repeatedly.
     uint256 public MAX_BPS = 10_000;
@@ -33,9 +33,15 @@ contract OperationTest is Setup {
 
     function setUp() public override {
         super.setUp();
-
+        owner = core.owner();
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
+        rewardToken.mint(owner, 1_000_000 * 10 ** 18);
+        rewardToken2.mint(owner, 1_000_000 * 10 ** 18);
+        vm.startPrank(owner);
+        rewardToken.approve(address(staker), type(uint256).max);
+        rewardToken2.approve(address(staker), type(uint256).max);
+        vm.stopPrank();
 
         stakingToken.approve(address(staker), type(uint256).max);
 
@@ -59,30 +65,30 @@ contract OperationTest is Setup {
         // stake our assets
         vm.startPrank(user1);
         vm.expectRevert("invalid amount");
-        staker.stake(0);
+        staker.stake(user1, 0);
         stakingToken.approve(address(staker), type(uint256).max);
-        staker.stake(amountToStake);
+        staker.stake(user1, amountToStake);
         vm.stopPrank();
         assertEq(staker.balanceOf(user1), amountToStake);
 
         // airdrop some token to use for rewards
-        airdrop(rewardToken, management, 10e18);
-        vm.startPrank(management);
-
+        airdrop(rewardToken, owner, 10e18);
+        
         // will revert if we haven't added it first
         vm.expectRevert("!authorized");
         staker.notifyRewardAmount(address(rewardToken), 1e18);
 
         // add token to rewards array
-        staker.addReward(address(rewardToken), management, 3*WEEK);
+        vm.startPrank(owner);
+        staker.addReward(address(rewardToken), owner, 3*WEEK);
         rewardToken.approve(address(staker), type(uint256).max);
         staker.notifyRewardAmount(address(rewardToken), 1e18);
         vm.stopPrank();
 
         // only owner can setup rewards
-        vm.expectRevert("!authorized");
+        vm.expectRevert("Only owner");
         vm.prank(user1);
-        staker.addReward(address(rewardToken), management, WEEK);
+        staker.addReward(address(rewardToken), owner, WEEK);
 
         // check how much rewards we have for the week
         uint256 firstWeekRewards = staker.getRewardForDuration(
@@ -106,10 +112,10 @@ contract OperationTest is Setup {
         // can't withdraw zero
         vm.startPrank(user1);
         vm.expectRevert("invalid amount");
-        staker.cooldown(0);
+        staker.cooldown(user1, 0);
 
         // user withdraws ~half of their assets
-        staker.cooldown(amount / 2);
+        staker.cooldown(user1, amount / 2);
 
         // sleep to earn some profits
         skip(86400);
@@ -118,7 +124,7 @@ contract OperationTest is Setup {
         assertGt(staker.balanceOf(user1), 0, "ABC");
 
 
-        staker.exit();
+        staker.exit(user1);
         uint256 totalGains = rewardToken.balanceOf(user1);
         assertGt(totalGains, currentProfits);
         console2.log("User Rewards earned after 48 hours:%e", totalGains);
@@ -134,25 +140,25 @@ contract OperationTest is Setup {
         // stake our assets
         vm.startPrank(user1);
         vm.expectRevert("invalid amount");
-        staker.stake(0);
+        staker.stake(user1, 0);
         stakingToken.approve(address(staker), type(uint256).max);
-        staker.stake(amountToStake);
+        staker.stake(user1, amountToStake);
         vm.stopPrank();
         assertEq(staker.balanceOf(user1), amountToStake);
 
         // airdrop some token to use for rewards
-        airdrop(rewardToken, management, 10e18);
-        airdrop(rewardToken2, management, 1_000e18);
-        vm.startPrank(management);
+        airdrop(rewardToken, owner, 10e18);
+        airdrop(rewardToken2, owner, 1_000e18);
+        vm.startPrank(owner);
 
         // add token to rewards array
-        staker.addReward(address(rewardToken), management, 2 * 1 weeks);
+        staker.addReward(address(rewardToken), owner, 2 * 1 weeks);
         rewardToken.approve(address(staker), type(uint256).max);
         staker.notifyRewardAmount(address(rewardToken), 1e18);
 
         // can't add the same token
         vm.expectRevert("Reward already added");
-        staker.addReward(address(rewardToken), management, 3 * 1 weeks);
+        staker.addReward(address(rewardToken), owner, 3 * 1 weeks);
 
         // can't adjust duration while we're in progress
         vm.expectRevert("Rewards active");
@@ -162,13 +168,13 @@ contract OperationTest is Setup {
         vm.expectRevert("No zero address");
         staker.addReward(address(rewardToken), address(0), 3 * 1 weeks);
         vm.expectRevert("No zero address");
-        staker.addReward(address(0), management, WEEK);
+        staker.addReward(address(0), owner, WEEK);
 
         // add second token
         // duration must be >0
         vm.expectRevert("Must be >0");
-        staker.addReward(address(rewardToken2), management, 0);
-        staker.addReward(address(rewardToken2), management, 3 * 1 weeks);
+        staker.addReward(address(rewardToken2), owner, 0);
+        staker.addReward(address(rewardToken2), owner, 3 * 1 weeks);
         rewardToken2.approve(address(staker), type(uint256).max);
         staker.notifyRewardAmount(address(rewardToken2), 100e18);
         vm.stopPrank();
@@ -222,7 +228,7 @@ contract OperationTest is Setup {
         vm.expectEmit(true, true, false, true);
         emit RewardPaid(user1, address(rewardToken2), earned);
 
-        staker.exit();
+        staker.exit(user1);
         assertEq(staker.balanceOf(user1), 0);
         uint256 totalGainsTwo = rewardToken2.balanceOf(user1);
         console.log("User balance after exit: %e", totalGainsTwo);
@@ -240,22 +246,22 @@ contract OperationTest is Setup {
         // stake our assets
         vm.startPrank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
-        staker.stake(amountToStake);
+        staker.stake(user1, amountToStake);
         vm.stopPrank();
         assertEq(staker.balanceOf(user1), amountToStake);
 
         // airdrop some token to use for rewards
-        airdrop(rewardToken, management, 10e18);
-        airdrop(rewardToken2, management, 1_000e18);
-        vm.startPrank(management);
+        airdrop(rewardToken, owner, 10e18);
+        airdrop(rewardToken2, owner, 1_000e18);
+        vm.startPrank(owner);
 
         // add token to rewards array
-        staker.addReward(address(rewardToken), management, WEEK);
+        staker.addReward(address(rewardToken), owner, WEEK);
         rewardToken.approve(address(staker), type(uint256).max);
         staker.notifyRewardAmount(address(rewardToken), 1e18);
 
         // add second token
-        staker.addReward(address(rewardToken2), management, WEEK);
+        staker.addReward(address(rewardToken2), owner, WEEK);
         rewardToken2.approve(address(staker), type(uint256).max);
         staker.notifyRewardAmount(address(rewardToken2), 100e18);
         vm.stopPrank();
@@ -295,7 +301,7 @@ contract OperationTest is Setup {
         assertGe(rewardToken2.balanceOf(user1), earnedTwo);
 
         // add some more rewards
-        vm.prank(management);
+        vm.prank(owner);
         staker.notifyRewardAmount(address(rewardToken), 1e18);
         uint256 firstWeekRewardsCheckTwo = staker.getRewardForDuration(
             address(rewardToken)
@@ -315,6 +321,9 @@ contract OperationTest is Setup {
         // we rewards over time at an irregular interval, and also simulate
         // irregular staking and unstaking to make sure that at the end, all
         // rewards are distributed.
+        assertEq(rewardToken.balanceOf(address(staker)), 0);
+        assertEq(rewardToken2.balanceOf(address(staker)), 0);
+
         uint amountToStake = 100 * 10 ** 18;
 
         addRewards(address(rewardToken));
@@ -326,26 +335,36 @@ contract OperationTest is Setup {
         users[2] = user3;
 
         uint256 i;
-        for (; i < 20; i++) {
+        for (; i < 20; i++) { // 20 weeks
             for (uint256 x = 0; x < users.length; x++) {
                 uint bal = staker.balanceOf(users[x]);
                 if (i % 2 == 0 || x > 0) {
                     vm.prank(users[x]);
-                    staker.stake(amountToStake / (x + 1));
+                    staker.stake(users[x], amountToStake / (x + 1));
                 }
                 if (bal > 0) {
                     vm.prank(users[x]);
-                    staker.cooldown(bal / (x + 2));
+                    staker.cooldown(users[x], bal / (x + 2));
                 }
-                if (i % 2 == 0) airdropAndNotify(rewardToken2, users[x], 500e18);
-                airdropAndNotify(rewardToken, users[x], 250e18);
+                if (i % 2 == 0) airdropAndNotify(address(rewardToken2), 500e18);
+                airdropAndNotify(address(rewardToken), 250e18);
             }
             skip(1 weeks);
         }
+
+        console.log("xxxRT",rewardToken.balanceOf(address(staker)));
+        console.log("xxxRT2",rewardToken2.balanceOf(address(staker)));
         
+        uint256 numRewards = staker.rewardTokensLength();
         for (i = 0; i < users.length; i++) {
+            console.log("RT",rewardToken.balanceOf(address(staker)));
+            console.log("RT2",rewardToken2.balanceOf(address(staker)));
             console2.log("User getting reward", i, staker.earned(users[i], address(rewardToken)) / 1e18);
             vm.prank(users[i]);
+            for(uint256 x = 0; x < numRewards; x++) {
+                ERC20 _rewardToken = ERC20(staker.rewardTokens(x));
+                console2.log("Balance of reward token", x, _rewardToken.balanceOf(address(staker)));
+            }
             staker.getReward();
         }
 
@@ -355,20 +374,21 @@ contract OperationTest is Setup {
     }
 
     function addRewards(address _token) public {
-        vm.prank(management);
-        staker.addReward(_token, management, 1 weeks);
+        vm.prank(owner);
+        staker.addReward(_token, owner, 1 weeks);
         rewardToken.approve(address(staker), type(uint256).max);
     }
 
-    // Helpers
     function airdrop(ERC20 _asset, address _to, uint256 _amount) public {
-        uint256 balanceBefore = _asset.balanceOf(_to);
-        deal(address(_asset), _to, balanceBefore + _amount);
+        MockToken(address(_asset)).mint(_to, _amount);
     }
 
-    function airdropAndNotify(ERC20 _asset, address _to, uint256 _amount) public {
-        airdrop(_asset, _to, _amount);
-        vm.prank(management);
-        staker.notifyRewardAmount(address(rewardToken), 1e18);
+    // Helpers
+    function airdropAndNotify(address _asset, uint256 _amount) public {
+        IGovStaker.Reward memory _rewardData = staker.rewardData(_asset);
+        address distributor =  _rewardData.rewardsDistributor;
+        MockToken(_asset).mint(distributor, _amount);
+        vm.prank(distributor);
+        staker.notifyRewardAmount(_asset, _amount);
     }
 }

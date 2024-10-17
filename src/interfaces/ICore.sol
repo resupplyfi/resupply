@@ -21,8 +21,6 @@ interface ICore {
 
     function setGuardian(address _guardian) external;
 
-    function setPaused(bool _paused) external;
-
     function OWNERSHIP_TRANSFER_DELAY() external view returns (uint256);
 
     function epochLength() external view returns (uint256);
@@ -37,7 +35,13 @@ interface ICore {
 
     function ownershipTransferDeadline() external view returns (uint256);
 
-    function paused() external view returns (bool);
-
     function pendingOwner() external view returns (address);
+
+    function isPaused(address _asset) external view returns (bool);
+
+    function pauseAsset(address _asset, bool _paused) external;
+
+    function pauseProtocol(bool _paused) external;
+
+    function assetPaused(address _asset) external view returns (bool);
 }

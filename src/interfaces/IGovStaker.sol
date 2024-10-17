@@ -10,7 +10,6 @@ interface IGovStaker {
     event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
     event Staked(address indexed account, uint indexed epoch, uint amount);
     event Unstaked(address indexed account, uint amount);
-    event ApprovedCallerSet(address indexed account, address indexed caller, ApprovalStatus status);
     event Cooldown(address indexed account, uint amount, uint end);
     event CooldownEpochsUpdated(uint24 newDuration);
 
@@ -68,14 +67,14 @@ interface IGovStaker {
     function setRewardsDistributor(address rewardsToken, address rewardsDistributor) external;
     function setRewardsDuration(address rewardsToken, uint256 rewardsDuration) external;
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external;
-    function stake(uint amount) external returns (uint);
+    function stake(address account, uint amount) external returns (uint);
     function stakeFor(address account, uint amount) external returns (uint);
-    function cooldown(uint amount) external returns (uint);
+    function cooldown(address account, uint amount) external returns (uint);
     function cooldowns(address account) external view returns (UserCooldown memory);
     function cooldownFor(address account, uint amount) external returns (uint);
-    function exit() external returns (uint);
+    function exit(address account) external returns (uint);
     function exitFor(address account) external returns (uint);
-    function unstake(address receiver) external returns (uint);
+    function unstake(address account, address receiver) external returns (uint);
     function unstakeFor(address account, address receiver) external returns (uint);
     function checkpointAccount(address account) external returns (AccountData memory, uint weight);
     function checkpointAccountWithLimit(address account, uint epoch) external returns (AccountData memory, uint weight);
