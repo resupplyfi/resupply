@@ -680,6 +680,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     //how many "claimable" redemption tokens are available to the user
     //should be called before anything with userCollateralBalance is used
     function _syncUserRedemptions(address _account) internal{
+        //sync rewards first
+        _checkpoint(_account);
+
         //get token count
         uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account];
         //reset claimables
@@ -1063,10 +1066,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Update exchange rate and use the lower rate for liquidations
         (, uint256 _exchangeRate, ) = _updateExchangeRate();
 
-        //sync collateral
+        //sync collateral and rewards
         _syncUserRedemptions(_borrower);
-        //sync rewards and borrow shares
-        _checkpoint(_borrower);
 
         // Check if borrower is solvent, revert if they are
         if (_isSolvent(_borrower, _exchangeRate)) {
