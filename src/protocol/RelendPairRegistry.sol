@@ -44,7 +44,8 @@ contract RelendPairRegistry is Ownable2Step{
     address public liquidationHandler;
     address public feeDeposit;
     address public redeemer;
-    address public rewardClaimer;
+    address public rewardHandler;
+    address public insurancePool;
 
     constructor(address _owner) Ownable2Step(){
         _transferOwnership(_owner);
@@ -103,11 +104,18 @@ contract RelendPairRegistry is Ownable2Step{
         redeemer = _newAddress;
     }
 
-    event SetRewardClaimer(address oldAddress, address newAddress);
+    event SetInsurancePool(address oldAddress, address newAddress);
 
-    function setRewardClaimer(address _newAddress) external onlyOwner{
-        emit SetRewardClaimer(rewardClaimer, _newAddress);
-        rewardClaimer = _newAddress;
+    function setInsurancePool(address _newAddress) external onlyOwner{
+        emit SetInsurancePool(insurancePool, _newAddress);
+        insurancePool = _newAddress;
+    }
+
+    event SetRewardHandler(address oldAddress, address newAddress);
+
+    function setRewardHandler(address _newAddress) external onlyOwner{
+        emit SetRewardHandler(rewardHandler, _newAddress);
+        rewardHandler = _newAddress;
     }
 
     /// @notice The ```AddPair``` event is emitted when a new pair is added to the registry
@@ -187,7 +195,11 @@ contract RelendPairRegistry is Ownable2Step{
     }
 
     function claimRewards(address _pair) external{
-        //TODO tell rewardClaimer to process rewards
+        //TODO tell rewardHandler to process rewards
+    }
+
+    function claimInsuranceRewards() external{
+        //TODO tell rewardHandler to process rewards for insurance pool
     }
 
     function getMaxMintable(address _pair) external view returns(uint256){

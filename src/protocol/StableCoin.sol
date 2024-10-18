@@ -33,8 +33,11 @@ contract StableCoin is ERC20 {
     }
 
     function burn(address _from, uint256 _amount) external {
-        require(operators[msg.sender], "!authorized");
-        
+        //allow msg sender to burn from themselves
+        if(msg.sender != _from){
+            require(operators[msg.sender], "!authorized");
+        }
         _burn(_from, _amount);
     }
+
 }

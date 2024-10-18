@@ -135,8 +135,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     mapping(address => uint256) internal _userCollateralBalance; // amount of collateral each user is backed
     /// @notice Stores the balance of borrow shares for each user
     mapping(address => uint256) internal _userBorrowShares; // represents the shares held by individuals
-    //reward epoch to share change. ex shareReactoring(0) is factor of userBorrowShares to be reduced to move an account from epoch 0 to epoch 1
-    mapping(uint256 => uint256) public shareRefactoring; 
+    //refactor amount for each reward epoch
+    uint256 constant public shareRefactor = 1e18;
 
     // ============================================================================================
     // Constructor
@@ -259,7 +259,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             //need to calculate shares while keeping this as a view function
             for(;;){
                 //reduce shares by refactoring amount (will never be 0)
-                borrowShares /= shareRefactoring[userEpoch];
+                borrowShares /= shareRefactor;
                 userEpoch += 1;
                 if(userEpoch == globalEpoch){
                     break;
@@ -355,7 +355,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _userBorrowShares[_account] = _userBorrowShares[_account] / shareRefactoring[_currentUserEpoch];
+        _userBorrowShares[_account] = _userBorrowShares[_account] / shareRefactor;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -995,12 +995,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Effects: Bookkeeping
         _totalBorrow.amount -= uint128(debtReduction);
 
+        //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
         if(_totalBorrow.amount * 1e18 < _totalBorrow.shares){
-            //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-            uint256 ratio = _totalBorrow.shares / _totalBorrow.amount;
-            _totalBorrow.shares /= uint128(ratio);
-            shareRefactoring[currentRewardEpoch] = ratio;
-            _increaseRewardEpoch();
+            _increaseRewardEpoch(); //will do final checkpoint on previous total supply
+            _totalBorrow.shares /= uint128(shareRefactor);
         }
 
         // Effects: write to state

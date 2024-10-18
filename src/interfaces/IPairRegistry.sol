@@ -32,6 +32,7 @@ interface IPairRegistry {
 
     function claimFees(address _pair) external;
     function claimRewards(address _pair) external;
+    function claimInsuranceRewards() external;
     function withdrawTo(address _asset, uint256 _amount, address _to) external;
     function getMaxMintable(address pair) external view returns(uint256);
     function mint( address receiver, uint256 amount) external;
@@ -39,9 +40,11 @@ interface IPairRegistry {
     function liquidationHandler() external view returns(address);
     function feeDeposit() external view returns(address);
     function redeemer() external view returns(address);
-    function rewardClaimer() external view returns(address);
+    function rewardHandler() external view returns(address);
+    function insurancePool() external view returns(address);
     function setRewardClaimer(address _newAddress) external;
     function setRedeemer(address _newAddress) external;
     function setFeeDeposit(address _newAddress) external;
     function setLiquidationHandler(address _newAddress) external;
+    function setInsurancePool(address _newAddress) external;
 }
