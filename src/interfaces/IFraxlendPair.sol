@@ -218,7 +218,7 @@ interface IFraxlendPair {
 
     function userBorrowShares(address) external view returns (uint256);
 
-    function userCollateralBalance(address) external view returns (uint256);
+    function userCollateralBalance(address) external returns (uint256);
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch);
 

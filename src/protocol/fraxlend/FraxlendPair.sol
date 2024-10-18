@@ -96,7 +96,7 @@ contract FraxlendPair is FraxlendPairCore {
     /// @return _userCollateralBalance The user collateral balance
     function getUserSnapshot(
         address _address
-    ) external view returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
+    ) external returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
         _userBorrowShares = userBorrowShares(_address);
         _userCollateralBalance = userCollateralBalance(_address);
     }

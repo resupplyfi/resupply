@@ -113,7 +113,7 @@ contract BasePairTest is
     function initialUserAccountingSnapshot(
         FraxlendPair _relendPair,
         address _userAddress
-    ) public view returns (UserAccounting memory) {
+    ) public returns (UserAccounting memory) {
         (uint256 _borrowShares, uint256 _collateralBalance) = _relendPair.getUserSnapshot(
             _userAddress
         );
@@ -132,7 +132,7 @@ contract BasePairTest is
     function finalUserAccountingSnapshot(
         FraxlendPair _relendPair,
         UserAccounting memory _initial
-    ) public view returns (UserAccounting memory _final, UserAccounting memory _net) {
+    ) public returns (UserAccounting memory _final, UserAccounting memory _net) {
         address _userAddress = _initial._address;
         (uint256 _borrowShares, uint256 _collateralBalance) = _relendPair.getUserSnapshot(
             _userAddress
@@ -159,7 +159,7 @@ contract BasePairTest is
 
     function takeInitialAccountingSnapshot(
         FraxlendPair _relendPair
-    ) internal view returns (PairAccounting memory _initial) {
+    ) internal returns (PairAccounting memory _initial) {
         address _fraxlendPairAddress = address(_relendPair);
         IERC20 _asset = IERC20(_relendPair.asset());
         IERC20 _collateral = _relendPair.collateralContract();
@@ -182,7 +182,7 @@ contract BasePairTest is
 
     function takeFinalAccountingSnapshot(
         PairAccounting memory _initial
-    ) internal view returns (PairAccounting memory _final, PairAccounting memory _net) {
+    ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
         address _fraxlendPairAddress = _initial.fraxlendPairAddress;
         FraxlendPair _fraxlendPair = FraxlendPair(_fraxlendPairAddress);
         IERC20 _asset = IERC20(_fraxlendPair.asset());

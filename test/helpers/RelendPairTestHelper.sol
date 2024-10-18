@@ -92,7 +92,7 @@ library RelendPairTestHelper {
     function __getUserSnapshot(
         FraxlendPair _fraxlendPair,
         address _address
-    ) external view returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
+    ) external returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
         _userBorrowShares = _fraxlendPair.userBorrowShares(_address);
         _userCollateralBalance = _fraxlendPair.userCollateralBalance(_address);
     }

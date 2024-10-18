@@ -269,11 +269,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     }
 
     //get _userCollateralBalance minus redemption tokens
-    function userCollateralBalance(address _account) public view returns(uint256 _collateralAmount){
+    function userCollateralBalance(address _account) public returns(uint256 _collateralAmount){
+        _syncUserRedemptions(_account);
+
         _collateralAmount = _userCollateralBalance[_account];
-        //account for rtokens since can call sync in view function
-        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account];
-        _collateralAmount = _collateralAmount > rTokens ? _collateralAmount - rTokens : 0;
 
         //since there are some very small dust during distribution there could be a few wei
         //in user collateral that is over total collateral. clamp to total
@@ -301,12 +300,13 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _borrower The borrower address to check
     /// @param _exchangeRate The exchange rate, i.e. the amount of collateral to buy 1e18 asset
     /// @return Whether borrower is solvent
-    function _isSolvent(address _borrower, uint256 _exchangeRate) internal view returns (bool) {
+    function _isSolvent(address _borrower, uint256 _exchangeRate) internal returns (bool) {
         if (maxLTV == 0) return true;
         //must look at borrow shares of current epoch so user helper function
         uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares(_borrower), true);
         if (_borrowerAmount == 0) return true;
-        uint256 _collateralAmount = userCollateralBalance(_borrower);
+        _syncUserRedemptions(_borrower); //checkpoint rewards and sync _userCollateralBalance
+        uint256 _collateralAmount = _userCollateralBalance[_borrower];
         if (_collateralAmount == 0) return false;
 
         uint256 _ltv = (((_borrowerAmount * _exchangeRate) / EXCHANGE_PRECISION) * LTV_PRECISION) / _collateralAmount;
@@ -326,7 +326,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if (!_isSolvent(_borrower, exchangeRateInfo.highExchangeRate)) {
             revert Insolvent(
                 totalBorrow.toAmount(userBorrowShares(_borrower), true),
-                userCollateralBalance(_borrower),
+                _userCollateralBalance[_borrower], //_issolvent sync'd so take base _userCollateral
                 exchangeRateInfo.highExchangeRate
             );
         }
@@ -710,7 +710,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _receiver The address to receive the Asset Tokens
     /// @return _sharesAdded The amount of borrow shares the msg.sender will be debited
     function _borrowAsset(uint128 _borrowAmount, address _receiver) internal returns (uint256 _sharesAdded) {
-        //checkpoint rewards and sync borrow shares for msg.sender
+        //checkpoint rewards for msg.sender
         _checkpoint(msg.sender);
 
         // Get borrow accounting from storage to save gas
@@ -844,7 +844,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     /// @param _receiver The address to receive the Collateral Token transferred
     /// @param _borrower The borrower whose account will be debited the Collateral amount
     function _removeCollateral(uint256 _collateralAmount, address _receiver, address _borrower) internal {
-        _syncUserRedemptions(_borrower);
 
         // Effects: write to state
         // NOTE: Following line will revert on underflow if _collateralAmount > userCollateralBalance
@@ -871,6 +870,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         uint256 _collateralAmount,
         address _receiver
     ) external nonReentrant isSolvent(msg.sender) {
+        //note: isSolvent checkpoints msg.sender via _syncUserRedemptions
+
         if (_receiver == address(0)) revert InvalidReceiver();
 
         _addInterest();
@@ -1066,10 +1067,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Update exchange rate and use the lower rate for liquidations
         (, uint256 _exchangeRate, ) = _updateExchangeRate();
 
-        //sync collateral and rewards
-        _syncUserRedemptions(_borrower);
-
         // Check if borrower is solvent, revert if they are
+        //_isSolvent calls _syncUserRedemptions which checkpoints rewards and userCollateral
         if (_isSolvent(_borrower, _exchangeRate)) {
             revert BorrowerSolvent();
         }
@@ -1130,6 +1129,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         
         // Collateral is removed on behalf of borrower and sent to liquidationHandler
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
+        // NOTE: isSolvent above checkpoints user with _syncUserRedemptions before removing collateral
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
         //call liquidation handler to distribute and burn debt
@@ -1285,6 +1285,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Effects: bookkeeping & write to state
         // Debit users collateral balance in preparation for swap, setting _recipient to address(this) means no transfer occurs
+        // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
 
         // Interactions
