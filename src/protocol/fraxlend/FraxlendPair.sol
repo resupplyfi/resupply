@@ -49,6 +49,11 @@ contract FraxlendPair is FraxlendPairCore {
 
     uint256 private constant WEEK = 7 * 86400;
     uint256 public lastFeeEpoch;
+
+    // Staking Info
+    address convexBooster;
+    uint256 convexPid;
+    
     error InvalidFeeTimestamp();
 
     /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
@@ -58,7 +63,23 @@ contract FraxlendPair is FraxlendPairCore {
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) FraxlendPairCore(_configData, _immutables, _customConfigData) {}
+    ) FraxlendPairCore(_configData, _immutables, _customConfigData) {
+
+        (string memory _name, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
+            _customConfigData,
+            (string, address, address, uint256)
+        );
+        //convex info
+        if(_convexBooster != address(0)){
+            convexBooster = _convexBooster;
+            convexPid = _convexpid;
+            //approve
+            collateralContract.approve(convexBooster, type(uint256).max);
+            //add rewards
+            _insertRewardToken(address(0xD533a949740bb3306d119CC777fa900bA034cd52)); //crv
+            _insertRewardToken(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B)); //cvx
+        }
+    }
 
 
     // ============================================================================================

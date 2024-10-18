@@ -15,5 +15,9 @@ interface IConvexStaking {
     function getReward() external returns(bool);
     function getReward(address _account, bool _claimExtras) external returns(bool);
     function totalSupply() external view returns (uint256);
+    function extraRewardsLength() external view returns (uint256);
+    function extraRewards(uint256 _rid) external view returns (address _rewardContract);
+    function rewardToken() external view returns (address _rewardToken);
+    function token() external view returns (address _token);
     function balanceOf(address account) external view returns (uint256);
 }

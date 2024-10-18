@@ -223,4 +223,10 @@ interface IFraxlendPair {
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch);
 
     function withdrawFees() external returns (uint256 _amountToTransfer);
+    function convexBooster() external view returns (address convexBooster);
+    function convexPid() external view returns (uint256 _convexPid);
+    function rewardLength() external view returns (uint256 _length);
+    function rewardMap(address _reward) external view returns (uint256 _rewardSlot);
+    function addExtraReward(address _token) external;
+
 }

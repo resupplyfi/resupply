@@ -93,10 +93,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Metadata
     string public name;
     
-    // Staking Info
-    address convexBooster;
-    uint256 convexPid;
-
     // ============================================================================================
     // Storage
     // ============================================================================================
@@ -204,7 +200,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         rewards[0].is_non_claimable = true;
 
         {
-            (string memory _name, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
+            (string memory _name, address _govToken, address _stakingContract, uint256 _stakingId) = abi.decode(
                 _customConfigData,
                 (string, address, address, uint256)
             );
@@ -213,16 +209,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             name = _name;
             //add gov token reward
             _insertRewardToken(_govToken);
-            //convex info
-            if(_convexBooster != address(0)){
-                convexBooster = _convexBooster;
-                convexPid = _convexpid;
-                //approve
-                collateralContract.approve(convexBooster, type(uint256).max);
-                //add rewards
-                _insertRewardToken(address(0xD533a949740bb3306d119CC777fa900bA034cd52)); //crv
-                _insertRewardToken(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B)); //cvx
-            }
 
             // Instantiate Interest
             _addInterest();
