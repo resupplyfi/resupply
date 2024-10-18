@@ -6,12 +6,12 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { RewardHandlerMultiEpoch } from "./RewardHandlerMultiEpoch.sol";
+import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import "../interfaces/IOwnership.sol";
 
 
-contract InsurancePool is RewardHandlerMultiEpoch{
+contract InsurancePool is RewardDistributorMultiEpoch{
     using SafeERC20 for IERC20;
 
     address immutable public depositToken;
@@ -115,6 +115,11 @@ contract InsurancePool is RewardHandlerMultiEpoch{
         _balances[_account] = _balances[_account] / shareRefactor;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
+    }
+
+    function _checkAddToken(address _address) internal view override returns(bool){
+        if(_address == depositToken) return false;
+        return true;
     }
 
     // ============================================================================================

@@ -37,15 +37,14 @@ import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
-import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
-import { RewardHandlerMultiEpoch } from "../RewardHandlerMultiEpoch.sol";
+import { RewardDistributorMultiEpoch } from "../RewardDistributorMultiEpoch.sol";
 import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the core logic and storage for the FraxlendPair
-abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, RewardHandlerMultiEpoch {
+abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, RewardDistributorMultiEpoch {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -238,16 +237,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
 
     //get total collateral, either parked here or staked 
-    function totalCollateral() public view returns(uint256 _totalCollateralBalance){
-        if(convexPid != 0){
-            //get staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            //get balance
-            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
-        }else{
-            _totalCollateralBalance = collateralContract.balanceOf(address(this));   
-        }
-    }
+    function totalCollateral() public view virtual returns(uint256 _totalCollateralBalance);
 
     function userBorrowShares(address _account) public view returns(uint256 borrowShares){
         borrowShares = _userBorrowShares[_account];
@@ -373,43 +363,17 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         }
     }
 
+    function _checkAddToken(address _address) internal view override returns(bool){
+        return true;
+    }
+
     // ============================================================================================
-    // Convex Staking
+    // Underlying Staking
     // ============================================================================================
 
-    function _updateConvexPool(uint256 _pid) internal{
-        if(convexPid != _pid){
-            //get previous staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            //get balance
-            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
-            
-            if(stakedBalance > 0){
-                //withdraw
-                IConvexStaking(convexBooster).withdrawAndUnwrap(stakedBalance,false);
-                require(collateralContract.balanceOf(address(this)) >= stakedBalance, "incorrect balance");
-            }
+    function _stakeUnderlying(uint256 _amount) internal virtual;
 
-            //stake in new pool
-            IConvexStaking(convexBooster).deposit(_pid,stakedBalance,false);
-
-            //update pid
-            convexPid = _pid;
-        }
-    }
-
-    function _stakeUnderlying(uint256 _amount) internal{
-        if(convexPid != 0){
-            IConvexStaking(convexBooster).deposit(convexPid,_amount,false);
-        }
-    }
-
-    function _unstakeUnderlying(uint256 _amount) internal{
-        if(convexPid != 0){
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount,false);
-        }
-    }
+    function _unstakeUnderlying(uint256 _amount) internal virtual;
 
     // ============================================================================================
     // Functions: Interest Accumulation and Adjustment

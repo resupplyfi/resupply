@@ -37,6 +37,7 @@ import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
 import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
+import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
 
 /// @title FraxlendPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -403,6 +404,51 @@ contract FraxlendPair is FraxlendPairCore {
         _requireProtocolOrOwner();
         _updateConvexPool(pid);
         emit SetConvexPool(pid);
+    }
+
+    function _updateConvexPool(uint256 _pid) internal{
+        if(convexPid != _pid){
+            //get previous staking
+            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            //get balance
+            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
+            
+            if(stakedBalance > 0){
+                //withdraw
+                IConvexStaking(convexBooster).withdrawAndUnwrap(stakedBalance,false);
+                require(collateralContract.balanceOf(address(this)) >= stakedBalance, "incorrect balance");
+            }
+
+            //stake in new pool
+            IConvexStaking(convexBooster).deposit(_pid,stakedBalance,false);
+
+            //update pid
+            convexPid = _pid;
+        }
+    }
+
+    function _stakeUnderlying(uint256 _amount) internal override{
+        if(convexPid != 0){
+            IConvexStaking(convexBooster).deposit(convexPid,_amount,false);
+        }
+    }
+
+    function _unstakeUnderlying(uint256 _amount) internal override{
+        if(convexPid != 0){
+            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            IConvexStaking(rewards).withdrawAndUnwrap(_amount,false);
+        }
+    }
+
+    function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
+        if(convexPid != 0){
+            //get staking
+            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            //get balance
+            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
+        }else{
+            _totalCollateralBalance = collateralContract.balanceOf(address(this));   
+        }
     }
 
     // ============================================================================================
