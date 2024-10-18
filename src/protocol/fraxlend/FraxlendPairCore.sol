@@ -337,7 +337,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return _isProtocolOrOwner();
+        return _isProtocolOrOwner() || msg.sender == IPairRegistry(registry).rewardHandler();
     }
 
     function _claimPoolRewards() internal override{
