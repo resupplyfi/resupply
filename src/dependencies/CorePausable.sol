@@ -12,17 +12,17 @@ import {CoreOwnable} from "./CoreOwnable.sol";
 contract CorePausable is CoreOwnable {
     constructor(address _core) CoreOwnable(_core) {}
 
-    modifier whenNotPaused() {
-        require(!isPaused(), "Paused");
+    modifier whenProtocolNotPaused() {
+        require(!isProtocolPaused(), "Paused");
         _;
     }
 
-    modifier whenPaused() {
-        require(isPaused(), "!Paused");
+    modifier whenProtocolPaused() {
+        require(isProtocolPaused(), "!Paused");
         _;
     }
 
-    function isPaused() public view returns (bool) {
-        return CORE.isPaused(address(this));
+    function isProtocolPaused() public view returns (bool) {
+        return CORE.isProtocolPaused();
     }
 }

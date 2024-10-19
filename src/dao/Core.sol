@@ -26,7 +26,6 @@ contract Core {
     uint256 public immutable epochLength;
     // System-wide pause. When true, disables trove adjustments across all collaterals.
     bool public paused;
-    mapping(address => bool) public assetPaused;
 
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner, uint256 deadline);
 
@@ -37,8 +36,6 @@ contract Core {
     event GuardianSet(address guardian);
 
     event ProtocolPaused(bool indexed paused);
-
-    event AssetPaused(address indexed asset, bool indexed paused);
 
     constructor(address _owner, uint256 _epochLength, address _guardian, address _feeReceiver) {
         require(_epochLength > 0, "Epoch length must be greater than 0");
@@ -87,19 +84,8 @@ contract Core {
         emit ProtocolPaused(_paused);
     }
 
-    /**
-     * @notice Pauses a specific asset within the protocol.
-     * @param _asset Address of the asset to pause
-     * @param _paused If true the asset is paused
-     */
-    function pauseAsset(address _asset, bool _paused) external {
-        require((_paused && msg.sender == guardian) || msg.sender == owner, "Unauthorized");
-        assetPaused[_asset] = _paused;
-        emit AssetPaused(_asset, _paused);
-    }
-
-    function isPaused(address _asset) external view returns (bool) {
-        return paused || assetPaused[_asset];
+    function isProtocolPaused() external view returns (bool) {
+        return paused;
     }
 
     function transferOwnership(address newOwner) external onlyOwner {

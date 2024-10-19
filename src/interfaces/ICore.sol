@@ -6,8 +6,7 @@ interface ICore {
     event GuardianSet(address guardian);
     event OwnershipTransferred(address oldOwner, address owner);
     event OwnershipTransferStarted(address owner, address pendingOwner, uint256 deadline);
-    event Paused();
-    event Unpaused();
+    event ProtocolPaused();
 
     function acceptOwnership() external;
 
@@ -37,9 +36,7 @@ interface ICore {
 
     function pendingOwner() external view returns (address);
 
-    function isPaused(address _asset) external view returns (bool);
-
-    function pauseAsset(address _asset, bool _paused) external;
+    function isProtocolPaused() external view returns (bool);
 
     function pauseProtocol(bool _paused) external;
 
