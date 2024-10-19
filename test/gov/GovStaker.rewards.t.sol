@@ -350,15 +350,19 @@ contract OperationTest is Setup {
                         staker.cooldown(users[x], bal / (x + 2));
                     }
                 }
-                if (i % 2 == 0) airdropAndNotify(address(rewardToken2), 500e18);
-                airdropAndNotify(address(rewardToken), 250e18);
+                if (i % 2 == 0) airdropAndNotify(address(rewardToken2), 500e20);
+                airdropAndNotify(address(rewardToken), 250e20);
             }
             skip(1 weeks);
         }
 
+        skip(10 weeks);
 
+        uint ts = staker.totalSupply();
+        uint totalStaked;
         // check that the rewards are distributed correctly
         for (uint256 x = 0; x < users.length; x++) {
+            totalStaked += staker.balanceOf(users[x]);
             uint before1 = rewardToken.balanceOf(users[x]);
             uint before2 = rewardToken2.balanceOf(users[x]);
             uint earned1 = staker.earned(users[x], address(rewardToken));
@@ -372,10 +376,11 @@ contract OperationTest is Setup {
             assertEq(staker.earned(users[x], address(rewardToken)), 0);
             assertEq(staker.earned(users[x], address(rewardToken2)), 0);
         }
-
+        assertEq(totalStaked, ts);
         // check that the rewards are gone
-        assertLt(rewardToken.balanceOf(address(staker)), 1e10); // allow some dust
-        assertLt(rewardToken2.balanceOf(address(staker)), 1e10); // allow some dust
+        uint dust = 1e8;
+        assertLt(rewardToken.balanceOf(address(staker)), dust); // allow some dust
+        assertLt(rewardToken2.balanceOf(address(staker)), dust); // allow some dust
     }
 
     function addRewards(address _token) public {
