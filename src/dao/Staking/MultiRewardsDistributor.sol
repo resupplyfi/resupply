@@ -238,10 +238,15 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @return pending Amount of reward token pending claim.
      */
     function earned(address _account, address _rewardsToken) public view returns (uint256 pending) {
-        pending =
-            (balanceOf(_account) * (rewardPerToken(_rewardsToken) - userRewardPerTokenPaid[_account][_rewardsToken])) /
-            PRECISION +
-            rewards[_account][_rewardsToken];
+        pending = (
+                balanceOf(_account) 
+                * (
+                    rewardPerToken(_rewardsToken) 
+                    - userRewardPerTokenPaid[_account][_rewardsToken]
+                )
+            ) 
+            / PRECISION 
+            + rewards[_account][_rewardsToken];
     }
 
     /**

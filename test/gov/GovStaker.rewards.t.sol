@@ -95,7 +95,6 @@ contract OperationTest is Setup {
             address(rewardToken)
         );
         assertGt(firstWeekRewards, 0);
-        console2.log("Total Rewards per week (starting):%e", firstWeekRewards);
 
         // sleep to earn some profits
         skip(1 weeks);
@@ -103,7 +102,6 @@ contract OperationTest is Setup {
         // check earnings, get reward
         uint256 earned = staker.earned(user1, address(rewardToken));
         assertGt(earned, 0);
-        console2.log("User Rewards earned after 24 hours:%e", earned);
         vm.prank(user1);
         staker.getReward();
         assertGe(rewardToken.balanceOf(user1), earned);
@@ -123,11 +121,9 @@ contract OperationTest is Setup {
         // user fully exits
         assertGt(staker.balanceOf(user1), 0, "ABC");
 
-
         staker.exit(user1);
         uint256 totalGains = rewardToken.balanceOf(user1);
         assertGt(totalGains, currentProfits);
-        console2.log("User Rewards earned after 48 hours:%e", totalGains);
         assertEq(staker.balanceOf(user1), 0);
     }
 
@@ -218,20 +214,21 @@ contract OperationTest is Setup {
         // staker.cooldown(amount / 2);
 
         // sleep to earn some profits
-        skip(1 weeks);
+        skip(staker.epochLength());
 
-        // user fully exits
-        console.log("User balance before exit: %e", staker.balanceOf(user1));
+        // Assert that user with current earned rewards + realized balance gets rewards upon exit
+        (IGovStaker.AccountData memory acctData, ) = staker.checkpointAccount(user1);
         earned = staker.earned(user1, address(rewardToken2));
-        console.log("User earned before exit: %e", earned);
         assertGt(staker.balanceOf(user1), 0);
+        assertGt(acctData.realizedStake, 0);
+        assertGt(earned, 0);
+
         vm.expectEmit(true, true, false, true);
         emit RewardPaid(user1, address(rewardToken2), earned);
-
         staker.exit(user1);
-        assertEq(staker.balanceOf(user1), 0);
+
+        assertEq(staker.accountData(user1).realizedStake, 0);
         uint256 totalGainsTwo = rewardToken2.balanceOf(user1);
-        console.log("User balance after exit: %e", totalGainsTwo);
         assertGt(totalGainsTwo, currentProfitsTwo);
         assertEq(staker.balanceOf(user1), 0);
         vm.stopPrank();
@@ -312,7 +309,6 @@ contract OperationTest is Setup {
         assertEq(firstWeekRewards2, firstWeekRewards2CheckTwo);
         assertGt(firstWeekRewardsCheckTwo, firstWeekRewards);
 
-        // TODO: ADD MORE TESTING HERE
     }
 
 
@@ -338,13 +334,21 @@ contract OperationTest is Setup {
         for (; i < 20; i++) { // 20 weeks
             for (uint256 x = 0; x < users.length; x++) {
                 uint bal = staker.balanceOf(users[x]);
+                if (i > 0 && i % 5 == 0 && x == 1) {
+                    vm.prank(users[x]);
+                    staker.exit(users[x]);
+                }
                 if (i % 2 == 0 || x > 0) {
                     vm.prank(users[x]);
                     staker.stake(users[x], amountToStake / (x + 1));
                 }
                 if (bal > 0) {
-                    vm.prank(users[x]);
-                    staker.cooldown(users[x], bal / (x + 2));
+                    staker.checkpointAccount(users[x]);
+                    uint realizedStake = staker.accountData(users[x]).realizedStake;
+                    if (realizedStake > 0) {
+                        vm.prank(users[x]);
+                        staker.cooldown(users[x], bal / (x + 2));
+                    }
                 }
                 if (i % 2 == 0) airdropAndNotify(address(rewardToken2), 500e18);
                 airdropAndNotify(address(rewardToken), 250e18);
@@ -352,25 +356,26 @@ contract OperationTest is Setup {
             skip(1 weeks);
         }
 
-        console.log("xxxRT",rewardToken.balanceOf(address(staker)));
-        console.log("xxxRT2",rewardToken2.balanceOf(address(staker)));
-        
-        uint256 numRewards = staker.rewardTokensLength();
-        for (i = 0; i < users.length; i++) {
-            console.log("RT",rewardToken.balanceOf(address(staker)));
-            console.log("RT2",rewardToken2.balanceOf(address(staker)));
-            console2.log("User getting reward", i, staker.earned(users[i], address(rewardToken)) / 1e18);
-            vm.prank(users[i]);
-            for(uint256 x = 0; x < numRewards; x++) {
-                ERC20 _rewardToken = ERC20(staker.rewardTokens(x));
-                console2.log("Balance of reward token", x, _rewardToken.balanceOf(address(staker)));
-            }
+
+        // check that the rewards are distributed correctly
+        for (uint256 x = 0; x < users.length; x++) {
+            uint before1 = rewardToken.balanceOf(users[x]);
+            uint before2 = rewardToken2.balanceOf(users[x]);
+            uint earned1 = staker.earned(users[x], address(rewardToken));
+            uint earned2 = staker.earned(users[x], address(rewardToken2));
+            vm.prank(users[x]);
             staker.getReward();
+            uint gain1 = rewardToken.balanceOf(users[x]) - before1;
+            uint gain2 = rewardToken2.balanceOf(users[x]) - before2;
+            assertEq(earned1, gain1);
+            assertEq(earned2, gain2);
+            assertEq(staker.earned(users[x], address(rewardToken)), 0);
+            assertEq(staker.earned(users[x], address(rewardToken2)), 0);
         }
 
         // check that the rewards are gone
-        assertLt(rewardToken.balanceOf(address(staker)), 1e18);
-        assertLt(rewardToken2.balanceOf(address(staker)), 1e18);
+        assertLt(rewardToken.balanceOf(address(staker)), 1e10); // allow some dust
+        assertLt(rewardToken2.balanceOf(address(staker)), 1e10); // allow some dust
     }
 
     function addRewards(address _token) public {

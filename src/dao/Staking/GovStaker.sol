@@ -72,7 +72,8 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     }
 
 
-    function stake(address _account, uint _amount) external callerOrDelegated(_account) returns (uint) {
+
+    function stake(address _account, uint _amount) external callerOrDelegated(_account) updateReward(_account) returns (uint) {
         require(_amount > 0 && _amount < type(uint120).max, "invalid amount");
 
         // Before going further, let's sync our account and total weights
@@ -97,17 +98,17 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
     function cooldown(address _account, uint _amount) external callerOrDelegated(_account) returns (uint) {
-        return _cooldown(_account, _amount);
+        return _cooldown(_account, _amount); // triggers updateReward
     }
 
     /**
      * @notice Initiate cooldown and claim any outstanding rewards.
      */
     function exit(address _account) external callerOrDelegated(_account) returns (uint) {
-        uint balance = balanceOf(_account);
-        _cooldown(_account, balance); // triggers updateReward
+        (AccountData memory acctData, ) = _checkpointAccount(_account, getEpoch());
+        _cooldown(_account, acctData.realizedStake); // triggers updateReward
         _getRewardFor(_account);
-        return balance;
+        return acctData.realizedStake;
     }
 
     function _cooldown(address _account, uint _amount) internal updateReward(_account) returns (uint) {

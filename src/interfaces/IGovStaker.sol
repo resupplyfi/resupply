@@ -24,8 +24,8 @@ interface IGovStaker {
     }
 
     struct AccountData {
-        uint120 realizedStake;
-        uint120 pendingStake;
+        uint120 realizedStake; // Amount of stake that has fully realized weight.
+        uint120 pendingStake; // Amount of stake that has not yet fully realized weight.
         uint16 lastUpdateEpoch;
     }
 
@@ -57,6 +57,7 @@ interface IGovStaker {
     function approvedCaller(address account, address caller) external view returns (ApprovalStatus);
 
     /* ========== EXTERNAL FUNCTIONS ========== */
+    function accountData(address account) external view returns (AccountData memory);
     function stakeToken() external view returns (address);
     function balanceOf(address account) external view returns (uint256);
     function totalSupply() external view returns (uint256);
