@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
+import { IAuthHook } from '../interfaces/IAuthHook.sol';
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+
 /**
     @title Core
     @author Prisma Finance (with edits by Relend.fi)
@@ -11,66 +14,102 @@ pragma solidity ^0.8.22;
             using `Ownable`.
  */
 contract Core {
-    address public feeReceiver;
+    using Address for address;
 
-    address public owner;
-    address public pendingOwner;
-    uint256 public ownershipTransferDelay;
-    address public guardian;
+    address public voter;
+    address public pendingVoter;
+    uint256 public voterTransferDelay;
 
-    // We enforce a three day delay between committing and applying
-    // an ownership change, as a sanity check on a proposed new owner
-    // and to give users time to react in case the act is malicious.
-    uint256 public constant OWNERSHIP_TRANSFER_DELAY = 3 days;
+    // We enforce a three day delay when swapping
+    uint256 public constant VOTER_TRANSFER_DELAY = 3 days;
     uint256 public immutable startTime;
     uint256 public immutable epochLength;
     // System-wide pause. When true, disables trove adjustments across all collaterals.
-    bool public paused;
+    bool private paused;
 
-    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner, uint256 deadline);
+    // permission for callers to execute arbitrary calls via this contract's `execute` function
+    mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) operatorPermissions;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    event FeeReceiverSet(address feeReceiver);
-
-    event GuardianSet(address guardian);
-
+    event VoterTransferStarted(address indexed previousVoter, address indexed newVoter);
+    event VoterTransferred(address indexed previousVoter, address indexed newVoter);
     event ProtocolPaused(bool indexed paused);
+    event OperatorExecuted(address indexed caller, address indexed target, bytes data);
+    event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);
 
-    constructor(address _owner, uint256 _epochLength, address _guardian, address _feeReceiver) {
+    struct Action {
+        address target;
+        bytes data;
+    }
+
+    struct OperatorAuth {
+        bool authorized;    // uint8
+        IAuthHook authHook;
+    }
+
+    constructor(address _voter, uint256 _epochLength) {
         require(_epochLength > 0, "Epoch length must be greater than 0");
         require(_epochLength <= 100 days, "Epoch length must be less than 100 days");
         startTime = (block.timestamp / _epochLength) * _epochLength;
         epochLength = _epochLength;
-        owner = _owner;
-        guardian = _guardian;
-        feeReceiver = _feeReceiver;
-        emit GuardianSet(_guardian);
-        emit FeeReceiverSet(_feeReceiver);
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
-        _;
+        voter = _voter;
     }
 
     /**
-     * @notice Set the receiver of all fees across the protocol
-     * @param _feeReceiver Address of the fee's recipient
+        @notice Execute an arbitrary function call using this contract
+        @dev Callable via the owner, or if explicit permission is given
+             to the caller for this target and function selector
      */
-    function setFeeReceiver(address _feeReceiver) external onlyOwner {
-        feeReceiver = _feeReceiver;
-        emit FeeReceiverSet(_feeReceiver);
+    function execute(address target, bytes calldata data) external returns (bytes memory) {
+        if (msg.sender == voter) {
+            return target.functionCall(data);
+        }
+        else {
+            bytes4 selector = bytes4(data[:4]);
+            OperatorAuth memory auth = operatorPermissions[msg.sender][address(0)][selector];
+            if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.preHook(msg.sender, target, data), "!PreHook");
+            bytes memory result = target.functionCall(data);
+            if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.postHook(result, msg.sender, target, data), "!PostHook");
+            emit OperatorExecuted(msg.sender, target, data);
+            return result;
+        }
     }
 
     /**
-     * @notice Set the guardian address
-               The guardian can execute some emergency actions
-     * @param _guardian Guardian address
+        @notice Grant or revoke permission for `caller` to call one or more
+                functions on `target` via this contract.
      */
-    function setGuardian(address _guardian) external onlyOwner {
-        guardian = _guardian;
-        emit GuardianSet(_guardian);
+    function setOperatorPermissions(
+        address caller,
+        address target,
+        bool[] memory authorized,
+        bytes4[] memory selectors,
+        IAuthHook[] memory authHooks
+    ) public {
+        require(msg.sender == address(this), "Unauthorized");
+        require(
+            selectors.length == authorized.length &&
+            selectors.length == authHooks.length, 
+            "Param length mismatch"
+        );
+        mapping(bytes4 => OperatorAuth) storage _operatorPermissions = operatorPermissions[caller][target];
+        for (uint256 i = 0; i < selectors.length; i++) {
+            _operatorPermissions[selectors[i]] = OperatorAuth(authorized[i], authHooks[i]);
+            emit OperatorSet(caller, target, authorized[i], selectors[i], authHooks[i]);
+        }
+    }
+
+    function transferVoter(address newVoter) external {
+        require(msg.sender == address(this), "Unauthorized");
+        pendingVoter = newVoter;
+        emit VoterTransferStarted(voter, newVoter);
+    }
+
+    function acceptTransferVoter() external {
+        require(msg.sender == pendingVoter, "Only new owner");
+        emit VoterTransferred(voter, pendingVoter);
+
+        voter = pendingVoter;
+        pendingVoter = address(0);
     }
 
     /**
@@ -78,31 +117,13 @@ contract Core {
      *         Pausing is used to mitigate risks in exceptional circumstances.
      * @param _paused If true the protocol is paused
      */
-    function pauseProtocol(bool _paused) external {
-        require((_paused && msg.sender == guardian) || msg.sender == owner, "Unauthorized");
+    function pauseProtocol(bool _paused) public {
+        require(msg.sender == address(this), "Unauthorized");
         paused = _paused;
         emit ProtocolPaused(_paused);
     }
 
     function isProtocolPaused() external view returns (bool) {
         return paused;
-    }
-
-    function transferOwnership(address newOwner) external onlyOwner {
-        pendingOwner = newOwner;
-        ownershipTransferDelay = block.timestamp + OWNERSHIP_TRANSFER_DELAY;
-
-        emit OwnershipTransferStarted(msg.sender, newOwner, block.timestamp + OWNERSHIP_TRANSFER_DELAY);
-    }
-
-    function acceptTransferOwnership() external {
-        require(msg.sender == pendingOwner, "Only new owner");
-        require(block.timestamp >= ownershipTransferDelay, "Delay not passed");
-
-        emit OwnershipTransferred(owner, pendingOwner);
-
-        owner = pendingOwner;
-        pendingOwner = address(0);
-        ownershipTransferDelay = 0;
     }
 }

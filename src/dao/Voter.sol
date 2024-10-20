@@ -2,9 +2,9 @@
 pragma solidity ^0.8.22;
 
 import { GovStaker } from './staking/GovStaker.sol';
-import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
 import { EpochTracker } from '../dependencies/EpochTracker.sol';
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
 
@@ -15,8 +15,32 @@ import { ICore } from '../interfaces/ICore.sol';
             arbitrary function calls only after a required percentage of stakers
             have signalled in favor of performing the action.
  */
-contract Voting is DelegatedOps, EpochTracker {
-    using Address for address;
+contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
+
+    uint256 public immutable TOKEN_DECIMALS;
+    uint256 public constant VOTING_PERIOD = 1 weeks;
+    uint256 public constant EXECUTION_DELAY = 1 days;
+    uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
+    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
+    uint256 public constant MAX_PCT = 10000;
+
+    IGovStaker public immutable staker;
+
+    Proposal[] proposalData;
+    // Proposal ID -> Action[]
+    mapping(uint256 => Action[]) proposalPayloads;
+
+    // Record of user's vote: account -> ID -> Vote
+    mapping(address account => mapping(uint256 id => Vote vote)) public accountVoteWeights;
+
+    // Record of last created proposal timestamp for a given account: account -> timestamp
+    mapping(address account => uint256 timestamp) public latestProposalTimestamp;
+
+    // Settable state variables
+    // percent of total weight required to create a new proposal
+    uint256 public minCreateProposalPct;
+    // percent of total weight that must vote for a proposal before it can be executed
+    uint256 public passingPct;
 
     event ProposalCreated(
         address indexed account,
@@ -35,6 +59,7 @@ contract Voting is DelegatedOps, EpochTracker {
     );
     event ProposalCreationMinPctSet(uint256 weight);
     event ProposalPassingPctSet(uint256 pct);
+    event OperatorExecuted(address indexed caller, address indexed target, bytes data);
 
     struct Proposal {
         uint16 epoch; // epoch which vote weights are based upon
@@ -54,34 +79,6 @@ contract Voting is DelegatedOps, EpochTracker {
         bytes data;
     }
 
-    uint256 public immutable BOOTSTRAP_FINISH;
-    uint256 public immutable TOKEN_DECIMALS;
-    uint256 public constant VOTING_PERIOD = 1 weeks;
-    uint256 public constant EXECUTION_DELAY = 1 days;
-    uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
-    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
-    uint256 public constant SET_GUARDIAN_PASSING_PCT = 5010;
-    uint256 public constant MAX_PCT = 10000;
-
-    IGovStaker public immutable staker;
-    ICore public immutable core;
-
-    Proposal[] proposalData;
-    // Proposal ID -> Action[]
-    mapping(uint256 => Action[]) proposalPayloads;
-
-    // Record of user's vote: account -> ID -> Vote
-    mapping(address account => mapping(uint256 id => Vote vote)) public accountVoteWeights;
-
-    // Record of last created proposal timestamp for a given account: account -> timestamp
-    mapping(address account => uint256 timestamp) public latestProposalTimestamp;
-
-    // Settable state variables
-    // percent of total weight required to create a new proposal
-    uint256 public minCreateProposalPct;
-    // percent of total weight that must vote for a proposal before it can be executed
-    uint256 public passingPct;
-
     /**
         @notice Constructor for Voting contract
         @param _core Address of the core contract
@@ -94,10 +91,8 @@ contract Voting is DelegatedOps, EpochTracker {
         IGovStaker _staker,
         uint256 _minCreateProposalPct,
         uint256 _passingPct
-    ) EpochTracker(_core) {
+    ) CoreOwnable(_core) EpochTracker(_core) {
         staker = _staker;
-        core = ICore(_core);
-
         minCreateProposalPct = _minCreateProposalPct;
         passingPct = _passingPct;
         TOKEN_DECIMALS = _staker.decimals();
@@ -173,17 +168,8 @@ contract Voting is DelegatedOps, EpochTracker {
         uint256 accountWeight = staker.getAccountWeightAt(account, epoch);
         require(accountWeight >= minCreateProposalWeight(), "Not enough weight to propose");
 
-        // if the only action is `core.setGuardian()`, use
-        // `SET_GUARDIAN_PASSING_PCT` instead of `passingPct`
-        uint256 _passingPct;
-        bool isSetGuardianPayload = _isSetGuardianPayload(payload.length, payload[0]);
-        if (isSetGuardianPayload) {
-            require(block.timestamp > BOOTSTRAP_FINISH, "Cannot change guardian during bootstrap");
-            _passingPct = SET_GUARDIAN_PASSING_PCT;
-        } else _passingPct = passingPct;
-
         uint256 totalWeight = staker.getTotalWeightAt(epoch) / 10 ** TOKEN_DECIMALS;
-        uint40 quorumWeight = uint40((totalWeight * _passingPct) / MAX_PCT);
+        uint40 quorumWeight = uint40((totalWeight * passingPct) / MAX_PCT);
         require(quorumWeight > 0, "Too little stake weight");
         uint256 proposalId = proposalData.length;
         proposalData.push(
@@ -257,17 +243,11 @@ contract Voting is DelegatedOps, EpochTracker {
 
     /**
         @notice Cancels a pending proposal
-        @dev Allows guardian to block malicious proposals
-             The guardian cannot cancel a proposal where the only action is
-             changing the guardian.
         @param id Proposal ID
      */
-    function cancelProposal(uint256 id) external {
-        require(msg.sender == core.guardian(), "Only guardian can cancel proposals");
+    function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
-
         Action[] storage payload = proposalPayloads[id];
-        require(!_isSetGuardianPayload(payload.length, payload[0]), "Guardian replacement not cancellable");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
@@ -288,7 +268,7 @@ contract Voting is DelegatedOps, EpochTracker {
         uint256 payloadLength = payload.length;
 
         for (uint256 i = 0; i < payloadLength; i++) {
-            payload[i].target.functionCall(payload[i].data);
+            ICore(core).execute(payload[i].target, payload[i].data);
         }
         emit ProposalExecuted(id);
     }
@@ -354,18 +334,5 @@ contract Voting is DelegatedOps, EpochTracker {
      */
     function acceptTransferOwnership() external {
         core.acceptTransferOwnership();
-    }
-
-    function _isSetGuardianPayload(uint256 payloadLength, Action memory action) internal view returns (bool) {
-        if (payloadLength == 1 && action.target == address(core)) {
-            bytes memory data = action.data;
-            // Extract the call sig from payload data
-            bytes4 sig;
-            assembly {
-                sig := mload(add(data, 0x20))
-            }
-            return sig == core.setGuardian.selector;
-        }
-        return false;
     }
 }

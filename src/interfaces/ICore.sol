@@ -8,6 +8,8 @@ interface ICore {
     event OwnershipTransferStarted(address owner, address pendingOwner, uint256 deadline);
     event ProtocolPaused();
 
+    function execute(address target, bytes calldata data) external;
+    
     function acceptOwnership() external;
 
     function acceptTransferOwnership() external;

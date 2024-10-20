@@ -8,7 +8,7 @@ import {GovStakerEscrow} from "../../src/dao/staking/GovStakerEscrow.sol";
 import {MockToken} from "../mocks/MockToken.sol";
 import {Setup} from "./utils/Setup.sol";
 import {MockPair} from "../mocks/MockPair.sol";
-import {Voting} from "../../src/dao/Voting.sol";
+import {Voter} from "../../src/dao/Voter.sol";
 
 contract OperationTest is Setup {
     MockPair pair;
@@ -26,25 +26,25 @@ contract OperationTest is Setup {
 
     function test_createProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
-        uint256 epoch = voting.getEpoch()-1; // Prior epoch to be used for voting
+        uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
 
-        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voting.TOKEN_DECIMALS() * voting.passingPct() / 10_000);
+        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.passingPct() / 10_000);
         vm.expectEmit(true, true, false, true);
-        emit Voting.ProposalCreated(
+        emit Voter.ProposalCreated(
             user1, 
             0, 
             buildProposalData(5), 
-            voting.getEpoch()-1, 
+            voter.getEpoch()-1, 
             quorumWeight
         );
         vm.prank(user1);
-        proposalId = voting.createNewProposal(
+        proposalId = voter.createNewProposal(
             user1,
             buildProposalData(5)
         );
 
         assertEq(pair.value(), 0);
-        assertEq(voting.getProposalCount(), 1);
+        assertEq(voter.getProposalCount(), 1);
         assertEq(proposalId, 0);
     }
 
@@ -53,44 +53,44 @@ contract OperationTest is Setup {
 
         vm.expectRevert("Delegate not approved");
         vm.prank(user2);
-        proposalId = voting.createNewProposal(
+        proposalId = voter.createNewProposal(
             user1,
             buildProposalData(5)
         );
         
         vm.prank(user1);
-        voting.setDelegateApproval(user2, true);
-        assertEq(voting.isApprovedDelegate(user1, user2), true);
+        voter.setDelegateApproval(user2, true);
+        assertEq(voter.isApprovedDelegate(user1, user2), true);
 
         vm.prank(user2);
-        proposalId = voting.createNewProposal(
+        proposalId = voter.createNewProposal(
             user1,
             buildProposalData(5)
         );
         assertEq(pair.value(), 0);
-        assertEq(voting.getProposalCount(), 1);
+        assertEq(voter.getProposalCount(), 1);
         assertEq(proposalId, 0);
-        assertEq(voting.canExecute(proposalId), false);
+        assertEq(voter.canExecute(proposalId), false);
     }
 
     function test_voteForProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
-        uint256 epoch = voting.getEpoch()-1; // Prior epoch to be used for voting
+        uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
         vm.prank(user1);
-        proposalId = voting.createNewProposal(
+        proposalId = voter.createNewProposal(
             user1,
             buildProposalData(5)
         );
 
         vm.prank(user1);
 
-        voting.voteForProposal(user1, proposalId);
+        voter.voteForProposal(user1, proposalId);
 
-        assertEq(voting.quorumReached(proposalId), true);
-        assertEq(voting.canExecute(proposalId), false);
-        skip(voting.VOTING_PERIOD());
-        assertEq(voting.canExecute(proposalId), false);
-        skip(voting.EXECUTION_DELAY());
+        assertEq(voter.quorumReached(proposalId), true);
+        assertEq(voter.canExecute(proposalId), false);
+        skip(voter.VOTING_PERIOD());
+        assertEq(voter.canExecute(proposalId), false);
+        skip(voter.EXECUTION_DELAY());
 
         (
             uint256 _epoch,
@@ -100,24 +100,24 @@ contract OperationTest is Setup {
             uint256 _weightNo,
             bool _executed,
             bool _executable,
-        ) = voting.getProposalData(proposalId);
+        ) = voter.getProposalData(proposalId);
         assertEq(epoch, _epoch);
         assertGt(_createdAt, 0);
         assertGt(_weightYes, 0);
         assertEq(_weightNo, 0);
         assertEq(_executed, false);
         assertEq(_executable, true);
-        assertEq(voting.canExecute(proposalId), true);
+        assertEq(voter.canExecute(proposalId), true);
 
         vm.expectEmit(true, false, false, true);
-        emit Voting.ProposalExecuted(proposalId);
-        voting.executeProposal(proposalId); //  Permissionless, no prank needed
+        emit Voter.ProposalExecuted(proposalId);
+        voter.executeProposal(proposalId); //  Permissionless, no prank needed
         assertEq(pair.value(), 5);
     }
 
-    function buildProposalData(uint256 _value) public view returns (Voting.Action[] memory) {
-        Voting.Action[] memory payload = new Voting.Action[](1);
-        payload[0] = Voting.Action({
+    function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {
+        Voter.Action[] memory payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
             target: address(pair),
             data: abi.encodeWithSelector(pair.setValue.selector, _value)
         });

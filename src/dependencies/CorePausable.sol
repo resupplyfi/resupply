@@ -23,6 +23,6 @@ contract CorePausable is CoreOwnable {
     }
 
     function isProtocolPaused() public view returns (bool) {
-        return CORE.isProtocolPaused();
+        return core.isProtocolPaused();
     }
 }

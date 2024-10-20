@@ -4,21 +4,21 @@ pragma solidity ^0.8.22;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {IGovStaker} from "../../../src/interfaces/IGovStaker.sol";
-import {ICore} from "../../../src/interfaces/ICore.sol";
-import {GovStaker} from "../../../src/dao/staking/GovStaker.sol";
-import {Core} from "../../../src/dao/Core.sol";
-import {Voting} from "../../../src/dao/Voting.sol";
-import {MockToken} from "../../mocks/MockToken.sol";
-import {GovStakerEscrow} from "../../../src/dao/staking/GovStakerEscrow.sol";
-import {IGovStakerEscrow} from "../../../src/interfaces/IGovStakerEscrow.sol";
+import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
+import { ICore } from "../../../src/interfaces/ICore.sol";
+import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
+import { Core } from "../../../src/dao/Core.sol";
+import { Voter } from "../../../src/dao/Voter.sol";
+import { MockToken } from "../../mocks/MockToken.sol";
+import { GovStakerEscrow } from "../../../src/dao/staking/GovStakerEscrow.sol";
+import { IGovStakerEscrow } from "../../../src/interfaces/IGovStakerEscrow.sol";
 
 contract Setup is Test {
     ICore public core;
     MockToken public stakingToken;
     IGovStaker public staker;
     GovStakerEscrow public escrow;
-    Voting public voting;
+    Voter public voter;
     address user1 = address(0x11);
     address user2 = address(0x22);
     address user3 = address(0x33);
@@ -33,12 +33,12 @@ contract Setup is Test {
 
         deployContracts();
 
-        skip(voting.MIN_TIME_BETWEEN_PROPOSALS()); // Skip to ensure the first proposal can be created
+        skip(voter.MIN_TIME_BETWEEN_PROPOSALS()); // Skip to ensure the first proposal can be created
         vm.prank(core.owner());
-        core.transferOwnership(address(voting));
+        core.transferOwnership(address(voter));
         
         skip(core.OWNERSHIP_TRANSFER_DELAY());
-        voting.acceptTransferOwnership();
+        voter.acceptTransferOwnership();
 
         vm.startPrank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
@@ -51,13 +51,13 @@ contract Setup is Test {
         vm.label(address(feeReceiver), "Fee Receiver");
         vm.label(address(guardian), "Guardian");
         vm.label(address(core), "Core");
-        vm.label(address(voting), "Voting");
+        vm.label(address(voter), "Voter");
     }
 
     function deployContracts() public {
         core = ICore(
             address(
-                new Core(tempGov, 1 weeks, guardian, feeReceiver)
+                new Core(guardian, 1 weeks)
             )
         );
         uint256 nonce = vm.getNonce(address(this));
@@ -78,7 +78,7 @@ contract Setup is Test {
             )
         );
 
-        voting = new Voting(address(core), IGovStaker(staker), 100, 3000);
+        voter = new Voter(address(core), IGovStaker(staker), 100, 3000);
     }
 
 }
