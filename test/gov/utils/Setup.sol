@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
-import { ICore } from "../../../src/interfaces/ICore.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
 import { Core } from "../../../src/dao/Core.sol";
 import { Voter } from "../../../src/dao/Voter.sol";
@@ -14,7 +13,7 @@ import { GovStakerEscrow } from "../../../src/dao/staking/GovStakerEscrow.sol";
 import { IGovStakerEscrow } from "../../../src/interfaces/IGovStakerEscrow.sol";
 
 contract Setup is Test {
-    ICore public core;
+    Core public core;
     MockToken public stakingToken;
     IGovStaker public staker;
     GovStakerEscrow public escrow;
@@ -24,8 +23,6 @@ contract Setup is Test {
     address user3 = address(0x33);
     address dev = address(0x42069);
     address tempGov = address(987);
-    address guardian = address(654);
-    address feeReceiver = address(321);
 
     function setUp() public virtual {
         // Deploy the mock factory first for deterministic location
@@ -41,16 +38,14 @@ contract Setup is Test {
         // label all the used addresses for traces
         vm.label(address(stakingToken), "Gov Token");
         vm.label(address(tempGov), "Temp Gov");
-        vm.label(address(feeReceiver), "Fee Receiver");
-        vm.label(address(guardian), "Guardian");
         vm.label(address(core), "Core");
         vm.label(address(voter), "Voter");
     }
 
     function deployContracts() public {
-        core = ICore(
+        core = Core(
             address(
-                new Core(guardian, 1 weeks)
+                new Core(tempGov, 1 weeks)
             )
         );
         uint256 nonce = vm.getNonce(address(this));

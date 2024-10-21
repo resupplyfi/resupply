@@ -86,7 +86,7 @@ contract OperationTest is Setup {
         vm.stopPrank();
 
         // only owner can setup rewards
-        vm.expectRevert("Only owner");
+        vm.expectRevert("!core");
         vm.prank(user1);
         staker.addReward(address(rewardToken), owner, WEEK);
 

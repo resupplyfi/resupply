@@ -2,20 +2,27 @@ pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {GovStaker} from "../../src/dao/staking/GovStaker.sol";
-import {GovStakerEscrow} from "../../src/dao/staking/GovStakerEscrow.sol";
-import {MockToken} from "../mocks/MockToken.sol";
-import {Setup} from "./utils/Setup.sol";
-import {MockPair} from "../mocks/MockPair.sol";
-import {Voter} from "../../src/dao/Voter.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { GovStaker } from "../../src/dao/staking/GovStaker.sol";
+import { GovStakerEscrow } from "../../src/dao/staking/GovStakerEscrow.sol";
+import { MockToken } from "../mocks/MockToken.sol";
+import { Setup } from "./utils/Setup.sol";
+import { MockPair } from "../mocks/MockPair.sol";
+import { Voter } from "../../src/dao/Voter.sol";
 
-contract OperationTest is Setup {
+contract VoterTest is Setup {
     MockPair pair;
     function setUp() public override {
         super.setUp();
-        // Create a mock contract for us to test with
+
+        // Create a mock protocol contract for us to test with
         pair = new MockPair(address(core));
+
+        // Transfer ownership of the core contract to the voter contract
+        vm.prank(address(core));
+        core.transferVoter(address(voter));
+        vm.prank(address(voter));
+        core.acceptTransferVoter();
 
         // Give user1 some stake so they can create a proposal + vote.
         vm.prank(user1);
@@ -98,14 +105,14 @@ contract OperationTest is Setup {
             ,
             uint256 _weightYes,
             uint256 _weightNo,
-            bool _executed,
+            bool _processed,
             bool _executable,
         ) = voter.getProposalData(proposalId);
         assertEq(epoch, _epoch);
         assertGt(_createdAt, 0);
         assertGt(_weightYes, 0);
         assertEq(_weightNo, 0);
-        assertEq(_executed, false);
+        assertEq(_processed, false);
         assertEq(_executable, true);
         assertEq(voter.canExecute(proposalId), true);
 
@@ -113,6 +120,16 @@ contract OperationTest is Setup {
         emit Voter.ProposalExecuted(proposalId);
         voter.executeProposal(proposalId); //  Permissionless, no prank needed
         assertEq(pair.value(), 5);
+    }
+
+    function test_transferVoter() public {
+        vm.prank(address(core));
+        core.transferVoter(address(user2));
+        assertEq(core.voter(), address(voter)); // Should not be transferred yet
+
+        vm.prank(address(user2));
+        core.acceptTransferVoter();
+        assertEq(core.voter(), address(user2));
     }
 
     function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {

@@ -28,11 +28,7 @@ interface ICore {
 
     function startTime() external view returns (uint256);
 
-    function feeReceiver() external view returns (address);
-
-    function guardian() external view returns (address);
-
-    function owner() external view returns (address);
+    function voter() external view returns (address);
 
     function ownershipTransferDeadline() external view returns (uint256);
 

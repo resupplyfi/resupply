@@ -16,7 +16,7 @@ contract CoreOwnable {
     }
 
     modifier onlyOwner() {
-        require(msg.sender == address(core), "Only owner");
+        require(msg.sender == address(core), "!core");
         _;
     }
 

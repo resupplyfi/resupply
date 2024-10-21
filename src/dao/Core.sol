@@ -28,7 +28,7 @@ contract Core {
     bool private paused;
 
     // permission for callers to execute arbitrary calls via this contract's `execute` function
-    mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) operatorPermissions;
+    mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) public operatorPermissions;
 
     event VoterTransferStarted(address indexed previousVoter, address indexed newVoter);
     event VoterTransferred(address indexed previousVoter, address indexed newVoter);
@@ -44,6 +44,11 @@ contract Core {
     struct OperatorAuth {
         bool authorized;    // uint8
         IAuthHook authHook;
+    }
+
+    modifier onlyCore() {
+        require(msg.sender == address(this), "!core");
+        _;
     }
 
     constructor(address _voter, uint256 _epochLength) {
@@ -81,25 +86,15 @@ contract Core {
     function setOperatorPermissions(
         address caller,
         address target,
-        bool[] memory authorized,
-        bytes4[] memory selectors,
-        IAuthHook[] memory authHooks
-    ) public {
-        require(msg.sender == address(this), "Unauthorized");
-        require(
-            selectors.length == authorized.length &&
-            selectors.length == authHooks.length, 
-            "Param length mismatch"
-        );
-        mapping(bytes4 => OperatorAuth) storage _operatorPermissions = operatorPermissions[caller][target];
-        for (uint256 i = 0; i < selectors.length; i++) {
-            _operatorPermissions[selectors[i]] = OperatorAuth(authorized[i], authHooks[i]);
-            emit OperatorSet(caller, target, authorized[i], selectors[i], authHooks[i]);
-        }
+        bytes4 selector,
+        bool authorized,
+        IAuthHook authHook
+    ) onlyCore public {
+        operatorPermissions[caller][target][selector] = OperatorAuth(authorized, authHook);
+        emit OperatorSet(caller, target, authorized, selector, authHook);
     }
 
-    function transferVoter(address newVoter) external {
-        require(msg.sender == address(this), "Unauthorized");
+    function transferVoter(address newVoter) external onlyCore {
         pendingVoter = newVoter;
         emit VoterTransferStarted(voter, newVoter);
     }
@@ -107,7 +102,6 @@ contract Core {
     function acceptTransferVoter() external {
         require(msg.sender == pendingVoter, "Only new owner");
         emit VoterTransferred(voter, pendingVoter);
-
         voter = pendingVoter;
         pendingVoter = address(0);
     }
@@ -117,8 +111,7 @@ contract Core {
      *         Pausing is used to mitigate risks in exceptional circumstances.
      * @param _paused If true the protocol is paused
      */
-    function pauseProtocol(bool _paused) public {
-        require(msg.sender == address(this), "Unauthorized");
+    function pauseProtocol(bool _paused) public onlyCore {
         paused = _paused;
         emit ProtocolPaused(_paused);
     }

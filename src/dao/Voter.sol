@@ -128,7 +128,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             uint256 quorumWeight,
             uint256 weightYes,
             uint256 weightNo,
-            bool executed,
+            bool processed,
             bool executable,
             Action[] memory payload
         )
@@ -326,13 +326,5 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         passingPct = pct;
         emit ProposalPassingPctSet(pct);
         return true;
-    }
-
-    /**
-        @dev Unguarded method to allow accepting ownership transfer of `core`
-             at the end of the deployment sequence
-     */
-    function acceptTransferOwnership() external {
-        core.acceptTransferOwnership();
     }
 }
