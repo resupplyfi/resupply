@@ -33,13 +33,6 @@ contract Setup is Test {
 
         deployContracts();
 
-        skip(voter.MIN_TIME_BETWEEN_PROPOSALS()); // Skip to ensure the first proposal can be created
-        vm.prank(core.owner());
-        core.transferOwnership(address(voter));
-        
-        skip(core.OWNERSHIP_TRANSFER_DELAY());
-        voter.acceptTransferOwnership();
-
         vm.startPrank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
         stakingToken.mint(user1, 1_000_000 * 10 ** 18);

@@ -33,7 +33,7 @@ contract OperationTest is Setup {
 
     function setUp() public override {
         super.setUp();
-        owner = core.owner();
+        owner = address(core);
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
         rewardToken.mint(owner, 1_000_000 * 10 ** 18);
