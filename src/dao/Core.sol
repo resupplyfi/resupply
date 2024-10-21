@@ -43,7 +43,7 @@ contract Core {
 
     struct OperatorAuth {
         bool authorized;    // uint8
-        IAuthHook authHook;
+        IAuthHook hook;
     }
 
     modifier onlyCore() {
@@ -71,9 +71,9 @@ contract Core {
             auth = operatorPermissions[msg.sender][target][selector];
         }
         require(auth.authorized, "!authorized");
-        if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.preHook(msg.sender, target, data), "Auth PreHook Failed");
+        if (auth.hook != IAuthHook(address(0))) require(auth.hook.preHook(msg.sender, target, data), "Auth PreHook Failed");
         bytes memory result = target.functionCall(data);
-        if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.postHook(result, msg.sender, target, data), "Auth PostHook Failed");
+        if (auth.hook != IAuthHook(address(0))) require(auth.hook.postHook(result, msg.sender, target, data), "Auth PostHook Failed");
         emit OperatorExecuted(msg.sender, target, data);
         return result;
     }
