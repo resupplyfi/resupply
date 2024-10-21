@@ -7,6 +7,7 @@ pragma solidity ^0.8.19;
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
+import { IRewards } from "../interfaces/IRewards.sol";
 
 
 //claim rewards for various contracts
@@ -17,12 +18,14 @@ contract RewardHandler{
     address public immutable insurancepool;
     address public immutable pairEmissions;
     address public immutable insuranceEmissions;
+    address public immutable insuranceRevenue;
 
-    constructor(address _owner, address _registry, address _insurancepool, address _pairEmissions, address _insuranceEmissions){
+    constructor(address _owner, address _registry, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
         registry = _registry;
         insurancepool = _insurancepool;
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
+        insuranceRevenue = _insuranceRevenue;
     }
 
     function checkNewRewards(address _pair) external{
@@ -63,11 +66,14 @@ contract RewardHandler{
         }
 
         //claim emissions
-        //TODO
+        IRewards(pairEmissions).getReward(insurancepool);
     }
 
     function claimInsuranceRewards() external{
+        //claim revenue share
+        IRewards(insuranceRevenue).getReward(insurancepool);
+        
         //claim emissions
-        //TODO
+        IRewards(insuranceEmissions).getReward(insurancepool);
     }
 }
