@@ -61,27 +61,28 @@ contract Core {
 
     /**
         @notice Execute an arbitrary function call using this contract
-        @dev Callable via the owner, or if explicit permission is given
-             to the caller for this target and function selector
+        @dev Callable via the voter, or any operator with explicit permission.       
      */
     function execute(address target, bytes calldata data) external returns (bytes memory) {
-        if (msg.sender == voter) {
-            return target.functionCall(data);
+        if (msg.sender == voter) return target.functionCall(data);
+        bytes4 selector = bytes4(data[:4]);
+        OperatorAuth memory auth = operatorPermissions[msg.sender][address(0)][selector];
+        if (!auth.authorized) {
+            auth = operatorPermissions[msg.sender][target][selector];
         }
-        else {
-            bytes4 selector = bytes4(data[:4]);
-            OperatorAuth memory auth = operatorPermissions[msg.sender][address(0)][selector];
-            if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.preHook(msg.sender, target, data), "!PreHook");
-            bytes memory result = target.functionCall(data);
-            if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.postHook(result, msg.sender, target, data), "!PostHook");
-            emit OperatorExecuted(msg.sender, target, data);
-            return result;
-        }
+        require(auth.authorized, "!authorized");
+        if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.preHook(msg.sender, target, data), "Auth PreHook Failed");
+        bytes memory result = target.functionCall(data);
+        if (auth.authHook != IAuthHook(address(0))) require(auth.authHook.postHook(result, msg.sender, target, data), "Auth PostHook Failed");
+        emit OperatorExecuted(msg.sender, target, data);
+        return result;
     }
 
     /**
         @notice Grant or revoke permission for `caller` to call one or more
                 functions on `target` via this contract.
+        @dev Setting `target` to the zero address allows for global authorization of
+             `caller` to use `selector` on any target.
      */
     function setOperatorPermissions(
         address caller,

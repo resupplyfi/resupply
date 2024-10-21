@@ -9,15 +9,15 @@ import { MockToken } from "../mocks/MockToken.sol";
 import { Setup } from "./utils/Setup.sol";
 import { MockPair } from "../mocks/MockPair.sol";
 import { Voter } from "../../src/dao/Voter.sol";
-import { GuardianOperator } from "../../src/dao/operators/Guardian.sol";
+import { GuardianOperator } from "../../src/dao/operators/GuardianOperator.sol";
 import { IAuthHook } from "../../src/interfaces/IAuthHook.sol";
-
+import { GuardianAuthHook } from "../../src/dao/auth/GuardianAuthHook.sol";
 
 contract GuardianOperatorTest is Setup {
     MockPair pair;
     GuardianOperator guardianOperator;
     address guardianMultisig = address(0x555);
-
+    GuardianAuthHook authHook;
     function setUp() public override {
         super.setUp();
 
@@ -26,6 +26,7 @@ contract GuardianOperatorTest is Setup {
 
         guardianOperator = new GuardianOperator(address(core), guardianMultisig);
         assertEq(guardianOperator.guardian(), guardianMultisig);
+        authHook = new GuardianAuthHook();
 
         // Transfer ownership of the core contract to the voter contract
         vm.prank(address(core));
@@ -38,6 +39,8 @@ contract GuardianOperatorTest is Setup {
         staker.stake(user1, 100e18);
         skip(staker.epochLength() * 2); // We skip 2, so that the stake can be registered (first epoch) and finalized (second epoch).
         
+        vm.label(address(guardianOperator), "Guardian Operator");
+        vm.label(address(authHook), "Guardian Auth Hook");
     }
 
     function test_pauseProtocol() public {
@@ -49,6 +52,38 @@ contract GuardianOperatorTest is Setup {
 
         vm.prank(address(guardianMultisig));
         guardianOperator.pauseProtocol();
+        assertEq(core.isProtocolPaused(), true);
+    }
+
+    function test_UnpauseProtocol() public {
+        assertNotEq(address(authHook), address(0));
+
+        // Setup permissions for guardianOperator to call pauseProtocol on core
+        setOperatorPermissionsToPauseProtocol();
+
+        (, IAuthHook hook) = core.operatorPermissions(
+            address(guardianOperator), 
+            address(core),
+            bytes4(keccak256("pauseProtocol(bool)"))
+        );
+        assertEq(address(hook), address(authHook));
+
+        // Pause the protocol
+        vm.prank(address(core));
+        core.pauseProtocol(true);
+
+        // Attempt to unpause the protocol
+        vm.prank(address(guardianMultisig));
+        vm.expectRevert("Auth PostHook Failed");
+        guardianOperator.execute(
+            address(core),
+            abi.encodeWithSelector(
+                bytes4(keccak256("pauseProtocol(bool)")),
+                false // Unpause
+            )
+        );
+
+        // Protocol should still be paused
         assertEq(core.isProtocolPaused(), true);
     }
 
@@ -88,7 +123,7 @@ contract GuardianOperatorTest is Setup {
             address(core), // target
             selector,
             true, // authorized
-            IAuthHook(address(0))
+            IAuthHook(address(authHook))
         );
 
         (bool auth, ) = core.operatorPermissions(
