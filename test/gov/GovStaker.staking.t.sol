@@ -67,7 +67,6 @@ contract GovStakerTest is Setup {
 
         uint earned1 = staker.earned(user1, address(rewardToken1));
         uint earned2 = staker.earned(user1, address(rewardToken2));
-        console.log("earned", earned1, earned2);
 
         vm.prank(user1);
         staker.stake(user1, amountToStake);
@@ -79,8 +78,6 @@ contract GovStakerTest is Setup {
 
         earned1 = staker.earned(user1, address(rewardToken1));
         earned2 = staker.earned(user1, address(rewardToken2));
-
-        console.log("earned", earned1/1e18, earned2/1e18);
     }
 
     function _getRealizedStake(address _account) internal returns (uint) {
@@ -113,7 +110,6 @@ contract GovStakerTest is Setup {
         
         assertGt(amt, 0, "Amount should be greater than 0");
         assertGt(block.timestamp, staker.cooldowns(user1).end, "Cooldown should be over");
-        console.log("amtxxx", block.timestamp, staker.cooldowns(user1).end, staker.cooldowns(user1).amount);
         staker.unstake(user1, user1);
         vm.stopPrank();
 
@@ -207,7 +203,6 @@ contract GovStakerTest is Setup {
         uint amountToStake = stakingToken.balanceOf(user1);
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
         stakeSomeAndWait(user1, amountToStake);
-        console.log("weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
 
         // Cooldown
         vm.startPrank(user1);
@@ -224,15 +219,10 @@ contract GovStakerTest is Setup {
         assertGt(amountToStake, 0, "Amount to stake should be greater than 0");
         stakeSomeAndWait(user1, amountToStake);
         skip(warmupWait() * 2);
-        console.log("warmup", warmupWait(), "epoch", getEpoch());
-        console.log(getEpoch(), "weight", staker.getAccountWeight(user1), staker.balanceOf(user1));
-
         // Cooldown
         vm.startPrank(user1);
         staker.cooldown(user1, amountToStake / 2);
         vm.warp(getUserCooldownEnd(user1));
-        console.log("escrow balance", stakingToken.balanceOf(address(escrow)));
-        console.log("cooldown data", getUserCooldownEnd(user1), getUserCooldownAmount(user1));
         uint amount = staker.unstake(user1, user1);
         assertEq(amount, amountToStake / 2, "Unstake amount should be equal to staked amount");
         vm.stopPrank();
