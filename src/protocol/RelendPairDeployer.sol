@@ -26,7 +26,7 @@ pragma solidity ^0.8.19;
 // ====================================================================
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -40,7 +40,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice Deploys and initializes new FraxlendPairs
 /// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
-contract RelendPairDeployer is Ownable2Step {
+contract RelendPairDeployer is CoreOwnable {
     using Strings for uint256;
     using SafeERC20 for IERC20;
 
@@ -74,10 +74,9 @@ contract RelendPairDeployer is Ownable2Step {
         bytes customConfigData
     );
 
-    constructor(address _registry, address _operators, address _owner) Ownable2Step(){
+    constructor(address _registry, address _operators, address _core) CoreOwnable(_core){
         operators = _operators;
         registry = _registry;
-        _transferOwnership(_owner);
     }
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {

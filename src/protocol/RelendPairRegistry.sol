@@ -22,7 +22,7 @@ pragma solidity ^0.8.19;
 
 // ====================================================================
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -30,7 +30,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 
-contract RelendPairRegistry is Ownable2Step{
+contract RelendPairRegistry is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable token;
@@ -51,9 +51,8 @@ contract RelendPairRegistry is Ownable2Step{
     address public rewardHandler;
     address public insurancePool;
 
-    constructor(address _token, address _owner) Ownable2Step(){
+    constructor(address _token, address _core) CoreOwnable(_core){
         token = _token;
-        _transferOwnership(_owner);
     }
 
     // ============================================================================================
