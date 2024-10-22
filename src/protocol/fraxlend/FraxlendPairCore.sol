@@ -873,11 +873,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         totalBorrow = _totalBorrow;
 
         // Interactions
-        //unlike fraxlend, we mint on the fly
-        //so stables returned to this contract after repay with collateral still needs to be burnt
-        // if (_payer != address(this)) {
+        // burn from non-zero address.  zero address is only supplied during liquidations
+        // for liqudations the handler will do the burning
+        if (_payer != address(0)) {
             IPairRegistry(registry).burn(_payer, _amountToRepay);
-        // }
+        }
         emit RepayAsset(_payer, _borrower, _amountToRepay, _shares);
     }
 
@@ -1064,14 +1064,14 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
         // Effects & Interactions
         // NOTE: reverts if _shares > _userBorrowShares
-        // repay using this address so that stables are not burnt (yet)
+        // repay using address(0) to skip burning (liquidationHandler will burn from insurance pool)
         _repayAsset(
             _totalBorrow,
             _amountLiquidatorToRepay,
             _borrowerShares,
-            address(this),
+            address(0),
             _borrower
-        ); // liquidator repays shares on behalf of borrower
+        );
         // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
 
         
@@ -1081,7 +1081,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
         //call liquidation handler to distribute and burn debt
-        ILiquidationHandler(liquidationHandler).processCollateral(address(collateralContract), _collateralForLiquidator, _amountLiquidatorToRepay);
+        ILiquidationHandler(liquidationHandler).processLiquidationDebt(address(collateralContract), _collateralForLiquidator, _amountLiquidatorToRepay);
     }
 
     // ============================================================================================

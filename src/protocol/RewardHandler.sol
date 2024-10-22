@@ -87,7 +87,7 @@ contract RewardHandler{
         IRewards(pairEmissions).setWeight(msg.sender, _amount);
     }
 
-    function addInsuranceRewards() external{
+    function queueInsuranceRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IPairRegistry(registry).feeDeposit();
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");

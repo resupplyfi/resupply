@@ -6,4 +6,5 @@ interface IRewardHandler{
     function claimRewards(address _pair) external;
     function claimInsuranceRewards() external;
     function setPairWeight(address _pair, uint256 _amount) external;
+    function queueInsuranceRewards() external;
 }
