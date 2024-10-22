@@ -1,31 +1,35 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-// import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import { SafeERC20 } from "../libraries/SafeERC20.sol";
-// import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
+import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
+import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 
 //claim rewards for various contracts
 contract RewardHandler{
-    // using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
     address public immutable registry;
+    address public immutable revenueToken;
     address public immutable insurancepool;
     address public immutable pairEmissions;
     address public immutable insuranceEmissions;
     address public immutable insuranceRevenue;
 
-    constructor(address _owner, address _registry, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
+    constructor(address _owner, address _registry, address _revenueToken, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
         registry = _registry;
+        revenueToken = _revenueToken;
         insurancepool = _insurancepool;
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
+        IERC20(_insuranceRevenue).approve(_revenueToken, type(uint256).max);
     }
 
     function checkNewRewards(address _pair) external{
@@ -66,7 +70,7 @@ contract RewardHandler{
         }
 
         //claim emissions
-        IRewards(pairEmissions).getReward(insurancepool);
+        IRewards(pairEmissions).getReward(_pair);
     }
 
     function claimInsuranceRewards() external{
@@ -75,5 +79,20 @@ contract RewardHandler{
         
         //claim emissions
         IRewards(insuranceEmissions).getReward(insurancepool);
+    }
+
+    function setPairWeight(address _pair, uint256 _amount) external{
+        require(msg.sender == IPairRegistry(registry).feeDeposit(), "!feeDeposist");
+
+        IRewards(pairEmissions).setWeight(msg.sender, _amount);
+    }
+
+    function addInsuranceRewards() external{
+        //check that caller is feedeposit or operator of fee deposit
+        address feeDeposit = IPairRegistry(registry).feeDeposit();
+        require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
+
+        //queue up any reward tokens currently on this handler
+        IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
     }
 }

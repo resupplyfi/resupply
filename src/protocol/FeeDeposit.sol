@@ -6,6 +6,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
+
 
 
 //Fee deposit to collect/track fees and distribute
@@ -24,6 +26,8 @@ contract FeeDeposit is Ownable2Step{
     uint256 private constant WEEK = 7 * 86400;
 
     event FeesDistributed(address indexed _address, uint256 _amount);
+    event ReceivedRevenue(address indexed _address, uint256 _amount);
+    event SetOperator(address oldAddress, address newAddress);
 
     constructor(address _owner, address _registry, address _feeToken) Ownable2Step(){
         registry = _registry;
@@ -35,8 +39,6 @@ contract FeeDeposit is Ownable2Step{
         require(operator == msg.sender, "!operator");
         _;
     }
-
-    event SetOperator(address oldAddress, address newAddress);
 
     function setOperator(address _newAddress) external onlyOwner{
         emit SetOperator(operator, _newAddress);
@@ -56,14 +58,9 @@ contract FeeDeposit is Ownable2Step{
         //ensure caller is a registered pair
         require(IPairRegistry(registry).deployedPairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
 
-        //TODO track pair revenue
-        // trailing by timespan? epoch based?
-        //callable whenever? callable once per epoch?
-        /* example
-        uint _epoch = getCurrentEpoch();
-        _incrementEpochRevenuePerPair(pair, _epoch, interestEarned);
-        address _baseAsset = getBaseAsset(pair.asset());
-        _incrementEpochRevenuePerBaseAsset(_asset, _epoch, interestEarned);
-        */
+        emit ReceivedRevenue(msg.sender, _amount);
+        
+        //pass to handler
+        IRewardHandler(IPairRegistry(registry).rewardHandler()).setPairWeight(msg.sender, _amount);
     }
 }

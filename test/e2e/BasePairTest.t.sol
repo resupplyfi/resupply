@@ -311,7 +311,7 @@ contract BasePairTest is
         // fraxlendPairHelper = new FraxlendPairHelper();
         // setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
         // setSingleDeployerWhitelist(address(this), true);
-        pairRegistry = new RelendPairRegistry(Constants.Mainnet.COMPTROLLER_ADDRESS);
+        pairRegistry = new RelendPairRegistry(address(0),Constants.Mainnet.COMPTROLLER_ADDRESS);
         // deployer = new FraxlendPairDeployer(
         //     FraxlendPairDeployerParams({
         //         circuitBreaker: Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS,

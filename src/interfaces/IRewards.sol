@@ -8,6 +8,7 @@ interface IRewards{
     function totalSupply() external view returns(uint256);
     function balanceOf(address _account) external view returns(uint256);
     function queueNewRewards(uint256 _rewards) external returns(bool);
+    function setMinimumWeight(address _account, uint256 _amount) external;
     function setWeight(address _account, uint256 _amount) external returns(bool);
     function setWeights(address[] calldata _account, uint256[] calldata _amount) external;
     function getReward() external;

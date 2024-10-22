@@ -27,9 +27,13 @@ import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { IMintable } from "../interfaces/IMintable.sol";
+import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 
 contract RelendPairRegistry is Ownable2Step{
     using SafeERC20 for IERC20;
+
+    address public immutable token;
 
     /// @notice List of the addresses of all deployed Pairs
     address[] public deployedPairsArray;
@@ -47,7 +51,8 @@ contract RelendPairRegistry is Ownable2Step{
     address public rewardHandler;
     address public insurancePool;
 
-    constructor(address _owner) Ownable2Step(){
+    constructor(address _token, address _owner) Ownable2Step(){
+        token = _token;
         _transferOwnership(_owner);
     }
 
@@ -70,18 +75,6 @@ contract RelendPairRegistry is Ownable2Step{
     // ============================================================================================
     // Functions: External Methods
     // ============================================================================================
-
-    /// @notice The ```SetCircuitBreaker``` event is emitted when the circuitBreakerAddress is set
-    /// @param oldAddress The old address
-    /// @param newAddress The new address
-    event SetCircuitBreaker(address oldAddress, address newAddress);
-
-    /// @notice The ```setCircuitBreaker``` function sets the circuitBreakerAddress
-    /// @param _newAddress The new address
-    function setCircuitBreaker(address _newAddress) external onlyOwner{
-        emit SetCircuitBreaker(circuitBreakerAddress, _newAddress);
-        circuitBreakerAddress = _newAddress;
-    }
 
     event SetLiquidationHandler(address oldAddress, address newAddress);
 
@@ -154,23 +147,6 @@ contract RelendPairRegistry is Ownable2Step{
         emit DefaultSwappersSet(_swappers);
     }
 
-    function globalPause(address[] memory _addresses) external returns (address[] memory _updatedAddresses) {
-        if (msg.sender != circuitBreakerAddress) revert CircuitBreakerOnly();
-
-        address _pairAddress;
-        uint256 _lengthOfArray = _addresses.length;
-        _updatedAddresses = new address[](_lengthOfArray);
-        for (uint256 i = 0; i < _lengthOfArray; ) {
-            _pairAddress = _addresses[i];
-            try IFraxlendPair(_pairAddress).pause() {
-                _updatedAddresses[i] = _addresses[i];
-            } catch {}
-            unchecked {
-                i = i + 1;
-            }
-        }
-    }
-
     function withdrawTo(address _asset, uint256 _amount, address _to) external onlyOwner{
         IERC20(_asset).safeTransfer(_to, _amount);
         emit WithdrawTo(_to, _amount);
@@ -180,14 +156,16 @@ contract RelendPairRegistry is Ownable2Step{
         //ensure caller is a registered pair
         require(deployedPairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
 
-        //TODO ask minter to mint
+        //ask minter to mint
+        IMintable(token).mint(_receiver, _amount);
     }
 
     function burn(address _target, uint256 _amount) external{
         //ensure caller is a registered pair
         require(deployedPairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
 
-        //TODO ask minter to burn
+        //ask minter to burn
+        IMintable(token).mint(_target, _amount);
     }
 
     function claimFees(address _pair) external{
@@ -195,11 +173,13 @@ contract RelendPairRegistry is Ownable2Step{
     }
 
     function claimRewards(address _pair) external{
-        //TODO tell rewardHandler to process rewards
+        //tell rewardHandler to process rewards
+        IRewardHandler(rewardHandler).claimRewards(_pair);
     }
 
     function claimInsuranceRewards() external{
-        //TODO tell rewardHandler to process rewards for insurance pool
+        //tell rewardHandler to process rewards for insurance pool
+        IRewardHandler(rewardHandler).claimInsuranceRewards();
     }
 
     function getMaxMintable(address _pair) external view returns(uint256){

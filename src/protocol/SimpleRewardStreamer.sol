@@ -74,9 +74,11 @@ contract SimpleRewardStreamer {
     mapping(address => uint256) public rewards;
     mapping(address => uint256) private _balances;
     mapping(address => address) public rewardRedirect;
+    mapping(address => uint256) public minimumWeights;
 
     event RewardAdded(uint256 reward);
     event WeightSet(address indexed user, uint256 oldWeight, uint256 newWeight);
+    event MinimumWeightSet(address indexed user, uint256 mweight);
     event RewardPaid(address indexed user, uint256 reward);
     event RewardRedirected(address indexed user, address redirect);
 
@@ -140,6 +142,10 @@ contract SimpleRewardStreamer {
         return rewards[_account] + (balanceOf(_account) * (rewardPerToken() - userRewardPerTokenPaid[_account]) / 1e18);
     }
 
+    function setMinimumWeight(address _account, uint256 _amount) external onlyRewardManager{
+        minimumWeights[_account] = _amount;
+        emit MinimumWeightSet(_account, _amount);
+    }
 
     //increase reward weight for a given pool
     //used by reward manager
@@ -162,6 +168,10 @@ contract SimpleRewardStreamer {
         updateReward(_account)
         returns(bool)
     {
+        if(minimumWeights[_account] != 0 && _amount < minimumWeights[_account]){
+            _amount = minimumWeights[_account];
+        }
+
         emit WeightSet(_account, _balances[_account], _amount);
 
         uint256 tsupply = _totalSupply;
