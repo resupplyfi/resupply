@@ -95,4 +95,14 @@ contract RewardHandler{
         //queue up any reward tokens currently on this handler
         IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
     }
+
+    function queuePlatformRewards() external{
+        //check that caller is feedeposit or operator of fee deposit
+        address feeDeposit = IPairRegistry(registry).feeDeposit();
+        require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
+
+        //queue up any reward tokens currently on this handler
+        //TODO when merging with gov contracts
+        // IRewards().queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
+    }
 }

@@ -45,13 +45,14 @@ contract FeeDeposit is Ownable2Step{
         operator = _newAddress;
     }
 
-    function distributeFees(address _to, uint256 _amount) external onlyOperator{
+    function distributeFees() external onlyOperator{
         uint256 currentEpoch = block.timestamp/WEEK * WEEK;
         require(currentEpoch > lastDistributedEpoch, "!new epoch");
 
         lastDistributedEpoch = currentEpoch;
-        IERC20(feeToken).safeTransfer(_to, _amount);
-        emit FeesDistributed(_to,_amount);
+        uint256 amount = IERC20(feeToken).balanceOf(address(this));
+        IERC20(feeToken).safeTransfer(operator, amount);
+        emit FeesDistributed(operator,amount);
     }
 
     function incrementPairRevenue(uint256 _amount) external{
@@ -59,7 +60,7 @@ contract FeeDeposit is Ownable2Step{
         require(IPairRegistry(registry).deployedPairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
 
         emit ReceivedRevenue(msg.sender, _amount);
-        
+
         //pass to handler
         IRewardHandler(IPairRegistry(registry).rewardHandler()).setPairWeight(msg.sender, _amount);
     }
