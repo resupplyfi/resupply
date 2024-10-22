@@ -21,15 +21,18 @@ contract RewardHandler{
     address public immutable pairEmissions;
     address public immutable insuranceEmissions;
     address public immutable insuranceRevenue;
+    address public immutable platformRewards;
 
-    constructor(address _owner, address _registry, address _revenueToken, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
+    constructor(address _owner, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
         registry = _registry;
         revenueToken = _revenueToken;
+        platformRewards = _platformRewards;
         insurancepool = _insurancepool;
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
         IERC20(_insuranceRevenue).approve(_revenueToken, type(uint256).max);
+        IERC20(_platformRewards).approve(_revenueToken, type(uint256).max);
     }
 
     function checkNewRewards(address _pair) external{
@@ -102,7 +105,6 @@ contract RewardHandler{
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
 
         //queue up any reward tokens currently on this handler
-        //TODO when merging with gov contracts
-        // IRewards().queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
+        IRewards(platformRewards).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
     }
 }
