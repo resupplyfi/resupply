@@ -8,16 +8,14 @@ import { IMintable } from "../interfaces/IMintable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
-import "../interfaces/IOwnership.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
 
-contract InsurancePool is RewardDistributorMultiEpoch{
+contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     using SafeERC20 for IERC20;
 
     address immutable public depositToken;
     address immutable public registry;
-    
-    address public owner;
     
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
@@ -41,18 +39,13 @@ contract InsurancePool is RewardDistributorMultiEpoch{
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    constructor(address _depositToken, address _registry){
+    constructor(address _core, address _depositToken, address _registry) CoreOwnable(_core){
         depositToken = _depositToken;
         registry = _registry;
 
         //mint unbacked shares to this address
         //deployment should send the outstanding amount
         _mint(address(this), 1e18);
-    }
-
-    modifier onlyOwner() {
-        require(owner == msg.sender, "!o_auth");
-        _;
     }
 
     function totalSupply() public view returns (uint256) {
@@ -93,7 +86,7 @@ contract InsurancePool is RewardDistributorMultiEpoch{
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return msg.sender == registry || msg.sender == IOwnership(registry).owner()
+        return msg.sender == registry || msg.sender == owner()
         || msg.sender == IPairRegistry(registry).rewardHandler();
     }
 

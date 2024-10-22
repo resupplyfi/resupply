@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -13,7 +13,7 @@ import { IERC4626 } from "../interfaces/IERC4626.sol";
 
 //Receive collateral from pairs during liquidations and process
 //send underlying to insurance pool while burning debt to compensate
-contract LiquidationHandler is Ownable2Step{
+contract LiquidationHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -22,10 +22,9 @@ contract LiquidationHandler is Ownable2Step{
 
     event CollateralProccessed(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
 
-    constructor(address _owner, address _registry, address _insurancepool) Ownable2Step(){
+    constructor(address _core, address _registry, address _insurancepool) CoreOwnable(_core){
         registry = _registry;
         insurancepool = _insurancepool;
-        _transferOwnership(_owner);
     }
 
     //allow protocol to migrate collateral left in this handler if an update is required

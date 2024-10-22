@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
 
 
 //Fee deposit to collect/track fees and distribute
-contract FeeDeposit is Ownable2Step{
+contract FeeDeposit is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -29,10 +29,9 @@ contract FeeDeposit is Ownable2Step{
     event ReceivedRevenue(address indexed _address, uint256 _amount);
     event SetOperator(address oldAddress, address newAddress);
 
-    constructor(address _owner, address _registry, address _feeToken) Ownable2Step(){
+    constructor(address _core, address _registry, address _feeToken) CoreOwnable(_core){
         registry = _registry;
         feeToken = _feeToken;
-        _transferOwnership(_owner);
     }
 
     modifier onlyOperator() {

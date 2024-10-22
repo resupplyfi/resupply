@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
@@ -12,7 +12,7 @@ import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
 //for example can give fee discounts based on certain conditions (like utilization) to
 //incentivize redemptions across multiple pools etc
-contract RedemptionHandler is Ownable2Step{
+contract RedemptionHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -22,10 +22,9 @@ contract RedemptionHandler is Ownable2Step{
 
     event SetBaseRedemptionFee(uint256 _fee);
 
-    constructor(address _owner, address _registry, address _redemptionToken) Ownable2Step(){
+    constructor(address _core, address _registry, address _redemptionToken) CoreOwnable(_core){
         registry = _registry;
         redemptionToken = _redemptionToken;
-        _transferOwnership(_owner);
     }
 
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{

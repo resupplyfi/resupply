@@ -47,18 +47,19 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
+
 
 /*
  a managed single reward contract which can set weights for any account address
 */
-contract SimpleRewardStreamer {
+contract SimpleRewardStreamer is CoreOwnable{
     using SafeERC20 for IERC20;
 
     
     uint256 public constant duration = 7 days;
 
     IERC20 public immutable rewardToken;
-    address public immutable owner;
     address public immutable registry;
 
     uint256 public periodFinish;
@@ -82,9 +83,8 @@ contract SimpleRewardStreamer {
     event RewardPaid(address indexed user, uint256 reward);
     event RewardRedirected(address indexed user, address redirect);
 
-    constructor(address _rewardToken, address _registry, address _owner, address _initialWeightAddress){
+    constructor(address _rewardToken, address _registry, address _core, address _initialWeightAddress) CoreOwnable(_core){
         rewardToken = IERC20(_rewardToken);
-        owner = _owner;
         registry = _registry;
 
         //set an initial target address weight
@@ -94,7 +94,7 @@ contract SimpleRewardStreamer {
     }
 
     modifier onlyRewardManager() {
-        require(msg.sender == owner || msg.sender == IPairRegistry(registry).rewardHandler(), "!rewardManager");
+        require(msg.sender == owner() || msg.sender == IPairRegistry(registry).rewardHandler(), "!rewardManager");
         _;
     }
 

@@ -3,25 +3,24 @@ pragma solidity ^0.8.19;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
 
-contract StableCoin is ERC20 {
+contract StableCoin is ERC20, CoreOwnable {
 
-    address public immutable owner;
     mapping(address => bool) public operators;
     event SetOperator(address indexed _op, bool _valid);
 
-    constructor(address _owner)
+    constructor(address _core)
         ERC20(
             "StableCoin",
             "usdXYZ"
         )
+        CoreOwnable(_core)
     {
-        owner = _owner;
     }
 
-   function setOperator(address _operator, bool _valid) external {
-        require(msg.sender == owner, "!auth");
+   function setOperator(address _operator, bool _valid) external onlyOwner{
         operators[_operator] = _valid;
         emit SetOperator(_operator, _valid);
     }
