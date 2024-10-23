@@ -2,7 +2,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { CoreOwnable } from "../../src/dependencies/CoreOwnable.sol";
 import { IMinter } from "../../src/interfaces/IMinter.sol";
 
-contract ResupplyToken is ERC20, CoreOwnable {
+contract GovToken is ERC20, CoreOwnable {
     IMinter public minter;
     bool public minterRevoked;
 
