@@ -13,21 +13,12 @@ contract RelendDeployerTest is BasePairTest {
 
     function testDeployPair() public {
         defaultSetUp();
-        deployDefaultLendingPair();
-        // deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
-        //TODO: wont work until pair registry deployed
-        // startHoax(Constants.Mainnet.FRAXLEND_PAIR_REGISTRY_ADDRESS);
-        // address[] memory _addresses = deployer.getAllPairAddresses();
-        // deployer.globalPause(_addresses);
-        // for (uint256 i = 0; i < _addresses.length; i++) {
-        //     FraxlendPair _fraxlendPair = FraxlendPair(_addresses[i]);
-
-        //     assertTrue(_fraxlendPair.borrowLimit() == 0);
-        //     // assertTrue(_fraxlendPair.depositLimit() == 0);
-        //     assertTrue(_fraxlendPair.isWithdrawPaused());
-        //     assertTrue(_fraxlendPair.isRepayPaused());
-        //     assertTrue(_fraxlendPair.isLiquidatePaused());
-        //     assertTrue(_fraxlendPair.isInterestPaused());
-        // }
+        FraxlendPair pair = deployDefaultLendingPair();
+        console.log("======================================");
+        console.log("    Deployed Pair     ");
+        console.log("======================================");
+        console.log("pair: ", address(pair));
+        console.log("collateral: ", address(pair.collateralContract()));
+        console.log("underlying: ", address(pair.underlyingAsset()));
     }
 }

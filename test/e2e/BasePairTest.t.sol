@@ -179,7 +179,13 @@ contract BasePairTest is
         setUpCore();
         deployBaseContracts();
 
-        // deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
+        console.log("======================================");
+        console.log("    Base Contracts     ");
+        console.log("======================================");
+        console.log("Registry: ", address(pairRegistry));
+        console.log("Deployer: ", address(deployer));
+        console.log("govToken: ", address(stakingToken));
+        console.log("stableToken: ", address(stableToken));
     }
 
     // ============================================================================================
@@ -226,25 +232,25 @@ contract BasePairTest is
         return pair;
     }
 
-    function _encodeConfigData(
-        address _rateContract,
-        uint64 _fullUtilizationRate,
-        uint256 _maxLTV,
-        uint256 _liquidationFee,
-        uint256 _protocolLiquidationFee
-    ) internal view returns (bytes memory _configData) {
-        _configData = abi.encode(
-            address(asset),
-            address(collateral),
-            address(oracle),
-            uint32(5e3),
-            address(_rateContract),
-            _fullUtilizationRate,
-            _maxLTV, //75%
-            _liquidationFee,
-            _protocolLiquidationFee
-        );
-    }
+    // function _encodeConfigData(
+    //     address _rateContract,
+    //     uint64 _fullUtilizationRate,
+    //     uint256 _maxLTV,
+    //     uint256 _liquidationFee,
+    //     uint256 _protocolLiquidationFee
+    // ) internal view returns (bytes memory _configData) {
+    //     _configData = abi.encode(
+    //         address(asset),
+    //         address(collateral),
+    //         address(oracle),
+    //         uint32(5e3),
+    //         address(_rateContract),
+    //         _fullUtilizationRate,
+    //         _maxLTV, //75%
+    //         _liquidationFee,
+    //         _protocolLiquidationFee
+    //     );
+    // }
 
     // ============================================================================================
     // Snapshots
