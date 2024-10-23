@@ -64,29 +64,29 @@ library RelendPairTestHelper {
     }
 
     function __updateExchangeRateGetLow(FraxlendPair _pair) internal returns (uint256 _low) {
-        (, uint256 _newLow, uint256 _newHigh) = _pair.updateExchangeRate();
+        uint256 _newLow = _pair.updateExchangeRate();
         _low = _newLow;
     }
 
     function __updateExchangeRateGetHigh(FraxlendPair _pair) internal returns (uint256 _high) {
-        (, uint256 _newLow, uint256 _newHigh) = _pair.updateExchangeRate();
+        uint256 _newHigh = _pair.updateExchangeRate();
         _high = _newHigh;
     }
 
     function __getLowExchangeRate(FraxlendPair _pair) internal view returns (uint256 _low) {
-        (, , , _low, ) = _pair.exchangeRateInfo();
+        (, , _low ) = _pair.exchangeRateInfo();
     }
 
     function __getHighExchangeRate(FraxlendPair _pair) internal view returns (uint256 _high) {
-        (, , , , _high) = _pair.exchangeRateInfo();
+        (, , _high) = _pair.exchangeRateInfo();
     }
 
-    function __getMaxOracleDeviation(FraxlendPair _pair) internal view returns (uint32 _maxOracleDeviation) {
-        (, _maxOracleDeviation, , , ) = _pair.exchangeRateInfo();
-    }
+    // function __getMaxOracleDeviation(FraxlendPair _pair) internal view returns (uint32 _maxOracleDeviation) {
+    //     (, _maxOracleDeviation, , , ) = _pair.exchangeRateInfo();
+    // }
 
     function __getOracle(FraxlendPair _pair) internal view returns (address _oracle) {
-        (_oracle, , , , ) = _pair.exchangeRateInfo();
+        (_oracle, , ) = _pair.exchangeRateInfo();
     }
 
     function __getUserSnapshot(

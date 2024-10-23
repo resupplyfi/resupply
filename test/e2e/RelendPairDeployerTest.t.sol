@@ -11,9 +11,10 @@ contract RelendDeployerTest is BasePairTest {
         vm.createSelectFork(_envKey, 16_474_174);
     }
 
-    function testCanGlobalPause() public {
+    function testDeployPair() public {
         defaultSetUp();
-        deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
+        deployDefaultLendingPair();
+        // deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
         //TODO: wont work until pair registry deployed
         // startHoax(Constants.Mainnet.FRAXLEND_PAIR_REGISTRY_ADDRESS);
         // address[] memory _addresses = deployer.getAllPairAddresses();

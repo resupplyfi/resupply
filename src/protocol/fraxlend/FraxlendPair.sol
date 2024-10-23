@@ -96,19 +96,19 @@ contract FraxlendPair is FraxlendPairCore {
         returns (
             uint256 _LTV_PRECISION,
             uint256 _LIQ_PRECISION,
-            uint256 _UTIL_PREC,
-            uint256 _FEE_PRECISION,
+            // uint256 _UTIL_PREC,
+            // uint256 _FEE_PRECISION,
             uint256 _EXCHANGE_PRECISION,
-            uint256 _DEVIATION_PRECISION,
+            // uint256 _DEVIATION_PRECISION,
             uint256 _RATE_PRECISION
         )
     {
         _LTV_PRECISION = LTV_PRECISION;
         _LIQ_PRECISION = LIQ_PRECISION;
-        _UTIL_PREC = UTIL_PREC;
-        _FEE_PRECISION = FEE_PRECISION;
+        // _UTIL_PREC = UTIL_PREC;
+        // _FEE_PRECISION = FEE_PRECISION;
         _EXCHANGE_PRECISION = EXCHANGE_PRECISION;
-        _DEVIATION_PRECISION = DEVIATION_PRECISION;
+        // _DEVIATION_PRECISION = DEVIATION_PRECISION;
         _RATE_PRECISION = RATE_PRECISION;
     }
 
@@ -197,31 +197,23 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```SetOracleInfo``` event is emitted when the oracle info (address and max deviation) is set
     /// @param oldOracle The old oracle address
-    /// @param oldMaxOracleDeviation The old max oracle deviation
     /// @param newOracle The new oracle address
-    /// @param newMaxOracleDeviation The new max oracle deviation
     event SetOracleInfo(
         address oldOracle,
-        uint32 oldMaxOracleDeviation,
-        address newOracle,
-        uint32 newMaxOracleDeviation
+        address newOracle
     );
 
     /// @notice The ```setOracleInfo``` function sets the oracle data
     /// @param _newOracle The new oracle address
-    /// @param _newMaxOracleDeviation The new max oracle deviation
-    function setOracle(address _newOracle, uint32 _newMaxOracleDeviation) external {
+    function setOracle(address _newOracle) external {
         _requireProtocolOrOwner();
         if (isOracleSetterRevoked) revert SetterRevoked();
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
         emit SetOracleInfo(
             _exchangeRateInfo.oracle,
-            _exchangeRateInfo.maxOracleDeviation,
-            _newOracle,
-            _newMaxOracleDeviation
+            _newOracle
         );
         _exchangeRateInfo.oracle = _newOracle;
-        _exchangeRateInfo.maxOracleDeviation = _newMaxOracleDeviation;
         exchangeRateInfo = _exchangeRateInfo;
     }
 
@@ -360,7 +352,8 @@ contract FraxlendPair is FraxlendPairCore {
     event SetProtocolRedemptionFee(uint256 fee);
 
     function setProtocolRedemptionFee(uint256 _fee) internal {
-        require(_fee <= EXCHANGE_PRECISION, "min fee");
+        if(_fee > EXCHANGE_PRECISION) revert InvalidParameter();
+
         _requireProtocolOrOwner();
         protocolRedemptionFee = _fee;
         emit SetProtocolRedemptionFee(_fee);

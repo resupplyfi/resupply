@@ -114,10 +114,10 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     struct ExchangeRateInfo {
         address oracle;
-        uint32 maxOracleDeviation; // % of larger number, 1e5 precision
+        // uint32 maxOracleDeviation; // % of larger number, 1e5 precision
         uint184 lastTimestamp;
-        uint256 lowExchangeRate;
-        uint256 highExchangeRate;
+        uint256 exchangeRate;
+        // uint256 highExchangeRate;
     }
 
     // Contract Level Accounting
@@ -151,9 +151,9 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 address _asset,
                 address _collateral,
                 address _oracle,
-                uint32 _maxOracleDeviation,
+                // uint32 _maxOracleDeviation,
                 address _rateContract,
-                uint64 _fullUtilizationRate,
+                // uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
                 uint256 _initialBorrowLimit,
                 uint256 _liquidationFee,
@@ -161,15 +161,15 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                 uint256 _protocolRedemptionFee
             ) = abi.decode(
                     _configData,
-                    (address, address, address, uint32, address, uint64, uint256, uint256, uint256, uint256, uint256)
+                    (address, address, address, address, uint256, uint256, uint256, uint256, uint256)
                 );
 
             // Pair Settings
             assetContract = IERC20(_asset);
             collateralContract = IERC20(_collateral);
             underlyingAsset = IERC20(IERC4626(_collateral).asset());
-            //approve so this contract can deposit
-            underlyingAsset.approve(address(collateralContract), type(uint256).max);
+            // approve so this contract can deposit
+            underlyingAsset.approve(_collateral, type(uint256).max);
 
             currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastBlock = uint32(block.number - 1);
@@ -177,7 +177,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             currentRateInfo.lastPrice = IERC4626(_collateral).convertToAssets(currentRateInfo.lastShares);
 
             exchangeRateInfo.oracle = _oracle;
-            exchangeRateInfo.maxOracleDeviation = _maxOracleDeviation;
 
             rateContract = IRateCalculator(_rateContract);
 
@@ -299,11 +298,11 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _;
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
 
-        if (!_isSolvent(_borrower, exchangeRateInfo.highExchangeRate)) {
+        if (!_isSolvent(_borrower, exchangeRateInfo.exchangeRate)) {
             revert Insolvent(
                 totalBorrow.toAmount(userBorrowShares(_borrower), true),
                 _userCollateralBalance[_borrower], //_issolvent sync'd so take base _userCollateral
-                exchangeRateInfo.highExchangeRate
+                exchangeRateInfo.exchangeRate
             );
         }
     }
@@ -550,9 +549,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // ============================================================================================
 
     /// @notice The ```UpdateExchangeRate``` event is emitted when the Collateral:Asset exchange rate is updated
-    /// @param lowExchangeRate The low exchange rate
-    /// @param highExchangeRate The high exchange rate
-    event UpdateExchangeRate(uint256 lowExchangeRate, uint256 highExchangeRate);
+    /// @param exchangeRate The exchange rate
+    event UpdateExchangeRate(uint256 exchangeRate);
 
     /// @notice The ```WarnOracleData``` event is emitted when one of the oracles has stale or otherwise problematic data
     /// @param oracle The oracle address
@@ -560,26 +558,21 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
 
     /// @notice The ```updateExchangeRate``` function is the external implementation of _updateExchangeRate.
     /// @dev This function is invoked at most once per block as these queries can be expensive
-    /// @return _isBorrowAllowed True if deviation is within bounds
-    /// @return _lowExchangeRate The low exchange rate
-    /// @return _highExchangeRate The high exchange rate
+    /// @return _exchangeRate The exchange rate
     function updateExchangeRate()
         external
         nonReentrant
-        returns (bool _isBorrowAllowed, uint256 _lowExchangeRate, uint256 _highExchangeRate)
+        returns (uint256 _exchangeRate)
     {
         return _updateExchangeRate();
     }
 
     /// @notice The ```_updateExchangeRate``` function retrieves the latest exchange rate. i.e how much collateral to buy 1e18 asset.
     /// @dev This function is invoked at most once per block as these queries can be expensive
-    /// @return _isBorrowAllowed True if deviation is within bounds
-    /// @return _lowExchangeRate The low exchange rate
-    /// @return _highExchangeRate The high exchange rate
-
+    /// @return _exchangeRate The exchange rate
     function _updateExchangeRate()
         internal
-        returns (bool _isBorrowAllowed, uint256 _lowExchangeRate, uint256 _highExchangeRate)
+        returns (uint256 _exchangeRate)
     {
         // Pull from storage to save gas and set default return values
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
@@ -587,33 +580,18 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Short circuit if already updated this block
         if (_exchangeRateInfo.lastTimestamp != block.timestamp) {
             // Get the latest exchange rate from the oracle
-            bool _oneOracleBad;
-            (_oneOracleBad, _lowExchangeRate, _highExchangeRate) = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateralContract));
-
-            // If one oracle is bad data, emit an event for off-chain monitoring
-            if (_oneOracleBad) emit WarnOracleData(_exchangeRateInfo.oracle);
+            _exchangeRate = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateralContract));
 
             // Effects: Bookkeeping and write to storage
             _exchangeRateInfo.lastTimestamp = uint184(block.timestamp);
-            _exchangeRateInfo.lowExchangeRate = _lowExchangeRate;
-            _exchangeRateInfo.highExchangeRate = _highExchangeRate;
+            _exchangeRateInfo.exchangeRate = _exchangeRate;
             exchangeRateInfo = _exchangeRateInfo;
-            emit UpdateExchangeRate(_lowExchangeRate, _highExchangeRate);
+            emit UpdateExchangeRate(_exchangeRate);
         } else {
             // Use default return values if already updated this block
-            _lowExchangeRate = _exchangeRateInfo.lowExchangeRate;
-            _highExchangeRate = _exchangeRateInfo.highExchangeRate;
+            _exchangeRate = _exchangeRateInfo.exchangeRate;
         }
 
-        //TODO consider writing this to exchangerateinfo when _isBadData is returned
-        _isBorrowAllowed = true;
-
-        // uint256 _deviation = (DEVIATION_PRECISION *
-        //     (_exchangeRateInfo.highExchangeRate - _exchangeRateInfo.lowExchangeRate)) /
-        //     _exchangeRateInfo.highExchangeRate;
-        // if (_deviation <= _exchangeRateInfo.maxOracleDeviation) {
-            // _isBorrowAllowed = true;
-        // }
     }
 
     // ============================================================================================
@@ -717,9 +695,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Accrue interest if necessary
         _addInterest();
 
-        // Update _exchangeRate and check if borrow is allowed based on deviation
-        (bool _isBorrowAllowed, , ) = _updateExchangeRate();
-        if (!_isBorrowAllowed) revert ExceedsMaxOracleDeviation();
+        // Update _exchangeRate
+        _updateExchangeRate();
 
         // Only add collateral if necessary
         if (_collateralAmount > 0) {
@@ -827,8 +804,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _addInterest();
         // Note: exchange rate is irrelevant when borrower has no debt shares
         if (_userBorrowShares[msg.sender] > 0) {
-            (bool _isBorrowAllowed, , ) = _updateExchangeRate();
-            if (!_isBorrowAllowed) revert ExceedsMaxOracleDeviation();
+            _updateExchangeRate();
         }
         _removeCollateral(_collateralAmount, _receiver, msg.sender);
     }
@@ -960,7 +936,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         ///// return collateral using collateralValue////
 
         // Update exchange rate
-        (, uint256 _exchangeRate, ) = _updateExchangeRate();
+        uint256 _exchangeRate = _updateExchangeRate();
         //calc collateral units
         _collateralReturned = ((collateralValue * _exchangeRate) / EXCHANGE_PRECISION);
         //unstake
@@ -1013,7 +989,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _addInterest();
 
         // Update exchange rate and use the lower rate for liquidations
-        (, uint256 _exchangeRate, ) = _updateExchangeRate();
+        uint256 _exchangeRate = _updateExchangeRate();
 
         // Check if borrower is solvent, revert if they are
         //_isSolvent calls _syncUserRedemptions which checkpoints rewards and userCollateral
@@ -1122,11 +1098,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Accrue interest if necessary
         _addInterest();
 
-        // Update exchange rate and check if borrow is allowed, revert if not
-        {
-            (bool _isBorrowAllowed, , ) = _updateExchangeRate();
-            if (!_isBorrowAllowed) revert ExceedsMaxOracleDeviation();
-        }
+        // Update exchange rate
+        _updateExchangeRate();
 
         IERC20 _assetContract = assetContract;
         IERC20 _collateralContract = collateralContract;
@@ -1214,9 +1187,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         // Accrue interest if necessary
         _addInterest();
 
-        // Update exchange rate and check if borrow is allowed, revert if not
-        (bool _isBorrowAllowed, , ) = _updateExchangeRate();
-        if (!_isBorrowAllowed) revert ExceedsMaxOracleDeviation();
+        // Update exchange rate
+        _updateExchangeRate();
 
         IERC20 _assetContract = assetContract;
         IERC20 _collateralContract = collateralContract;

@@ -50,7 +50,8 @@ contract RelendPairDeployer is CoreOwnable {
 
     // immutable contracts
     address public immutable registry;
-    address public immutable operators;
+    address public immutable govToken;
+    mapping(address => bool) public operators;
 
     // Default swappers
     address[] public defaultSwappers;
@@ -74,9 +75,13 @@ contract RelendPairDeployer is CoreOwnable {
         bytes customConfigData
     );
 
-    constructor(address _registry, address _operators, address _core) CoreOwnable(_core){
-        operators = _operators;
+    event SetOperator(address indexed _op, bool _valid);
+
+    constructor(address _registry, address _govToken, address _initialoperator, address _core) CoreOwnable(_core){
         registry = _registry;
+        govToken = _govToken;
+        operators[_initialoperator] = true;
+        emit SetOperator(_initialoperator, true);
     }
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
@@ -111,6 +116,11 @@ contract RelendPairDeployer is CoreOwnable {
     // ============================================================================================
     // Functions: Setters
     // ============================================================================================
+
+    function setOperator(address _operator, bool _valid) external onlyOwner{
+        operators[_operator] = _valid;
+        emit SetOperator(_operator, _valid);
+    }
 
     /// @notice The ```setCreationCode``` function sets the bytecode for the fraxlendPair
     /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
@@ -166,20 +176,20 @@ contract RelendPairDeployer is CoreOwnable {
     /// @notice The ```deploy``` function allows the deployment of a FraxlendPair with default values
     /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(bytes memory _configData, uint256 _uniqueId) external returns (address _pairAddress) {
-        if (!IFraxlendWhitelist(operators).fraxlendDeployerWhitelist(msg.sender)) {
+    function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId, uint256 _uniqueId) external returns (address _pairAddress) {
+        if (!operators[msg.sender]) {
             revert WhitelistedDeployersOnly();
         }
 
-        (address _asset, address _collateral, , , , , ,) = abi.decode(
+        (address _asset, address _collateral,,,,,,,) = abi.decode(
             _configData,
-            (address, address, address, uint32, address, uint64, uint256, uint256)
+            (address, address, address, address, uint256, uint256, uint256, uint256, uint256)
         );
 
-        string memory _name = getNextName(_asset, _collateral, _uniqueId);
+        string memory _name = "name";//getNextName(_asset, _collateral, _uniqueId);
 
         bytes memory _immutables = abi.encode(registry);
-        bytes memory _customConfigData = abi.encode(_name);
+        bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
 

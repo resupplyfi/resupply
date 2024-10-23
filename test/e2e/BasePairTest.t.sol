@@ -18,19 +18,18 @@ import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol"
 import { FraxlendPair } from "src/protocol/fraxlend/FraxlendPair.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
-// import "frax-std/NumberFormat.sol";
-// import "frax-std/Logger.sol";
-// import "frax-std/StringsHelper.sol";
-// import "frax-std/oracles/OracleHelper.sol";
-// import "frax-std/ArrayHelper.sol";
+
+import { Core } from "../../src/dao/Core.sol";
+import { Voter } from "../../src/dao/Voter.sol";
+import { MockToken } from "../mocks/MockToken.sol";
 
 struct CurrentRateInfo {
-    uint32 lastBlock;
-    uint32 feeToProtocolRate; // Fee amount 1e5 precision
-    uint64 lastTimestamp;
-    uint64 ratePerSec;
-    uint64 fullUtilizationRate;
-}
+        uint32 lastBlock;
+        uint64 lastTimestamp;
+        uint64 ratePerSec;
+        uint256 lastPrice;
+        uint256 lastShares;
+    }
 
 contract BasePairTest is
     FraxlendPairConstants,
@@ -51,13 +50,15 @@ contract BasePairTest is
     FraxlendPair public pair;
     RelendPairDeployer public deployer;
     RelendPairRegistry public pairRegistry;
-    // FraxlendPairHelper public fraxlendPairHelper;
+    Core public core;
+    MockToken public stakingToken;
+    MockToken public stableToken;
+
+    uint256 mainnetFork;
+
     IERC20 public asset;
     IERC20 public collateral;
-    // VariableInterestRate public variableRateContract;
     InterestRateCalculator public rateContract;
-
-    // FraxlendWhitelist public fraxlendWhitelist;
 
     IOracle public oracle;
     uint256 public uniqueId;
@@ -92,19 +93,158 @@ contract BasePairTest is
 
     // Users
     address[] public users = [vm.addr(1), vm.addr(2), vm.addr(3), vm.addr(4), vm.addr(5)];
+    address tempGov = address(987);
 
     // Deployer constants
-    uint256 internal constant DEFAULT_MAX_LTV = 75_000; // 75% with 1e5 precision
+    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 75% with 1e5 precision
     uint256 internal constant DEFAULT_LIQ_FEE = 500; // 5% with 1e5 precision
-    uint256 internal constant DEFAULT_PROTOCOL_LIQ_FEE = 200; // 2% of fee total collateral
-    uint64 internal constant DEFAULT_MIN_INTEREST = 158_247_046;
-    uint64 internal constant DEFAULT_MAX_INTEREST = 146_248_476_607;
+    uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
+    uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
+    uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
+    // uint256 internal constant DEFAULT_PROTOCOL_LIQ_FEE = 200; // 2% of fee total collateral
+    // uint64 internal constant DEFAULT_MIN_INTEREST = 158_247_046;
+    // uint64 internal constant DEFAULT_MAX_INTEREST = 146_248_476_607;
     uint64 internal constant FIFTY_BPS = 158_247_046;
     uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
     uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
 
     // Interest Helpers
     uint256 internal constant ONE_PERCENT_ANNUAL_RATE = 315_315_588;
+
+    
+
+    // ============================================================================================
+    // Setup / Initial Environment Helpers
+    // ============================================================================================
+
+    function setUpCore() public virtual {
+        mainnetFork = vm.createSelectFork(vm.envString("MAINNET_URL"));
+        // Deploy the mock factory first for deterministic location
+        stakingToken = new MockToken("GovToken", "GOV");
+        stableToken = new MockToken("StableToken", "STABLE");
+
+        core = Core(
+            address(
+                new Core(tempGov, 1 weeks)
+            )
+        );
+
+        vm.startPrank(users[0]);
+        stakingToken.mint(users[0], 1_000_000 * 10 ** 18);
+        stableToken.mint(users[0], 1_000_000 * 10 ** 18);
+        vm.stopPrank();
+
+        // label all the used addresses for traces
+        vm.label(address(stakingToken), "Gov Token");
+        vm.label(address(tempGov), "Temp Gov");
+        vm.label(address(core), "Core");
+    }
+    /// @notice The ```deployNonDynamicExternalContracts``` function deploys all contracts other than the pairs using default values
+    /// @dev
+    function deployBaseContracts() public {
+
+        pairRegistry = new RelendPairRegistry(address(stableToken),address(core));
+        deployer = new RelendPairDeployer(
+            address(pairRegistry),
+            address(stakingToken),
+            address(Constants.Mainnet.CONVEX_DEPLOYER),
+            address(core)
+        );
+        
+        vm.startPrank(address(core));
+        deployer.setCreationCode(type(FraxlendPair).creationCode);
+        vm.stopPrank();
+
+        rateContract = new InterestRateCalculator(
+            "suffix",
+            634_195_840,//(2 * 1e16) / 365 / 86400, //2% todo check
+            2
+        );
+
+        oracle = IOracle(
+            address(
+                new BasicVaultOracle(
+                    "Basic Vault Oracle"
+                )
+            )
+        );
+
+        //default asset/collateral
+        collateral = IERC20(Constants.Mainnet.FRAXLEND_SFRAX_FRAX);
+        asset = IERC20(Constants.Mainnet.FRAX_ERC20);
+    }
+
+    /// @notice The ```defaultSetUp``` function provides a full default deployment environment for testing
+    function defaultSetUp() public virtual {
+        setUpCore();
+        deployBaseContracts();
+
+        // deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
+    }
+
+    // ============================================================================================
+    // Deployment Helpers
+    // ============================================================================================
+
+    /// @notice The ```deployFraxlendPublic``` function helps deploy Fraxlend public pairs with default config
+    function deployDefaultLendingPair() public returns(FraxlendPair) {
+        return deployLendingPair(address(asset), address(collateral), address(0), 0);
+    }
+
+    function deployLendingPair(address _asset, address _collateral, address _staking, uint256 _stakingId) public returns(FraxlendPair){
+        vm.startPrank(address(Constants.Mainnet.CONVEX_DEPLOYER));
+
+        address _pairAddress = deployer.deploy(
+            abi.encode(
+                _asset,
+                _collateral,
+                address(oracle),
+                address(rateContract),
+                DEFAULT_MAX_LTV, //max ltv 75%
+                DEFAULT_BORROW_LIMIT,
+                DEFAULT_LIQ_FEE,
+                DEFAULT_MINT_FEE,
+                DEFAULT_PROTOCOL_REDEMPTION_FEE
+            ),
+            _staking,
+            _stakingId,
+            uniqueId
+        );
+
+        uniqueId += 1;
+        pair = FraxlendPair(_pairAddress);
+        vm.stopPrank();
+
+        vm.startPrank(address(core));
+        // pairRegistry.addPair(_pairAddress);
+        vm.stopPrank();
+
+        // startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
+        // pair.setSwapper(Constants.Mainnet.UNIV2_ROUTER, true);
+        // vm.stopPrank();
+
+        return pair;
+    }
+
+    function _encodeConfigData(
+        address _rateContract,
+        uint64 _fullUtilizationRate,
+        uint256 _maxLTV,
+        uint256 _liquidationFee,
+        uint256 _protocolLiquidationFee
+    ) internal view returns (bytes memory _configData) {
+        _configData = abi.encode(
+            address(asset),
+            address(collateral),
+            address(oracle),
+            uint32(5e3),
+            address(_rateContract),
+            _fullUtilizationRate,
+            _maxLTV, //75%
+            _liquidationFee,
+            _protocolLiquidationFee
+        );
+    }
 
     // ============================================================================================
     // Snapshots
@@ -281,218 +421,6 @@ contract BasePairTest is
     }
 
     // ============================================================================================
-    // Setup / Initial Environment Helpers
-    // ============================================================================================
-
-    // function setWhitelistTrue() public {
-    //     // Deployers to whitelist
-    //     address[] memory _deployerAddresses = new address[](1);
-    //     _deployerAddresses[0] = Constants.Mainnet.COMPTROLLER_ADDRESS;
-    //     fraxlendWhitelist.setFraxlendDeployerWhitelist(_deployerAddresses, true);
-    // }
-
-    /// @notice The ```deployNonDynamicExternalContracts``` function deploys all contracts other than the pairs using default values
-    /// @dev
-    function deployNonDynamicExternalContracts() public {
-        /*
-        1. Deploys Helper
-        2. Connects whitelist
-        3. Whitelists the comptroller and address(this) for deployers
-        4. Deploys Registry
-        5. Deploys Deployer
-        6. Registers the deployer on the registry
-        7. Sets Creation code from current fraxlendPair
-        8. Deploys a hybrid rate calculator setup as linear rate
-        9. Deploys a hybrid rate calculator setup as variable rate
-        */
-
-        // Set code for Whitelist
-        // fraxlendWhitelist = FraxlendWhitelist(Constants.Mainnet.FRAXLEND_WHITELIST_ADDRESS);
-        // fraxlendPairHelper = new FraxlendPairHelper();
-        // setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
-        // setSingleDeployerWhitelist(address(this), true);
-        pairRegistry = new RelendPairRegistry(address(0),Constants.Mainnet.COMPTROLLER_ADDRESS);
-        // deployer = new FraxlendPairDeployer(
-        //     FraxlendPairDeployerParams({
-        //         circuitBreaker: Constants.Mainnet.CIRCUIT_BREAKER_ADDRESS,
-        //         comptroller: Constants.Mainnet.COMPTROLLER_ADDRESS,
-        //         timelock: Constants.Mainnet.TIMELOCK_ADDRESS,
-        //         fraxlendWhitelist: address(fraxlendWhitelist),
-        //         fraxlendPairRegistry: address(fraxlendPairRegistry)
-        //     })
-        // );
-        deployer = new RelendPairDeployer(
-            address(pairRegistry),
-            address(Constants.Mainnet.COMPTROLLER_ADDRESS),
-            address(Constants.Mainnet.COMPTROLLER_ADDRESS)
-        );
-        address[] memory _deployers = new address[](1);
-        _deployers[0] = address(deployer);
-        // pairRegistry.setDeployers(_deployers, true);
-        deployer.setCreationCode(type(FraxlendPair).creationCode);
-        uint256 _vertexUtilization = 80_000; // 80%
-        uint256 _vertexInterestPercentOfMax = 1e17; // 10%
-
-        uint256 _minUtil = 75_000;
-        uint256 _maxUtil = 85_000;
-        uint64 _minInterest = 158_247_046; // 50bps
-        uint64 _maxInterest = 146_248_476_607; // 10k %
-        uint256 _rateHalfLife = 4 days;
-
-
-        rateContract = new InterestRateCalculator(
-            "suffix",
-            634_195_840,//(2 * 1e16) / 365 / 86400, //2% todo check
-            2
-        );
-        // variableRateContract = new VariableInterestRate(
-        //     "suffix",
-        //     _vertexUtilization,
-        //     _vertexInterestPercentOfMax,
-        //     _minUtil,
-        //     _maxUtil,
-        //     _minInterest,
-        //     _minInterest,
-        //     _maxInterest,
-        //     _rateHalfLife
-        // );
-
-        // linearRateContract = new VariableInterestRate(
-        //     "suffix",
-        //     _vertexUtilization,
-        //     _vertexInterestPercentOfMax,
-        //     0,
-        //     1e5,
-        //     79_123_523, // 0.25%
-        //     79_123_523, // 0.25%
-        //     79_123_523 * 400, // 0.25% * 400 = 100%
-        //     _rateHalfLife
-        // );
-    }
-
-    function deployDefaultOracle() public returns (IOracle _oracle) {
-        _oracle = IOracle(
-            address(
-                new BasicVaultOracle(
-                    "Basic Vault Oracle"
-                )
-            )
-        );
-    }
-
-    function setExternalContracts() public {
-        startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
-        deployNonDynamicExternalContracts();
-        vm.stopPrank();
-        // Deploy contracts
-        collateral = IERC20(Constants.Mainnet.WETH_ERC20);
-        asset = IERC20(Constants.Mainnet.FRAX_ERC20);
-        oracle = IOracle(
-            address(
-                new BasicVaultOracle(
-                    "Basic Vault Oracle"
-                )
-            )
-        );
-    }
-
-    /// @notice The ```defaultSetUp``` function provides a full default deployment environment for testing
-    function defaultSetUp() public virtual {
-        setExternalContracts();
-        startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
-        // setWhitelistTrue();
-        // Set initial oracle prices
-        // setSingleDeployerWhitelist(address(this), true);
-        // setSingleDeployerWhitelist(Constants.Mainnet.COMPTROLLER_ADDRESS, true);
-        vm.stopPrank();
-        deployFraxlendPublic(address(rateContract), 25 * ONE_PERCENT);
-    }
-
-    // ============================================================================================
-    // Deployment Helpers
-    // ============================================================================================
-
-    /// @notice The ```deployFraxlendPublic``` function helps deploy Fraxlend public pairs with default config
-    function deployFraxlendPublic(address _rateContract, uint64 _initialMaxRate) public {
-        address _pairAddress = deployer.deploy(
-            abi.encode(
-                address(asset),
-                address(collateral),
-                address(oracle),
-                uint32(5e3),
-                address(_rateContract),
-                _initialMaxRate,
-                75_000, //75%
-                10_000 // 10% clean liquidation fee
-            ),
-            uniqueId
-        );
-        uniqueId += 1;
-        pair = FraxlendPair(_pairAddress);
-
-        startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
-        pair.setSwapper(Constants.Mainnet.UNIV2_ROUTER, true);
-        vm.stopPrank();
-
-        // startHoax(Constants.Mainnet.TIMELOCK_ADDRESS);
-        // pair.changeFee(uint16((10 * FEE_PRECISION) / 100));
-        // vm.stopPrank();
-    }
-
-    function _encodeConfigData(
-        address _rateContract,
-        uint64 _fullUtilizationRate,
-        uint256 _maxLTV,
-        uint256 _liquidationFee,
-        uint256 _protocolLiquidationFee
-    ) internal view returns (bytes memory _configData) {
-        _configData = abi.encode(
-            address(asset),
-            address(collateral),
-            address(oracle),
-            uint32(5e3),
-            address(_rateContract),
-            _fullUtilizationRate,
-            _maxLTV, //75%
-            _liquidationFee,
-            _protocolLiquidationFee
-        );
-    }
-
-    function deployFraxlendCustom(
-        address _rateContractAddress,
-        uint256 _maxLTV,
-        uint256 _liquidationFee,
-        uint256 _protocolLiquidationFee
-    ) public {
-        startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
-        {
-            pair = FraxlendPair(
-                deployer.deploy(
-                    _encodeConfigData(
-                        _rateContractAddress,
-                        25 * ONE_PERCENT,
-                        _maxLTV,
-                        _liquidationFee,
-                        _protocolLiquidationFee
-                    ),
-                    uniqueId
-                )
-            );
-            uniqueId += 1;
-        }
-        vm.stopPrank();
-
-        startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
-        pair.setSwapper(Constants.Mainnet.UNIV2_ROUTER, true);
-        vm.stopPrank();
-
-        // startHoax(Constants.Mainnet.TIMELOCK_ADDRESS);
-        // pair.changeFee(uint16((10 * FEE_PRECISION) / 100));
-        // vm.stopPrank();
-    }
-
-    // ============================================================================================
     // Pair View Helpers
     // ============================================================================================
 
@@ -609,16 +537,16 @@ contract BasePairTest is
     function getUtilization() internal view returns (uint256 _utilization) {
         (uint256 _borrowAmount, ) = pair.totalBorrow();
         uint256 _borrowLimit = pair.borrowLimit();
-        _utilization = (_borrowAmount * UTIL_PREC) / _borrowLimit;
+        _utilization = (_borrowAmount * EXCHANGE_PRECISION) / _borrowLimit;
     }
 
     function ratePerSec(FraxlendPair _pair) internal view returns (uint64 _ratePerSec) {
         (, , _ratePerSec,, ) = _pair.currentRateInfo();
     }
 
-    function feeToProtocolRate(FraxlendPair _pair) internal view returns (uint64 _feeToProtocolRate) {
-        (, _feeToProtocolRate, , , ) = _pair.currentRateInfo();
-    }
+    // function feeToProtocolRate(FraxlendPair _pair) internal view returns (uint64 _feeToProtocolRate) {
+    //     (, _feeToProtocolRate, , , ) = _pair.currentRateInfo();
+    // }
 
     function getCollateralAmount(
         uint256 _borrowAmount,
