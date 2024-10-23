@@ -56,6 +56,9 @@ contract BasePairTest is
 
     uint256 mainnetFork;
 
+    IERC20 public fraxToken;
+    IERC20 public crvUsdToken;
+
     IERC20 public asset;
     IERC20 public collateral;
     InterestRateCalculator public rateContract;
@@ -171,13 +174,18 @@ contract BasePairTest is
 
         //default asset/collateral
         collateral = IERC20(Constants.Mainnet.FRAXLEND_SFRAX_FRAX);
-        asset = IERC20(Constants.Mainnet.FRAX_ERC20);
+        fraxToken = IERC20(Constants.Mainnet.FRAX_ERC20);
+        crvUsdToken = IERC20(Constants.Mainnet.CURVE_USD_ERC20);
     }
 
     /// @notice The ```defaultSetUp``` function provides a full default deployment environment for testing
     function defaultSetUp() public virtual {
         setUpCore();
         deployBaseContracts();
+
+        // faucetFunds(address(Constants.Mainnet.CURVE_USD_ERC20),100_000 * 10 ** 18,users[0]);
+        faucetFunds(fraxToken,100_000 * 10 ** 18,users[0]);
+        faucetFunds(crvUsdToken,100_000 * 10 ** 18,users[0]);
 
         console.log("======================================");
         console.log("    Base Contracts     ");
@@ -186,6 +194,9 @@ contract BasePairTest is
         console.log("Deployer: ", address(deployer));
         console.log("govToken: ", address(stakingToken));
         console.log("stableToken: ", address(stableToken));
+        console.log("======================================");
+        console.log("balance of frax: ", fraxToken.balanceOf(users[0]));
+        console.log("balance of crvusd: ", crvUsdToken.balanceOf(users[0]));
     }
 
     // ============================================================================================
@@ -194,7 +205,7 @@ contract BasePairTest is
 
     /// @notice The ```deployFraxlendPublic``` function helps deploy Fraxlend public pairs with default config
     function deployDefaultLendingPair() public returns(FraxlendPair) {
-        return deployLendingPair(address(asset), address(collateral), address(0), 0);
+        return deployLendingPair(address(fraxToken), address(collateral), address(0), 0);
     }
 
     function deployLendingPair(address _asset, address _collateral, address _staking, uint256 _stakingId) public returns(FraxlendPair){
@@ -232,25 +243,6 @@ contract BasePairTest is
         return pair;
     }
 
-    // function _encodeConfigData(
-    //     address _rateContract,
-    //     uint64 _fullUtilizationRate,
-    //     uint256 _maxLTV,
-    //     uint256 _liquidationFee,
-    //     uint256 _protocolLiquidationFee
-    // ) internal view returns (bytes memory _configData) {
-    //     _configData = abi.encode(
-    //         address(asset),
-    //         address(collateral),
-    //         address(oracle),
-    //         uint32(5e3),
-    //         address(_rateContract),
-    //         _fullUtilizationRate,
-    //         _maxLTV, //75%
-    //         _liquidationFee,
-    //         _protocolLiquidationFee
-    //     );
-    // }
 
     // ============================================================================================
     // Snapshots
