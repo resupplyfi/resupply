@@ -24,7 +24,6 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     uint256 constant YEAR = 31557600;
     mapping(uint256 => Receiver) public idToReceiver;
     mapping(address => uint256) public receiverToId;
-    mapping(uint256 => uint256) public receiverWeight;
     mapping(uint256 => uint256) public receiverSplitPerEpoch;
     mapping(uint256 epoch => uint256 emissions) public emissionsPerEpoch;
     mapping(address => uint256) public receiverLastFetchEpoch;
@@ -45,7 +44,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     struct Receiver {
         bool active;
         address receiver;
-        uint88 weight;
+        uint24 weight;
     }
 
     constructor(address _core, address _govToken, uint256[] memory _emissionsSchedule, uint256 _epochsPer) CoreOwnable(_core) EpochTracker(_core) {
@@ -62,20 +61,24 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         uint256 totalWeight;
 
         // Clear all existing weights and fetch any unclaimed emissions
-        for (uint256 i = 0; i < nextReceiverId; i++) {
-            if (receiverWeight[i] > 0) {
-                IReceiver(idToReceiver[i].receiver).fetchAllocatedEmissions();
-                receiverWeight[i] = 0;
+        uint256 len = nextReceiverId;
+        Receiver storage receiver;
+        for (uint256 i = 0; i < len; i++) {
+            receiver = idToReceiver[i];
+            if (receiver.weight > 0) {
+                IReceiver(receiver.receiver).fetchAllocatedEmissions();
+                receiver.weight = 0;
             }
         }
 
         // Set new weights
         for (uint256 i = 0; i < _receiverIds.length; i++) {
             require(_receiverIds[i] < nextReceiverId, "Invalid receiver ID");
+            receiver = idToReceiver[_receiverIds[i]];
             if (_weights[i] > 0) {
-                require(idToReceiver[_receiverIds[i]].active, "Receiver not active");
+                require(receiver.active, "Receiver not active");
             }
-            receiverWeight[_receiverIds[i]] = _weights[i];
+            receiver.weight = uint24(_weights[i]);
             totalWeight += _weights[i];
         }
 
@@ -85,13 +88,13 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
     function addReceiver(address _receiver) external onlyOwner {
         require(_receiver != address(0), "Invalid receiver");
-        uint256 id = receiverToId[_receiver];
-        require(idToReceiver[id].receiver == address(0), "Receiver already added.");
+        require(IReceiver(_receiver).lastFetchEpoch() == 0, "Receiver already added."); // dev: should support interface
+        require(idToReceiver[receiverToId[_receiver]].receiver == address(0), "Receiver already added.");
         uint _nextId = nextReceiverId;
         idToReceiver[_nextId] = Receiver({
             active: true,
             receiver: _receiver,
-            weight: 0
+            weight: _nextId == 0 ? 10_000 : 0 // first receiver gets 100%
         });
         receiverToId[_receiver] = _nextId;
         nextReceiverId++;
@@ -128,9 +131,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         uint256 amount;
         while (lastFetch < epoch) {
             lastFetch++;
-            uint256 receiverId = receiverToId[_receiver];
             amount = (
-                receiverWeight[receiverId] * 
+                receiver.weight * 
                 emissionsPerEpoch[lastFetch] /
                 BPS
             );

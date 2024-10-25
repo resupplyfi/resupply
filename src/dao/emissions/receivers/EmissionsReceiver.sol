@@ -8,7 +8,6 @@ contract EmissionsReceiver {
     IEmissionsController public immutable emissionsController;
     IERC20 public immutable govToken;
     string public name;
-    uint256 public lastFetchEpoch;
 
     constructor(address _emissionsController, string memory _name) {
         emissionsController = IEmissionsController(_emissionsController);
