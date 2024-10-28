@@ -23,6 +23,8 @@ contract RewardHandler{
     address public immutable insuranceRevenue;
     address public immutable platformRewards;
 
+    mapping(address => uint256) public pairTimestamp;
+
     constructor(address _owner, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
         registry = _registry;
         revenueToken = _revenueToken;
@@ -86,6 +88,19 @@ contract RewardHandler{
 
     function setPairWeight(address _pair, uint256 _amount) external{
         require(msg.sender == IPairRegistry(registry).feeDeposit(), "!feeDeposist");
+
+        //get previous and update
+        uint256 lastTimestamp = pairTimestamp[_pair];
+        pairTimestamp[_pair] == block.timestamp;
+
+        //if first record, assume 7 days
+        if(lastTimestamp == 0){            
+            lastTimestamp = block.timestamp - 7 days;
+        }
+
+        //convert amount to amount per second. (precision loss ok as its just weights)
+        uint256 rate = block.timestamp - lastTimestamp;
+        rate = _amount / rate;
 
         IRewards(pairEmissions).setWeight(msg.sender, _amount);
     }

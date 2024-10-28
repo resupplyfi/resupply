@@ -123,6 +123,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // Contract Level Accounting
     VaultAccount public totalBorrow; // amount = total borrow amount with interest accrued, shares = total shares outstanding
     uint256 public claimableFees; //amount of interest gained that is claimable as fees
+    uint256 public claimableOtherFees; //amount of redemption/mint fees claimable by protocol
     WriteOffToken public redemptionWriteOff; //token to keep track of redemption write offs
 
     // User Level Accounting
@@ -669,7 +670,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         _userBorrowShares[msg.sender] += _sharesAdded;
 
         // add platform fee
-        claimableFees += (debtForMint - _borrowAmount);
+        claimableOtherFees += (debtForMint - _borrowAmount);
 
         // Interactions
         // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
@@ -931,7 +932,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         totalBorrow = _totalBorrow;
 
         //// add platform fees using platformFee////
-        claimableFees += platformFee; //increase claimable fees
+        claimableOtherFees += platformFee; //increase claimable fees
 
         ///// return collateral using collateralValue////
 

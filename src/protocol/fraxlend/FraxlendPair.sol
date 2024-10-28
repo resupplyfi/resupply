@@ -361,12 +361,14 @@ contract FraxlendPair is FraxlendPairCore {
 
     /// @notice The ```WithdrawFees``` event fires when the fees are withdrawn
     /// @param recipient To whom the assets were sent
-    /// @param amountToTransfer The amount of fees redeemed
-    event WithdrawFees(address recipient, uint256 amountToTransfer);
+    /// @param interestFees the amount of interest based fees claimed
+    /// @param otherFees the amount of other fees claimed(mint/redemption)
+    event WithdrawFees(address recipient, uint256 interestFees, uint256 otherFees);
 
     /// @notice The ```withdrawFees``` function withdraws fees accumulated
-    /// @return _amountToTransfer Amount of assets sent to recipient
-    function withdrawFees() external nonReentrant returns (uint256 _amountToTransfer) {
+    /// @return _fees the amount of interest based fees claimed
+    /// @return _otherFees the amount of other fees claimed(mint/redemption)
+    function withdrawFees() external nonReentrant returns (uint256 _fees, uint256 _otherFees) {
 
         // Accrue interest if necessary
         _addInterest();
@@ -382,14 +384,16 @@ contract FraxlendPair is FraxlendPairCore {
             revert InvalidFeeTimestamp();
         }
 
-        //check fees and clear
-        uint256 _amountToTransfer = claimableFees;
+        //get fees and clear
+        _fees = claimableFees;
+        _otherFees = claimableOtherFees;
         claimableFees = 0;
+        claimableOtherFees = 0;
         //mint new stables to the receiver
-        IPairRegistry(registry).mint(feeDeposit,_amountToTransfer);
+        IPairRegistry(registry).mint(feeDeposit,_fees+_otherFees);
         //inform deposit contract of this pair's contribution
-        IFeeDeposit(feeDeposit).incrementPairRevenue(_amountToTransfer);
-        emit WithdrawFees(feeDeposit, _amountToTransfer);
+        IFeeDeposit(feeDeposit).incrementPairRevenue(_fees,_otherFees);
+        emit WithdrawFees(feeDeposit, _fees, _otherFees);
     }
 
     /// @notice The ```SetSwapper``` event fires whenever a swapper is black or whitelisted

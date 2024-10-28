@@ -26,7 +26,7 @@ contract FeeDeposit is CoreOwnable{
     uint256 private constant WEEK = 7 * 86400;
 
     event FeesDistributed(address indexed _address, uint256 _amount);
-    event ReceivedRevenue(address indexed _address, uint256 _amount);
+    event ReceivedRevenue(address indexed _address, uint256 _fees, uint256 _otherFees);
     event SetOperator(address oldAddress, address newAddress);
 
     constructor(address _core, address _registry, address _feeToken) CoreOwnable(_core){
@@ -54,13 +54,14 @@ contract FeeDeposit is CoreOwnable{
         emit FeesDistributed(operator,amount);
     }
 
-    function incrementPairRevenue(uint256 _amount) external{
+    function incrementPairRevenue(uint256 _fees, uint256 _otherFees) external{
         //ensure caller is a registered pair
         require(IPairRegistry(registry).deployedPairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
 
-        emit ReceivedRevenue(msg.sender, _amount);
+        emit ReceivedRevenue(msg.sender, _fees, _otherFees);
 
-        //pass to handler
-        IRewardHandler(IPairRegistry(registry).rewardHandler()).setPairWeight(msg.sender, _amount);
+        //pass interest fees to handler to adjust reward weighting
+        //note: only pass interest based fees
+        IRewardHandler(IPairRegistry(registry).rewardHandler()).setPairWeight(msg.sender, _fees);
     }
 }
