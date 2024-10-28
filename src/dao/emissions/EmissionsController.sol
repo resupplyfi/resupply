@@ -86,9 +86,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         emit ReceiverWeightsSet(_receiverIds, _weights);
     }
 
-    function addReceiver(address _receiver) external onlyOwner {
+    function registerReceiver(address _receiver) external onlyOwner {
         require(_receiver != address(0), "Invalid receiver");
-        require(IReceiver(_receiver).lastFetchEpoch() == 0, "Receiver already added."); // dev: should support interface
         require(idToReceiver[receiverToId[_receiver]].receiver == address(0), "Receiver already added.");
         uint _nextId = nextReceiverId;
         idToReceiver[_nextId] = Receiver({

@@ -7,5 +7,4 @@ interface IReceiver {
      * @return The amount of emissions fetched
      */
     function fetchAllocatedEmissions() external returns (uint256);
-    function lastFetchEpoch() external view returns (uint256);
 }
