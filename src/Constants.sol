@@ -6,6 +6,8 @@ pragma solidity ^0.8.19;
 import { TestBase } from "forge-std/Test.sol";
 
 library Mainnet {
+    address internal constant CORE = address(0);
+    address internal constant STABLE_TOKEN = address(0);
     address internal constant CONVEX_DEPLOYER = 0x947B7742C403f20e5FaCcDAc5E092C943E7D0277;
     address internal constant CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
     address internal constant FRAX_ERC20 = 0x853d955aCEf822Db058eb8505911ED77F175b99e;
