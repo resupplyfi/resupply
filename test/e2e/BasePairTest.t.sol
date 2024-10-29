@@ -12,8 +12,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "src/protocol/fraxlend/FraxlendPairConstants.sol";
 import "src/protocol/fraxlend/FraxlendPairAccessControlErrors.sol";
 import "src/protocol/BasicVaultOracle.sol";
-import { RelendPairDeployer } from "src/protocol/RelendPairDeployer.sol";
-import { RelendPairRegistry } from "src/protocol/RelendPairRegistry.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
+import { ResupplyPairRegistry } from "src/protocol/ResupplyPairRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { FraxlendPair } from "src/protocol/fraxlend/FraxlendPair.sol";
 import "src/Constants.sol" as Constants;
@@ -42,14 +42,14 @@ contract BasePairTest is
     // using OracleHelper for AggregatorV3Interface;
     using SafeCast for uint256;
     using Strings for uint256;
-    using RelendPairTestHelper for FraxlendPair;
+    using ResupplyPairTestHelper for FraxlendPair;
     using NumberFormat for *;
     using StringsHelper for *;
 
     // contracts
     FraxlendPair public pair;
-    RelendPairDeployer public deployer;
-    RelendPairRegistry public pairRegistry;
+    ResupplyPairDeployer public deployer;
+    ResupplyPairRegistry public pairRegistry;
     Core public core;
     MockToken public stakingToken;
     MockToken public stableToken;
@@ -77,7 +77,7 @@ contract BasePairTest is
     }
 
     struct PairAccounting {
-        address fraxlendPairAddress;
+        address pairAddress;
         uint256 claimableFees;
         uint128 totalBorrowAmount;
         uint128 totalBorrowShares;
@@ -146,8 +146,8 @@ contract BasePairTest is
     /// @dev
     function deployBaseContracts() public {
 
-        pairRegistry = new RelendPairRegistry(address(stableToken),address(core));
-        deployer = new RelendPairDeployer(
+        pairRegistry = new ResupplyPairRegistry(address(stableToken),address(core));
+        deployer = new ResupplyPairDeployer(
             address(pairRegistry),
             address(stakingToken),
             address(Constants.Mainnet.CONVEX_DEPLOYER),
@@ -173,7 +173,7 @@ contract BasePairTest is
         );
 
         //default asset/collateral
-        collateral = IERC20(Constants.Mainnet.FRAXLEND_SFRAX_FRAX);
+        collateral = IERC20(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX);
         fraxToken = IERC20(Constants.Mainnet.FRAX_ERC20);
         crvUsdToken = IERC20(Constants.Mainnet.CURVE_USD_ERC20);
     }
@@ -233,7 +233,7 @@ contract BasePairTest is
         vm.stopPrank();
 
         vm.startPrank(address(core));
-        // pairRegistry.addPair(_pairAddress);
+        pairRegistry.addPair(_pairAddress);
         vm.stopPrank();
 
         // startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);
@@ -249,40 +249,40 @@ contract BasePairTest is
     // ============================================================================================
 
     function initialUserAccountingSnapshot(
-        FraxlendPair _relendPair,
+        FraxlendPair _pair,
         address _userAddress
     ) public returns (UserAccounting memory) {
-        (uint256 _borrowShares, uint256 _collateralBalance) = _relendPair.getUserSnapshot(
+        (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
             _userAddress
         );
         return
             UserAccounting({
                 _address: _userAddress,
                 borrowShares: _borrowShares,
-                borrowAmountFalse: toBorrowAmount(_relendPair, _borrowShares, false),
-                borrowAmountTrue: toBorrowAmount(_relendPair, _borrowShares, true),
+                borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
+                borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
                 collateralBalance: _collateralBalance,
-                balanceOfAsset: IERC20(_relendPair.asset()).balanceOf(_userAddress),
-                balanceOfCollateral: IERC20(address(_relendPair.collateralContract())).balanceOf(_userAddress)
+                balanceOfAsset: IERC20(_pair.asset()).balanceOf(_userAddress),
+                balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
             });
     }
 
     function finalUserAccountingSnapshot(
-        FraxlendPair _relendPair,
+        FraxlendPair _pair,
         UserAccounting memory _initial
     ) public returns (UserAccounting memory _final, UserAccounting memory _net) {
         address _userAddress = _initial._address;
-        (uint256 _borrowShares, uint256 _collateralBalance) = _relendPair.getUserSnapshot(
+        (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
             _userAddress
         );
         _final = UserAccounting({
             _address: _userAddress,
             borrowShares: _borrowShares,
-            borrowAmountFalse: toBorrowAmount(_relendPair, _borrowShares, false),
-            borrowAmountTrue: toBorrowAmount(_relendPair, _borrowShares, true),
+            borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
+            borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
             collateralBalance: _collateralBalance,
-            balanceOfAsset: IERC20(_relendPair.asset()).balanceOf(_userAddress),
-            balanceOfCollateral: IERC20(address(_relendPair.collateralContract())).balanceOf(_userAddress)
+            balanceOfAsset: IERC20(_pair.asset()).balanceOf(_userAddress),
+            balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
         });
         _net = UserAccounting({
             _address: _userAddress,
@@ -296,53 +296,53 @@ contract BasePairTest is
     }
 
     function takeInitialAccountingSnapshot(
-        FraxlendPair _relendPair
+        FraxlendPair _pair
     ) internal returns (PairAccounting memory _initial) {
-        address _fraxlendPairAddress = address(_relendPair);
-        IERC20 _asset = IERC20(_relendPair.asset());
-        IERC20 _collateral = _relendPair.collateralContract();
+        address _pairAddress = address(_pair);
+        IERC20 _asset = IERC20(_pair.asset());
+        IERC20 _collateral = _pair.collateralContract();
 
         (
             uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
-        ) = _relendPair.__getPairAccounting();
-        _initial.fraxlendPairAddress = _fraxlendPairAddress;
+        ) = _pair.__getPairAccounting();
+        _initial.pairAddress = _pairAddress;
         _initial.claimableFees = _claimableFees;
         _initial.totalBorrowAmount = _totalBorrowAmount;
         _initial.totalBorrowShares = _totalBorrowShares;
         _initial.totalCollateral = _totalCollateral;
-        _initial.balanceOfAsset = _asset.balanceOf(_fraxlendPairAddress);
-        _initial.balanceOfCollateral = _collateral.balanceOf(_fraxlendPairAddress);
-        _initial.collateralBalance = _relendPair.userCollateralBalance(_fraxlendPairAddress);
+        _initial.balanceOfAsset = _asset.balanceOf(_pairAddress);
+        _initial.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
+        _initial.collateralBalance = _pair.userCollateralBalance(_pairAddress);
     }
 
     function takeFinalAccountingSnapshot(
         PairAccounting memory _initial
     ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
-        address _fraxlendPairAddress = _initial.fraxlendPairAddress;
-        FraxlendPair _fraxlendPair = FraxlendPair(_fraxlendPairAddress);
-        IERC20 _asset = IERC20(_fraxlendPair.asset());
-        IERC20 _collateral = _fraxlendPair.collateralContract();
+        address _pairAddress = _initial.pairAddress;
+        FraxlendPair _pair = FraxlendPair(_pairAddress);
+        IERC20 _asset = IERC20(_pair.asset());
+        IERC20 _collateral = _pair.collateralContract();
 
         (
             uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
-        ) = _fraxlendPair.getPairAccounting();
+        ) = _pair.getPairAccounting();
         // Sorry for mutation syntax
-        _final.fraxlendPairAddress = _fraxlendPairAddress;
+        _final.pairAddress = _pairAddress;
         _final.claimableFees = _claimableFees;
         _final.totalBorrowAmount = _totalBorrowAmount;
         _final.totalBorrowShares = _totalBorrowShares;
         _final.totalCollateral = _totalCollateral;
-        _final.balanceOfAsset = _asset.balanceOf(_fraxlendPairAddress);
-        _final.balanceOfCollateral = _collateral.balanceOf(_fraxlendPairAddress);
-        _final.collateralBalance = _fraxlendPair.userCollateralBalance(_fraxlendPairAddress);
+        _final.balanceOfAsset = _asset.balanceOf(_pairAddress);
+        _final.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
+        _final.collateralBalance = _pair.userCollateralBalance(_pairAddress);
 
-        _net.fraxlendPairAddress = _fraxlendPairAddress;
+        _net.pairAddress = _pairAddress;
         _net.claimableFees = stdMath.delta(_final.claimableFees, _initial.claimableFees).toUint128();
         _net.totalBorrowAmount = stdMath.delta(_final.totalBorrowAmount, _initial.totalBorrowAmount).toUint128();
         _net.totalBorrowShares = stdMath.delta(_final.totalBorrowShares, _initial.totalBorrowShares).toUint128();

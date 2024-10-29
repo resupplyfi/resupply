@@ -13,8 +13,8 @@ contract StableCoin is ERC20, CoreOwnable {
 
     constructor(address _core)
         ERC20(
-            "StableCoin",
-            "usdXYZ"
+            "Resupply USD",
+            "reUSD"
         )
         CoreOwnable(_core)
     {

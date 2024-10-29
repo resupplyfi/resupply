@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import "./BasePairTest.t.sol";
 import "src/interfaces/IFraxlendPair.sol";
-import "src/protocol/RelendPairDeployer.sol";
+import "src/protocol/ResupplyPairDeployer.sol";
 
-contract RelendDeployerTest is BasePairTest {
+contract ResupplyDeployerTest is BasePairTest {
     function setUp() public {
         string memory _envKey = vm.envString("MAINNET_URL");
         vm.createSelectFork(_envKey, 16_474_174);

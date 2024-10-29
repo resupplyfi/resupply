@@ -24,7 +24,9 @@ library Mainnet {
 
 
 
-    address internal constant FRAXLEND_SFRAX_FRAX = 0x78bB3aEC3d855431bd9289fD98dA13F9ebB7ef15;
+    address internal constant FRAXLEND_SFRXETH_FRAX = 0x78bB3aEC3d855431bd9289fD98dA13F9ebB7ef15;
+    address internal constant CURVELEND_SFRAX_CRVUSD = 0xd0c183C9339e73D7c9146D48E1111d1FBEe2D6f9;
+    uint256 internal constant CURVELEND_SFRAX_CRVUSD_ID = 376;
 }
 
 abstract contract Helper is TestBase {

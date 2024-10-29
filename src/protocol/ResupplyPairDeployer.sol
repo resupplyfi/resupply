@@ -40,7 +40,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice Deploys and initializes new FraxlendPairs
 /// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
-contract RelendPairDeployer is CoreOwnable {
+contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
     using SafeERC20 for IERC20;
 
@@ -186,7 +186,7 @@ contract RelendPairDeployer is CoreOwnable {
             (address, address, address, address, uint256, uint256, uint256, uint256, uint256)
         );
 
-        string memory _name = "name";//getNextName(_asset, _collateral, _uniqueId);
+        string memory _name = getNextName(_asset, _collateral, _uniqueId);
 
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
