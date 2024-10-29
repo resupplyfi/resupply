@@ -40,7 +40,7 @@ contract DeployTestEnvironment is BaseScript {
         _return.contractName = _name;
     }
 
-    function deployOthers(address _core, address _pairRegistry, address _stable, address _gov) private returns(DeployScriptReturn[] memory _return){
+    function deployOthers(address _core, ResupplyPairRegistry _pairRegistry, address _stable, address _gov) private returns(DeployScriptReturn[] memory _return){
         _return = new DeployScriptReturn[](9);
 
         InsurancePool _insurancepool = new InsurancePool(
@@ -68,7 +68,7 @@ contract DeployTestEnvironment is BaseScript {
             address(_insurancepool));
         _return[2] = setReturnData(address(_ipemissionstream),"","Insurance Pool Emissions Stream");
 
-        //todo add rewards to pool
+        //todo queue rewards to pools
 
         SimpleRewardStreamer _pairemissionstream = new SimpleRewardStreamer(
             address(_gov),
@@ -85,13 +85,15 @@ contract DeployTestEnvironment is BaseScript {
         _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
         FeeDepositController _feedepositController = new FeeDepositController(
             address(_pairRegistry),
-            address(deployer), //treasury
+            address(deployer), //todo treasury
             address(_feedeposit),
             address(_stable),
             1500,
             1000
             );
         _return[5] = setReturnData(address(_feedepositController),"","Fee Deposit Controller");
+        //attach fee deposit controller to fee deposit
+        _feedeposit.setOperator(address(_feedepositController));
 
         RedemptionHandler _redemptionHandler = new RedemptionHandler(
             address(_core),//core
@@ -118,6 +120,13 @@ contract DeployTestEnvironment is BaseScript {
             address(_ipstablestream)
             );
         _return[8] = setReturnData(address(_rewardHandler),"","Reward Handler");
+
+        _pairRegistry.setLiquidationHandler(address(_liqHandler));
+        _pairRegistry.setFeeDeposit(address(_feedeposit));
+        _pairRegistry.setRedeemer(address(_redemptionHandler));
+        _pairRegistry.setInsurancePool(address(_insurancepool));
+        _pairRegistry.setRewardHandler(address(_rewardHandler));
+
     }
 
     function deployEnvironment() private returns (DeployScriptReturn[] memory _return) {
@@ -127,8 +136,10 @@ contract DeployTestEnvironment is BaseScript {
         address deployer = vm.rememberKey(vm.envUint("PK"));
         console.log(">>> deploying from:", deployer);
 
-        StableCoin _stable = new StableCoin(deployer);
-        StableCoin _gov = new StableCoin(deployer);
+        address _core = deployer;
+
+        StableCoin _stable = new StableCoin(_core);
+        StableCoin _gov = new StableCoin(_core);
 
         console.log("owner/core: ", _stable.owner());
         _stable.setOperator(deployer,true);
@@ -147,7 +158,7 @@ contract DeployTestEnvironment is BaseScript {
 
         ResupplyPairRegistry _pairRegistry = new ResupplyPairRegistry(
             address(_stable),
-            address(deployer)
+            address(_core)
         );
         _return[2].address_ = address(_pairRegistry);
         _return[2].constructorParams = "";
@@ -160,7 +171,7 @@ contract DeployTestEnvironment is BaseScript {
             address(_pairRegistry),
             address(_gov),
             address(deployer),
-            address(deployer)
+            address(_core)
         );
         _return[3].address_ = address(_pairDeployer);
         _return[3].constructorParams = "";
@@ -229,22 +240,17 @@ contract DeployTestEnvironment is BaseScript {
         _pairRegistry.addPair(_curvelendpairAddress);
 
         
-        DeployScriptReturn[] memory _subreturn = deployOthers(deployer, address(_pairRegistry), address(_stable), address(_gov));
+        DeployScriptReturn[] memory _subreturn = deployOthers(_core, _pairRegistry, address(_stable), address(_gov));
         for(uint256 i=0; i < _subreturn.length; i++){
             _return[i+8] = _subreturn[i];
         }
 
         console.log("======================================");
-        console.log("    Base Contracts     ");
+        console.log("    Contracts     ");
         console.log("======================================");
-        console.log("Registry: ", address(_pairRegistry));
-        console.log("Deployer: ", address(_pairDeployer));
-        console.log("govToken: ", address(_gov));
-        console.log("stableToken: ", address(_stable));
-        console.log("rate calculator: ", address(_rateCalc));
-        console.log("oracle: ", address(_oracle));
-        console.log("fraxlend pair: ", address(_fraxlendpairAddress));
-        console.log("curvelend pair: ", address(_curvelendpairAddress));
+        for(uint256 i=0; i < _return.length; i++){
+            console.log(_return[i].contractName,": ", _return[i].address_);
+        }
         console.log("======================================");
         console.log("balance of reUSD: ", _stable.balanceOf(deployer));
         console.log("balance of RSPL: ", _gov.balanceOf(deployer));
