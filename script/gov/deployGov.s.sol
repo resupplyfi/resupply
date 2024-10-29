@@ -7,8 +7,8 @@ import { EmissionsController } from "../../src/dao/emissions/EmissionsController
 import { Voter } from "../../src/dao/Voter.sol";
 import { IGovStaker } from "../../src/interfaces/IGovStaker.sol";
 import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
-import "forge-std/console.sol";
-import "forge-std/Vm.sol";
+import "../../lib/forge-std/src/console2.sol";
+import "../../lib/forge-std/src/console.sol";
 
 contract DeployGov is TenderlyHelper {
     address public dev = address(0xc4ad);
@@ -29,39 +29,45 @@ contract DeployGov is TenderlyHelper {
     function run() public {
         // Array of contract names to deploy
         setEthBalance(dev, 100 ether);
-        deployContracts();
-    }
+       
 
-    function deployContracts() public doBroadcast {
-        
-        
         uint256 nonce = vm.getNonce(dev);
-        address coreAddress = computeCreateAddress(dev, nonce);
-        address govTokenAddress = computeCreateAddress(dev, nonce + 1);
-        address escrowAddress = computeCreateAddress(dev, nonce + 2);
-        address govStakingAddress = computeCreateAddress(dev, nonce + 3);
-        
-        
-        core = new Core(tempGov, 1 weeks);
-        govToken = new GovToken(address(core), "Resupply", "RSUP");
-        escrow = new GovStakerEscrow(govStakingAddress, govTokenAddress);
-        staker = 
-            new GovStaker(
-                coreAddress, 
-                govTokenAddress, 
-                escrowAddress, 
-                2
-        );
-        voter = new Voter(coreAddress, IGovStaker(govStakingAddress), 100, 3000);
+        address coreAddress = vm.computeCreateAddress(dev, nonce);
+        address govTokenAddress = vm.computeCreateAddress(dev, nonce + 1);
+        address escrowAddress = vm.computeCreateAddress(dev, nonce + 2);
+        address govStakingAddress = vm.computeCreateAddress(dev, nonce + 3);
         
         console.log("govStakingAddress", govStakingAddress);
         console.log("voter", address(voter));
         console.log("govToken", govTokenAddress);
         console.log("escrow", escrowAddress);
         console.log("core", coreAddress);
+
+        deployStakingContracts();
+        deployOtherContracts();
+    }
+
+    function deployStakingContracts() public doBroadcast {
+        core = new Core(tempGov, 1 weeks);
+        skipBlocks(1);
+        govToken = new GovToken(address(core), "Resupply", "RSUP");
+        skipBlocks(1);
+        escrow = new GovStakerEscrow(address(staker), address(govToken));
+        skipBlocks(1);
+        staker = 
+            new GovStaker(
+                address(core), 
+                address(govToken), 
+                address(escrow), 
+                2
+        );
+    }
+
+    function deployOtherContracts() public doBroadcast {
+        voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
         emissionsController = new EmissionsController(
-            coreAddress, 
-            govTokenAddress, 
+            address(core), 
+            address(govToken), 
             getEmissionsSchedule(), 
             10, // epochsPer,
             2 // bootstrapEpochs
@@ -76,31 +82,5 @@ contract DeployGov is TenderlyHelper {
         schedule[3] = 8 * 10 ** 16;     // 8%
         schedule[4] = 10 * 10 ** 16;    // 10%
         return schedule;
-    }
-
-    function sleep(uint256 _seconds) internal {
-        string[] memory inputs = new string[](3);
-        inputs[0] = "sleep";
-        inputs[1] = toString(_seconds);
-        vm.ffi(inputs);
-    }
-    // Helper for converting uint to string
-    function toString(uint256 value) internal pure returns (string memory) {
-        if (value == 0) {
-            return "0";
-        }
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) {
-            digits++;
-            temp /= 10;
-        }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
-        }
-        return string(buffer);
     }
 }

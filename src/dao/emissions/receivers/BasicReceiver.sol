@@ -8,28 +8,29 @@ import { EpochTracker } from "../../../dependencies/EpochTracker.sol";
 contract BasicReceiver is EpochTracker {
     IEmissionsController public immutable emissionsController;
     IERC20 public immutable govToken;
-    string public name;
-
-    uint256 public immutable REWARD_DURATION;
+    string public name; // RECOMMENDED
 
     constructor(address _core, address _emissionsController, string memory _name) EpochTracker(_core) {
         emissionsController = IEmissionsController(_emissionsController);
         govToken = IERC20(address(emissionsController.govToken()));
         name = _name;
-        REWARD_DURATION = epochLength;
     }
 
+    // REQUIRED: `getReceiverId()` MUST be present, and must return this receiver's ID from the emissions controller.
     function getReceiverId() external view returns (uint256 id) {
         id = emissionsController.receiverToId(address(this));
         if (id == 0) require(emissionsController.idToReceiver(id).receiver == address(this), "!registered");
     }
 
+    // REQUIRED: `allocateEmissions()` MUST be present and MUST call back to `emissionsController.fetchEmissions()`.
     function allocateEmissions() external returns (uint256 amount) {
-        return _allocateEmissions();
+        amount = emissionsController.fetchEmissions(); // returns amount newly allocated
+        
     }
 
-    function _allocateEmissions() internal returns (uint256 amount) {
-        amount = emissionsController.fetchEmissions();
-        emissionsController.transferFromAllocation(address(this), amount);
+    // REQUIRED: any function to claim emissions from the receiver's allocated amount
+    function claimEmissions() external {
+        uint256 amount = emissionsController.allocated(address(this)); // returns totalamount allocated to receiver
+        return emissionsController.transferFromAllocation(address(this), amount); // pulls from receiver's allocation
     }
 }

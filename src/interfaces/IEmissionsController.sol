@@ -13,6 +13,7 @@ interface IEmissionsController {
     function getEpoch() external view returns (uint256);
     function receiverToId(address receiver) external view returns (uint256);
     function idToReceiver(uint256 id) external view returns (Receiver memory);
+    function allocated(address receiver) external view returns (uint256);
 
     // State-changing functions
     function fetchEmissions() external returns (uint256);

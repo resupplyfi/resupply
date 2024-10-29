@@ -1,8 +1,11 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {Script, console} from "forge-std/Script.sol";
-import "forge-std/Test.sol";
+import {Script, console} from "../../lib/forge-std/src/Script.sol";
+import "../../lib/forge-std/src/Test.sol";
+import "../../lib/forge-std/src/Vm.sol";
+import "../../lib/forge-std/src/console2.sol";
+import "../../lib/forge-std/src/console.sol";
 
 // All helper functions take care of setting the values in both local environment + fork environment.
 contract TenderlyHelper is Script, Test {
@@ -13,7 +16,7 @@ contract TenderlyHelper is Script, Test {
         sendCurlRequest("evm_increaseTime", vm.toString(_seconds));
     }
 
-    function skipBlocks(uint256 _blocks) external {
+    function skipBlocks(uint256 _blocks) public {
         uint256 currentBlock = block.number;
         vm.roll(currentBlock + _blocks); // Adjust the parameter to skip forward the specified number of blocks
         for (uint256 i = 0; i < _blocks; i++) {
