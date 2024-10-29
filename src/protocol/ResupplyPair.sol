@@ -29,20 +29,20 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
-import { FraxlendPairCore } from "./FraxlendPairCore.sol";
-import { SafeERC20 } from "../../libraries/SafeERC20.sol";
-import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
-import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
-import { ISwapper } from "../../interfaces/ISwapper.sol";
-import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
-import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
-import { IConvexStaking } from "../../interfaces/IConvexStaking.sol";
+import { FraxlendPairConstants } from "./fraxlend/FraxlendPairConstants.sol";
+import { FraxlendPairCore } from "./fraxlend/FraxlendPairCore.sol";
+import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
+import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
+import { ISwapper } from "../interfaces/ISwapper.sol";
+import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
+import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 
-/// @title FraxlendPair
+/// @title ResupplyPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  The FraxlendPair is a lending pair that allows users to engage in lending and borrowing activities
-contract FraxlendPair is FraxlendPairCore {
+contract ResupplyPair is FraxlendPairCore {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -55,6 +55,7 @@ contract FraxlendPair is FraxlendPairCore {
     uint256 convexPid;
     
     error InvalidFeeTimestamp();
+    error IncorrectStakeBalance();
 
     /// @param _configData config data
     /// @param _immutables immutable data
@@ -379,7 +380,9 @@ contract FraxlendPair is FraxlendPairCore {
             if(stakedBalance > 0){
                 //withdraw
                 IConvexStaking(convexBooster).withdrawAndUnwrap(stakedBalance,false);
-                require(collateralContract.balanceOf(address(this)) >= stakedBalance, "incorrect balance");
+                if(collateralContract.balanceOf(address(this)) < stakedBalance){
+                    revert IncorrectStakeBalance();
+                }
             }
 
             //stake in new pool

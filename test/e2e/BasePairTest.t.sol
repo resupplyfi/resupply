@@ -15,7 +15,7 @@ import "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPairRegistry } from "src/protocol/ResupplyPairRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
-import { FraxlendPair } from "src/protocol/fraxlend/FraxlendPair.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 
@@ -42,12 +42,12 @@ contract BasePairTest is
     // using OracleHelper for AggregatorV3Interface;
     using SafeCast for uint256;
     using Strings for uint256;
-    using ResupplyPairTestHelper for FraxlendPair;
+    using ResupplyPairTestHelper for ResupplyPair;
     using NumberFormat for *;
     using StringsHelper for *;
 
     // contracts
-    FraxlendPair public pair;
+    ResupplyPair public pair;
     ResupplyPairDeployer public deployer;
     ResupplyPairRegistry public pairRegistry;
     Core public core;
@@ -155,7 +155,7 @@ contract BasePairTest is
         );
         
         vm.startPrank(address(core));
-        deployer.setCreationCode(type(FraxlendPair).creationCode);
+        deployer.setCreationCode(type(ResupplyPair).creationCode);
         vm.stopPrank();
 
         rateContract = new InterestRateCalculator(
@@ -204,11 +204,11 @@ contract BasePairTest is
     // ============================================================================================
 
     /// @notice The ```deployFraxlendPublic``` function helps deploy Fraxlend public pairs with default config
-    function deployDefaultLendingPair() public returns(FraxlendPair) {
+    function deployDefaultLendingPair() public returns(ResupplyPair) {
         return deployLendingPair(address(fraxToken), address(collateral), address(0), 0);
     }
 
-    function deployLendingPair(address _asset, address _collateral, address _staking, uint256 _stakingId) public returns(FraxlendPair){
+    function deployLendingPair(address _asset, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
         vm.startPrank(address(Constants.Mainnet.CONVEX_DEPLOYER));
 
         address _pairAddress = deployer.deploy(
@@ -229,7 +229,7 @@ contract BasePairTest is
         );
 
         uniqueId += 1;
-        pair = FraxlendPair(_pairAddress);
+        pair = ResupplyPair(_pairAddress);
         vm.stopPrank();
 
         vm.startPrank(address(core));
@@ -249,7 +249,7 @@ contract BasePairTest is
     // ============================================================================================
 
     function initialUserAccountingSnapshot(
-        FraxlendPair _pair,
+        ResupplyPair _pair,
         address _userAddress
     ) public returns (UserAccounting memory) {
         (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
@@ -268,7 +268,7 @@ contract BasePairTest is
     }
 
     function finalUserAccountingSnapshot(
-        FraxlendPair _pair,
+        ResupplyPair _pair,
         UserAccounting memory _initial
     ) public returns (UserAccounting memory _final, UserAccounting memory _net) {
         address _userAddress = _initial._address;
@@ -296,7 +296,7 @@ contract BasePairTest is
     }
 
     function takeInitialAccountingSnapshot(
-        FraxlendPair _pair
+        ResupplyPair _pair
     ) internal returns (PairAccounting memory _initial) {
         address _pairAddress = address(_pair);
         IERC20 _asset = IERC20(_pair.asset());
@@ -322,7 +322,7 @@ contract BasePairTest is
         PairAccounting memory _initial
     ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
         address _pairAddress = _initial.pairAddress;
-        FraxlendPair _pair = FraxlendPair(_pairAddress);
+        ResupplyPair _pair = ResupplyPair(_pairAddress);
         IERC20 _asset = IERC20(_pair.asset());
         IERC20 _collateral = _pair.collateralContract();
 
@@ -393,7 +393,7 @@ contract BasePairTest is
         // );
     }
 
-    function assertUnwind(FraxlendPair _pair) public {
+    function assertUnwind(ResupplyPair _pair) public {
         IERC20 _asset = IERC20(_pair.asset());
         for (uint256 i = 0; i < users.length; i++) {
             address _user = users[i];
@@ -429,11 +429,11 @@ contract BasePairTest is
     // }
 
     // function toAssetAmount(
-    //     FraxlendPair _fraxlendPair,
+    //     ResupplyPair _pair,
     //     uint256 _shares,
     //     bool roundup
     // ) public view returns (uint256 _amount) {
-    //     (uint256 _amountTotal, uint256 _sharesTotal) = _fraxlendPair.totalAsset();
+    //     (uint256 _amountTotal, uint256 _sharesTotal) = _pair.totalAsset();
     //     _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
     // }
 
@@ -461,11 +461,11 @@ contract BasePairTest is
     }
 
     function toBorrowAmount(
-        FraxlendPair _fraxlendPair,
+        ResupplyPair _pair,
         uint256 _shares,
         bool roundup
     ) public view returns (uint256 _amount) {
-        (uint256 _amountTotal, uint256 _sharesTotal) = _fraxlendPair.totalBorrow();
+        (uint256 _amountTotal, uint256 _sharesTotal) = _pair.totalBorrow();
         _amount = toBorrowAmount(_amountTotal, _sharesTotal, _shares, roundup);
     }
 
@@ -538,11 +538,11 @@ contract BasePairTest is
         _utilization = (_borrowAmount * EXCHANGE_PRECISION) / _borrowLimit;
     }
 
-    function ratePerSec(FraxlendPair _pair) internal view returns (uint64 _ratePerSec) {
+    function ratePerSec(ResupplyPair _pair) internal view returns (uint64 _ratePerSec) {
         (, , _ratePerSec,, ) = _pair.currentRateInfo();
     }
 
-    // function feeToProtocolRate(FraxlendPair _pair) internal view returns (uint64 _feeToProtocolRate) {
+    // function feeToProtocolRate(ResupplyPair _pair) internal view returns (uint64 _feeToProtocolRate) {
     //     (, _feeToProtocolRate, , , ) = _pair.currentRateInfo();
     // }
 
@@ -576,44 +576,6 @@ contract BasePairTest is
         uint256 shares;
     }
 
-    // function _preMintFaucetApprove(FraxlendPair _fraxlendPair, MintAction memory _mintAction) internal {
-    //     IERC20 _asset = IERC20(_fraxlendPair.asset());
-    //     uint256 _amount = _fraxlendPair.previewMint(_mintAction.shares);
-    //     faucetFunds(_asset, _amount, _mintAction.user);
-    //     _asset.approve(address(_fraxlendPair), _amount);
-    // }
-
-    // function lendTokenViaMintWithFaucet(FraxlendPair _pair, MintAction memory _mintAction) internal returns (uint256) {
-    //     startHoax(_mintAction.user);
-    //     _preMintFaucetApprove(_pair, _mintAction);
-    //     uint256 _amount = _pair.mint(_mintAction.shares, _mintAction.user);
-    //     vm.stopPrank();
-    //     return _amount;
-    // }
-
-    // function _preDepositFaucetApprove(FraxlendPair _fraxlendPair, DepositAction memory _depositAction) internal {
-    //     IERC20 _asset = IERC20(_fraxlendPair.asset());
-    //     faucetFunds(_asset, _depositAction.amount, _depositAction.user);
-    //     _asset.approve(address(_fraxlendPair), _depositAction.amount);
-    // }
-
-    // helper to approve and lend in one step
-    // function lendTokenViaDeposit(FraxlendPair _pair, DepositAction memory _depositAction) internal returns (uint256) {
-    //     startHoax(_depositAction.user);
-    //     IERC20(_pair.asset()).approve(address(_pair), _depositAction.amount);
-    //     uint256 _shares = _pair.deposit(_depositAction.amount, _depositAction.user);
-    //     vm.stopPrank();
-    //     return _shares;
-    // }
-
-    // function lendTokenViaDepositWithFaucet(
-    //     FraxlendPair _pair,
-    //     DepositAction memory _depositAction
-    // ) internal returns (uint256) {
-    //     faucetFunds(IERC20(_pair.asset()), _depositAction.amount, _depositAction.user);
-    //     return lendTokenViaDeposit(_pair, _depositAction);
-    // }
-
     // Borrowing
 
     struct BorrowAction {
@@ -622,10 +584,10 @@ contract BasePairTest is
         uint256 collateralAmount;
     }
 
-    function _preBorrowFaucetApprove(FraxlendPair _fraxlendPair, BorrowAction memory _borrowAction) internal {
-        IERC20 _collateral = _fraxlendPair.collateralContract();
+    function _preBorrowFaucetApprove(ResupplyPair _pair, BorrowAction memory _borrowAction) internal {
+        IERC20 _collateral = _pair.collateralContract();
         faucetFunds(_collateral, _borrowAction.collateralAmount, _borrowAction.user);
-        _collateral.approve(address(_fraxlendPair), _borrowAction.collateralAmount);
+        _collateral.approve(address(_pair), _borrowAction.collateralAmount);
     }
 
     // helper to approve and lend in one step
@@ -638,7 +600,7 @@ contract BasePairTest is
     }
 
     function borrowToken(
-        FraxlendPair _pair,
+        ResupplyPair _pair,
         uint256 _amountToBorrow,
         uint256 _collateralAmount,
         address _user
@@ -652,12 +614,12 @@ contract BasePairTest is
     }
 
     function borrowTokenWithFaucet(
-        FraxlendPair _fraxlendPair,
+        ResupplyPair _pair,
         BorrowAction memory _borrowAction
     ) internal returns (uint256 _finalShares, uint256 _finalCollateralBalance) {
-        faucetFunds(_fraxlendPair.collateralContract(), _borrowAction.collateralAmount, _borrowAction.user);
+        faucetFunds(_pair.collateralContract(), _borrowAction.collateralAmount, _borrowAction.user);
         (_finalShares, _finalCollateralBalance) = borrowToken(
-            _fraxlendPair,
+            _pair,
             _borrowAction.borrowAmount,
             _borrowAction.collateralAmount,
             _borrowAction.user
@@ -666,47 +628,47 @@ contract BasePairTest is
 
     // Repaying
     struct RepayAction {
-        FraxlendPair fraxlendPair;
+        ResupplyPair pair;
         address user;
         uint256 shares;
     }
 
     function _preRepayFaucetApprove(RepayAction memory _repayAction) internal {
-        IERC20 _asset = IERC20(_repayAction.fraxlendPair.asset());
+        IERC20 _asset = IERC20(_repayAction.pair.asset());
         faucetFunds(_asset, _repayAction.shares * 2, _repayAction.user);
-        _asset.approve(address(_repayAction.fraxlendPair), _repayAction.shares);
+        _asset.approve(address(_repayAction.pair), _repayAction.shares);
     }
 
     // helper to approve and repay in one step, should have called addInterest before hand
 
     function repayToken(
-        FraxlendPair _fraxlendPair,
+        ResupplyPair _pair,
         uint256 _sharesToRepay,
         address _user
     ) internal returns (uint256 _finalShares) {
         uint256 _amountToApprove = toBorrowAmount(_sharesToRepay, true);
-        asset.approve(address(_fraxlendPair), _amountToApprove);
-        _fraxlendPair.repayAsset(_sharesToRepay, _user);
-        _finalShares = _fraxlendPair.userBorrowShares(_user);
+        asset.approve(address(_pair), _amountToApprove);
+        _pair.repayAsset(_sharesToRepay, _user);
+        _finalShares = _pair.userBorrowShares(_user);
     }
 
     function repayTokenWithFaucet(
-        FraxlendPair _fraxlendPair,
+        ResupplyPair _pair,
         uint256 _sharesToRepay,
         address _user
     ) internal returns (uint256 _finalShares) {
-        faucetFunds(IERC20(_fraxlendPair.asset()), 2 * _sharesToRepay, _user);
-        _finalShares = repayToken(_fraxlendPair, _sharesToRepay, _user);
+        faucetFunds(IERC20(_pair.asset()), 2 * _sharesToRepay, _user);
+        _finalShares = repayToken(_pair, _sharesToRepay, _user);
     }
 
     function repayTokenWithFaucet(RepayAction memory _repayAction) internal returns (uint256 _finalShares) {
-        FraxlendPair _fraxlendPair = _repayAction.fraxlendPair;
+        ResupplyPair _pair = _repayAction.pair;
         faucetFunds(
-            IERC20(_fraxlendPair.asset()),
-            _fraxlendPair.toBorrowAmount(_repayAction.shares, true, true),
+            IERC20(_pair.asset()),
+            _pair.toBorrowAmount(_repayAction.shares, true, true),
             _repayAction.user
         );
-        _finalShares = repayToken(_fraxlendPair, _repayAction.shares, _repayAction.user);
+        _finalShares = repayToken(_pair, _repayAction.shares, _repayAction.user);
     }
 
     // helper to move forward multiple blocks and add interest each time
@@ -719,35 +681,4 @@ contract BasePairTest is
             _sumOfInt += _interestEarned;
         }
     }
-
-    // Withdraw / Redeeming
-
-    // struct WithdrawAction {
-    //     FraxlendPair fraxlendPair;
-    //     address user;
-    //     uint256 amount;
-    // }
-
-    // struct RedeemAction {
-    //     FraxlendPair fraxlendPair;
-    //     address user;
-    //     uint256 shares;
-    // }
-
-    // function _preRedeemFaucetApprove(RedeemAction memory _redeemAction) internal {
-    //     IERC20 _asset = IERC20(_redeemAction.fraxlendPair.asset());
-    //     faucetFunds(_asset, _redeemAction.shares * 2, _redeemAction.user);
-    //     _asset.approve(address(_redeemAction.fraxlendPair), _redeemAction.shares * 2);
-    // }
-
-    // function redeemTokenWithFaucet(RedeemAction memory _redeemAction) internal returns (uint256 _amount) {
-    //     startHoax(_redeemAction.user);
-    //     faucetFunds(IERC20(_redeemAction.fraxlendPair.asset()), _redeemAction.shares * 2, _redeemAction.user);
-    //     _amount = redeemToken(_redeemAction);
-    //     vm.stopPrank();
-    // }
-
-    // function redeemToken(RedeemAction memory _redeemAction) internal returns (uint256 _amount) {
-    //     _amount = _redeemAction.fraxlendPair.redeem(_redeemAction.shares, _redeemAction.user, _redeemAction.user);
-    // }
 }

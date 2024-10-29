@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
-import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
@@ -38,8 +38,8 @@ contract RewardHandler{
     }
 
     function checkNewRewards(address _pair) external{
-        address booster = IFraxlendPair(_pair).convexBooster();
-        uint256 pid = IFraxlendPair(_pair).convexPid();
+        address booster = IResupplyPair(_pair).convexBooster();
+        uint256 pid = IResupplyPair(_pair).convexPid();
         
         //get main reward distribution contract from convex pool
         (,,,address rewards,,) = IConvexStaking(booster).poolInfo(pid);
@@ -55,10 +55,10 @@ contract RewardHandler{
             rtoken = IConvexStaking(rtoken).token();
 
             //get reward index on the pair for the given token
-            uint256 rewardSlot = IFraxlendPair(_pair).rewardMap(rtoken);
+            uint256 rewardSlot = IResupplyPair(_pair).rewardMap(rtoken);
             if(rewardSlot == 0){
                 //a non registered reward
-                IFraxlendPair(_pair).addExtraReward(rtoken);
+                IResupplyPair(_pair).addExtraReward(rtoken);
             }
 
             unchecked{i+=1;}
@@ -67,9 +67,9 @@ contract RewardHandler{
 
     function claimRewards(address _pair) external{
         //claim convex staking
-        uint256 pid = IFraxlendPair(_pair).convexPid();
+        uint256 pid = IResupplyPair(_pair).convexPid();
         if(pid != 0){
-            address booster = IFraxlendPair(_pair).convexBooster();
+            address booster = IResupplyPair(_pair).convexBooster();
             (,,,address rewards,,) = IConvexStaking(booster).poolInfo(pid);
             IConvexStaking(rewards).getReward(_pair, true);
         }

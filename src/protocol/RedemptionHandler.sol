@@ -5,7 +5,7 @@ import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
-import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 
 
 //Contract that interacts with pairs to perform redemptions
@@ -43,7 +43,7 @@ contract RedemptionHandler is CoreOwnable{
         //pull redeeming tokens
         IERC20(redemptionToken).safeTransferFrom(msg.sender, address(this), _amount);
         //redeem
-        return IFraxlendPair(_pair).redeem(_amount, baseRedemptionFee, _returnTo);
+        return IResupplyPair(_pair).redeem(_amount, baseRedemptionFee, _returnTo);
     }
 
 }

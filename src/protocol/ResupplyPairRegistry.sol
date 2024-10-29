@@ -23,7 +23,7 @@ pragma solidity ^0.8.19;
 // ====================================================================
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
@@ -127,10 +127,10 @@ contract ResupplyPairRegistry is CoreOwnable{
         deployedPairsByName[_name] = _pairAddress;
 
         // Set additional values for FraxlendPair
-        IFraxlendPair _fraxlendPair = IFraxlendPair(_pairAddress);
+        IResupplyPair _pair = IResupplyPair(_pairAddress);
         address[] memory _defaultSwappers = defaultSwappers;
         for (uint256 i = 0; i < _defaultSwappers.length; i++) {
-            _fraxlendPair.setSwapper(_defaultSwappers[i], true);
+            _pair.setSwapper(_defaultSwappers[i], true);
         }
 
         emit AddPair(_pairAddress);
@@ -168,7 +168,7 @@ contract ResupplyPairRegistry is CoreOwnable{
     }
 
     function claimFees(address _pair) external{
-        IFraxlendPair(_pair).withdrawFees();
+        IResupplyPair(_pair).withdrawFees();
     }
 
     function claimRewards(address _pair) external{

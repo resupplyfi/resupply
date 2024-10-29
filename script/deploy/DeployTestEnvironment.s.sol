@@ -12,7 +12,7 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { StableCoin } from "src/protocol/StableCoin.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
-import { FraxlendPair } from "src/protocol/fraxlend/FraxlendPair.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 
 
@@ -69,7 +69,7 @@ contract DeployTestEnvironment is BaseScript {
         _return[3].address_ = address(_pairDeployer);
         _return[3].constructorParams = "";
         _return[3].contractName = "ResupplyPairDeployer";
-        _pairDeployer.setCreationCode(type(FraxlendPair).creationCode);
+        _pairDeployer.setCreationCode(type(ResupplyPair).creationCode);
 
         InterestRateCalculator _rateCalc = new InterestRateCalculator(
             "Base",

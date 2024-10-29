@@ -6,7 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
-import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 
@@ -38,7 +38,7 @@ contract LiquidationHandler is CoreOwnable{
         address _pair,
         address _borrower
     ) external returns (uint256 _collateralForLiquidator){
-        _collateralForLiquidator = IFraxlendPair(_pair).liquidate(_borrower);
+        _collateralForLiquidator = IResupplyPair(_pair).liquidate(_borrower);
     }
 
     function processLiquidationDebt(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{

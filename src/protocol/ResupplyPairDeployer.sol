@@ -31,8 +31,8 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IFraxlendWhitelist } from "../interfaces/IFraxlendWhitelist.sol";
-import { IFraxlendPair } from "../interfaces/IFraxlendPair.sol";
-import { IFraxlendPairRegistry } from "../interfaces/IFraxlendPairRegistry.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
+import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 
@@ -108,7 +108,7 @@ contract ResupplyPairDeployer is CoreOwnable {
                 _uniqueId.toString()//(_length + 1).toString()
             )
         );
-        if(IFraxlendPairRegistry(registry).deployedPairsByName(_name) != address(0)){
+        if(IPairRegistry(registry).deployedPairsByName(_name) != address(0)){
             revert NonUniqueName();
         }
     }

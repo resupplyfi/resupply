@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "./BasePairTest.t.sol";
-import "src/interfaces/IFraxlendPair.sol";
+import "src/interfaces/IResupplyPair.sol";
 import "src/protocol/ResupplyPairDeployer.sol";
 
 contract ResupplyDeployerTest is BasePairTest {
@@ -13,7 +13,7 @@ contract ResupplyDeployerTest is BasePairTest {
 
     function testDeployPair() public {
         defaultSetUp();
-        FraxlendPair pair = deployDefaultLendingPair();
+        ResupplyPair pair = deployDefaultLendingPair();
         console.log("======================================");
         console.log("    Deployed Pair     ");
         console.log("======================================");
