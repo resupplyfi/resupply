@@ -13,6 +13,13 @@ import { StableCoin } from "src/protocol/StableCoin.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { InsurancePool } from "src/protocol/InsurancePool.sol";
+import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
+import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
+import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
+import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
+import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
+import { RewardHandler } from "src/protocol/RewardHandler.sol";
 
 
 
@@ -27,8 +34,94 @@ contract DeployTestEnvironment is BaseScript {
         _return = deployEnvironment();
     }
 
+    function setReturnData(address _address, bytes memory _constructor, string memory _name) private returns(DeployScriptReturn memory _return){
+        _return.address_ = _address;
+        _return.constructorParams = _constructor;
+        _return.contractName = _name;
+    }
+
+    function deployOthers(address _core, address _pairRegistry, address _stable, address _gov) private returns(DeployScriptReturn[] memory _return){
+        _return = new DeployScriptReturn[](9);
+
+        InsurancePool _insurancepool = new InsurancePool(
+        address(_core), //core
+        address(_stable),
+        address(_pairRegistry));
+
+        _return[0].address_ = address(_insurancepool);
+        _return[0].constructorParams = "";
+        _return[0].contractName = "Insurance Pool";
+
+        SimpleRewardStreamer _ipstablestream = new SimpleRewardStreamer(
+            address(_stable),
+            address(_pairRegistry),
+            address(_core), //core
+            address(_insurancepool));
+        _return[1].address_ = address(_ipstablestream);
+        _return[1].constructorParams = "";
+        _return[1].contractName = "Insurance Pool Revenue Stream";
+
+        SimpleRewardStreamer _ipemissionstream = new SimpleRewardStreamer(
+            address(_gov),
+            address(_pairRegistry),
+            address(_core), //core
+            address(_insurancepool));
+        _return[2] = setReturnData(address(_ipemissionstream),"","Insurance Pool Emissions Stream");
+
+        //todo add rewards to pool
+
+        SimpleRewardStreamer _pairemissionstream = new SimpleRewardStreamer(
+            address(_gov),
+            address(_pairRegistry),
+            address(_core), //core
+            address(0));
+        _return[3] = setReturnData(address(_pairemissionstream),"","Pair Emissions Stream");
+
+        FeeDeposit _feedeposit = new FeeDeposit(
+             address(_core), //core
+             address(_pairRegistry),
+             address(_stable)
+             );
+        _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
+        FeeDepositController _feedepositController = new FeeDepositController(
+            address(_pairRegistry),
+            address(deployer), //treasury
+            address(_feedeposit),
+            address(_stable),
+            1500,
+            1000
+            );
+        _return[5] = setReturnData(address(_feedepositController),"","Fee Deposit Controller");
+
+        RedemptionHandler _redemptionHandler = new RedemptionHandler(
+            address(_core),//core
+            address(_pairRegistry),
+            address(_stable)
+            );
+        _return[6] = setReturnData(address(_redemptionHandler),"","Redemption Handler");
+
+        LiquidationHandler _liqHandler = new LiquidationHandler(
+            address(_core),//core
+            address(_pairRegistry),
+            address(_insurancepool)
+            );
+        _return[7] = setReturnData(address(_liqHandler),"","Liquidation Handler");
+
+        RewardHandler _rewardHandler = new RewardHandler(
+            address(_core),//core
+            address(_pairRegistry),
+            address(_stable),
+            address(_pairemissionstream), //todo gov staking
+            address(_insurancepool),
+            address(_pairemissionstream),
+            address(_ipemissionstream),
+            address(_ipstablestream)
+            );
+        _return[8] = setReturnData(address(_rewardHandler),"","Reward Handler");
+    }
+
     function deployEnvironment() private returns (DeployScriptReturn[] memory _return) {
-        _return = new DeployScriptReturn[](8);
+        _return = new DeployScriptReturn[](17);
 
         // address deployer = msg.sender;
         address deployer = vm.rememberKey(vm.envUint("PK"));
@@ -59,6 +152,9 @@ contract DeployTestEnvironment is BaseScript {
         _return[2].address_ = address(_pairRegistry);
         _return[2].constructorParams = "";
         _return[2].contractName = "ResupplyPairRegistry";
+
+        //give registry mint rights
+        _stable.setOperator(address(_pairRegistry),true);
 
         ResupplyPairDeployer _pairDeployer = new ResupplyPairDeployer(
             address(_pairRegistry),
@@ -131,6 +227,12 @@ contract DeployTestEnvironment is BaseScript {
 
         _pairRegistry.addPair(_fraxlendpairAddress);
         _pairRegistry.addPair(_curvelendpairAddress);
+
+        
+        DeployScriptReturn[] memory _subreturn = deployOthers(deployer, address(_pairRegistry), address(_stable), address(_gov));
+        for(uint256 i=0; i < _subreturn.length; i++){
+            _return[i+8] = _subreturn[i];
+        }
 
         console.log("======================================");
         console.log("    Base Contracts     ");

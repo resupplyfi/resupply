@@ -55,7 +55,7 @@ contract LiquidationHandler is CoreOwnable{
     //withdraw what is possible and send to insurance pool while
     //burning required debt
     function processCollateral(address _collateral) public{
-        require(IPairRegistry(registry).liquidationHandler() == address(this), "old handler");
+        require(IPairRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
         //get underlying
         address underlyingAsset = IERC4626(_collateral).asset();

@@ -15,17 +15,21 @@ contract FeeDepositController{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
+    address public immutable treasury;
     address public immutable feeDeposit;
     address public immutable feeToken;
 
     uint256 public immutable insuranceShare;
+    uint256 public immutable treasuryShare;
     uint256 public constant denominator = 10000;
 
-    constructor(address _registry, address _feeDeposit, address _feeToken, uint256 _insuranceShare){
+    constructor(address _registry, address _treasury, address _feeDeposit, address _feeToken, uint256 _insuranceShare, uint256 _treasuryShare){
         registry = _registry;
+        treasury = _treasury;
         feeDeposit = _feeDeposit;
         feeToken = _feeToken;
         insuranceShare = _insuranceShare;
+        treasuryShare = _treasuryShare;
     }
 
     function distribute() external{
@@ -35,6 +39,10 @@ contract FeeDepositController{
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
         //insurance pool amount
         uint256 ipAmount =  balance * insuranceShare / denominator;
+        uint256 treasuryAmount =  balance * treasuryShare / denominator;
+
+        //send to treasury
+        IERC20(feeToken).safeTransfer(treasury, treasuryAmount);
 
         address rewardHandler = IPairRegistry(registry).rewardHandler();
         //send to handler

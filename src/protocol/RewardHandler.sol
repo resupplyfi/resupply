@@ -33,8 +33,8 @@ contract RewardHandler{
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
-        IERC20(_insuranceRevenue).approve(_revenueToken, type(uint256).max);
-        IERC20(_platformRewards).approve(_revenueToken, type(uint256).max);
+        IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
+        IERC20(_revenueToken).approve(_platformRewards, type(uint256).max);
     }
 
     function checkNewRewards(address _pair) external{

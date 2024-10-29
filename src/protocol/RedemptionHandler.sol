@@ -18,7 +18,7 @@ contract RedemptionHandler is CoreOwnable{
     address public immutable registry;
     address public immutable redemptionToken;
 
-    uint256 public baseRedemptionFee;
+    uint256 public baseRedemptionFee = 1e16; //1%
 
     event SetBaseRedemptionFee(uint256 _fee);
 
