@@ -6,5 +6,6 @@ interface IReceiver {
      * @notice Fetches emissions for the receiver
      * @return The amount of emissions fetched
      */
-    function fetchAllocatedEmissions() external returns (uint256);
+    function allocateEmissions() external returns (uint256);
+    function getReceiverId() external view returns (uint256);
 }

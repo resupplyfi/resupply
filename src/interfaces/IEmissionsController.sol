@@ -11,6 +11,8 @@ interface IEmissionsController {
     function getEmissionsSchedule() external view returns (uint256[] memory);
     function getReceiverSplit(address receiver, uint256 epoch) external view returns (uint256);
     function getEpoch() external view returns (uint256);
+    function receiverToId(address receiver) external view returns (uint256);
+    function idToReceiver(uint256 id) external view returns (Receiver memory);
 
     // State-changing functions
     function fetchEmissions() external returns (uint256);
@@ -22,4 +24,10 @@ interface IEmissionsController {
     event EmissionsMinted(uint256 epoch, uint256 amount);
     event EmissionsSplitSet(address receiver, uint256 split);
     event EmissionsScheduleSet(uint256[] rates, uint256 epochsPer, uint256 tailRate);
+
+    struct Receiver {
+        bool active;
+        address receiver;
+        uint256 weight;
+    }
 }

@@ -11,6 +11,7 @@ import { IReceiver } from "../../interfaces/IReceiver.sol";
 contract EmissionsController is CoreOwnable, EpochTracker {
 
     IGovToken immutable public govToken;
+    uint256 public constant BOOTSTRAP_EPOCHS = 2; // dev: number of epochs before emissions begin
     uint256 public emissionsRate;
     uint256 public constant PRECISION = 1e18;
     uint256 public constant BPS = 10_000;
@@ -21,11 +22,10 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     uint256 public lastUpdateEpoch;
     uint256 public lastEmissionsUpdate;
     uint256 public nextReceiverId;
-    uint256 constant YEAR = 31557600;
     mapping(uint256 => Receiver) public idToReceiver;
     mapping(address => uint256) public receiverToId;
     mapping(uint256 => uint256) public receiverSplitPerEpoch;
-    mapping(uint256 epoch => uint256 emissions) public emissionsPerEpoch;
+    mapping(uint256 epoch => uint256 emissions) public totalEmissionsPerEpoch;
     mapping(address => uint256) public receiverLastFetchEpoch;
     mapping(address => uint256) public allocated; // receiver => amount
 
@@ -47,26 +47,36 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         uint24 weight;
     }
 
-    constructor(address _core, address _govToken, uint256[] memory _emissionsSchedule, uint256 _epochsPer) CoreOwnable(_core) EpochTracker(_core) {
+    constructor(
+        address _core, 
+        address _govToken, 
+        uint256[] memory _emissionsSchedule, 
+        uint256 _epochsPer
+    ) CoreOwnable(_core) EpochTracker(_core) {
         govToken = IGovToken(_govToken);
         emissionsSchedule = _emissionsSchedule;
         tailRate = 1e16; // 2%
-        lastEmissionsUpdate = 0;
         epochsPer = _epochsPer;
+        emissionsRate = _emissionsSchedule[_emissionsSchedule.length - 1];
+        lastUpdateEpoch = BOOTSTRAP_EPOCHS - 1;
     }
 
 
     function setReceiverWeights(uint256[] memory _receiverIds, uint256[] memory _weights) external onlyOwner {
+        // TODO: Refactor this to be more efficient - 
+        // only touch receivers that are specified in the calldata weights.
+
         require(_receiverIds.length == _weights.length, "Length mismatch");
         uint256 totalWeight;
 
-        // Clear all existing weights and fetch any unclaimed emissions
+        // Iterate through all receivers in storage and clear any existing
+        // weights + fetch any unclaimed emissions
         uint256 len = nextReceiverId;
         Receiver storage receiver;
         for (uint256 i = 0; i < len; i++) {
             receiver = idToReceiver[i];
             if (receiver.weight > 0) {
-                IReceiver(receiver.receiver).fetchAllocatedEmissions();
+                IReceiver(receiver.receiver).allocateEmissions();
                 receiver.weight = 0;
             }
         }
@@ -75,6 +85,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         for (uint256 i = 0; i < _receiverIds.length; i++) {
             require(_receiverIds[i] < nextReceiverId, "Invalid receiver ID");
             receiver = idToReceiver[_receiverIds[i]];
+            require(receiver.receiver != address(0), "Invalid receiver");
             if (_weights[i] > 0) {
                 require(receiver.active, "Receiver not active");
             }
@@ -88,19 +99,28 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
     function registerReceiver(address _receiver) external onlyOwner {
         require(_receiver != address(0), "Invalid receiver");
-        require(idToReceiver[receiverToId[_receiver]].receiver == address(0), "Receiver already added.");
-        uint _nextId = nextReceiverId;
-        idToReceiver[_nextId] = Receiver({
+        uint256 _id = nextReceiverId;
+        // if foundId is zero, it either exists as id 0, or not yet registered.
+        if (_id > 0) {
+            require(
+                idToReceiver[receiverToId[_receiver]].receiver != _receiver, 
+                "Receiver already added."
+            );
+        }
+        idToReceiver[_id] = Receiver({
             active: true,
             receiver: _receiver,
-            weight: _nextId == 0 ? 10_000 : 0 // first receiver gets 100%
+            weight: _id == 0 ? 10_000 : 0 // first receiver gets 100%
         });
-        receiverToId[_receiver] = _nextId;
+        receiverToId[_receiver] = _id;
         nextReceiverId++;
-        emit ReceiverAdded(_nextId, _receiver);
+        require(IReceiver(_receiver).getReceiverId() == _id, "bad interface"); // Require receiver to have this interface.
+        emit ReceiverAdded(_id, _receiver);
     }
 
-    function disableReceiver(uint256 _id) external onlyOwner {
+    // dev: all deactivations should be accompanied by a reallocation of existing weight. 
+    // If not, emissions will accumulate to unallocated.
+    function deactivateReceiver(uint256 _id) external onlyOwner {
         Receiver memory receiver = idToReceiver[_id];
         require(receiver.active, "Receiver not active");
         require(receiver.receiver != address(0), "Receiver not found.");
@@ -108,7 +128,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         emit ReceiverDisabled(_id);
     }
 
-    function enableReceiver(uint256 _id) external onlyOwner {
+    function activateReceiver(uint256 _id) external onlyOwner {
         Receiver memory receiver = idToReceiver[_id];
         require(!receiver.active, "Receiver already active");
         require(receiver.receiver != address(0), "Receiver not found.");
@@ -120,33 +140,32 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         return _fetchEmissions(msg.sender);
     }
 
+    // dev: If receivers are not active, unallocated emissions will accumulate
     function _fetchEmissions(address _receiver) internal returns (uint256) {
         uint256 epoch = getEpoch();
         _mintEmissions(epoch);
         uint256 lastFetch = receiverLastFetchEpoch[_receiver];
         if (lastFetch >= epoch) return 0;
         Receiver memory receiver = idToReceiver[receiverToId[_receiver]];
-        uint256 totalEmissionsForReceiver;
+        uint256 totalMinted;
         uint256 amount;
         while (lastFetch < epoch) {
             lastFetch++;
             amount = (
                 receiver.weight * 
-                emissionsPerEpoch[lastFetch] /
+                totalEmissionsPerEpoch[lastFetch] /
                 BPS
             );
-            totalEmissionsForReceiver += amount;
+            totalMinted += amount;
             emit EmissionsFetched(_receiver, lastFetch, receiver.active, amount);
         }
         receiverLastFetchEpoch[msg.sender] = epoch;
-        if (receiver.active) {
-            allocated[_receiver] += totalEmissionsForReceiver;
-            return totalEmissionsForReceiver;
-        }
-        else {
-            unallocated += emissionsPerEpoch[lastFetch];
+        if (!receiver.active) {
+            unallocated += totalMinted;
             return 0;
         }
+        allocated[_receiver] += totalMinted;
+        return totalMinted;
     }
 
     function transferFromAllocation(address _recipient, uint256 _amount) external {
@@ -160,36 +179,37 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     function _mintEmissions(uint256 epoch) internal {
         uint256 _lastUpdateEpoch = lastUpdateEpoch;
         if (epoch <= _lastUpdateEpoch) return;
-        while (_lastUpdateEpoch < epoch) { // dev: no emissions in the 0th epoch
+        if (epoch < BOOTSTRAP_EPOCHS) return;
+        while (_lastUpdateEpoch < epoch) { 
             _lastUpdateEpoch++;
-            if (_lastUpdateEpoch - lastEmissionsUpdate >= epochsPer) {
-                uint256 mintable = _calculateNewEmissions();
-                if (mintable > 0) govToken.mint(address(this), mintable);
-                // unallocated += mintable; ?
-                emissionsPerEpoch[_lastUpdateEpoch] = mintable;
-                lastEmissionsUpdate = _lastUpdateEpoch;
-            }
+            bool shouldUpdateRate = _lastUpdateEpoch - lastEmissionsUpdate >= epochsPer;
+            uint256 mintable = _calculateNewEmissions(shouldUpdateRate, _lastUpdateEpoch);
+            if (mintable > 0) govToken.mint(address(this), mintable);
+            totalEmissionsPerEpoch[_lastUpdateEpoch] = mintable;
+            if (nextReceiverId == 0) unallocated += mintable;
         }
         lastUpdateEpoch = epoch;
     }
 
 
-    function _calculateNewEmissions() internal returns (uint256) {
-        uint256 len = emissionsSchedule.length;
-        if (len > 0) {
-            emissionsRate = emissionsSchedule[len - 1];
-            emissionsSchedule.pop();
-        }
-        else {
-            emissionsRate = tailRate;
+    function _calculateNewEmissions(bool _shouldUpdateRate, uint256 _epoch) internal returns (uint256) {
+        if (_shouldUpdateRate) {
+            uint256 len = emissionsSchedule.length;
+            if (len > 0) {
+                emissionsRate = emissionsSchedule[len - 1];
+                emissionsSchedule.pop();
+            }
+            else {
+                emissionsRate = tailRate;
+            }
+            lastEmissionsUpdate = _epoch;
         }
 
-        // Epochly mintable emissions
         return (
             govToken.totalSupply() * 
             emissionsRate * 
             epochLength /
-            YEAR /
+            365 days /
             PRECISION
         );
     }
@@ -215,9 +235,18 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         tailRate = _tailRate;
     }
 
+    /**
+     * @notice Recovers any unallocated emissions and sends them to the specified recipient
+     * @param _recipient Address to send the unallocated emissions to
+     * @dev Can only be called by the owner (Core contract)
+     * @dev Resets unallocated balance to 0 after transfer
+     * @dev Emits UnallocatedRecovered event
+     */
     function recoverUnallocated(address _recipient) external onlyOwner {
-        govToken.transfer(_recipient, unallocated);
-        emit UnallocatedRecovered(_recipient, unallocated);
+        uint256 _unallocated = unallocated;
+        unallocated = 0;
+        govToken.transfer(_recipient, _unallocated);
+        emit UnallocatedRecovered(_recipient, _unallocated);
     }
 
     function getEmissionsSchedule() external view returns (uint256[] memory) {

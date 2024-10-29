@@ -76,7 +76,7 @@ contract Setup is Test {
         voter = new Voter(address(core), IGovStaker(staker), 100, 3000);
         govToken = new GovToken(address(core));
         
-        uint256 epochsPer = 1;
+        uint256 epochsPer = 10;
         emissionsController = new EmissionsController(
             address(core), 
             address(govToken), 
