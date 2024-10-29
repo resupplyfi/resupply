@@ -28,7 +28,7 @@ pragma solidity ^0.8.19;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
+// import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
@@ -40,11 +40,12 @@ import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { RewardDistributorMultiEpoch } from "../RewardDistributorMultiEpoch.sol";
 import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
+import "../../interfaces/IOwnership.sol";
 
 /// @title FraxlendPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the core logic and storage for the FraxlendPair
-abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairConstants, RewardDistributorMultiEpoch {
+abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMultiEpoch {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -61,6 +62,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     // ============================================================================================
 
     // Asset and collateral contracts
+    address public immutable registry;
     IERC20 internal immutable assetContract;
     IERC20 public immutable collateralContract;
     IERC20 public immutable underlyingAsset;
@@ -134,6 +136,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     //refactor amount for each reward epoch
     uint256 constant public shareRefactor = 1e18;
 
+    
+
     // ============================================================================================
     // Constructor
     // ============================================================================================
@@ -146,7 +150,12 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) FraxlendPairAccessControl(_immutables) {
+    ) {
+        (address _registry) = abi.decode(
+            _immutables,
+            (address)
+        );
+        registry = _registry;
         {
             (
                 address _asset,
@@ -165,6 +174,7 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
                     (address, address, address, address, uint256, uint256, uint256, uint256, uint256)
                 );
 
+            
             // Pair Settings
             assetContract = IERC20(_asset);
             collateralContract = IERC20(_collateral);
@@ -214,6 +224,23 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
             _addInterest();
             // Instantiate Exchange Rate
             _updateExchangeRate();
+        }
+    }
+
+
+    // ============================================================================================
+    // Functions: Access Control
+    // ============================================================================================
+
+    function _isProtocolOrOwner() internal view returns(bool){
+        return msg.sender == registry || msg.sender == IOwnership(registry).owner();
+    }
+
+    function _requireProtocolOrOwner() internal view {
+        if (
+            !_isProtocolOrOwner()
+        ) {
+            revert OnlyProtocolOrOwner();
         }
     }
 
@@ -459,8 +486,8 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     function _calculateInterest(
         CurrentRateInfo memory _currentRateInfo
     ) internal view returns (InterestCalculationResults memory _results) {
-        // Short circuit if interest already calculated this block OR if interest is paused
-        if (_currentRateInfo.lastTimestamp + 1 hours < block.timestamp && !isInterestPaused) {
+        // Short circuit if interest already calculated this block
+        if (_currentRateInfo.lastTimestamp + 1 hours < block.timestamp) {
             // Indicate that interest is updated and calculated
             _results.isInterestUpdated = true;
 
@@ -866,9 +893,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
     function repayAsset(uint256 _shares, address _borrower) external nonReentrant returns (uint256 _amountToRepay) {
         if (_borrower == address(0)) revert InvalidReceiver();
 
-        // Check if repay is paused revert if necessary
-        if (isRepayPaused) revert RepayPaused();
-
         // Accrue interest if necessary
         _addInterest();
 
@@ -896,10 +920,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if(msg.sender != IPairRegistry(registry).redeemer()) revert InvalidRedeemer();
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
-
-        // Check if redemption is paused revert if necessary
-        if (isRedemptionPaused) revert RedemptionPaused();
-
 
         //redemption fees
         //assuming 1% redemption fee(0.5% to protocol, 0.5% to borrowers) and a redemption of $100
@@ -979,12 +999,6 @@ abstract contract FraxlendPairCore is FraxlendPairAccessControl, FraxlendPairCon
         if(msg.sender != liquidationHandler) revert InvalidLiquidator();
 
         if (_borrower == address(0)) revert InvalidReceiver();
-
-        // Check if liquidate is paused revert if necessary
-        if (isLiquidatePaused) revert LiquidatePaused();
-
-        // Ensure deadline has not passed
-        // if (block.timestamp > _deadline) revert PastDeadline(block.timestamp, _deadline);
 
         // accrue interest if necessary
         _addInterest();

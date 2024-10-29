@@ -10,7 +10,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "src/protocol/fraxlend/FraxlendPairConstants.sol";
-import "src/protocol/fraxlend/FraxlendPairAccessControlErrors.sol";
+// import "src/protocol/fraxlend/FraxlendPairAccessControlErrors.sol";
 import "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPairRegistry } from "src/protocol/ResupplyPairRegistry.sol";
@@ -33,7 +33,7 @@ struct CurrentRateInfo {
 
 contract BasePairTest is
     FraxlendPairConstants,
-    FraxlendPairAccessControlErrors,
+    // FraxlendPairAccessControlErrors,
     TestHelper,
     // Constants.Helper,
     FraxTest

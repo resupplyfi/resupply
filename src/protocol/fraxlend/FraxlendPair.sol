@@ -56,9 +56,9 @@ contract FraxlendPair is FraxlendPairCore {
     
     error InvalidFeeTimestamp();
 
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
-    /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
-    /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
+    /// @param _configData config data
+    /// @param _immutables immutable data
+    /// @param _customConfigData extras
     constructor(
         bytes memory _configData,
         bytes memory _immutables,
@@ -96,19 +96,13 @@ contract FraxlendPair is FraxlendPairCore {
         returns (
             uint256 _LTV_PRECISION,
             uint256 _LIQ_PRECISION,
-            // uint256 _UTIL_PREC,
-            // uint256 _FEE_PRECISION,
             uint256 _EXCHANGE_PRECISION,
-            // uint256 _DEVIATION_PRECISION,
             uint256 _RATE_PRECISION
         )
     {
         _LTV_PRECISION = LTV_PRECISION;
         _LIQ_PRECISION = LIQ_PRECISION;
-        // _UTIL_PREC = UTIL_PREC;
-        // _FEE_PRECISION = FEE_PRECISION;
         _EXCHANGE_PRECISION = EXCHANGE_PRECISION;
-        // _DEVIATION_PRECISION = DEVIATION_PRECISION;
         _RATE_PRECISION = RATE_PRECISION;
     }
 
@@ -183,17 +177,6 @@ contract FraxlendPair is FraxlendPairCore {
     // Functions: Configuration
     // ============================================================================================
 
-    bool public isOracleSetterRevoked;
-
-    /// @notice The ```RevokeOracleSetter``` event is emitted when the oracle setter is revoked
-    event RevokeOracleInfoSetter();
-
-    /// @notice The ```revokeOracleSetter``` function revokes the oracle setter
-    function revokeOracleInfoSetter() external {
-        _requireProtocolOrOwner();
-        isOracleSetterRevoked = true;
-        emit RevokeOracleInfoSetter();
-    }
 
     /// @notice The ```SetOracleInfo``` event is emitted when the oracle info (address and max deviation) is set
     /// @param oldOracle The old oracle address
@@ -207,7 +190,6 @@ contract FraxlendPair is FraxlendPairCore {
     /// @param _newOracle The new oracle address
     function setOracle(address _newOracle) external {
         _requireProtocolOrOwner();
-        if (isOracleSetterRevoked) revert SetterRevoked();
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
         emit SetOracleInfo(
             _exchangeRateInfo.oracle,
@@ -215,18 +197,6 @@ contract FraxlendPair is FraxlendPairCore {
         );
         _exchangeRateInfo.oracle = _newOracle;
         exchangeRateInfo = _exchangeRateInfo;
-    }
-
-    bool public isMaxLTVSetterRevoked;
-
-    /// @notice The ```RevokeMaxLTVSetter``` event is emitted when the max LTV setter is revoked
-    event RevokeMaxLTVSetter();
-
-    /// @notice The ```revokeMaxLTVSetter``` function revokes the max LTV setter
-    function revokeMaxLTVSetter() external {
-        _requireProtocolOrOwner();
-        isMaxLTVSetterRevoked = true;
-        emit RevokeMaxLTVSetter();
     }
 
     /// @notice The ```SetMaxLTV``` event is emitted when the max LTV is set
@@ -238,23 +208,11 @@ contract FraxlendPair is FraxlendPairCore {
     /// @param _newMaxLTV The new max LTV
     function setMaxLTV(uint256 _newMaxLTV) external {
         _requireProtocolOrOwner();
-        if (isMaxLTVSetterRevoked) revert SetterRevoked();
         emit SetMaxLTV(maxLTV, _newMaxLTV);
         maxLTV = _newMaxLTV;
     }
 
-    bool public isRateContractSetterRevoked;
-
-    /// @notice The ```RevokeRateContractSetter``` event is emitted when the rate contract setter is revoked
-    event RevokeRateContractSetter();
-
-    /// @notice The ```revokeRateContractSetter``` function revokes the rate contract setter
-    function revokeRateContractSetter() external {
-        _requireProtocolOrOwner();
-        isRateContractSetterRevoked = true;
-        emit RevokeRateContractSetter();
-    }
-
+ 
     /// @notice The ```SetRateContract``` event is emitted when the rate contract is set
     /// @param oldRateContract The old rate contract
     /// @param newRateContract The new rate contract
@@ -264,22 +222,10 @@ contract FraxlendPair is FraxlendPairCore {
     /// @param _newRateContract The new rate contract address
     function setRateContract(address _newRateContract) external {
         _requireProtocolOrOwner();
-        if (isRateContractSetterRevoked) revert SetterRevoked();
         emit SetRateContract(address(rateContract), _newRateContract);
         rateContract = IRateCalculator(_newRateContract);
     }
 
-    bool public isLiquidationFeeSetterRevoked;
-
-    /// @notice The ```RevokeLiquidationFeeSetter``` event is emitted when the liquidation fee setter is revoked
-    event RevokeLiquidationFeeSetter();
-
-    /// @notice The ```revokeLiquidationFeeSetter``` function revokes the liquidation fee setter
-    function revokeLiquidationFeeSetter() external {
-        _requireProtocolOrOwner();
-        isLiquidationFeeSetterRevoked = true;
-        emit RevokeLiquidationFeeSetter();
-    }
 
     /// @notice The ```SetLiquidationFees``` event is emitted when the liquidation fees are set
     /// @param oldLiquidationFee The old clean liquidation fee
@@ -295,7 +241,6 @@ contract FraxlendPair is FraxlendPairCore {
         uint256 _newLiquidationFee
     ) external {
         _requireProtocolOrOwner();
-        if (isLiquidationFeeSetterRevoked) revert SetterRevoked();
         emit SetLiquidationFees(
             liquidationFee,
             _newLiquidationFee
@@ -479,106 +424,11 @@ contract FraxlendPair is FraxlendPairCore {
         _requireProtocolOrOwner();
         previousBorrowLimit = borrowLimit;
         _setBorrowLimit(0);
-        // if (!isDepositAccessControlRevoked) _setDepositLimit(0);
-        if (!isRepayAccessControlRevoked) _pauseRepay(true);
-        if (!isWithdrawAccessControlRevoked) _pauseWithdraw(true);
-        if (!isLiquidateAccessControlRevoked) _pauseLiquidate(true);
-        if (!isInterestAccessControlRevoked) {
-            _addInterest();
-            _pauseInterest(true);
-        }
     }
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality
     function unpause() external {
         _requireProtocolOrOwner();
         _setBorrowLimit(previousBorrowLimit);
-        // if (!isDepositAccessControlRevoked) _setDepositLimit(type(uint256).max);
-        if (!isRepayAccessControlRevoked) _pauseRepay(false);
-        if (!isWithdrawAccessControlRevoked) _pauseWithdraw(false);
-        if (!isLiquidateAccessControlRevoked) _pauseLiquidate(false);
-        if (!isInterestAccessControlRevoked) {
-            _addInterest();
-            _pauseInterest(false);
-        }
-    }
-
-    /// @notice The ```pauseBorrow``` function sets borrow limit to 0
-    function pauseBorrow() external {
-        _requireProtocolOrOwner();
-        // if (isBorrowAccessControlRevoked) revert AccessControlRevoked();
-        _setBorrowLimit(0);
-    }
-
-    /// @notice The ```setBorrowLimit``` function sets the borrow limit
-    /// @param _limit The new borrow limit
-    function setBorrowLimit(uint256 _limit) external {
-        _requireProtocolOrOwner();
-        // if (isBorrowAccessControlRevoked) revert AccessControlRevoked();
-        _setBorrowLimit(_limit);
-        previousBorrowLimit = _limit;
-    }
-
-    /// @notice The ```pauseRepay``` function pauses repay functionality
-    /// @param _isPaused The new pause state
-    function pauseRepay(bool _isPaused) external {
-        _requireProtocolOrOwner();
-        if (isRepayAccessControlRevoked) revert AccessControlRevoked();
-        _pauseRepay(_isPaused);
-    }
-
-    /// @notice The ```revokeRepayAccessControl``` function revokes repay access control
-    function revokeRepayAccessControl() external {
-        _requireProtocolOrOwner();
-        _revokeRepayAccessControl();
-    }
-
-    /// @notice The ```pauseWithdraw``` function pauses withdraw functionality
-    /// @param _isPaused The new pause state
-    function pauseWithdraw(bool _isPaused) external {
-        _requireProtocolOrOwner();
-        if (isWithdrawAccessControlRevoked) revert AccessControlRevoked();
-        _pauseWithdraw(_isPaused);
-    }
-
-    /// @notice The ```revokeWithdrawAccessControl``` function revokes withdraw access control
-    function revokeWithdrawAccessControl() external {
-        _requireProtocolOrOwner();
-        _revokeWithdrawAccessControl();
-    }
-
-    /// @notice The ```pauseLiquidate``` function pauses liquidate functionality
-    /// @param _isPaused The new pause state
-    function pauseLiquidate(bool _isPaused) external {
-        _requireProtocolOrOwner();
-        if (isLiquidateAccessControlRevoked) revert AccessControlRevoked();
-        _pauseLiquidate(_isPaused);
-    }
-
-    function pauseRedemption(bool _isPaused) external {
-        _requireProtocolOrOwner();
-        _pauseRedemption(_isPaused);
-    }
-
-    /// @notice The ```revokeLiquidateAccessControl``` function revokes liquidate access control
-    function revokeLiquidateAccessControl() external {
-        _requireProtocolOrOwner();
-        _revokeLiquidateAccessControl();
-    }
-
-    /// @notice The ```pauseInterest``` function pauses interest functionality
-    /// @param _isPaused The new pause state
-    function pauseInterest(bool _isPaused) external {
-        _requireProtocolOrOwner();
-        if (isInterestAccessControlRevoked) revert AccessControlRevoked();
-        // Resets the lastTimestamp which has the effect of no interest accruing over the pause period
-        _addInterest();
-        _pauseInterest(_isPaused);
-    }
-
-    /// @notice The ```revokeInterestAccessControl``` function revokes interest access control
-    function revokeInterestAccessControl() external {
-        _requireProtocolOrOwner();
-        _revokeInterestAccessControl();
     }
 }
