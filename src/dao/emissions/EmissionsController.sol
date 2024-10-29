@@ -21,12 +21,11 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     uint256 public lastUpdateEpoch;
     uint256 public lastEmissionsUpdate;
     uint256 public nextReceiverId;
-    mapping(uint256 => Receiver) public idToReceiver;
-    mapping(address => uint256) public receiverToId;
-    mapping(uint256 => uint256) public receiverSplitPerEpoch;
-    mapping(uint256 epoch => uint256 emissions) public totalEmissionsPerEpoch;
-    mapping(address => uint256) public receiverLastFetchEpoch;
-    mapping(address => uint256) public allocated; // receiver => amount
+    mapping(uint256 id => Receiver) public idToReceiver;
+    mapping(address receiver => uint256 id) public receiverToId;
+    mapping(uint256 epoch => uint256 emissions) public emissionsPerEpoch;
+    mapping(address receiver => uint256 lastFetchEpoch) public receiverLastFetchEpoch;
+    mapping(address receiver => uint256 allocated) public allocated; // receiver => amount
 
     modifier validReceiver(address _receiver) {
         if (receiverToId[_receiver] == 0) require(idToReceiver[0].receiver == _receiver, "Invalid receiver");
@@ -157,7 +156,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             lastFetch++;
             amount = (
                 receiver.weight * 
-                totalEmissionsPerEpoch[lastFetch] /
+                emissionsPerEpoch[lastFetch] /
                 BPS
             );
             totalMinted += amount;
@@ -189,7 +188,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             bool shouldUpdateRate = _lastUpdateEpoch - lastEmissionsUpdate >= epochsPer;
             uint256 mintable = _calculateNewEmissions(shouldUpdateRate, _lastUpdateEpoch);
             if (mintable > 0) govToken.mint(address(this), mintable);
-            totalEmissionsPerEpoch[_lastUpdateEpoch] = mintable;
+            emissionsPerEpoch[_lastUpdateEpoch] = mintable;
             if (nextReceiverId == 0) unallocated += mintable;
         }
         lastUpdateEpoch = epoch;
