@@ -8,6 +8,9 @@ import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
 
+interface IERC20 {
+    function decimals() external view returns (uint256);
+}
 /**
     @title Relend DAO Voting
     @author Prisma Finance (with edits by Relend.fi)
@@ -95,7 +98,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         staker = _staker;
         minCreateProposalPct = _minCreateProposalPct;
         passingPct = _passingPct;
-        TOKEN_DECIMALS = _staker.decimals();
+        TOKEN_DECIMALS = IERC20(_staker.stakeToken()).decimals();
     }
 
     /**

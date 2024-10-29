@@ -29,12 +29,19 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         uint256 rewardPerTokenStored;
     }
 
+    // Add these error declarations at the contract level, after the state variables
+    error ZeroAddress();
+    error MustBeGreaterThanZero();
+    error RewardAlreadyAdded();
+    error Unauthorized();
+    error SupplyMustBeGreaterThanZero();
+    error RewardTooHigh();
+    error RewardsStillActive();
 
     /* ========== EVENTS ========== */
 
     event RewardAdded(address indexed rewardToken, uint256 amount);
     event RewardTokenAdded(address indexed rewardsToken, address indexed rewardsDistributor, uint256 rewardsDuration);
-    event Recovered(address indexed token, uint256 amount);
     event RewardsDurationUpdated(address indexed rewardsToken, uint256 duration);
     event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
 
@@ -97,9 +104,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         address _rewardsDistributor,
         uint256 _rewardsDuration
     ) external onlyOwner {
-        require(_rewardsToken != address(0) && _rewardsDistributor != address(0), 'No zero address');
-        require(_rewardsDuration > 0, 'Must be >0');
-        require(rewardData[_rewardsToken].rewardsDuration == 0, 'Reward already added');
+        if (_rewardsToken == address(0) || _rewardsDistributor == address(0)) revert ZeroAddress();
+        if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
+        if (rewardData[_rewardsToken].rewardsDuration != 0) revert RewardAlreadyAdded();
 
         rewardTokens.push(_rewardsToken);
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
@@ -116,9 +123,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      */
     function notifyRewardAmount(address _rewardsToken, uint256 _rewardAmount) external updateReward(address(0)) {
         Reward memory _rewardData = rewardData[_rewardsToken];
-        require(_rewardData.rewardsDistributor == msg.sender, '!authorized');
-        require(_rewardAmount > 0, 'Reward must be >0');
-        require(totalSupply() > 0, 'Supply must be >0');
+        if (_rewardData.rewardsDistributor != msg.sender) revert Unauthorized();
+        if (_rewardAmount == 0) revert MustBeGreaterThanZero();
+        if (totalSupply() == 0) revert SupplyMustBeGreaterThanZero();
 
         // handle the transfer of reward tokens via `transferFrom` to reduce the number
         // of transactions required and ensure correctness of the reward amount
@@ -139,10 +146,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         // This keeps the reward rate in the right range, preventing overflows due to
         // very high values of rewardRate in the earned and rewardsPerToken functions;
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-        require(
-            newRewardRate <= (IERC20(_rewardsToken).balanceOf(address(this)) / _rewardData.rewardsDuration),
-            'Provided reward too high'
-        );
+        if (newRewardRate > (IERC20(_rewardsToken).balanceOf(address(this)) / _rewardData.rewardsDuration)) {
+            revert RewardTooHigh();
+        }
 
         _rewardData.rewardRate = newRewardRate;
         _rewardData.lastUpdateTime = block.timestamp;
@@ -160,7 +166,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      *  for this token.
      */
     function setRewardsDistributor(address _rewardsToken, address _rewardsDistributor) external onlyOwner {
-        require(_rewardsToken != address(0) && _rewardsDistributor != address(0), 'No zero address');
+        if (_rewardsToken == address(0) || _rewardsDistributor == address(0)) revert ZeroAddress();
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
     }
 
@@ -172,9 +178,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      */
     function setRewardsDuration(address _rewardsToken, uint256 _rewardsDuration) external {
         Reward memory _rewardData = rewardData[_rewardsToken];
-        require(block.timestamp > _rewardData.periodFinish, 'Rewards active');
-        require(_rewardData.rewardsDistributor == msg.sender, '!authorized');
-        require(_rewardsDuration > 0, 'Must be >0');
+        if (block.timestamp <= _rewardData.periodFinish) revert RewardsStillActive();
+        if (_rewardData.rewardsDistributor != msg.sender) revert Unauthorized();
+        if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
 
         rewardData[_rewardsToken].rewardsDuration = _rewardsDuration;
 
@@ -192,7 +198,6 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
             _tokenAmount = IERC20(_tokenAddress).balanceOf(address(this)) - totalSupply();
             if (_tokenAmount > 0) {
                 IERC20(_tokenAddress).safeTransfer(owner(), _tokenAmount);
-                emit Recovered(_tokenAddress, _tokenAmount);
             }
             return;
         }
@@ -206,7 +211,6 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         }
 
         IERC20(_tokenAddress).safeTransfer(owner(), _tokenAmount);
-        emit Recovered(_tokenAddress, _tokenAmount);
     }
 
 

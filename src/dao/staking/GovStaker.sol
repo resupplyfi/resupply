@@ -3,7 +3,6 @@ pragma solidity ^0.8.22;
 
 import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { IERC20Metadata } from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
 import { EpochTracker } from '../../dependencies/EpochTracker.sol';
 import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
@@ -11,8 +10,8 @@ import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;
 
-    IERC20 private immutable _stakeToken;
-    IGovStakerEscrow public immutable escrow;
+    address private immutable _stakeToken;
+    address public immutable escrow;
     uint24 public constant MAX_COOLDOWN_DURATION = 90 days;
 
     // Account tracking state vars.
@@ -30,7 +29,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     // Generic token interface.
     uint private _totalSupply;
-    uint8 public immutable decimals;
 
     struct AccountData {
         uint120 realizedStake; // Amount of stake that has fully realized weight.
@@ -42,6 +40,13 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         uint104 end;
         uint152 amount;
     }
+
+    error InvalidAmount();
+    error InsufficientRealizedStake();
+    error InvalidCooldown();
+    error InvalidEpoch();
+    error InvalidDuration();
+    error OldEpoch();
 
     /* ========== EVENTS ========== */
 
@@ -62,11 +67,10 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     constructor(
         address _core,
         address _token,
-        IGovStakerEscrow _escrow,
+        address _escrow,
         uint24 _cooldownEpochs
     ) MultiRewardsDistributor(_core) EpochTracker(_core) {
-        _stakeToken = IERC20(_token);
-        decimals = IERC20Metadata(_token).decimals();
+        _stakeToken = _token;
         escrow = _escrow;
         cooldownEpochs = _cooldownEpochs;
     }
@@ -74,7 +78,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
 
     function stake(address _account, uint _amount) external callerOrDelegated(_account) updateReward(_account) returns (uint) {
-        require(_amount > 0 && _amount < type(uint120).max, "invalid amount");
+        if (_amount == 0 || _amount >= type(uint120).max) revert InvalidAmount();
 
         // Before going further, let's sync our account and total weights
         uint systemEpoch = getEpoch();
@@ -87,7 +91,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         accountData[_account] = acctData;
         _totalSupply += _amount;
 
-        _stakeToken.safeTransferFrom(msg.sender, address(this), uint(_amount));
+        IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), uint(_amount));
         emit Staked(_account, systemEpoch, _amount);
 
         return _amount;
@@ -112,13 +116,13 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     }
 
     function _cooldown(address _account, uint _amount) internal updateReward(_account) returns (uint) {
-        require(_amount > 0 && _amount < type(uint120).max, 'invalid amount');
+        if (_amount == 0 || _amount > type(uint120).max) revert InvalidAmount();
 
         uint systemEpoch = getEpoch();
 
         // Before going further, let's sync our account and total weights
         (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
-        require(acctData.realizedStake >= _amount, 'insufficient realized stake');
+        if (acctData.realizedStake < _amount) revert InsufficientRealizedStake();
         _checkpointTotal(systemEpoch);
 
         acctData.realizedStake -= uint120(_amount);
@@ -129,13 +133,13 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
         _totalSupply -= _amount;
 
-        UserCooldown memory userCooldown = cooldowns[_account]; 
-        userCooldown.end = uint104(startTime + (epochLength * (systemEpoch + 2))); // 2nd epoch from now
+        UserCooldown memory userCooldown = cooldowns[_account];
+        userCooldown.end = uint104(block.timestamp + (cooldownEpochs * epochLength));
         userCooldown.amount += uint152(_amount);
         cooldowns[_account] = userCooldown;
 
         emit Cooldown(_account, userCooldown.amount, userCooldown.end);
-        _stakeToken.safeTransfer(address(escrow), _amount);
+        IERC20(_stakeToken).safeTransfer(address(escrow), _amount);
 
         return _amount;
     }
@@ -144,11 +148,11 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.amount;
 
-        require(block.timestamp >= userCooldown.end || cooldownEpochs == 0, 'InvalidCooldown');
+        if(block.timestamp < userCooldown.end || cooldownEpochs == 0) revert InvalidCooldown();
 
         delete cooldowns[_account];
 
-        escrow.withdraw(_receiver, amount);
+        IGovStakerEscrow(escrow).withdraw(_receiver, amount);
 
         emit Unstaked(_account, amount);
         return amount;
@@ -197,7 +201,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
             return (acctData, accountWeightAt[_account][lastUpdateEpoch]);
         }
 
-        require(_systemEpoch > lastUpdateEpoch, 'specified epoch is older than last update.');
+        if (_systemEpoch <= lastUpdateEpoch) revert OldEpoch();
 
         uint pending = uint(acctData.pendingStake);
         uint realized = acctData.realizedStake;
@@ -206,10 +210,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
             if (realized != 0) {
                 weight = accountWeightAt[_account][lastUpdateEpoch];
                 while (lastUpdateEpoch < _systemEpoch) {
-                    unchecked {
-                        lastUpdateEpoch++;
-                    }
-                    // Fill in any missing epochs
+                    unchecked { lastUpdateEpoch++; }
                     accountWeightAt[_account][lastUpdateEpoch] = weight;
                 }
             }
@@ -226,9 +227,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
         // Fill in any missed epochs.
         while (lastUpdateEpoch < _systemEpoch) {
-            unchecked {
-                lastUpdateEpoch++;
-            }
+            unchecked { lastUpdateEpoch++; }
             accountWeightAt[_account][lastUpdateEpoch] = weight;
         }
 
@@ -273,9 +272,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         totalPending = 0;
 
         while (lastUpdateEpoch < systemEpoch) {
-            unchecked {
-                lastUpdateEpoch++;
-            }
+            unchecked { lastUpdateEpoch++; }
             totalWeightAt[lastUpdateEpoch] = weight;
         }
 
@@ -285,13 +282,13 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function setCooldownEpochs(uint24 _epochs) external onlyOwner {
-        require(_epochs * epochLength <= MAX_COOLDOWN_DURATION, 'Invalid duration');
+        if (_epochs * epochLength > MAX_COOLDOWN_DURATION) revert InvalidDuration();
         cooldownEpochs = _epochs;
         emit CooldownEpochsUpdated(_epochs);
     }
 
     function stakeToken() public view override returns (address) {
-        return address(_stakeToken);
+        return _stakeToken;
     }
 
     /* ========== OVERRIDES ========== */
@@ -364,14 +361,14 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         return totalWeightAt[lastUpdateEpoch] + pending;
     }
 
-    /// @notice Get the amount of tokens that have passed cooldown.
-    /// @param _account The account to query.
-    /// @return . amount of tokens that have passed cooldown.
-    function getUnstakableAmount(address _account) external view returns (uint) {
-        UserCooldown memory userCooldown = cooldowns[_account];
-        if (block.timestamp < userCooldown.end) return 0;
-        return userCooldown.amount;
-    }
+    // /// @notice Get the amount of tokens that have passed cooldown.
+    // /// @param _account The account to query.
+    // /// @return . amount of tokens that have passed cooldown.
+    // function getUnstakableAmount(address _account) external view returns (uint) {
+    //     UserCooldown memory userCooldown = cooldowns[_account];
+    //     if (block.timestamp < userCooldown.end) return 0;
+    //     return userCooldown.amount;
+    // }
 
     function isCooldownEnabled() public view returns (bool) {
         return cooldownEpochs > 0;

@@ -15,7 +15,7 @@ contract GovToken is ERC20, CoreOwnable {
         _;
     }
 
-    constructor(address _core) ERC20("Resupply", "RSUP") CoreOwnable(_core) {}
+    constructor(address _core, string memory _name, string memory _symbol) ERC20(_name, _symbol) CoreOwnable(_core) {}
 
     function mint(address _to, uint256 _amount) external onlyEmissionsController {
         _mint(_to, _amount);

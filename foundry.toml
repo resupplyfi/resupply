@@ -18,7 +18,8 @@ gas_limit = 9223372036854775807
 # optimizer
 optimizer = false
 # optimizer runs
-optimizer_runs = 1_000_000
+optimizer_runs = 200
+verbosity = 3
 # use via-ir optimizer
 via_ir = false
 fs_permissions = [{ access = "read-write", path = "./"}]

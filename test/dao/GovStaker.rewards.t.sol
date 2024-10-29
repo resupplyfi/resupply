@@ -9,7 +9,7 @@ import { MockToken } from "../mocks/MockToken.sol";
 import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
 import { IGovStaker } from "../../src/interfaces/IGovStaker.sol";
 import { Setup } from "./utils/Setup.sol";
-
+import { MultiRewardsDistributor } from "../../src/dao/staking/MultiRewardsDistributor.sol";
 contract OperationTest is Setup {
     MockToken public rewardToken;
     MockToken public rewardToken2;
@@ -64,7 +64,7 @@ contract OperationTest is Setup {
 
         // stake our assets
         vm.startPrank(user1);
-        vm.expectRevert("invalid amount");
+        vm.expectRevert(GovStaker.InvalidAmount.selector);
         staker.stake(user1, 0);
         stakingToken.approve(address(staker), type(uint256).max);
         staker.stake(user1, amountToStake);
@@ -75,7 +75,7 @@ contract OperationTest is Setup {
         airdrop(rewardToken, owner, 10e18);
         
         // will revert if we haven't added it first
-        vm.expectRevert("!authorized");
+        vm.expectRevert(MultiRewardsDistributor.Unauthorized.selector);
         staker.notifyRewardAmount(address(rewardToken), 1e18);
 
         // add token to rewards array
@@ -109,7 +109,7 @@ contract OperationTest is Setup {
 
         // can't withdraw zero
         vm.startPrank(user1);
-        vm.expectRevert("invalid amount");
+        vm.expectRevert(GovStaker.InvalidAmount.selector);
         staker.cooldown(user1, 0);
 
         // user withdraws ~half of their assets
@@ -135,7 +135,7 @@ contract OperationTest is Setup {
 
         // stake our assets
         vm.startPrank(user1);
-        vm.expectRevert("invalid amount");
+        vm.expectRevert(GovStaker.InvalidAmount.selector);
         staker.stake(user1, 0);
         stakingToken.approve(address(staker), type(uint256).max);
         staker.stake(user1, amountToStake);
@@ -153,22 +153,22 @@ contract OperationTest is Setup {
         staker.notifyRewardAmount(address(rewardToken), 1e18);
 
         // can't add the same token
-        vm.expectRevert("Reward already added");
+        vm.expectRevert(MultiRewardsDistributor.RewardAlreadyAdded.selector);
         staker.addReward(address(rewardToken), owner, 3 * 1 weeks);
 
         // can't adjust duration while we're in progress
-        vm.expectRevert("Rewards active");
+        vm.expectRevert(MultiRewardsDistributor.RewardsStillActive.selector);
         staker.setRewardsDuration(address(rewardToken), 3* 1 weeks);
 
         // can't add zero address
-        vm.expectRevert("No zero address");
+        vm.expectRevert(MultiRewardsDistributor.ZeroAddress.selector);
         staker.addReward(address(rewardToken), address(0), 3 * 1 weeks);
-        vm.expectRevert("No zero address");
+        vm.expectRevert(MultiRewardsDistributor.ZeroAddress.selector);
         staker.addReward(address(0), owner, WEEK);
 
         // add second token
         // duration must be >0
-        vm.expectRevert("Must be >0");
+        vm.expectRevert(MultiRewardsDistributor.MustBeGreaterThanZero.selector);
         staker.addReward(address(rewardToken2), owner, 0);
         staker.addReward(address(rewardToken2), owner, 3 * 1 weeks);
         rewardToken2.approve(address(staker), type(uint256).max);

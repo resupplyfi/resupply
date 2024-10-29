@@ -67,21 +67,22 @@ contract Setup is Test {
                 new GovStaker(
                     address(core), 
                     address(stakingToken), 
-                    IGovStakerEscrow(escrowAddress), 
+                    escrowAddress, 
                     2
                 )
             )
         );
 
         voter = new Voter(address(core), IGovStaker(staker), 100, 3000);
-        govToken = new GovToken(address(core));
+        govToken = new GovToken(address(core), "Resupply", "RSUP");
         
         uint256 epochsPer = 10;
         emissionsController = new EmissionsController(
             address(core), 
             address(govToken), 
             getEmissionsSchedule(), 
-            epochsPer
+            epochsPer,
+            2 // Bootstrap epochs
         );
     }
 

@@ -3,7 +3,6 @@
 pragma solidity ^0.8.22;
 
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { EpochTracker } from "../../dependencies/EpochTracker.sol";
 import { IGovToken } from "../../interfaces/IGovToken.sol";
 import { IReceiver } from "../../interfaces/IReceiver.sol";
@@ -11,7 +10,7 @@ import { IReceiver } from "../../interfaces/IReceiver.sol";
 contract EmissionsController is CoreOwnable, EpochTracker {
 
     IGovToken immutable public govToken;
-    uint256 public constant BOOTSTRAP_EPOCHS = 2; // dev: number of epochs before emissions begin
+    uint256 public immutable BOOTSTRAP_EPOCHS; // dev: number of epochs before emissions begin
     uint256 public emissionsRate;
     uint256 public constant PRECISION = 1e18;
     uint256 public constant BPS = 10_000;
@@ -51,14 +50,19 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         address _core, 
         address _govToken, 
         uint256[] memory _emissionsSchedule, 
-        uint256 _epochsPer
+        uint256 _epochsPer,
+        uint256 _bootstrapEpochs
     ) CoreOwnable(_core) EpochTracker(_core) {
         govToken = IGovToken(_govToken);
+        require(_emissionsSchedule.length > 0, "Missing emissions schedule");
         emissionsSchedule = _emissionsSchedule;
         tailRate = 1e16; // 2%
         epochsPer = _epochsPer;
         emissionsRate = _emissionsSchedule[_emissionsSchedule.length - 1];
-        lastUpdateEpoch = BOOTSTRAP_EPOCHS - 1;
+        BOOTSTRAP_EPOCHS = _bootstrapEpochs;
+        if (_bootstrapEpochs > 0) {
+            lastUpdateEpoch = _bootstrapEpochs - 1;
+        }
     }
 
 

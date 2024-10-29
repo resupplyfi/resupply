@@ -12,7 +12,7 @@ contract GovStakerEscrow {
     }
 
     modifier onlyStaker() {
-        require(msg.sender == staker, '!Staker');
+        require(msg.sender == staker, "!Staker");
         _;
     }
 
