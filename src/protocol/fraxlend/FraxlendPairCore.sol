@@ -308,12 +308,19 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         //must look at borrow shares of current epoch so user helper function
         uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares(_borrower), true);
         if (_borrowerAmount == 0) return true;
-        _syncUserRedemptions(_borrower); //checkpoint rewards and sync _userCollateralBalance
+        
+        //anything that calls _isSolvent will call _syncUserRedemptions beforehand
         uint256 _collateralAmount = _userCollateralBalance[_borrower];
         if (_collateralAmount == 0) return false;
 
         uint256 _ltv = (((_borrowerAmount * _exchangeRate) / EXCHANGE_PRECISION) * LTV_PRECISION) / _collateralAmount;
         return _ltv <= maxLTV;
+    }
+
+    function _isSolventSync(address _borrower, uint256 _exchangeRate) internal returns (bool){
+         //checkpoint rewards and sync _userCollateralBalance
+        _syncUserRedemptions(_borrower);
+        return _isSolvent(_borrower, _exchangeRate);
     }
 
     // ============================================================================================
@@ -323,6 +330,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @notice Checks for solvency AFTER executing contract code
     /// @param _borrower The borrower whose solvency we will check
     modifier isSolvent(address _borrower) {
+        //checkpoint rewards and sync _userCollateralBalance before doing other actions
+        _syncUserRedemptions(_borrower);
         _;
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
 
@@ -666,9 +675,6 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @param _receiver The address to receive the Asset Tokens
     /// @return _sharesAdded The amount of borrow shares the msg.sender will be debited
     function _borrowAsset(uint128 _borrowAmount, address _receiver) internal returns (uint256 _sharesAdded) {
-        //checkpoint rewards for msg.sender
-        _checkpoint(msg.sender);
-
         // Get borrow accounting from storage to save gas
         VaultAccount memory _totalBorrow = totalBorrow;
 
@@ -858,7 +864,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         address _payer,
         address _borrower
     ) internal {
-        //checkpoint rewards and sync borrow shares for borrower
+        //checkpoint rewards for borrower before adjusting borrow shares
         _checkpoint(_borrower);
 
         // Effects: Bookkeeping
@@ -1007,8 +1013,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         uint256 _exchangeRate = _updateExchangeRate();
 
         // Check if borrower is solvent, revert if they are
-        //_isSolvent calls _syncUserRedemptions which checkpoints rewards and userCollateral
-        if (_isSolvent(_borrower, _exchangeRate)) {
+        //_isSolventSync calls _syncUserRedemptions which checkpoints rewards and userCollateral
+        if (_isSolventSync(_borrower, _exchangeRate)) {
             revert BorrowerSolvent();
         }
 
