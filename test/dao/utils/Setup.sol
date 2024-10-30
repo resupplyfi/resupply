@@ -58,16 +58,12 @@ contract Setup is Test {
         uint256 nonce = vm.getNonce(address(this));
         address escrowAddress = computeCreateAddress(address(this), nonce);
         address govStakingAddress = computeCreateAddress(address(this), nonce + 1);
-        escrow = new GovStakerEscrow(
-            govStakingAddress, address(stakingToken)
-        );
 
         staker = IGovStaker(
             address(
                 new GovStaker(
                     address(core), 
                     address(stakingToken), 
-                    escrowAddress, 
                     2
                 )
             )

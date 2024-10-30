@@ -1,4 +1,5 @@
 import { TenderlyHelper } from "../utils/TenderlyHelper.s.sol";
+import { CreateXDeployer } from "../utils/CreateXDeployer.s.sol";
 import { GovStakerEscrow } from "../../src/dao/staking/GovStakerEscrow.sol";
 import { GovStaker } from "../../src/dao/staking/GovStaker.sol";
 import { GovToken } from "../../src/dao/GovToken.sol";
@@ -10,15 +11,17 @@ import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
 import "../../lib/forge-std/src/console2.sol";
 import "../../lib/forge-std/src/console.sol";
 
-contract DeployGov is TenderlyHelper {
+contract DeployGov is TenderlyHelper, CreateXDeployer {
     address public dev = address(0xc4ad);
     address tempGov = address(987);
-    Core public core;
-    GovStakerEscrow public escrow;
-    GovStaker public staker;
-    Voter public voter;
-    GovToken public govToken;
-    EmissionsController public emissionsController;
+    address public core;
+    address public escrow;
+    address public staker;
+    address public voter;
+    address public govToken;
+    address public emissionsController;
+    bytes32 salt; // Use same empty salt for all contracts
+    bytes32 computedSalt; // This is the salt transformed by CreateX used in the computeCreate2Address function
 
     modifier doBroadcast() {
         vm.startBroadcast(dev);
@@ -26,52 +29,74 @@ contract DeployGov is TenderlyHelper {
         vm.stopBroadcast();
     }
 
+    constructor() {
+        computedSalt = keccak256(abi.encode(salt));
+    }
+
     function run() public {
         // Array of contract names to deploy
-        setEthBalance(dev, 100 ether);
-       
-
-        uint256 nonce = vm.getNonce(dev);
-        address coreAddress = vm.computeCreateAddress(dev, nonce);
-        address govTokenAddress = vm.computeCreateAddress(dev, nonce + 1);
-        address escrowAddress = vm.computeCreateAddress(dev, nonce + 2);
-        address govStakingAddress = vm.computeCreateAddress(dev, nonce + 3);
-        
-        console.log("govStakingAddress", govStakingAddress);
-        console.log("voter", address(voter));
-        console.log("govToken", govTokenAddress);
-        console.log("escrow", escrowAddress);
-        console.log("core", coreAddress);
-
-        deployStakingContracts();
-        deployOtherContracts();
+        setEthBalance(dev, 10 ether);
+        core = deployCore();
+        govToken = deployGovToken();
+        staker = deployGovStaker();
+        voter = deployVoter();
+        emissionsController = deployEmissionsController();
     }
 
-    function deployStakingContracts() public doBroadcast {
-        core = new Core(tempGov, 1 weeks);
-        skipBlocks(1);
-        govToken = new GovToken(address(core), "Resupply", "RSUP");
-        skipBlocks(1);
-        escrow = new GovStakerEscrow(address(staker), address(govToken));
-        skipBlocks(1);
-        staker = 
-            new GovStaker(
-                address(core), 
-                address(govToken), 
-                address(escrow), 
-                2
-        );
+    function deployContract(
+        bytes32 _salt,
+        bytes memory _bytecode,
+        string memory _contractName
+    ) internal returns (address) {
+        address computedAddress = deployer.computeCreate2Address(computedSalt, keccak256(_bytecode));
+        if (address(computedAddress).code.length == 0) {
+            computedAddress = deployer.deployCreate2(_salt, _bytecode);
+            console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
+        } else {
+            console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
+        }
+        return computedAddress;
     }
 
-    function deployOtherContracts() public doBroadcast {
-        voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
-        emissionsController = new EmissionsController(
+    function deployCore() public doBroadcast returns (address) {
+        bytes memory constructorArgs = abi.encode(tempGov, 1 weeks);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("Core.sol:Core"), constructorArgs);
+        core = deployContract(salt, bytecode, "Core");
+        return core;
+    }
+
+    function deployGovToken() public doBroadcast returns (address) {
+        bytes memory constructorArgs = abi.encode(address(core), "Resupply", "RSUP");
+        bytes memory bytecode = abi.encodePacked(vm.getCode("GovToken.sol:GovToken"), constructorArgs);
+        govToken = deployContract(salt, bytecode, "GovToken");
+        return govToken;
+    }
+
+    function deployGovStaker() public doBroadcast returns (address) {
+        bytes memory constructorArgs = abi.encode(address(core), address(govToken), 2);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("GovStaker.sol:GovStaker"), constructorArgs);
+        staker = deployContract(salt, bytecode, "GovStaker");
+        return staker;
+    }
+
+    function deployVoter() public doBroadcast returns (address) {
+        bytes memory constructorArgs = abi.encode(address(core), IGovStaker(address(staker)), 100, 3000);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("Voter.sol:Voter"), constructorArgs);
+        voter = deployContract(salt, bytecode, "Voter");
+        return voter;
+    }
+
+    function deployEmissionsController() public doBroadcast returns (address) {
+        bytes memory constructorArgs = abi.encode(
             address(core), 
             address(govToken), 
             getEmissionsSchedule(), 
-            10, // epochsPer,
-            2 // bootstrapEpochs
+            10, 
+            2
         );
+        bytes memory bytecode = abi.encodePacked(vm.getCode("EmissionsController.sol:EmissionsController"), constructorArgs);
+        emissionsController = deployContract(salt, bytecode, "EmissionsController");
+        return emissionsController;
     }
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {

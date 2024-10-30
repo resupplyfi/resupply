@@ -3,15 +3,15 @@ pragma solidity ^0.8.22;
 
 import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { IGovStakerEscrow } from '../../interfaces/IGovStakerEscrow.sol';
 import { EpochTracker } from '../../dependencies/EpochTracker.sol';
 import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
+import { GovStakerEscrow } from './GovStakerEscrow.sol';
 
 contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;
 
     address private immutable _stakeToken;
-    address public immutable escrow;
+    GovStakerEscrow public immutable escrow;
     uint24 public constant MAX_COOLDOWN_DURATION = 90 days;
 
     // Account tracking state vars.
@@ -61,17 +61,15 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /**
         @param _core            The Core protocol contract address.
         @param _token           The token to be staked.
-        @param _escrow          Escrow contract to hold cooldown tokens.
         @param _cooldownEpochs  The number of epochs to cooldown for.
     */
     constructor(
         address _core,
         address _token,
-        address _escrow,
         uint24 _cooldownEpochs
     ) MultiRewardsDistributor(_core) EpochTracker(_core) {
+        escrow = new GovStakerEscrow(address(this), _token);
         _stakeToken = _token;
-        escrow = _escrow;
         cooldownEpochs = _cooldownEpochs;
     }
 
@@ -152,7 +150,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
         delete cooldowns[_account];
 
-        IGovStakerEscrow(escrow).withdraw(_receiver, amount);
+        escrow.withdraw(_receiver, amount);
 
         emit Unstaked(_account, amount);
         return amount;

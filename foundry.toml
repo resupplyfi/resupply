@@ -59,6 +59,7 @@ local = "http://127.0.0.1:8545"
 
 [etherscan]
 fraxtal = {key = "${FRAXTAL_API_KEY}", url = "https://api.fraxscan.com/api", chain = "252"}
+tenderly_testnet = { key = "TENDERLY_ACCESS_KEY", chain = "1", url = "${TENDERLY_URL}/verify/etherscan" }
 
 
 [fmt]
