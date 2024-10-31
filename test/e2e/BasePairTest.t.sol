@@ -10,12 +10,19 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "src/protocol/fraxlend/FraxlendPairConstants.sol";
-// import "src/protocol/fraxlend/FraxlendPairAccessControlErrors.sol";
 import "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPairRegistry } from "src/protocol/ResupplyPairRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { StableCoin } from "src/protocol/StableCoin.sol";
+import { InsurancePool } from "src/protocol/InsurancePool.sol";
+import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
+import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
+import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
+import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
+import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
+import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 
@@ -33,7 +40,6 @@ struct CurrentRateInfo {
 
 contract BasePairTest is
     FraxlendPairConstants,
-    // FraxlendPairAccessControlErrors,
     TestHelper,
     // Constants.Helper,
     FraxTest
@@ -52,7 +58,21 @@ contract BasePairTest is
     ResupplyPairRegistry public pairRegistry;
     Core public core;
     MockToken public stakingToken;
-    MockToken public stableToken;
+    StableCoin public stableToken;
+
+    InterestRateCalculator public rateContract;
+    IOracle public oracle;
+
+    InsurancePool public insurancePool;
+    SimpleRewardStreamer public ipStableStream;
+    SimpleRewardStreamer public ipEmissionStream;
+    SimpleRewardStreamer public pairEmissionStream;
+    FeeDeposit public feeDeposit;
+    FeeDepositController public feeDepositController;
+    RedemptionHandler public redemptionHandler;
+    LiquidationHandler public liquidationHandler;
+    RewardHandler public rewardHandler;
+
 
     uint256 mainnetFork;
 
@@ -61,9 +81,7 @@ contract BasePairTest is
 
     IERC20 public asset;
     IERC20 public collateral;
-    InterestRateCalculator public rateContract;
-
-    IOracle public oracle;
+    
     uint256 public uniqueId;
 
     struct UserAccounting {
@@ -124,7 +142,7 @@ contract BasePairTest is
         mainnetFork = vm.createSelectFork(vm.envString("MAINNET_URL"));
         // Deploy the mock factory first for deterministic location
         stakingToken = new MockToken("GovToken", "GOV");
-        stableToken = new MockToken("StableToken", "STABLE");
+        
 
         core = Core(
             address(
@@ -132,9 +150,10 @@ contract BasePairTest is
             )
         );
 
+        stableToken = new StableCoin(address(core));
+
         vm.startPrank(users[0]);
         stakingToken.mint(users[0], 1_000_000 * 10 ** 18);
-        stableToken.mint(users[0], 1_000_000 * 10 ** 18);
         vm.stopPrank();
 
         // label all the used addresses for traces
@@ -156,6 +175,7 @@ contract BasePairTest is
         
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
+        stableToken.setOperator(address(pairRegistry),true);
         vm.stopPrank();
 
         rateContract = new InterestRateCalculator(
@@ -178,10 +198,87 @@ contract BasePairTest is
         crvUsdToken = IERC20(Constants.Mainnet.CURVE_USD_ERC20);
     }
 
+    function deployAuxContracts() public {
+        insurancePool = new InsurancePool(
+            address(core), //core
+            address(stableToken),
+            address(pairRegistry));
+
+        ipStableStream = new SimpleRewardStreamer(
+            address(stableToken),
+            address(pairRegistry),
+            address(core), //core
+            address(insurancePool));
+
+        ipEmissionStream = new SimpleRewardStreamer(
+            address(stakingToken),
+            address(pairRegistry),
+            address(core), //core
+            address(insurancePool));
+
+        //todo queue rewards to pools
+
+        pairEmissionStream = new SimpleRewardStreamer(
+            address(stakingToken),
+            address(pairRegistry),
+            address(core), //core
+            address(0));
+
+        feeDeposit = new FeeDeposit(
+             address(core), //core
+             address(pairRegistry),
+             address(stableToken)
+             );
+        feeDepositController = new FeeDepositController(
+            address(pairRegistry),
+            address(users[1]), //todo treasury
+            address(feeDeposit),
+            address(stableToken),
+            1500,
+            500
+            );
+        //attach fee deposit controller to fee deposit
+        vm.startPrank(address(core));
+        feeDeposit.setOperator(address(feeDepositController));
+        vm.stopPrank();
+
+        redemptionHandler = new RedemptionHandler(
+            address(core),//core
+            address(pairRegistry),
+            address(stableToken)
+            );
+
+        liquidationHandler = new LiquidationHandler(
+            address(core),//core
+            address(pairRegistry),
+            address(insurancePool)
+            );
+
+        rewardHandler = new RewardHandler(
+            address(core),//core
+            address(pairRegistry),
+            address(stableToken),
+            address(pairEmissionStream), //todo gov staking
+            address(insurancePool),
+            address(pairEmissionStream),
+            address(ipEmissionStream),
+            address(ipStableStream)
+            );
+
+        vm.startPrank(address(core));
+        pairRegistry.setLiquidationHandler(address(liquidationHandler));
+        pairRegistry.setFeeDeposit(address(feeDeposit));
+        pairRegistry.setRedeemer(address(redemptionHandler));
+        pairRegistry.setInsurancePool(address(insurancePool));
+        pairRegistry.setRewardHandler(address(rewardHandler));
+        vm.stopPrank();
+    }
+
     /// @notice The ```defaultSetUp``` function provides a full default deployment environment for testing
     function defaultSetUp() public virtual {
         setUpCore();
         deployBaseContracts();
+        deployAuxContracts();
 
         // faucetFunds(address(Constants.Mainnet.CURVE_USD_ERC20),100_000 * 10 ** 18,users[0]);
         faucetFunds(fraxToken,100_000 * 10 ** 18,users[0]);
@@ -194,6 +291,14 @@ contract BasePairTest is
         console.log("Deployer: ", address(deployer));
         console.log("govToken: ", address(stakingToken));
         console.log("stableToken: ", address(stableToken));
+        console.log("insurancePool: ", address(insurancePool));
+        console.log("ipStableStream: ", address(ipStableStream));
+        console.log("pairEmissionStream: ", address(pairEmissionStream));
+        console.log("feeDeposit: ", address(feeDeposit));
+        console.log("feeDepositController: ", address(feeDepositController));
+        console.log("redemptionHandler: ", address(redemptionHandler));
+        console.log("liquidationHandler: ", address(liquidationHandler));
+        console.log("rewardHandler: ", address(rewardHandler));
         console.log("======================================");
         console.log("balance of frax: ", fraxToken.balanceOf(users[0]));
         console.log("balance of crvusd: ", crvUsdToken.balanceOf(users[0]));
@@ -204,8 +309,9 @@ contract BasePairTest is
     // ============================================================================================
 
     /// @notice The ```deployFraxlendPublic``` function helps deploy Fraxlend public pairs with default config
-    function deployDefaultLendingPair() public returns(ResupplyPair) {
-        return deployLendingPair(address(fraxToken), address(collateral), address(0), 0);
+    function deployDefaultLendingPairs() public{
+        deployLendingPair(address(Constants.Mainnet.FRAX_ERC20), address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        deployLendingPair(address(Constants.Mainnet.CURVE_USD_ERC20), address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
     }
 
     function deployLendingPair(address _asset, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
