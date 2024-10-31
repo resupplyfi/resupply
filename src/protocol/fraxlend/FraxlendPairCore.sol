@@ -28,7 +28,6 @@ pragma solidity ^0.8.19;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-// import { FraxlendPairAccessControl } from "./FraxlendPairAccessControl.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";

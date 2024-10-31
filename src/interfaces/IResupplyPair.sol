@@ -71,47 +71,15 @@ interface IResupplyPair {
         returns (
             uint256 _LTV_PRECISION,
             uint256 _LIQ_PRECISION,
-            uint256 _UTIL_PREC,
-            uint256 _FEE_PRECISION,
             uint256 _EXCHANGE_PRECISION,
-            uint64 _DEFAULT_INT,
-            uint16 _DEFAULT_PROTOCOL_FEE,
-            uint256 _MAX_PROTOCOL_FEE
-        );
-
-    function getImmutableAddressBool()
-        external
-        view
-        returns (
-            address _assetContract,
-            address _collateralContract,
-            address _oracleMultiply,
-            address _oracleDivide,
-            address _rateContract,
-            address _DEPLOYER_CONTRACT,
-            address _COMPTROLLER_ADDRESS,
-            address _FRAXLEND_WHITELIST,
-            bool _borrowerWhitelistActive,
-            bool _lenderWhitelistActive
-        );
-
-    function getImmutableUint256()
-        external
-        view
-        returns (
-            uint256 _oracleNormalization,
-            uint256 _maxLTV,
-            uint256 _cleanLiquidationFee,
-            uint256 _maturityDate,
-            uint256 _penaltyRate
+            uint256 _RATE_PRECISION
         );
 
     function getPairAccounting()
         external
         view
         returns (
-            uint128 _totalAssetAmount,
-            uint128 _totalAssetShares,
+            uint256 _claimableFees,
             uint128 _totalBorrowAmount,
             uint128 _totalBorrowShares,
             uint256 _totalCollateral
@@ -119,7 +87,7 @@ interface IResupplyPair {
 
     function getUserSnapshot(
         address _address
-    ) external view returns (uint256 _userAssetShares, uint256 _userBorrowShares, uint256 _userCollateralBalance);
+    ) external view returns (uint256 _userBorrowShares, uint256 _userCollateralBalance);
 
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
 
@@ -141,15 +109,7 @@ interface IResupplyPair {
 
     function maxLTV() external view returns (uint256);
 
-    function maxOracleDelay() external view returns (uint256);
-
     function name() external view returns (string memory);
-
-    function oracleDivide() external view returns (address);
-
-    function oracleMultiply() external view returns (address);
-
-    function oracleNormalization() external view returns (uint256);
 
     function owner() external view returns (address);
 
@@ -160,6 +120,8 @@ interface IResupplyPair {
     function penaltyRate() external view returns (uint256);
 
     function rateContract() external view returns (address);
+
+    function borrowLimit() external view returns (uint256);
 
     function redeem(uint256 _amount, uint256 _fee, address _redeemer) external returns(uint256 _collateralReturned);
 

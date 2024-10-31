@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
@@ -12,7 +13,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 
 //claim rewards for various contracts
-contract RewardHandler{
+contract RewardHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -24,8 +25,13 @@ contract RewardHandler{
     address public immutable platformRewards;
 
     mapping(address => uint256) public pairTimestamp;
+    mapping(address => uint256) public minimumWeights;
+    uint256 public baseMinimumWeight;
 
-    constructor(address _owner, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue){
+    event BaseMinimumWeightSet(uint256 bweight);
+    event MinimumWeightSet(address indexed user, uint256 mweight);
+
+    constructor(address _core, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue) CoreOwnable(_core){
         registry = _registry;
         revenueToken = _revenueToken;
         platformRewards = _platformRewards;
@@ -35,6 +41,16 @@ contract RewardHandler{
         insuranceRevenue = _insuranceRevenue;
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_platformRewards, type(uint256).max);
+    }
+
+    function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
+        baseMinimumWeight = _amount;
+        emit BaseMinimumWeightSet(_amount);
+    }
+
+    function setPairMinimumWeight(address _account, uint256 _amount) external onlyOwner{
+        minimumWeights[_account] = _amount;
+        emit MinimumWeightSet(_account, _amount);
     }
 
     function checkNewRewards(address _pair) external{
@@ -93,16 +109,31 @@ contract RewardHandler{
         uint256 lastTimestamp = pairTimestamp[_pair];
         pairTimestamp[_pair] == block.timestamp;
 
-        //if first record, assume 7 days
-        if(lastTimestamp == 0){            
-            lastTimestamp = block.timestamp - 7 days;
+        uint256 borrowLimit = IResupplyPair(_pair).borrowLimit();
+        uint256 rate;
+
+        //if borrow limit is 0, dont apply any weight
+        if(borrowLimit > 0){
+
+            //if first record, assume 7 days
+            if(lastTimestamp == 0){            
+                lastTimestamp = block.timestamp - 7 days;
+            }
+
+            //convert amount to amount per second. (precision loss ok as its just weights)
+            rate = block.timestamp - lastTimestamp;
+            rate = _amount / rate;
+
+            //if minimum set check if rate is below
+            if(minimumWeights[_pair] != 0 && rate < minimumWeights[_pair]){
+                rate = minimumWeights[_pair];
+            }else if(rate < baseMinimumWeight){
+                //if rate below the global base minimum then clamp
+                rate = baseMinimumWeight;
+            }
         }
-
-        //convert amount to amount per second. (precision loss ok as its just weights)
-        uint256 rate = block.timestamp - lastTimestamp;
-        rate = _amount / rate;
-
-        IRewards(pairEmissions).setWeight(msg.sender, _amount);
+        
+        IRewards(pairEmissions).setWeight(_pair, rate);
     }
 
     function queueInsuranceRewards() external{
