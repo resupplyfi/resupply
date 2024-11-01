@@ -11,12 +11,12 @@ interface IPairRegistry {
 
     function addPair(address _pairAddress) external;
 
-    function deployedPairsArray(uint256) external view returns (address);
+    function registeredPairs(uint256) external view returns (address);
 
-    function deployedPairsByName(string memory) external view returns (address);
+    function pairsByName(string memory) external view returns (address);
 
     function defaultSwappersLength() external view returns (uint256);
-    function deployedPairsLength() external view returns (uint256);
+    function registeredPairsLength() external view returns (uint256);
 
     function getAllPairAddresses() external view returns (address[] memory _deployedPairsArray);
     

@@ -32,7 +32,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     mapping(address => mapping(address => uint256)) public claimable_reward;//token -> account -> claimable
     mapping(address => uint256) public rewardMap;
     mapping(address => address) public rewardRedirect;
-    uint256 public constant maxRewards = 12;
+    
 
 
     //events
@@ -68,6 +68,10 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     function _checkAddToken(address _address) internal view virtual returns(bool);
 //////////
 
+    function maxRewards() public virtual returns(uint256){
+        return 15;
+    }
+
     //register an extra reward token to be handled
     function addExtraReward(address _token) external onlyRewardManager nonReentrant{
         //add to reward list
@@ -84,7 +88,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
         //add to reward list if new
         if(rewardMap[_token] == 0){
             //check reward count for new additions
-            require(rewards.length < maxRewards, "max rewards");
+            require(rewards.length < maxRewards(), "max rewards");
 
             //set token
             RewardType storage r = rewards.push();

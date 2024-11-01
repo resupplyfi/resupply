@@ -43,7 +43,7 @@ contract LiquidationHandler is CoreOwnable{
 
     function processLiquidationDebt(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{
         //ensure caller is a registered pair
-        require(IPairRegistry(registry).deployedPairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
+        require(IPairRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
 
         //add to debt needed to burn
         debtByCollateral[_collateral] += _debtAmount;

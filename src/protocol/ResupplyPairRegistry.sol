@@ -36,10 +36,10 @@ contract ResupplyPairRegistry is CoreOwnable{
     address public immutable token;
 
     /// @notice List of the addresses of all deployed Pairs
-    address[] public deployedPairsArray;
+    address[] public registeredPairs;
 
     /// @notice name => deployed address
-    mapping(string => address) public deployedPairsByName;
+    mapping(string => address) public pairsByName;
 
     // Default swappers
     address[] public defaultSwappers;
@@ -59,16 +59,16 @@ contract ResupplyPairRegistry is CoreOwnable{
     // Functions: View Functions
     // ============================================================================================
 
-    /// @notice The ```deployedPairsLength``` function returns the length of the deployedPairsArray
+    /// @notice The ```registeredPairsLength``` function returns the length of the registeredPairs
     /// @return length of array
-    function deployedPairsLength() external view returns (uint256) {
-        return deployedPairsArray.length;
+    function registeredPairsLength() external view returns (uint256) {
+        return registeredPairs.length;
     }
 
     /// @notice The ```getAllPairAddresses``` function returns an array of all deployed pairs
-    /// @return _deployedPairsArray The array of pairs deployed
-    function getAllPairAddresses() external view returns (address[] memory _deployedPairsArray) {
-        _deployedPairsArray = deployedPairsArray;
+    /// @return _registeredPairs The array of pairs deployed
+    function getAllPairAddresses() external view returns (address[] memory _registeredPairs) {
+        _registeredPairs = registeredPairs;
     }
 
     // ============================================================================================
@@ -119,12 +119,12 @@ contract ResupplyPairRegistry is CoreOwnable{
     function addPair(address _pairAddress) external onlyOwner{
 
         // Add pair to the global list
-        deployedPairsArray.push(_pairAddress);
+        registeredPairs.push(_pairAddress);
 
         // Pull name, ensure uniqueness and add to the name mapping
         string memory _name = IERC20Metadata(_pairAddress).name();
-        if (deployedPairsByName[_name] != address(0)) revert NameMustBeUnique();
-        deployedPairsByName[_name] = _pairAddress;
+        if (pairsByName[_name] != address(0)) revert NameMustBeUnique();
+        pairsByName[_name] = _pairAddress;
 
         // Set additional values for FraxlendPair
         IResupplyPair _pair = IResupplyPair(_pairAddress);
@@ -153,7 +153,7 @@ contract ResupplyPairRegistry is CoreOwnable{
 
     function mint(address _receiver, uint256 _amount) external{
         //ensure caller is a registered pair
-        require(deployedPairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
+        require(pairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
 
         //ask minter to mint
         IMintable(token).mint(_receiver, _amount);
@@ -161,7 +161,7 @@ contract ResupplyPairRegistry is CoreOwnable{
 
     function burn(address _target, uint256 _amount) external{
         //ensure caller is a registered pair
-        require(deployedPairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
+        require(pairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
 
         //ask minter to burn
         IMintable(token).mint(_target, _amount);

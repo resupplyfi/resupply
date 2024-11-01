@@ -108,7 +108,7 @@ contract ResupplyPairDeployer is CoreOwnable {
                 _uniqueId.toString()//(_length + 1).toString()
             )
         );
-        if(IPairRegistry(registry).deployedPairsByName(_name) != address(0)){
+        if(IPairRegistry(registry).pairsByName(_name) != address(0)){
             revert NonUniqueName();
         }
     }

@@ -115,6 +115,14 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         return true;
     }
 
+    //we cant limit reward types since collaterals could be sent as rewards
+    //however reward lists growing too large is undesirable
+    //governance should act if too many are added
+    function maxRewards() public override returns(uint256){
+        return type(uint256).max;
+    }
+
+
     // ============================================================================================
 
 

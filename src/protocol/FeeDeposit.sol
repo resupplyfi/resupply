@@ -56,7 +56,7 @@ contract FeeDeposit is CoreOwnable{
 
     function incrementPairRevenue(uint256 _fees, uint256 _otherFees) external{
         //ensure caller is a registered pair
-        require(IPairRegistry(registry).deployedPairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
+        require(IPairRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
 
         emit ReceivedRevenue(msg.sender, _fees, _otherFees);
 

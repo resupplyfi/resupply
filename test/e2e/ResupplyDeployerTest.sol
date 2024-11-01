@@ -14,9 +14,9 @@ contract ResupplyDeployerTest is BasePairTest {
     function testDeployPair() public {
         defaultSetUp();
         deployDefaultLendingPairs();
-        uint256 length = pairRegistry.deployedPairsLength();
+        uint256 length = pairRegistry.registeredPairsLength();
         for(uint256 i = 0; i < length; i++){
-            ResupplyPair pair = ResupplyPair(pairRegistry.deployedPairsArray(i));
+            ResupplyPair pair = ResupplyPair(pairRegistry.registeredPairs(i));
             console.log("======================================");
             console.log("    Deployed Pair     ");
             console.log("======================================");
