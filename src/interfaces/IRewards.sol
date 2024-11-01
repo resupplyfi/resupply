@@ -2,6 +2,13 @@
 pragma solidity >=0.8.19;
 
 interface IRewards{
+    struct EarnedData {
+        address token;
+        uint256 amount;
+    }
+
+    function rewardMap(address _token) external view returns(uint256 slot);
+    function rewards(uint256 index) external view returns(address reward_token, uint256 reward_remaining, bool is_non_claimable);
     function rewardToken() external view returns(address);
     function periodFinish() external view returns(uint256);
     function rewardRate() external view returns(uint256);
@@ -17,4 +24,5 @@ interface IRewards{
     function getReward(address _account, address _forwardTo) external;
     function setRewardRedirect(address _to) external;
     function user_checkpoint(address _account) external;
+    function earned(address _account) external returns(EarnedData[] memory claimable);
 }

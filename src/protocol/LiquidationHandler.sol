@@ -8,6 +8,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
+import { IRewards } from "../interfaces/IRewards.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 
 
@@ -20,7 +21,8 @@ contract LiquidationHandler is CoreOwnable{
     address public immutable insurancepool;
     mapping(address => uint256) public debtByCollateral;
 
-    event CollateralProccessed(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
+    event CollateralProccessed(address indexed _collateral, uint256 _collateralAmount, uint256 _underlyingAmount, uint256 _debtAmount);
+    event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
 
     constructor(address _core, address _registry, address _insurancepool) CoreOwnable(_core){
         registry = _registry;
@@ -32,6 +34,36 @@ contract LiquidationHandler is CoreOwnable{
     function migrateCollateral(address _collateral, uint256 _amount, address _to) external onlyOwner{
         require(IPairRegistry(registry).liquidationHandler() != address(this), "handler still used");
         IERC20(_collateral).safeTransfer(_to, _amount);
+    }
+
+    //if there is bad debt in the system where the collateral on this handler is
+    //worth less than the amount of debt owed then the protocol should be able to choose to
+    //immediately clear debt and distribute the "bad" collateral to insurance pool holders
+    function distributeCollateralAndClearDebt(address _collateral) external onlyOwner{
+        require(IPairRegistry(registry).liquidationHandler() == address(this), "!liq handler");
+
+        //first need to make sure collateral is a valid reward before sending or else it wont get distributed
+        //get reward slot
+        uint256 slot = IRewards(insurancepool).rewardMap(_collateral);
+        require(slot > 0, "!non registered reward");
+        //check if invalidated (slot minus one to adjust for slot starting from 1)
+        (address reward_token,,) = IRewards(insurancepool).rewards(slot-1);
+        require(reward_token == _collateral,"invalidated reward");
+        //collateral is a valid reward token and can be sent
+
+        //first try redeeming as much of the underlying as possible
+        processCollateral(_collateral);
+
+        //get balance
+        uint256 collateralBalance = IERC20(_collateral).balanceOf(address(this));
+        emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
+
+        //burn debt
+        IInsurancePool(insurancepool).burnAssets(debtByCollateral[_collateral]);
+        //clear debt
+        debtByCollateral[_collateral] = 0;
+        //send all collateral (and thus distribute)
+        IERC20(_collateral).safeTransfer(insurancepool, collateralBalance);
     }
 
     function liquidate(
@@ -60,17 +92,6 @@ contract LiquidationHandler is CoreOwnable{
         //get underlying
         address underlyingAsset = IERC4626(_collateral).asset();
 
-        //sanity check that the collateral is still valued above debt (assuming value of underlying is stable)
-        //if not, burn to adjust
-        uint256 sharesToAssets = IERC4626(_collateral).convertToAssets(IERC20(_collateral).balanceOf(address(this)));
-        if(sharesToAssets < debtByCollateral[_collateral]){
-            //get the difference in value of outstanding debt and underlying assets
-            sharesToAssets = debtByCollateral[_collateral] - sharesToAssets;
-            //burn to balance
-            IInsurancePool(insurancepool).burnAssets(sharesToAssets);
-        }
-
-
         //try to max redeem
         uint256 redeemable = IERC4626(_collateral).maxRedeem(address(this));
         if(redeemable == 0) return;
@@ -89,5 +110,7 @@ contract LiquidationHandler is CoreOwnable{
 
         //send underlying to be distributed
         IERC20(underlyingAsset).safeTransfer(insurancepool, withdrawnAmount);
+
+        emit CollateralProccessed(_collateral, redeemable, withdrawnAmount, toburn);
     }
 }
