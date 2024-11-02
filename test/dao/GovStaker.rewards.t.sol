@@ -11,7 +11,7 @@ import { IGovStaker } from "../../src/interfaces/IGovStaker.sol";
 import { Setup } from "./utils/Setup.sol";
 import { MultiRewardsDistributor } from "../../src/dao/staking/MultiRewardsDistributor.sol";
 
-contract OperationTest is Setup {
+contract GovStakerRewardsTest is Setup {
     MockToken public rewardToken;
     MockToken public rewardToken2;
     uint256 public constant EPOCH_LENGTH = 2 days;

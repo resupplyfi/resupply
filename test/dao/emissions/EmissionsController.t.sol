@@ -18,7 +18,7 @@ contract EmissionsControllerTest is Setup {
     function setUp() public override {
         super.setUp();
         vm.startPrank(address(core));
-        govToken.setEmissionsController(address(emissionsController));
+        govToken.setMinter(address(emissionsController));
         epochLength = emissionsController.epochLength();
         // Do this to get some totalSupply
         govToken.initialize(address(0x99999), 1000000 * 10 ** 18);
