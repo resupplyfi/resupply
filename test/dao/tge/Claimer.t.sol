@@ -16,7 +16,7 @@ contract ClaimerTest is Setup {
             address(prismaToken),
             150_000_000e18,
             getMerkleRoots(),
-            [uint256(10000), uint256(0), uint256(0), uint256(0), uint256(0)]
+            [uint256(2000), uint256(2000), uint256(2000), uint256(2000), uint256(2000)]
         );
 
         vm.prank(address(core));
@@ -28,7 +28,7 @@ contract ClaimerTest is Setup {
         (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleData();
         
         for (uint256 i = 0; i < proofs.length; i++) {
-            vm.prank(users[i]);
+            vm.startPrank(users[i]);
             claimer.merkleClaim(
                 users[i],
                 users[i],
@@ -37,6 +37,59 @@ contract ClaimerTest is Setup {
                 proofs[i],
                 i + 1
             );
+            vm.expectRevert("already claimed");
+            claimer.merkleClaim(
+                users[i],
+                users[i],
+                amounts[i],
+                Claimer.MerkleClaimType.COMPENSATION,
+                proofs[i],
+                i + 1
+            );
+            vm.stopPrank();
+        }
+    }
+
+    function test_CannotClaimAirdropWithWrongProof() public {
+        assertNotEq(address(claimer), address(0));
+        (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleData();
+        
+        for (uint256 i = 0; i < proofs.length; i++) {
+            vm.startPrank(users[i]);
+            vm.expectRevert("invalid proof");
+            claimer.merkleClaim(
+                users[i],
+                users[i],
+                amounts[i],
+                Claimer.MerkleClaimType.COMPENSATION,
+                proofs[i],
+                i // WRONG INDEX
+            );
+
+            bytes32[] memory badProof;
+            if (i >= proofs.length - 1) badProof = proofs[i-1];
+            else badProof = proofs[i+1];
+            vm.expectRevert("invalid proof");
+            claimer.merkleClaim(
+                users[i],
+                users[i],
+                amounts[i],
+                Claimer.MerkleClaimType.COMPENSATION,
+                badProof, // WRONG PROOF
+                i + 1
+            );
+
+            address u;
+            vm.expectRevert("invalid proof");
+            claimer.merkleClaim(
+                u,
+                users[i],
+                amounts[i],
+                Claimer.MerkleClaimType.COMPENSATION,
+                proofs[i],
+                i + 1
+            );
+            vm.stopPrank();
         }
     }
 

@@ -88,7 +88,7 @@ contract Claimer {
         uint256 _index
     ) external {
         // require(false, "!disabled"); // TODO: create claim logic
-        require(!hasClaimed[_account][_type], "claimed");
+        require(!hasClaimed[_account][_type], "already claimed");
 
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(
             _account, 
