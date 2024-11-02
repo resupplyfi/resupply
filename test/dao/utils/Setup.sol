@@ -15,7 +15,7 @@ import { EmissionsController } from "../../../src/dao/emissions/EmissionsControl
 import { GovToken } from "../../../src/dao/GovToken.sol";
 import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
 import { Vesting } from "../../../src/dao/tge/Vesting.sol";
-import { MockClaimer } from "../../mocks/MockClaimer.sol";
+import { Claimer } from "../../../src/dao/tge/Claimer.sol";
 
 contract Setup is Test {
     Core public core;
@@ -26,8 +26,8 @@ contract Setup is Test {
     GovToken public govToken;
     EmissionsController public emissionsController;
     Vesting public vesting;
-    MockClaimer public claimer;
-
+    Claimer public claimer;
+    address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
     address user1 = address(0x11);
     address user2 = address(0x22);
     address user3 = address(0x33);
@@ -77,8 +77,6 @@ contract Setup is Test {
         voter = new Voter(address(core), IGovStaker(staker), 100, 3000);
         address govTokenAddress = computeCreateAddress(address(this), vm.getNonce(address(this))+1);
         vesting = new Vesting(address(core), IERC20(govTokenAddress), 365 days);
-        vm.prank(address(core));
-        
         govToken = new GovToken(
             address(core), 
             address(vesting),
@@ -86,9 +84,8 @@ contract Setup is Test {
             "RSUP"
         );
 
-        claimer = new MockClaimer(address(core));
-        vesting.setClaimer(address(claimer));
-        
+        assertEq(address(govToken), govTokenAddress);
+
         uint256 epochsPer = 10;
         emissionsController = new EmissionsController(
             address(core), 

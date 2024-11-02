@@ -6,7 +6,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 
 
 interface IVesting {
-    function createVest(address _recipient, uint256 _amount, uint256 _duration) external returns (uint256);
+    function createVest(address _recipient, uint256 _start, uint256 _duration, uint256 _amount) external returns (uint256);
     function token() external view returns (address);
 }
 
@@ -61,9 +61,8 @@ contract Claimer {
         bytes32[3] memory _merkleRoots, // compensation, lock break, team
         uint256[5] memory _allocationPercentages // treasury, subdao1, subdao2, redemptions (in BPS)
     ) {
-        require(_allocationPercentages.length == 2, "alloc legnth mismatch");
-        INITIAL_SUPPLY = IGovToken(vesting.token()).INITIAL_SUPPLY();
         vesting = IVesting(_vesting);
+        INITIAL_SUPPLY = IGovToken(vesting.token()).INITIAL_SUPPLY();
         prismaToken = IERC20(_prismaToken);
         estRedeemablePrisma = _estRedeemablePrisma;
         MERKLE_ROOT_COMPENSATION = _merkleRoots[0];
@@ -85,12 +84,18 @@ contract Claimer {
         address _recipient,
         uint256 _amount,
         MerkleClaimType _type,
-        bytes32[] calldata _proof
+        bytes32[] calldata _proof,
+        uint256 _index
     ) external {
-        require(false, "!disabled"); // TODO: create claim logic
+        // require(false, "!disabled"); // TODO: create claim logic
         require(!hasClaimed[_account][_type], "claimed");
 
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_account, _account))));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(
+            _account, 
+            _amount, 
+            _index
+        ))));
+
         require(MerkleProof.verify(
             _proof,
             getMerkleRootByClaimType(_type),
@@ -99,8 +104,9 @@ contract Claimer {
 
         uint256 vestId = vesting.createVest(
             _recipient,
-            _amount,
-            getDurationByClaimType(_type)
+            block.timestamp,
+            getDurationByClaimType(_type),
+            _amount
         );
         hasClaimed[_account][_type] = true;
         emit VestCreated(_account, _recipient, vestId, _amount);
@@ -117,8 +123,9 @@ contract Claimer {
         prismaToken.transferFrom(_to, BURN_ADDRESS, _amount);
         vesting.createVest(
             _recipient,
-            _amount * redemptionRatio / 1e18,
-            VEST_DURATION_REDEMPTION
+            block.timestamp,
+            VEST_DURATION_REDEMPTION,
+            _amount * redemptionRatio / 1e18
         );
     }
     
