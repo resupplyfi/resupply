@@ -19,7 +19,7 @@ contract SubDaoTest is Setup {
         );
 
         vm.prank(user2);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert("!ownerOrOperator");
         subdao1.safeExecute(
             address(govToken), 
             abi.encodeWithSelector(govToken.approve.selector, user1, 100e18)
