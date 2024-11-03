@@ -14,7 +14,7 @@ interface IGovToken is IERC20 {
     function INITIAL_SUPPLY() external view returns (uint256);
 }
 
-contract Claimer {
+contract VestManager {
     address constant BURN_ADDRESS = address(0);
     
     IVesting immutable public vesting;

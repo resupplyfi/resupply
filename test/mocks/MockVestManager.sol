@@ -2,7 +2,7 @@ interface IVesting {
     function createVest(address _recipient, uint256 _start, uint256 _duration, uint256 _amount) external returns (uint256);
 }
 
-contract MockClaimer {
+contract MockVestManager {
     IVesting immutable public vesting;
 
     constructor(address _vesting) {

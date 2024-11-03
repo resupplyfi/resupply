@@ -3,23 +3,23 @@ pragma solidity ^0.8.22;
 import "forge-std/Test.sol";
 import { Setup } from "../utils/Setup.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { MockClaimer } from "../../mocks/MockClaimer.sol";
+import { MockVestManager } from "../../mocks/MockVestManager.sol";
 
 contract VestingTest is Setup {
-    MockClaimer public mockClaimer;
+    MockVestManager public mockVestManager;
 
     function setUp() public override {
         super.setUp();
 
-        mockClaimer = new MockClaimer(address(vesting));
+        mockVestManager = new MockVestManager(address(vesting));
         vm.prank(address(core));
-        vesting.setClaimer(address(mockClaimer));
-        assertEq(address(mockClaimer), address(vesting.claimerContract()));
+        vesting.setVestManager(address(mockVestManager));
+        assertEq(address(mockVestManager), address(vesting.vestManagerContract()));
     }
 
     function test_CreateVest() public {
         vm.startPrank(user1);
-        vm.expectRevert("!claimer");
+        vm.expectRevert("!vestManager");
         vesting.createVest(address(this), block.timestamp, 365 days, 1_000e18);
 
         vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("Panic(uint256)")), uint256(0x32)));
@@ -27,7 +27,7 @@ contract VestingTest is Setup {
         
         // Create vest #1
         uint256 amount = 1_000e18;
-        mockClaimer.createVest(user1, 100 days, amount);
+        mockVestManager.createVest(user1, 100 days, amount);
         vm.stopPrank();
 
         assertEq(vesting.numAccountVests(user1), 1);
@@ -47,7 +47,7 @@ contract VestingTest is Setup {
         assertEq(vested, amount);
 
         // Create vest #2
-        mockClaimer.createVest(user1, 100 days, amount);
+        mockVestManager.createVest(user1, 100 days, amount);
         vm.stopPrank();
 
         assertEq(vesting.numAccountVests(user1), 2);
@@ -68,7 +68,7 @@ contract VestingTest is Setup {
 
         // Create vest #3
         amount = 50_000e18;
-        mockClaimer.createVest(user1, 20 days, amount);
+        mockVestManager.createVest(user1, 20 days, amount);
         vm.stopPrank();
 
         skip(10 days);

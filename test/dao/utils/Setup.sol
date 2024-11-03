@@ -15,7 +15,7 @@ import { EmissionsController } from "../../../src/dao/emissions/EmissionsControl
 import { GovToken } from "../../../src/dao/GovToken.sol";
 import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
 import { Vesting } from "../../../src/dao/tge/Vesting.sol";
-import { Claimer } from "../../../src/dao/tge/Claimer.sol";
+import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 
 contract Setup is Test {
     Core public core;
@@ -26,7 +26,7 @@ contract Setup is Test {
     GovToken public govToken;
     EmissionsController public emissionsController;
     Vesting public vesting;
-    Claimer public claimer;
+    VestManager public vestManager;
     address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
     address user1 = address(0x11);
     address user2 = address(0x22);

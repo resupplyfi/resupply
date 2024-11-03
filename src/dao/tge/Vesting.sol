@@ -7,7 +7,7 @@ import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
 contract Vesting is CoreOwnable, DelegatedOps {
     IERC20 public token;
-    address public claimerContract;
+    address public vestManagerContract;
     uint256 totalClaimed;
     uint256 totalAllocated;
     uint256 public immutable deadline;
@@ -27,8 +27,8 @@ contract Vesting is CoreOwnable, DelegatedOps {
         deadline = block.timestamp + _timeUntilDeadline;
     }
 
-    modifier onlyClaimer() {
-        require(msg.sender == claimerContract, "!claimer");
+    modifier onlyVestManager() {
+        require(msg.sender == vestManagerContract, "!vestManager");
         _;
     }
 
@@ -37,7 +37,7 @@ contract Vesting is CoreOwnable, DelegatedOps {
         uint256 _start,
         uint256 _duration,
         uint256 _amount
-    ) external onlyClaimer returns (uint256) {
+    ) external onlyVestManager returns (uint256) {
         require(block.timestamp < deadline, "deadline passed");
         require(_account != address(0), "zero address");
         require(_amount > 0, "Amount must be greater than zero");
@@ -89,25 +89,25 @@ contract Vesting is CoreOwnable, DelegatedOps {
     /**
      * @notice Get aggregated vesting data for an account. Includes all vests for the account.
      * @param _account Address of the account to query
-     * @return totalClaimable Amount of tokens that can be claimed by the account
-     * @return totalLocked Amount of tokens still locked in vesting
-     * @return totalClaimed Amount of tokens already claimed by the account
-     * @return totalVested Amount of tokens earned to date (including claimed)
+     * @return _totalClaimable Amount of tokens that can be claimed by the account
+     * @return _totalLocked Amount of tokens still locked in vesting
+     * @return _totalClaimed Amount of tokens already claimed by the account
+     * @return _totalVested Amount of tokens earned to date (including claimed)
      * @dev Iterates through all vests for the account to calculate totals
      */
     function getAggregatedAccountData(address _account) external view returns (
-        uint256 totalClaimable,
-        uint256 totalLocked,
-        uint256 totalClaimed,
-        uint256 totalVested
+        uint256 _totalClaimable,
+        uint256 _totalLocked,
+        uint256 _totalClaimed,
+        uint256 _totalVested
     ) {
         uint256 length = numAccountVests(_account);
         for (uint256 i = 0; i < length; i++) {
-            (uint256 _totalClaimable, uint256 _totalLocked, uint256 _totalClaimed, uint256 _totalVested) = _vestData(userVests[_account][i]);
-            totalClaimable += _totalClaimable;
-            totalLocked += _totalLocked;
-            totalClaimed += _totalClaimed;
-            totalVested += _totalVested;
+            (uint256 _claimable, uint256 _locked, uint256 _claimed, uint256 _vested) = _vestData(userVests[_account][i]);
+            _totalClaimable += _claimable;
+            _totalLocked += _locked;
+            _totalClaimed += _claimed;
+            _totalVested += _vested;
         }
     }
 
@@ -115,31 +115,31 @@ contract Vesting is CoreOwnable, DelegatedOps {
      * @notice Get single vest data for an account
      * @param _account Address of the account to query
      * @param index Index of the vest to query
-     * @return totalClaimable Amount of tokens that can be claimed for the vest
-     * @return totalLocked Amount of tokens still locked in the vest
-     * @return totalClaimed Amount of tokens already claimed for the vest
-     * @return totalVested Amount of tokens earned to date (including claimed)
+     * @return _claimable Amount of tokens that can be claimed for the vest
+     * @return _locked Amount of tokens still locked in the vest
+     * @return _claimed Amount of tokens already claimed for the vest
+     * @return _vested Amount of tokens earned to date (including claimed)
      */
     function getSingleVestData(address _account, uint256 index) external view returns (
-        uint256 totalClaimable,
-        uint256 totalLocked,
-        uint256 totalClaimed,
-        uint256 totalVested
+        uint256 _claimable,
+        uint256 _locked,
+        uint256 _claimed,
+        uint256 _vested
     ) {
         return _vestData(userVests[_account][index]);
     }
 
     function _vestData(Vest memory vest) internal view returns (
-        uint256 totalClaimable,
-        uint256 totalLocked,
-        uint256 totalClaimed,
-        uint256 totalVested
+        uint256 _claimable,
+        uint256 _locked,
+        uint256 _claimed,
+        uint256 _vested
     ){
         uint256 vested = _vestedAmount(vest);
-        totalClaimable = vested - vest.claimed;
-        totalLocked = vest.amount - vested;
-        totalClaimed = vest.claimed;
-        totalVested = vested;
+        _claimable = vested - vest.claimed;
+        _locked = vest.amount - vested;
+        _claimed = vest.claimed;
+        _vested = vested;
     }
 
     function _claimableAmount(Vest storage vest) internal view returns (uint256) {
@@ -165,9 +165,9 @@ contract Vesting is CoreOwnable, DelegatedOps {
         return token.balanceOf(address(this)) - totalAllocated;
     }
 
-    function setClaimer(address _claimer) external onlyOwner {
-        require(claimerContract == address(0), "Already set");
-        require(_claimer != address(0), "Zero address");
-        claimerContract = _claimer;
+    function setVestManager(address _vestManager) external onlyOwner {
+        require(vestManagerContract == address(0), "Already set");
+        require(_vestManager != address(0), "Zero address");
+        vestManagerContract = _vestManager;
     }
 }

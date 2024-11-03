@@ -18,8 +18,7 @@ gas_limit = 9223372036854775807
 # optimizer
 optimizer = false
 # optimizer runs
-optimizer_runs = 200
-verbosity = 3
+optimizer_runs = 1_000_000
 # use via-ir optimizer
 via_ir = false
 fs_permissions = [{ access = "read-write", path = "./"}]
@@ -59,7 +58,6 @@ local = "http://127.0.0.1:8545"
 
 [etherscan]
 fraxtal = {key = "${FRAXTAL_API_KEY}", url = "https://api.fraxscan.com/api", chain = "252"}
-tenderly_testnet = { key = "TENDERLY_ACCESS_KEY", chain = "1", url = "${TENDERLY_URL}/verify/etherscan" }
 
 
 [fmt]

@@ -2,16 +2,14 @@ pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
 import { Setup } from "../utils/Setup.sol";
-import { Claimer } from "../../../src/dao/tge/Claimer.sol";
+import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 
 
-contract ClaimerTest is Setup {
+contract VestManagerTest is Setup {
     function setUp() public override {
         super.setUp();
         
-        console.log('xxx',address(vesting));
-        console.log('yyy',address(vesting.token()));
-        claimer = new Claimer(
+        vestManager = new VestManager(
             address(vesting),
             address(prismaToken),
             150_000_000e18,
@@ -20,29 +18,29 @@ contract ClaimerTest is Setup {
         );
 
         vm.prank(address(core));
-        vesting.setClaimer(address(claimer));
+        vesting.setVestManager(address(vestManager));
     }
 
     function test_AirdropClaim() public {
-        assertNotEq(address(claimer), address(0));
+        assertNotEq(address(vestManager), address(0));
         (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleData();
         
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
-            claimer.merkleClaim(
+            vestManager.merkleClaim(
                 users[i],
                 users[i],
                 amounts[i],
-                Claimer.MerkleClaimType.COMPENSATION,
+                VestManager.MerkleClaimType.COMPENSATION,
                 proofs[i],
                 i
             );
             vm.expectRevert("already claimed");
-            claimer.merkleClaim(
+            vestManager.merkleClaim(
                 users[i],
                 users[i],
                 amounts[i],
-                Claimer.MerkleClaimType.COMPENSATION,
+                VestManager.MerkleClaimType.COMPENSATION,
                 proofs[i],
                 i
             );
@@ -51,7 +49,7 @@ contract ClaimerTest is Setup {
     }
 
     function test_CannotClaimAirdropWithWrongProof() public {
-        assertNotEq(address(claimer), address(0));
+        assertNotEq(address(vestManager), address(0));
         (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleData();
         
         for (uint256 i = 0; i < proofs.length; i++) {
@@ -59,11 +57,11 @@ contract ClaimerTest is Setup {
             vm.expectRevert("invalid proof");
             uint256 wrongIndex = i + 1;
             if (wrongIndex >= proofs[i].length) wrongIndex = i - 1;
-            claimer.merkleClaim(
+            vestManager.merkleClaim(
                 users[i],
                 users[i],
                 amounts[i],
-                Claimer.MerkleClaimType.COMPENSATION,
+                VestManager.MerkleClaimType.COMPENSATION,
                 proofs[i],
                 wrongIndex // WRONG INDEX
             );
@@ -72,22 +70,22 @@ contract ClaimerTest is Setup {
             if (i >= proofs.length - 1) badProof = proofs[i-1];
             else badProof = proofs[i+1];
             vm.expectRevert("invalid proof");
-            claimer.merkleClaim(
+            vestManager.merkleClaim(
                 users[i],
                 users[i],
                 amounts[i],
-                Claimer.MerkleClaimType.COMPENSATION,
+                VestManager.MerkleClaimType.COMPENSATION,
                 badProof, // WRONG PROOF
                 i
             );
 
             address wrongUser;
             vm.expectRevert("invalid proof");
-            claimer.merkleClaim(
+            vestManager.merkleClaim(
                 wrongUser,
                 users[i],
                 amounts[i],
-                Claimer.MerkleClaimType.COMPENSATION,
+                VestManager.MerkleClaimType.COMPENSATION,
                 proofs[i],
                 i
             );
