@@ -10,7 +10,7 @@ import {IGovStaker} from "../../src/interfaces/IGovStaker.sol";
 import {Setup} from "./utils/Setup.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract GovStakerTest is Setup {
+contract GovStakerStakingTest is Setup {
     MockToken rewardToken1;
     MockToken rewardToken2;
     uint256 epochLength;
@@ -237,7 +237,7 @@ contract GovStakerTest is Setup {
         assertEq(staker.cooldownEpochs(), 0, "Cooldown duration should be 0");
         assertEq(staker.isCooldownEnabled(), false, "Cooldown should be disabled");
 
-        vm.expectRevert("Invalid duration");
+        vm.expectRevert(GovStaker.InvalidDuration.selector);
         staker.setCooldownEpochs(500);
 
         staker.setCooldownEpochs(2);

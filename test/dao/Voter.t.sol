@@ -58,7 +58,7 @@ contract VoterTest is Setup {
     function test_createProposalFor() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
 
-        vm.expectRevert("Delegate not approved");
+        vm.expectRevert("!CallerOrDelegated");
         vm.prank(user2);
         proposalId = voter.createNewProposal(
             user1,
