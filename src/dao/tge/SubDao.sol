@@ -11,8 +11,15 @@ contract SubDao is Ownable2Step {
     string public name;
     IGovStaker public staker;
     IERC20 public govToken;
+    address public operator;
 
     event UnstakingAllowed(bool indexed allowed);
+    event OperatorUpdated(address indexed operator);
+    
+    modifier onlyOwnerOrOperator {
+        require(msg.sender == owner() || msg.sender == operator, "!ownerOrOperator");
+        _;
+    }
 
     modifier noUnstaking {
         bool shouldCheck = !unstakingAllowed;
@@ -48,22 +55,27 @@ contract SubDao is Ownable2Step {
         return result;
     }
 
-    function _execute(address target, bytes calldata data) internal onlyOwner noUnstaking returns (bool success, bytes memory result) {
+    function _execute(address target, bytes calldata data) internal onlyOwnerOrOperator noUnstaking returns (bool success, bytes memory result) {
         require(target != address(0), "Invalid target address");
         (success, result) = target.call(data);
     }
 
-    function allowUnstaking(bool _allowed) external onlyOwner {
+    function allowUnstaking(bool _allowed) external {
         require(msg.sender == core, "!core");
         unstakingAllowed = _allowed;
         emit UnstakingAllowed(_allowed);
     }
 
-    function stake(address account, uint256 amount) external onlyOwner {
+    function stake(address account, uint256 amount) external onlyOwnerOrOperator {
         staker.stake(account, amount);
     }
 
-    function stake() external onlyOwner {
+    function stake() external onlyOwnerOrOperator {
         staker.stake(address(this), govToken.balanceOf(address(this)));
+    }
+
+    function setOperator(address _operator) external onlyOwner {
+        operator = _operator;
+        emit OperatorUpdated(_operator);
     }
 }
