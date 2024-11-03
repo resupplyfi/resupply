@@ -6,18 +6,19 @@ import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
 contract Vesting is CoreOwnable, DelegatedOps {
-    IERC20 public token;
-    address public vestManagerContract;
-    uint256 totalClaimed;
-    uint256 totalAllocated;
     uint256 public immutable deadline;
+    uint256 public immutable VEST_GLOBAL_START_TIME;
+    
+    address public vestManagerContract;
+    uint256 public totalClaimed;
+    uint256 public totalAllocated;
+    IERC20 public token;
     mapping(address => Vest[]) public userVests;
 
     struct Vest {
-        uint256 start;
-        uint256 duration;
-        uint256 amount;
-        uint256 claimed;
+        uint32 duration; // ~56k days
+        uint112 amount;
+        uint112 claimed;
     }
 
     event Claimed(address indexed account, uint256 amount);
@@ -25,6 +26,7 @@ contract Vesting is CoreOwnable, DelegatedOps {
     constructor(address _core, IERC20 _token, uint256 _timeUntilDeadline) CoreOwnable(_core) {
         token = _token;
         deadline = block.timestamp + _timeUntilDeadline;
+        VEST_GLOBAL_START_TIME = block.timestamp;
     }
 
     modifier onlyVestManager() {
@@ -34,16 +36,14 @@ contract Vesting is CoreOwnable, DelegatedOps {
 
     function createVest(
         address _account,
-        uint256 _start,
-        uint256 _duration,
-        uint256 _amount
+        uint32 _duration,
+        uint112 _amount
     ) external onlyVestManager returns (uint256) {
         require(block.timestamp < deadline, "deadline passed");
         require(_account != address(0), "zero address");
         require(_amount > 0, "Amount must be greater than zero");
 
         userVests[_account].push(Vest(
-            _start,
             _duration,
             _amount,
             0 // claimed
@@ -72,7 +72,7 @@ contract Vesting is CoreOwnable, DelegatedOps {
         require(vests.length > 0, "No vests to claim");
 
         for (uint256 i = start; i < stop; i++) {
-            uint256 claimable = _claimableAmount(vests[i]);
+            uint112 claimable = _claimableAmount(vests[i]);
             if (claimable > 0) {
                 vests[i].claimed += claimable;
                 _totalClaimable += claimable;
@@ -142,17 +142,17 @@ contract Vesting is CoreOwnable, DelegatedOps {
         _vested = vested;
     }
 
-    function _claimableAmount(Vest storage vest) internal view returns (uint256) {
-        return _vestedAmount(vest) - vest.claimed;
+    function _claimableAmount(Vest storage vest) internal view returns (uint112) {
+        return uint112(_vestedAmount(vest) - vest.claimed);
     }
 
     function _vestedAmount(Vest memory vest) internal view returns (uint256) {
-        if (block.timestamp < vest.start) {
+        if (block.timestamp < VEST_GLOBAL_START_TIME) {
             return 0;
-        } else if (block.timestamp >= vest.start + vest.duration) {
+        } else if (block.timestamp >= VEST_GLOBAL_START_TIME + vest.duration) {
             return vest.amount;
         } else {
-            return (vest.amount * (block.timestamp - vest.start)) / vest.duration;
+            return (vest.amount * (block.timestamp - VEST_GLOBAL_START_TIME)) / vest.duration;
         }
     }
 

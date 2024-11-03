@@ -1,33 +1,48 @@
 pragma solidity ^0.8.22;
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 import { Setup } from "../utils/Setup.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
-
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { console } from "../../../lib/forge-std/src/console.sol";
+import { MockToken } from "../../mocks/MockToken.sol";
 
 contract VestManagerTest is Setup {
+
+    // Max amount of redeemable PRISMA/yPRISMA/cvxPRISMA
+    uint256 maxRedeemable = 150_000_000e18;
+
     function setUp() public override {
         super.setUp();
-        
+        address[3] memory redemptionTokens;
+        redemptionTokens[0] = address(new MockToken('PRISMA', 'PRISMA'));
+        redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
+        redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
         address vestManagerAddress = computeCreateAddress(address(this), vm.getNonce(address(this)));
         vm.prank(address(core));
         vesting.setVestManager(vestManagerAddress);
-
+        address burnAddress = address(core); // TODO: Decide which address to use here.
         vestManager = new VestManager(
             address(core),
-            address(vesting)
+            address(vesting),
+            burnAddress,
+            redemptionTokens
         );
         
         vm.prank(address(core));
         vestManager.setInitializationParams(
-            150_000_000e18, // _maxRedeemable
-            getMerkleRoots(), // _merkleRoots
-            [ // _nonUserTargets
+            maxRedeemable,      // _maxRedeemable
+            [
+                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
+                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
+                bytes32(0) // We set this one later
+            ],
+            [   // _nonUserTargets
                 address(treasury), 
                 address(subdao1), // Convex
                 address(subdao2)  // Yearn
             ],
-            [ // _durations
+            [   // _durations
                 uint256(365 days),  // TREASURY
                 uint256(365 days),  // SUBDAO1
                 uint256(365 days),  // SUBDAO2
@@ -50,32 +65,59 @@ contract VestManagerTest is Setup {
         assertEq(address(vestManager), vestManagerAddress);
     }
 
-    function test_ConstructorSetsCorrectAllocation() public {
-        
+    function test_SetInitialParams() public {
         address[] memory targets = new address[](3);
         targets[0] = address(treasury);
         targets[1] = address(subdao1);
         targets[2] = address(subdao2);
 
-        for (uint256 i = 0; i < 3; i++) {
-            (uint256 start, uint256 duration, uint256 amount, uint256 claimed) = vesting.userVests(targets[i], 0);
-            assertGt(start, 0);
+        for (uint256 i = 0; i < uint256(type(VestManager.AllocationType).max); i++) {
+            VestManager.AllocationType allocationType = VestManager.AllocationType(i);
+            uint256 duration = vestManager.durationByType(allocationType);
+            uint256 allocation = vestManager.allocationByType(allocationType);
+            bytes32 merkleRoot = vestManager.merkleRootByType(allocationType);
             assertGt(duration, 0);
-            assertGt(amount, 0);
-            assertEq(claimed, 0);
+            assertGt(allocation, 0);
+            if (
+                allocationType == VestManager.AllocationType.AIRDROP_VICTIMS ||
+                allocationType == VestManager.AllocationType.AIRDROP_TEAM
+            ) {
+                assertNotEq(merkleRoot, bytes32(0));
+            }
+            else {
+                assertEq(merkleRoot, bytes32(0));
+            }
+            if (
+                allocationType == VestManager.AllocationType.TREASURY ||
+                allocationType == VestManager.AllocationType.SUBDAO1 ||
+                allocationType == VestManager.AllocationType.SUBDAO2
+            ) {
+                (uint256 _duration, uint256 _amount, uint256 _claimed) = vesting.userVests(targets[i], 0);
+                assertGt(_duration, 0);
+                assertGt(_amount, 0);
+                assertEq(_claimed, 0);
+            }
         }
-        
         skip(1 weeks);
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(targets[i]);
             vesting.claim(targets[i]);
             assertGt(govToken.balanceOf(targets[i]), 0);
         }
+        
+        // Check redemption ratio and allocation percentages
+        uint expectedRedemptionRatio = (
+            vestManager.allocationByType(VestManager.AllocationType.REDEMPTIONS) 
+            * 1e18 
+            / maxRedeemable
+        );
+        assertEq(expectedRedemptionRatio, vestManager.redemptionRatio());
+        console.log('Redemption ratio: ', vestManager.redemptionRatio());
     }
 
     function test_AirdropClaim() public {
         assertNotEq(address(vestManager), address(0));
-        (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleData();
+        (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleMerkleClaimData();
         
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
@@ -133,7 +175,7 @@ contract VestManagerTest is Setup {
 
     function test_CannotClaimAirdropWithWrongProof() public {
         assertNotEq(address(vestManager), address(0));
-        (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleData();
+        (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleMerkleClaimData();
         
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
@@ -176,13 +218,40 @@ contract VestManagerTest is Setup {
         }
     }
 
-    function getMerkleRoots() public pure returns (bytes32[3] memory roots) {
-        roots[0] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
-        roots[1] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
-        roots[2] = bytes32(0);
+    function test_Redemption() public {
+        uint256 redemptionRatio = vestManager.redemptionRatio();
+        address[] memory tokens = new address[](3);
+        tokens[0] = address(vestManager.prisma());
+        tokens[1] = address(vestManager.yprisma());
+        tokens[2] = address(vestManager.cvxprisma());
+        for (uint256 i = 0; i < tokens.length; i++) {
+            uint256 amount = 100e18;
+            console.log('Dealing token... ', tokens[i]);
+            deal(tokens[i], address(this), amount);
+            IERC20(tokens[i]).approve(address(vestManager), amount);
+            vestManager.redeem(tokens[i], address(this), amount);
+            // Get data for the vest that was just created
+            (
+                uint256 _claimable,
+                uint256 _locked,
+                uint256 _claimed,
+                uint256 _vested
+            ) = vesting.getSingleVestData(address(this), 0);
+
+            // Check that the amount is correct
+            assertEq(amount * redemptionRatio / 1e18, _locked + _vested);
+            assertEq(vesting.numAccountVests(address(this)), i+1);
+        }
+
+        skip(1 weeks);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            vm.startPrank(address(this));
+            vesting.claim(address(this));
+            vm.stopPrank();
+        }
     }
 
-    function getSampleData() public pure returns (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) {
+    function getSampleMerkleClaimData() public pure returns (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) {
         users = new address[](3);
         amounts = new uint256[](3);
         proofs = new bytes32[][](3);
@@ -214,5 +283,16 @@ contract VestManagerTest is Setup {
         proofs[2][2] = 0xc82eab709c3962ded202a48d010dfaa80ffb65dca8d1ec1f802823c4604c4ffa;
         proofs[2][3] = 0x8c398a265ad9d4df691bf984f2a67c4b087274d2332cb0f41a3ccc4fee2465e9;
         proofs[2][4] = 0xc93c4bd617a7d12786e97aa9b3433c6370426dfda54b4c6b9ca64cd796b367b3;
+    }
+
+    function getAllocationTypeName(VestManager.AllocationType allocationType) internal pure returns (string memory) {
+        if (allocationType == VestManager.AllocationType.TREASURY) return "TREASURY";
+        if (allocationType == VestManager.AllocationType.SUBDAO1) return "SUBDAO1";
+        if (allocationType == VestManager.AllocationType.SUBDAO2) return "SUBDAO2";
+        if (allocationType == VestManager.AllocationType.REDEMPTIONS) return "REDEMPTIONS";
+        if (allocationType == VestManager.AllocationType.AIRDROP_TEAM) return "AIRDROP_TEAM";
+        if (allocationType == VestManager.AllocationType.AIRDROP_VICTIMS) return "AIRDROP_VICTIMS";
+        if (allocationType == VestManager.AllocationType.AIRDROP_LOCK_PENALTY) return "AIRDROP_LOCK_PENALTY";
+        return "UNKNOWN";
     }
 }

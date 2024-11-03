@@ -20,7 +20,11 @@ contract VestingTest is Setup {
     function test_CreateVest() public {
         vm.startPrank(user1);
         vm.expectRevert("!vestManager");
-        vesting.createVest(address(this), block.timestamp, 365 days, 1_000e18);
+        vesting.createVest(
+            address(this),
+            365 days,
+            1_000e18
+        );
 
         vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("Panic(uint256)")), uint256(0x32)));
         vesting.getSingleVestData(user1, 0);

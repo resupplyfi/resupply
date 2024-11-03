@@ -6,7 +6,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 
 interface IVesting {
-    function createVest(address _recipient, uint256 _start, uint256 _duration, uint256 _amount) external returns (uint256);
+    function createVest(address _recipient, uint32 _duration, uint112 _amount) external returns (uint256);
     function token() external view returns (address);
 }
 
@@ -15,12 +15,12 @@ interface IGovToken is IERC20 {
 }
 
 contract VestManager is CoreOwnable {
-    address constant BURN_ADDRESS = address(0);
     uint256 constant BPS = 10000;
-    address constant public prisma = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
-    address constant public yprisma = 0xe3668873D944E4A949DA05fc8bDE419eFF543882;
-    address constant public cvxprisma = 0x34635280737b5BFe6c7DC2FC3065D60d66e78185;
+    address immutable public prisma;
+    address immutable public yprisma;
+    address immutable public cvxprisma;
     uint256 public immutable INITIAL_SUPPLY;
+    address public immutable BURN_ADDRESS;
     IVesting immutable public vesting;
     
     bool public initParamsSet;
@@ -46,10 +46,18 @@ contract VestManager is CoreOwnable {
 
     constructor(
         address _core,
-        address _vesting
+        address _vesting,
+        address _burnAddress,
+        address[3] memory _redemptionTokens // PRISMA, yPRISMA, cvxPRISMA
     ) CoreOwnable(_core) {
         vesting = IVesting(_vesting);
-        INITIAL_SUPPLY = IGovToken(vesting.token()).INITIAL_SUPPLY();
+        IGovToken govToken = IGovToken(vesting.token());
+        INITIAL_SUPPLY = govToken.INITIAL_SUPPLY();
+        require(govToken.balanceOf(_vesting) == INITIAL_SUPPLY, "invalid initial supply");
+        BURN_ADDRESS = _burnAddress;
+        prisma = _redemptionTokens[0];
+        yprisma = _redemptionTokens[1];
+        cvxprisma = _redemptionTokens[2];
     }
 
     /**
@@ -77,7 +85,8 @@ contract VestManager is CoreOwnable {
         // Set durations and allocations for each allocation type
         for (uint256 i = 0; i < uint256(type(AllocationType).max) + 1; i++) {
             AllocationType allocType = AllocationType(i);
-            durationByType[allocType] = _vestDurations[i];
+            require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
+            durationByType[allocType] = uint32(_vestDurations[i]);
             totalPctAllocated += _allocPercentages[i];
             uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / BPS;
             allocationByType[AllocationType(i)] = allocation;
@@ -85,9 +94,8 @@ contract VestManager is CoreOwnable {
             if (i < _nonUserTargets.length) { 
                 vesting.createVest(
                     _nonUserTargets[i], 
-                    block.timestamp, 
-                    _vestDurations[i], 
-                    allocation
+                    uint32(block.timestamp), 
+                    uint112(allocation)
                 );
             }
             // Set merkle roots for airdrop allocations
@@ -99,8 +107,11 @@ contract VestManager is CoreOwnable {
                 merkleRootByType[allocType] = _merkleRoots[airdropIndex++];
             }
         }
-        // Set redemption ratio to be used for all redemptions
-        redemptionRatio = allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable;
+
+        // Set the redemption ratio to be used for all PRISMA/yPRISMA/cvxPRISMA redemptions
+        redemptionRatio = (
+            allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable
+        );
         require(totalPctAllocated == BPS, "Total not 100%");
         emit InitializationParamsSet();
     }
@@ -143,9 +154,8 @@ contract VestManager is CoreOwnable {
 
         uint256 vestId = vesting.createVest(
             _recipient,
-            block.timestamp,
-            durationByType[_type],
-            _amount
+            uint32(durationByType[_type]),
+            uint112(_amount)
         );
         hasClaimed[_account][_type] = true;
         emit VestCreated(_account, _recipient, vestId, _amount);
@@ -171,9 +181,8 @@ contract VestManager is CoreOwnable {
         IERC20(_token).transferFrom(msg.sender, BURN_ADDRESS, _amount);
         vesting.createVest(
             _recipient,
-            block.timestamp,
-            durationByType[AllocationType.REDEMPTIONS],
-            _amount * _ratio / 1e18
+            uint32(durationByType[AllocationType.REDEMPTIONS]),
+            uint112(_amount * _ratio / 1e18)
         );
         emit TokenRedeemed(_token, msg.sender, _recipient, _amount);
     }

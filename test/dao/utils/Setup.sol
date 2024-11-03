@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
+// import "forge-std/Test.sol";
+// import "forge-std/console.sol";
+import { Test } from "../../../lib/forge-std/src/Test.sol";
+import { console } from "../../../lib/forge-std/src/console.sol";
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
