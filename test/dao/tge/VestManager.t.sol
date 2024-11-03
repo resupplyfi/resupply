@@ -14,12 +14,38 @@ contract VestManagerTest is Setup {
         vesting.setVestManager(vestManagerAddress);
 
         vestManager = new VestManager(
-            address(vesting),
-            address(prismaToken),
-            150_000_000e18,
-            getMerkleRoots(),
-            [uint256(2000), uint256(2000), uint256(2000), uint256(2000), uint256(2000)],
-            [address(treasury), address(subdao1), address(subdao2)]
+            address(core),
+            address(vesting)
+        );
+        
+        vm.prank(address(core));
+        vestManager.setInitializationParams(
+            150_000_000e18, // _maxRedeemable
+            getMerkleRoots(), // _merkleRoots
+            [ // _nonUserTargets
+                address(treasury), 
+                address(subdao1), // Convex
+                address(subdao2)  // Yearn
+            ],
+            [ // _durations
+                uint256(365 days),  // TREASURY
+                uint256(365 days),  // SUBDAO1
+                uint256(365 days),  // SUBDAO2
+                uint256(365 days),  // REDEMPTIONS
+                uint256(365 days),  // AIRDROP_TEAM
+                uint256(365 days),  // AIRDROP_VICTIMS
+                uint256(365 days)   // AIRDROP_LOCK_PENALTY
+            ],
+            [ // _allocPercentages
+                uint256(1200),  // TREASURY
+                uint256(2000),  // SUBDAO1 - Convex
+                uint256(1000),  // SUBDAO2 - Yearn
+                uint256(1500),  // REDEMPTIONS
+                uint256(100),  // AIRDROP_TEAM
+                uint256(200),   // AIRDROP_VICTIMS
+                uint256(0),     // AIRDROP_LOCK_PENALTY
+                uint256(4000)   // Emissions, first 5 years
+            ]
         );
         assertEq(address(vestManager), vestManagerAddress);
     }
@@ -57,7 +83,7 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.MerkleClaimType.COMPENSATION,
+                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
                 proofs[i],
                 i
             );
@@ -66,7 +92,7 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.MerkleClaimType.COMPENSATION,
+                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
                 proofs[i],
                 i
             );
@@ -87,7 +113,7 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.MerkleClaimType.COMPENSATION,
+                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
                 proofs[i],
                 wrongIndex // WRONG INDEX
             );
@@ -100,7 +126,7 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.MerkleClaimType.COMPENSATION,
+                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
                 badProof, // WRONG PROOF
                 i
             );
@@ -111,7 +137,7 @@ contract VestManagerTest is Setup {
                 wrongUser,
                 users[i],
                 amounts[i],
-                VestManager.MerkleClaimType.COMPENSATION,
+                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
                 proofs[i],
                 i
             );

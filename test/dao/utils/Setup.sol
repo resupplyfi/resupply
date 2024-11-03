@@ -70,10 +70,6 @@ contract Setup is Test {
                 new Core(tempGov, 1 weeks)
             )
         );
-        uint256 nonce = vm.getNonce(address(this));
-        address escrowAddress = computeCreateAddress(address(this), nonce);
-        address govStakingAddress = computeCreateAddress(address(this), nonce + 1);
-
         staker = IGovStaker(
             address(
                 new GovStaker(
