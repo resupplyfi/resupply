@@ -57,6 +57,11 @@ contract Setup is Test {
         vm.label(address(voter), "Voter");
         vm.label(address(govToken), "Gov Token");
         vm.label(address(emissionsController), "Emissions Controller");
+        vm.label(address(subdao1), "SubDAO 1");
+        vm.label(address(subdao2), "SubDAO 2");
+        vm.label(address(staker), "Gov Staker");
+        vm.label(address(escrow), "Gov Staker Escrow");
+        vm.label(address(treasury), "Treasury");
     }
 
     function deployContracts() public {
@@ -101,8 +106,8 @@ contract Setup is Test {
         );
 
         treasury = new Treasury(address(core));
-        subdao1 = new SubDao(address(core), user1, "Yearn");
-        subdao2 = new SubDao(address(core), user2, "Convex");
+        subdao1 = new SubDao(address(core), user1, address(staker), "Yearn");
+        subdao2 = new SubDao(address(core), user2, address(staker), "Convex");
         assertEq(subdao1.owner(), user1);
         assertEq(subdao2.owner(), user2);
     }
