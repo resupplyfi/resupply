@@ -16,6 +16,8 @@ import { GovToken } from "../../../src/dao/GovToken.sol";
 import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
 import { Vesting } from "../../../src/dao/tge/Vesting.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
+import { Treasury } from "../../../src/dao/Treasury.sol";
+import { SubDao } from "../../../src/dao/tge/SubDao.sol";
 
 contract Setup is Test {
     Core public core;
@@ -28,11 +30,14 @@ contract Setup is Test {
     Vesting public vesting;
     VestManager public vestManager;
     address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
-    address user1 = address(0x11);
-    address user2 = address(0x22);
-    address user3 = address(0x33);
-    address dev = address(0x42069);
-    address tempGov = address(987);
+    address public user1 = address(0x11);
+    address public user2 = address(0x22);
+    address public user3 = address(0x33);
+    address public dev = address(0x42069);
+    address public tempGov = address(987);
+    Treasury public treasury;
+    SubDao public subdao1;
+    SubDao public subdao2;
 
     function setUp() public virtual {
         // Deploy the mock factory first for deterministic location
@@ -94,6 +99,12 @@ contract Setup is Test {
             epochsPer,
             2 // Bootstrap epochs
         );
+
+        treasury = new Treasury(address(core));
+        subdao1 = new SubDao(address(core), user1, "Yearn");
+        subdao2 = new SubDao(address(core), user2, "Convex");
+        assertEq(subdao1.owner(), user1);
+        assertEq(subdao2.owner(), user2);
     }
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {

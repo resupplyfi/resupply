@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 
 interface IVesting {
@@ -27,11 +27,12 @@ contract VestManager {
     uint256 public immutable INITIAL_SUPPLY;
     uint256 constant BPS = 10000;
 
-    uint256 constant public VEST_DURATION_TEAM = 1 * 365;
-    uint256 constant public VEST_DURATION_REDEMPTION = 5 * 365;
-    uint256 constant public VEST_DURATION_LOCK_BREAK = 5 * 365;
-    uint256 constant public VEST_DURATION_COMPENSATION = 2 * 365;
-    uint256 constant public VEST_DURATION_SUBDAO = 5 * 365;
+    uint256 constant public VEST_DURATION_TEAM = 1 * 365 days;
+    uint256 constant public VEST_DURATION_REDEMPTION = 5 * 365 days;
+    uint256 constant public VEST_DURATION_LOCK_BREAK = 5 * 365 days;
+    uint256 constant public VEST_DURATION_COMPENSATION = 2 * 365 days;
+    uint256 constant public VEST_DURATION_SUBDAO = 5 * 365 days;
+    uint256 constant public VEST_DURATION_TREASURY = 5 * 365 days;
 
     mapping(address account => mapping(MerkleClaimType => bool hasClaimed)) public hasClaimed;
     mapping(AllocationType => uint256) public allocations;
@@ -50,8 +51,6 @@ contract VestManager {
         AIRDROP
     }
 
-
-
     event VestCreated(address indexed account, address indexed recipient, uint256 vestId, uint256 amount);
 
     constructor(
@@ -59,7 +58,8 @@ contract VestManager {
         address _prismaToken,
         uint256 _estRedeemablePrisma, // inclusive of yprisma/cvxprisma
         bytes32[3] memory _merkleRoots, // compensation, lock break, team
-        uint256[5] memory _allocationPercentages // treasury, subdao1, subdao2, redemptions (in BPS)
+        uint256[5] memory _allocationPercentages, // treasury, subdao1, subdao2, redemptions (in BPS)
+        address[3] memory _targets // treasury, subdao1, subdao2
     ) {
         vesting = IVesting(_vesting);
         INITIAL_SUPPLY = IGovToken(vesting.token()).INITIAL_SUPPLY();
@@ -72,7 +72,16 @@ contract VestManager {
         uint256 totalPctAllocated;
         for (uint256 i = 0; i < _allocationPercentages.length; i++) {
             totalPctAllocated += _allocationPercentages[i];
-            allocations[AllocationType(i)] = _allocationPercentages[i] * INITIAL_SUPPLY / BPS;
+            uint256 allocation = _allocationPercentages[i] * INITIAL_SUPPLY / BPS;
+            allocations[AllocationType(i)] = allocation;
+            if (i < _targets.length) {  
+                vesting.createVest(
+                    _targets[i], 
+                    block.timestamp, 
+                    i == 0 ? VEST_DURATION_TREASURY : VEST_DURATION_SUBDAO, 
+                    allocation
+                );
+            }
         }
         redemptionRatio = allocations[AllocationType.REDEMPTIONS] * 1e18 / estRedeemablePrisma;
 

@@ -9,16 +9,42 @@ contract VestManagerTest is Setup {
     function setUp() public override {
         super.setUp();
         
+        address vestManagerAddress = computeCreateAddress(address(this), vm.getNonce(address(this)));
+        vm.prank(address(core));
+        vesting.setVestManager(vestManagerAddress);
+
         vestManager = new VestManager(
             address(vesting),
             address(prismaToken),
             150_000_000e18,
             getMerkleRoots(),
-            [uint256(2000), uint256(2000), uint256(2000), uint256(2000), uint256(2000)]
+            [uint256(2000), uint256(2000), uint256(2000), uint256(2000), uint256(2000)],
+            [address(treasury), address(subdao1), address(subdao2)]
         );
+        assertEq(address(vestManager), vestManagerAddress);
+    }
 
-        vm.prank(address(core));
-        vesting.setVestManager(address(vestManager));
+    function test_ConstructorSetsCorrectAllocation() public {
+        
+        address[] memory targets = new address[](3);
+        targets[0] = address(treasury);
+        targets[1] = address(subdao1);
+        targets[2] = address(subdao2);
+
+        for (uint256 i = 0; i < 3; i++) {
+            (uint256 start, uint256 duration, uint256 amount, uint256 claimed) = vesting.userVests(targets[i], 0);
+            assertGt(start, 0);
+            assertGt(duration, 0);
+            assertGt(amount, 0);
+            assertEq(claimed, 0);
+        }
+        
+        skip(1 weeks);
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(targets[i]);
+            vesting.claim(targets[i]);
+            assertGt(govToken.balanceOf(targets[i]), 0);
+        }
     }
 
     function test_AirdropClaim() public {
