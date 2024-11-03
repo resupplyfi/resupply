@@ -12,7 +12,7 @@ contract SubDao is Ownable2Step {
     IGovStaker public staker;
     IERC20 public govToken;
 
-    event UnstakingAllowed(bool allowed);
+    event UnstakingAllowed(bool indexed allowed);
 
     modifier noUnstaking {
         bool shouldCheck = !unstakingAllowed;
