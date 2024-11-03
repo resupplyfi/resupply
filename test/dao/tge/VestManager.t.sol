@@ -41,7 +41,7 @@ contract VestManagerTest is Setup {
                 uint256(2000),  // SUBDAO1 - Convex
                 uint256(1000),  // SUBDAO2 - Yearn
                 uint256(1500),  // REDEMPTIONS
-                uint256(100),  // AIRDROP_TEAM
+                uint256(100),   // AIRDROP_TEAM
                 uint256(200),   // AIRDROP_VICTIMS
                 uint256(0),     // AIRDROP_LOCK_PENALTY
                 uint256(4000)   // Emissions, first 5 years
@@ -83,11 +83,42 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
+                VestManager.AllocationType.AIRDROP_VICTIMS,
                 proofs[i],
                 i
             );
             vm.expectRevert("already claimed");
+            vestManager.merkleClaim(
+                users[i],
+                users[i],
+                amounts[i],
+                VestManager.AllocationType.AIRDROP_VICTIMS,
+                proofs[i],
+                i
+            );
+            vm.stopPrank();
+            vm.expectRevert("root not set");
+            vestManager.merkleClaim(
+                users[i],
+                users[i],
+                amounts[i],
+                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
+                proofs[i],
+                i
+            );
+            vm.stopPrank();
+        }
+
+        bytes32 sampleRoot = vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_TEAM);
+        vm.startPrank(address(core));
+        vestManager.setLockPenaltyMerkleRoot(sampleRoot);
+        vm.expectRevert("root already set");
+        vestManager.setLockPenaltyMerkleRoot(sampleRoot);
+        vm.stopPrank();
+        
+        // Now we make sure users can claims from the final root
+        for (uint256 i = 0; i < proofs.length; i++) {
+            vm.startPrank(users[i]);
             vestManager.merkleClaim(
                 users[i],
                 users[i],
@@ -113,7 +144,7 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
+                VestManager.AllocationType.AIRDROP_TEAM,
                 proofs[i],
                 wrongIndex // WRONG INDEX
             );
@@ -126,7 +157,7 @@ contract VestManagerTest is Setup {
                 users[i],
                 users[i],
                 amounts[i],
-                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
+                VestManager.AllocationType.AIRDROP_TEAM,
                 badProof, // WRONG PROOF
                 i
             );
@@ -137,7 +168,7 @@ contract VestManagerTest is Setup {
                 wrongUser,
                 users[i],
                 amounts[i],
-                VestManager.AllocationType.AIRDROP_LOCK_PENALTY,
+                VestManager.AllocationType.AIRDROP_TEAM,
                 proofs[i],
                 i
             );
@@ -148,7 +179,7 @@ contract VestManagerTest is Setup {
     function getMerkleRoots() public pure returns (bytes32[3] memory roots) {
         roots[0] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
         roots[1] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
-        roots[2] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
+        roots[2] = bytes32(0);
     }
 
     function getSampleData() public pure returns (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) {

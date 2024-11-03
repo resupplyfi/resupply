@@ -105,6 +105,16 @@ contract VestManager is CoreOwnable {
         emit InitializationParamsSet();
     }
 
+    /**
+        @notice Set the merkle root for the lock penalty airdrop
+        @dev This root must be set later after lock penalty data is finalized
+        @param _root Merkle root for the lock penalty airdrop
+    */
+    function setLockPenaltyMerkleRoot(bytes32 _root) external onlyOwner {
+        require(merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] == bytes32(0), "root already set");
+        merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] = _root;
+    }
+
     function merkleClaim(
         address _account,
         address _recipient,
