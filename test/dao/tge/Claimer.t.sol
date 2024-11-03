@@ -35,7 +35,7 @@ contract ClaimerTest is Setup {
                 amounts[i],
                 Claimer.MerkleClaimType.COMPENSATION,
                 proofs[i],
-                i + 1
+                i
             );
             vm.expectRevert("already claimed");
             claimer.merkleClaim(
@@ -44,7 +44,7 @@ contract ClaimerTest is Setup {
                 amounts[i],
                 Claimer.MerkleClaimType.COMPENSATION,
                 proofs[i],
-                i + 1
+                i
             );
             vm.stopPrank();
         }
@@ -57,13 +57,15 @@ contract ClaimerTest is Setup {
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
             vm.expectRevert("invalid proof");
+            uint256 wrongIndex = i + 1;
+            if (wrongIndex >= proofs[i].length) wrongIndex = i - 1;
             claimer.merkleClaim(
                 users[i],
                 users[i],
                 amounts[i],
                 Claimer.MerkleClaimType.COMPENSATION,
                 proofs[i],
-                i // WRONG INDEX
+                wrongIndex // WRONG INDEX
             );
 
             bytes32[] memory badProof;
@@ -76,27 +78,27 @@ contract ClaimerTest is Setup {
                 amounts[i],
                 Claimer.MerkleClaimType.COMPENSATION,
                 badProof, // WRONG PROOF
-                i + 1
+                i
             );
 
-            address u;
+            address wrongUser;
             vm.expectRevert("invalid proof");
             claimer.merkleClaim(
-                u,
+                wrongUser,
                 users[i],
                 amounts[i],
                 Claimer.MerkleClaimType.COMPENSATION,
                 proofs[i],
-                i + 1
+                i
             );
             vm.stopPrank();
         }
     }
 
     function getMerkleRoots() public pure returns (bytes32[3] memory roots) {
-        roots[0] = 0xc6c10c31fd61d6c77896fc0138839ff0c99a85f355ec704bda15e46ee804a958;
-        roots[1] = 0xc6c10c31fd61d6c77896fc0138839ff0c99a85f355ec704bda15e46ee804a958;
-        roots[2] = 0xc6c10c31fd61d6c77896fc0138839ff0c99a85f355ec704bda15e46ee804a958;
+        roots[0] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
+        roots[1] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
+        roots[2] = 0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f;
     }
 
     function getSampleData() public pure returns (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) {
@@ -105,31 +107,31 @@ contract ClaimerTest is Setup {
         proofs = new bytes32[][](3);
 
         // Example data from your JSON file
-        users[0] = 0x254747CB22Df3DaA0aDF1b9a81697662AdA44CD5;
-        amounts[0] = 1080000000000000000000;
+        users[0] = 0x46a83dC1a264Bff133dB887023d2884167094837;
+        amounts[0] = 4903005963692896772161536;
         proofs[0] = new bytes32[](5);
-        proofs[0][0] = 0x89327b954052e9fb205be0481b43c1ec140c57b409331d9614aa975880bcb7c9;
-        proofs[0][1] = 0xdaa44fc4e14f39fcfc4353a6891f36d124402bf115fe6da0f83fc59b23e71dda;
-        proofs[0][2] = 0x1daca70bd877c1e4cb75fc60d600d8393755a48d6195fee8876cb0a330d991cf;
-        proofs[0][3] = 0x2096ff87aa31ffa7a17f62bb46c07a50866cbef1364ec418ed442dc8706ec510;
-        proofs[0][4] = 0x0b8bac717691b6b3a5ddb46bfa2ba2033bd9ebd5cb0fc377d0c0bc0c66f95671;
+        proofs[0][0] = 0x0034dc482e290250c7b0a532700e18918269c66b4d03a6855ed486c00d3cf9ef;
+        proofs[0][1] = 0xdf9ea50af697b8a23e4a0a81780a3a87eb956d8324f4594e668192977f213238;
+        proofs[0][2] = 0x504eb35476a7a64c378c228c51ca28ceb4d6b568a382d5ca5c941fbc42700835;
+        proofs[0][3] = 0x8e14177290ecff25415e54d5ed6ede02ef08f64d9bde9687b9fa7b9642d56e9e;
+        proofs[0][4] = 0x3ef1a0430cebb90c18513e5af6edbb4e511d7d40e1ced214963cb42870ed0b8c;
 
         users[1] = 0xb20b384C2F958f2100E14C5048922613F937674A;
-        amounts[1] = 68989057692307692307684;
+        amounts[1] = 2054106109690402576531456;
         proofs[1] = new bytes32[](5);
-        proofs[1][0] = 0x65c9a92f93132bce9eee273f05606ec2401f24582c7b4898202462ab5bb25c83;
-        proofs[1][1] = 0xdaa44fc4e14f39fcfc4353a6891f36d124402bf115fe6da0f83fc59b23e71dda;
-        proofs[1][2] = 0x1daca70bd877c1e4cb75fc60d600d8393755a48d6195fee8876cb0a330d991cf;
-        proofs[1][3] = 0x2096ff87aa31ffa7a17f62bb46c07a50866cbef1364ec418ed442dc8706ec510;
-        proofs[1][4] = 0x0b8bac717691b6b3a5ddb46bfa2ba2033bd9ebd5cb0fc377d0c0bc0c66f95671;
+        proofs[1][0] = 0x438be342e52ba933e6f3aaeed9b8e29f52f5a47ae491dbfca5a4a525d8663df5;
+        proofs[1][1] = 0x0970829dec67afd767644142dc22b1ae45237a719591e37755406cbaac2e3165;
+        proofs[1][2] = 0xe14c7f170b2316ef588bb377424eac8e44e9e1c93f0fd606a4e37926f7f790cc;
+        proofs[1][3] = 0x8e14177290ecff25415e54d5ed6ede02ef08f64d9bde9687b9fa7b9642d56e9e;
+        proofs[1][4] = 0x3ef1a0430cebb90c18513e5af6edbb4e511d7d40e1ced214963cb42870ed0b8c;
 
-        users[2] = 0xD6CcAd20d688739349f0E4F3ae2ec69bC5039354;
-        amounts[2] = 213000000000000000000;
+        users[2] = 0xD60cd4AD7A2D6bF4eC9fccbCAeec769b52726dfd;
+        amounts[2] = 1517100053696941217808384;
         proofs[2] = new bytes32[](5);
-        proofs[2][0] = 0xe2957697a1d2f245115257cfb1598fe7f8c9af93ac641b25f8ef7de1a331aed1;
-        proofs[2][1] = 0x86df2c376408d4098b842b8789b3218aaf5aa649f648185c8f4046fa863e8528;
-        proofs[2][2] = 0x1daca70bd877c1e4cb75fc60d600d8393755a48d6195fee8876cb0a330d991cf;
-        proofs[2][3] = 0x2096ff87aa31ffa7a17f62bb46c07a50866cbef1364ec418ed442dc8706ec510;
-        proofs[2][4] = 0x0b8bac717691b6b3a5ddb46bfa2ba2033bd9ebd5cb0fc377d0c0bc0c66f95671;
+        proofs[2][0] = 0x9d6ee2cacdb95d4b802326614bef1f853d37cf48afec52e1b74d01df2eea45d0;
+        proofs[2][1] = 0xc025cf4f8e2cd25af6209ef3f0de66754f388e98873778417046b3f461742a91;
+        proofs[2][2] = 0xc82eab709c3962ded202a48d010dfaa80ffb65dca8d1ec1f802823c4604c4ffa;
+        proofs[2][3] = 0x8c398a265ad9d4df691bf984f2a67c4b087274d2332cb0f41a3ccc4fee2465e9;
+        proofs[2][4] = 0xc93c4bd617a7d12786e97aa9b3433c6370426dfda54b4c6b9ca64cd796b367b3;
     }
 }

@@ -90,16 +90,11 @@ contract Claimer {
         // require(false, "!disabled"); // TODO: create claim logic
         require(!hasClaimed[_account][_type], "already claimed");
 
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(
-            _account, 
-            _amount, 
-            _index
-        ))));
-
-        require(MerkleProof.verify(
-            _proof,
-            getMerkleRootByClaimType(_type),
-            leaf
+        bytes32 node = keccak256(abi.encodePacked(_account, _index, _amount));
+        require(MerkleProof.verifyCalldata(
+            _proof, 
+            getMerkleRootByClaimType(_type), 
+            node
         ), "invalid proof");
 
         uint256 vestId = vesting.createVest(
