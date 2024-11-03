@@ -1,5 +1,5 @@
 interface IVesting {
-    function createVest(address _recipient, uint256 _start, uint256 _duration, uint256 _amount) external returns (uint256);
+    function createVest(address _recipient, uint32 _duration, uint112 _amount) external returns (uint256);
 }
 
 contract MockVestManager {
@@ -17,9 +17,8 @@ contract MockVestManager {
 
         uint256 vestId = vesting.createVest(
             _account,
-            block.timestamp,
-            _duration,
-            _amount
+            uint32(_duration),
+            uint112(_amount)
         );
 
         return vestId;

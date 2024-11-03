@@ -224,6 +224,7 @@ contract VestManagerTest is Setup {
         tokens[0] = address(vestManager.prisma());
         tokens[1] = address(vestManager.yprisma());
         tokens[2] = address(vestManager.cvxprisma());
+        uint256 totalUserGain = 0;
         for (uint256 i = 0; i < tokens.length; i++) {
             uint256 amount = 100e18;
             console.log('Dealing token... ', tokens[i]);
@@ -239,8 +240,9 @@ contract VestManagerTest is Setup {
             ) = vesting.getSingleVestData(address(this), 0);
 
             // Check that the amount is correct
-            assertEq(amount * redemptionRatio / 1e18, _locked + _vested);
-            assertEq(vesting.numAccountVests(address(this)), i+1);
+            totalUserGain += amount * redemptionRatio / 1e18;
+            assertEq(totalUserGain, _locked + _vested);
+            assertEq(vesting.numAccountVests(address(this)), 1);
         }
 
         skip(1 weeks);

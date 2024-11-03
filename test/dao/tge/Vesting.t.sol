@@ -1,9 +1,11 @@
+
 pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
 import { Setup } from "../utils/Setup.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { MockVestManager } from "../../mocks/MockVestManager.sol";
+import { Vesting } from "../../../src/dao/tge/Vesting.sol";
 
 contract VestingTest is Setup {
     MockVestManager public mockVestManager;
@@ -11,10 +13,16 @@ contract VestingTest is Setup {
     function setUp() public override {
         super.setUp();
 
+        vesting = new Vesting(address(core), address(govToken), 365 days);
         mockVestManager = new MockVestManager(address(vesting));
+
         vm.prank(address(core));
         vesting.setVestManager(address(mockVestManager));
         assertEq(address(mockVestManager), address(vesting.vestManagerContract()));
+        
+        IERC20 token = vesting.token();
+        deal(address(token), address(vesting), 100_000e18);
+        // assertEq(address(token), address(govToken));
     }
 
     function test_CreateVest() public {
@@ -54,21 +62,21 @@ contract VestingTest is Setup {
         mockVestManager.createVest(user1, 100 days, amount);
         vm.stopPrank();
 
-        assertEq(vesting.numAccountVests(user1), 2);
+        assertEq(vesting.numAccountVests(user1), 1);
         (claimable, locked, claimed, vested) = vesting.getAggregatedAccountData(user1);
-        assertEq(claimable, amount * 1);
+        assertEq(claimable, amount * 2);
         assertEq(claimed, 0);
-        assertEq(locked, amount * 1);
-        assertEq(vested, amount * 1);
+        assertEq(locked, 0);
+        assertEq(vested, amount * 2);
 
         vm.prank(user1);
         vesting.claim(user1);
 
         (claimable, locked, claimed, vested) = vesting.getAggregatedAccountData(user1);
         assertEq(claimable, 0);
-        assertEq(claimed, amount * 1);
-        assertEq(locked, amount * 1);
-        assertEq(vested, amount * 1);
+        assertEq(claimed, amount * 2);
+        assertEq(locked, 0);
+        assertEq(vested, amount * 2);
 
         // Create vest #3
         amount = 50_000e18;
@@ -100,6 +108,7 @@ contract VestingTest is Setup {
         assertEq(claimable, vested - claimed);
         assertEq(locked, 0);
         assertEq(vested, claimable + claimed);
+
     }
 
     function test_sweepUnclaimed() public {

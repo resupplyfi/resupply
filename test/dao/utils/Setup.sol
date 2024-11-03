@@ -84,7 +84,7 @@ contract Setup is Test {
 
         voter = new Voter(address(core), IGovStaker(staker), 100, 3000);
         address govTokenAddress = computeCreateAddress(address(this), vm.getNonce(address(this))+1);
-        vesting = new Vesting(address(core), IERC20(govTokenAddress), 365 days);
+        vesting = new Vesting(address(core), govTokenAddress, 365 days);
         govToken = new GovToken(
             address(core), 
             address(vesting),

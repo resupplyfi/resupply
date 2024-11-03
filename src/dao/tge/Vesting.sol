@@ -13,6 +13,7 @@ contract Vesting is CoreOwnable, DelegatedOps {
     uint256 public totalClaimed;
     uint256 public totalAllocated;
     IERC20 public token;
+
     mapping(address => Vest[]) public userVests;
 
     struct Vest {
@@ -23,26 +24,34 @@ contract Vesting is CoreOwnable, DelegatedOps {
 
     event Claimed(address indexed account, uint256 amount);
 
-    constructor(address _core, IERC20 _token, uint256 _timeUntilDeadline) CoreOwnable(_core) {
-        token = _token;
+    constructor(address _core, address _token, uint256 _timeUntilDeadline) CoreOwnable(_core) {
+        token = IERC20(_token);
         deadline = block.timestamp + _timeUntilDeadline;
         VEST_GLOBAL_START_TIME = block.timestamp;
-    }
-
-    modifier onlyVestManager() {
-        require(msg.sender == vestManagerContract, "!vestManager");
-        _;
     }
 
     function createVest(
         address _account,
         uint32 _duration,
         uint112 _amount
-    ) external onlyVestManager returns (uint256) {
+    ) external returns (uint256) {
+        require(msg.sender == vestManagerContract, "!vestManager");
         require(block.timestamp < deadline, "deadline passed");
         require(_account != address(0), "zero address");
         require(_amount > 0, "Amount must be greater than zero");
 
+        uint256 length = numAccountVests(_account);
+
+        // If the duration already exists, add to the total vest amount
+        for (uint256 i = 0; i < length; i++) {
+            if (userVests[_account][i].duration == _duration) {
+                userVests[_account][i].amount += _amount;
+                totalAllocated += _amount;
+                return length;
+            }
+        }
+
+        // If the duration does not exist, create a new vest
         userVests[_account].push(Vest(
             _duration,
             _amount,
@@ -58,20 +67,12 @@ contract Vesting is CoreOwnable, DelegatedOps {
         return userVests[_account].length;
     }
 
-    function claim(address _account) callerOrDelegated(_account) public {
-        _claim(_account, 0, userVests[_account].length);
-    }
-
-    function claimWithBounds(address _account, uint256 start, uint256 stop) callerOrDelegated(_account) public {
-        require(start < stop && stop <= userVests[_account].length, "Invalid start or stop index");
-        _claim(_account, start, stop);
-    }
-
-    function _claim(address _account, uint256 start, uint256 stop) internal returns (uint256 _totalClaimable) {
+    function claim(address _account) external callerOrDelegated(_account) returns (uint256 _totalClaimable) {
         Vest[] storage vests = userVests[_account];
+        uint256 length = vests.length;
         require(vests.length > 0, "No vests to claim");
 
-        for (uint256 i = start; i < stop; i++) {
+        for (uint256 i = 0; i < length; i++) {
             uint112 claimable = _claimableAmount(vests[i]);
             if (claimable > 0) {
                 vests[i].claimed += claimable;
