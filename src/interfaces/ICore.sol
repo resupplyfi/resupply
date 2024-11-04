@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
+import { IAuthHook } from './IAuthHook.sol';
+
 interface ICore {
     event FeeReceiverSet(address feeReceiver);
     event GuardianSet(address guardian);
@@ -39,4 +41,14 @@ interface ICore {
     function pauseProtocol(bool _paused) external;
 
     function assetPaused(address _asset) external view returns (bool);
+
+    function cancelProposal(uint256 id) external;
+
+    function setOperatorPermissions(
+        address caller,
+        address target,
+        bytes4 selector,
+        bool authorized,
+        IAuthHook authHook
+    ) external;
 }

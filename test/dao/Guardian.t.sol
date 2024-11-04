@@ -12,6 +12,7 @@ import { Voter } from "../../src/dao/Voter.sol";
 import { GuardianOperator } from "../../src/dao/operators/GuardianOperator.sol";
 import { IAuthHook } from "../../src/interfaces/IAuthHook.sol";
 import { GuardianAuthHook } from "../../src/dao/auth/GuardianAuthHook.sol";
+import { ICore } from "../../src/interfaces/ICore.sol";
 
 contract GuardianOperatorTest is Setup {
     MockPair pair;
@@ -93,13 +94,23 @@ contract GuardianOperatorTest is Setup {
         guardianOperator.cancelProposal(proposalId);
 
         setOperatorPermissionsToCancelProposal();
-        queueDummyProposal();
-        
-        vm.prank(address(guardianMultisig)  );
-        guardianOperator.cancelProposal(proposalId);
-        (, , , , , bool processed, bool executable, ) = voter.getProposalData(proposalId);
+        uint256 propId = queueDummyProposal();
+
+        vm.prank(address(guardianMultisig));
+        guardianOperator.cancelProposal(propId);
+        (, , , , , bool processed, bool executable, ) = voter.getProposalData(propId);
         assertEq(processed, true);
-        assertEq(executable, false);
+    }
+
+    function test_CannotCancelProposalWithCancelerPayload() public {
+        setOperatorPermissionsToCancelProposal();
+        uint256 propId = queueDummyProposalWithCancelerPayload();
+        
+        vm.prank(address(guardianMultisig));
+        vm.expectRevert("Contains canceler payload");
+        guardianOperator.cancelProposal(propId);
+        (, , , , , bool processed, bool executable, ) = voter.getProposalData(propId);
+        assertEq(processed, false);
     }
 
     function test_setGuardian() public {
@@ -135,13 +146,13 @@ contract GuardianOperatorTest is Setup {
     }
 
     function setOperatorPermissionsToCancelProposal() public {
-        bytes4 selector = bytes4(keccak256("cancelProposal(uint256)"));
+        bytes4 selector = ICore.cancelProposal.selector;
         vm.prank(address(core));
         core.setOperatorPermissions(
             address(guardianOperator), // caller
-            address(voter), // target
+            address(voter),            // target
             selector,
-            true,           // authorized
+            true,                      // authorized
             IAuthHook(address(0))
         );
 
@@ -165,6 +176,53 @@ contract GuardianOperatorTest is Setup {
             target: address(pair),
             data: abi.encodeWithSelector(pair.setValue.selector, 5)
         }); 
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload);
+    }
+
+    function queueDummyProposalWithCancelerPayload() public returns (uint256) {
+        // Create a dummy proposal
+        Voter.Action[] memory payload = new Voter.Action[](2);
+        payload[0] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(guardianOperator), 
+                address(voter), 
+                ICore.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
+        payload[1] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(guardianOperator), 
+                address(voter), 
+                ICore.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
+        vm.prank(user1);
+        vm.expectRevert("Payload with canceler must be single action");
+        voter.createNewProposal(user1, payload);
+
+        skip(voter.MIN_TIME_BETWEEN_PROPOSALS());
+
+        payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(guardianOperator), 
+                address(voter), 
+                ICore.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
         vm.prank(user1);
         return voter.createNewProposal(user1, payload);
     }

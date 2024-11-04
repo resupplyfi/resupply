@@ -163,6 +163,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
 
+        _containsProposalCancelerPaylod(payload); // Enforce payloads with canceler must be single action
+
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
         require(epoch > 0, "No proposals in first epoch");
@@ -249,10 +251,42 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param id Proposal ID
      */
     function cancelProposal(uint256 id) external onlyOwner {
+        // TODO: can we cancel while in voting period + execution delay?
         require(id < proposalData.length, "Invalid ID");
-        Action[] storage payload = proposalPayloads[id];
+        require(!_containsProposalCancelerPaylod(proposalPayloads[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
+    }
+
+    // @dev: inspects a payload to check if any actions contain a proposal canceler
+    //       requires any proposal modifying cancel permissions to be the only action in the payload
+    function _containsProposalCancelerPaylod(Action[] memory payload) internal view returns (bool) {
+        uint256 payloadLength = payload.length;
+
+        for (uint256 i = 0; i < payloadLength; i++) {
+            Action memory action = payload[i];
+            bytes memory data = action.data;
+            bytes4 selector;
+
+            // Use inline assembly to extract the selector
+            assembly {
+                selector := mload(add(data, 32))
+            }
+
+            if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
+                bytes memory slicedData = new bytes(data.length - 4); // create new byte array that excludes the selector
+                // copy the data to slicedData byte by byte, excluding the selector
+                for (uint256 j = 0; j < slicedData.length; j++) {
+                    slicedData[j] = data[j + 4];
+                }
+                (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
+                if (target == address(this) && permissionSelector == ICore.cancelProposal.selector) {
+                    require(payloadLength == 1, "Payload with canceler must be single action");
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

@@ -9,6 +9,7 @@ import { MockToken } from "../mocks/MockToken.sol";
 import { Setup } from "./utils/Setup.sol";
 import { MockPair } from "../mocks/MockPair.sol";
 import { Voter } from "../../src/dao/Voter.sol";
+import { ICore } from "../../src/interfaces/ICore.sol";
 
 contract VoterTest is Setup {
     MockPair pair;
@@ -132,6 +133,26 @@ contract VoterTest is Setup {
         assertEq(core.voter(), address(user2));
     }
 
+    function test_cancelProposal() public {
+        bool _processed;
+        vm.prank(user1);
+        uint256 propId = voter.createNewProposal(user1, buildProposalData(5));
+        (,,,,,_processed,,) = voter.getProposalData(propId);
+        assertEq(_processed, false);
+
+        vm.prank(address(core));
+        voter.cancelProposal(propId);
+        (,,,,,_processed,,) = voter.getProposalData(propId);
+        assertEq(_processed, true);
+    }
+
+    function test_CannotCancelProposalWithCancelerPayload() public {
+        uint256 propId = createProposalDataWithCanceler();
+        vm.prank(address(core));
+        vm.expectRevert("Contains canceler payload");
+        voter.cancelProposal(propId);
+    }
+
     function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {
         Voter.Action[] memory payload = new Voter.Action[](1);
         payload[0] = Voter.Action({
@@ -139,5 +160,22 @@ contract VoterTest is Setup {
             data: abi.encodeWithSelector(pair.setValue.selector, _value)
         });
         return payload;
+    }
+
+    function createProposalDataWithCanceler() public returns (uint256) {
+        Voter.Action[] memory payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(0),
+                address(voter), 
+                ICore.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload);
     }
 }

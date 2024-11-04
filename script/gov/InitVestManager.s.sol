@@ -37,8 +37,8 @@ contract InitVestManager is TenderlyHelper {
             ],
             [ // _allocPercentages
                 uint256(1200),  // TREASURY
-                uint256(2000),  // SUBDAO1 - Convex
-                uint256(1000),  // SUBDAO2 - Yearn
+                uint256(2000),  // PERMA_LOCKER1 - Convex
+                uint256(1000),  // PERMA_LOCKER2 - Yearn
                 uint256(1500),  // REDEMPTIONS
                 uint256(100),   // AIRDROP_TEAM
                 uint256(200),   // AIRDROP_VICTIMS

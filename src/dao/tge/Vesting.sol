@@ -30,6 +30,12 @@ contract Vesting is CoreOwnable, DelegatedOps {
         VEST_GLOBAL_START_TIME = block.timestamp;
     }
 
+    /// @notice Creates or adds to a vesting instance for an account
+    /// @param _account The address to create the vest for
+    /// @param _duration The duration of the vesting period in seconds
+    /// @param _amount The amount of tokens to vest
+    /// @return The total number of vesting instances for the account
+    /// @dev Can only be called by the vest manager contract before the deadline
     function createVest(
         address _account,
         uint32 _duration,
@@ -67,7 +73,13 @@ contract Vesting is CoreOwnable, DelegatedOps {
         return userVests[_account].length;
     }
 
-    function claim(address _account) external callerOrDelegated(_account) returns (uint256 _totalClaimable) {
+    /**
+     * @notice Claims all available vested tokens for an account
+     * @param _account Address to claim tokens for
+     * @return _claimed Total amount of tokens claimed
+     * @dev Can be called by the account owner or a delegated caller
+     */
+    function claim(address _account) external callerOrDelegated(_account) returns (uint256 _claimed) {
         Vest[] storage vests = userVests[_account];
         uint256 length = vests.length;
         require(vests.length > 0, "No vests to claim");
@@ -76,14 +88,14 @@ contract Vesting is CoreOwnable, DelegatedOps {
             uint112 claimable = _claimableAmount(vests[i]);
             if (claimable > 0) {
                 vests[i].claimed += claimable;
-                _totalClaimable += claimable;
+                _claimed += claimable;
             }
         }
     
-        if (_totalClaimable > 0) {
-            totalClaimed += _totalClaimable;
-            token.transfer(_account, _totalClaimable);
-            emit Claimed(_account, _totalClaimable);
+        if (_claimed > 0) {
+            totalClaimed += _claimed;
+            token.transfer(_account, _claimed);
+            emit Claimed(_account, _claimed);
         }
     }
 
