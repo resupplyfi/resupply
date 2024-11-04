@@ -50,8 +50,9 @@ contract ResupplyPairRegistry is CoreOwnable{
     address public redeemer;
     address public rewardHandler;
     address public insurancePool;
+    address public staker;
 
-    constructor(address _token, address _core) CoreOwnable(_core){
+    constructor(address _core, address _token) CoreOwnable(_core){
         token = _token;
     }
 
@@ -108,6 +109,13 @@ contract ResupplyPairRegistry is CoreOwnable{
     function setRewardHandler(address _newAddress) external onlyOwner{
         emit SetRewardHandler(rewardHandler, _newAddress);
         rewardHandler = _newAddress;
+    }
+
+    event SetStaker(address oldAddress, address newAddress);
+
+    function setStaker(address _newAddress) external onlyOwner{
+        emit SetStaker(staker, _newAddress);
+        staker = _newAddress;
     }
 
     /// @notice The ```AddPair``` event is emitted when a new pair is added to the registry

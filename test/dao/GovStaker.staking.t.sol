@@ -22,7 +22,7 @@ contract GovStakerStakingTest is Setup {
         rewardToken1.approve(address(staker), type(uint256).max);
         rewardToken2 = new MockToken("RewardToken2", "RT2");
         rewardToken2.approve(address(staker), type(uint256).max);
-        stakingToken.mint(user1, 1_000_000 * 10 ** 18);
+        deal(address(stakingToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
         epochLength = staker.epochLength();
@@ -81,12 +81,12 @@ contract GovStakerStakingTest is Setup {
     }
 
     function _getRealizedStake(address _account) internal returns (uint) {
-        (IGovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
+        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
         return acctData.realizedStake;
     }
 
     function _getPendingStake(address _account) internal returns (uint) {
-        (IGovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
+        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(_account);
         return acctData.pendingStake;
     }
 
@@ -106,10 +106,10 @@ contract GovStakerStakingTest is Setup {
         uint cooldownEpochs = staker.cooldownEpochs();
         skip(cooldownEpochs * epochLength + 1);
         
-        uint amt = staker.cooldowns(user1).amount;
+        (uint104 _end ,uint152 amt) = staker.cooldowns(user1);
         
         assertGt(amt, 0, "Amount should be greater than 0");
-        assertGt(block.timestamp, staker.cooldowns(user1).end, "Cooldown should be over");
+        assertGt(block.timestamp, _end, "Cooldown should be over");
         staker.unstake(user1, user1);
         vm.stopPrank();
 
@@ -163,9 +163,9 @@ contract GovStakerStakingTest is Setup {
 
     function testFail_StakeForCooldownForAndUnstakeFor() public {
         vm.prank(user1);
-        staker.stakeFor(dev, 100 * 10 ** 18);
-        staker.cooldownFor(dev, 100 * 10 ** 18);
-        staker.unstakeFor(dev, dev);
+        staker.stake(dev, 100 * 10 ** 18);
+        staker.cooldown(dev, 100 * 10 ** 18);
+        staker.unstake(dev, dev);
         // This should fail since user1 is not approved to stake for dev
     }
 
@@ -255,12 +255,12 @@ contract GovStakerStakingTest is Setup {
     }
 
     function getUserCooldownEnd(address _account) public view returns (uint) {
-        IGovStaker.UserCooldown memory cooldown = staker.cooldowns(_account);
-        return uint(cooldown.end);
+        (uint104 _end ,) = staker.cooldowns(_account);
+        return uint(_end);
     }
 
     function getUserCooldownAmount(address _account) public view returns (uint) {
-        IGovStaker.UserCooldown memory cooldown = staker.cooldowns(_account);
-        return uint(cooldown.amount);
+        (,uint152 amt) = staker.cooldowns(_account);
+        return uint(amt);
     }
 }

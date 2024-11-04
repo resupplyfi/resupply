@@ -47,4 +47,6 @@ interface IPairRegistry {
     function setFeeDeposit(address _newAddress) external;
     function setLiquidationHandler(address _newAddress) external;
     function setInsurancePool(address _newAddress) external;
+    function setStaker(address _newAddress) external;
+    function staker() external view returns(address);
 }

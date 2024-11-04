@@ -53,14 +53,14 @@ contract GovStakerRewardsTest is Setup {
         for (uint256 i = 0; i < users.length; i++) {    
             vm.prank(users[i]);
             stakingToken.approve(address(staker), type(uint256).max);
-            stakingToken.mint(users[i], 1_000_000 * 10 ** 18);
+            mintGovToken(users[i], 1_000_000 * 10 ** 18);
         }
     }
 
     function test_basicOperation() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
-        uint256 amountToStake = stakingToken.mint(user1, amount);
+        mintGovToken(user1, amount);
         assertGt(stakingToken.balanceOf(user1), 0);
 
         // stake our assets
@@ -68,9 +68,9 @@ contract GovStakerRewardsTest is Setup {
         vm.expectRevert(GovStaker.InvalidAmount.selector);
         staker.stake(user1, 0);
         stakingToken.approve(address(staker), type(uint256).max);
-        staker.stake(user1, amountToStake);
+        staker.stake(user1, amount);
         vm.stopPrank();
-        assertEq(staker.balanceOf(user1), amountToStake);
+        assertEq(staker.balanceOf(user1), amount);
 
         // airdrop some token to use for rewards
         airdrop(rewardToken, owner, 10e18);
@@ -131,7 +131,7 @@ contract GovStakerRewardsTest is Setup {
     function test_multipleRewards() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
-        uint256 amountToStake = stakingToken.mint(user1, amount);
+        mintGovToken(user1, amount);
         assertGt(stakingToken.balanceOf(user1), 0);
 
         // stake our assets
@@ -139,9 +139,9 @@ contract GovStakerRewardsTest is Setup {
         vm.expectRevert(GovStaker.InvalidAmount.selector);
         staker.stake(user1, 0);
         stakingToken.approve(address(staker), type(uint256).max);
-        staker.stake(user1, amountToStake);
+        staker.stake(user1, amount);
         vm.stopPrank();
-        assertEq(staker.balanceOf(user1), amountToStake);
+        assertEq(staker.balanceOf(user1), amount);
 
         // airdrop some token to use for rewards
         airdrop(rewardToken, owner, 10e18);
@@ -218,7 +218,7 @@ contract GovStakerRewardsTest is Setup {
         skip(staker.epochLength());
 
         // Assert that user with current earned rewards + realized balance gets rewards upon exit
-        (IGovStaker.AccountData memory acctData, ) = staker.checkpointAccount(user1);
+        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(user1);
         earned = staker.earned(user1, address(rewardToken2));
         assertGt(staker.balanceOf(user1), 0);
         assertGt(acctData.realizedStake, 0);
@@ -228,7 +228,8 @@ contract GovStakerRewardsTest is Setup {
         emit RewardPaid(user1, address(rewardToken2), earned);
         staker.exit(user1);
 
-        assertEq(staker.accountData(user1).realizedStake, 0);
+        (uint120 _realizedStake,,) = staker.accountData(user1);
+        assertEq(_realizedStake, 0);
         uint256 totalGainsTwo = rewardToken2.balanceOf(user1);
         assertGt(totalGainsTwo, currentProfitsTwo);
         assertEq(staker.balanceOf(user1), 0);
@@ -238,15 +239,15 @@ contract GovStakerRewardsTest is Setup {
     function test_extendRewards() public {
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
-        uint256 amountToStake = stakingToken.mint(user1, amount);
+        mintGovToken(user1, amount);
         assertGt(stakingToken.balanceOf(user1), 0);
 
         // stake our assets
         vm.startPrank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
-        staker.stake(user1, amountToStake);
+        staker.stake(user1, amount);
         vm.stopPrank();
-        assertEq(staker.balanceOf(user1), amountToStake);
+        assertEq(staker.balanceOf(user1), amount);
 
         // airdrop some token to use for rewards
         airdrop(rewardToken, owner, 10e18);
@@ -345,8 +346,8 @@ contract GovStakerRewardsTest is Setup {
                 }
                 if (bal > 0) {
                     staker.checkpointAccount(users[x]);
-                    uint realizedStake = staker.accountData(users[x]).realizedStake;
-                    if (realizedStake > 0) {
+                    (uint120 _realizedStake,,) = staker.accountData(users[x]);
+                    if (_realizedStake > 0) {
                         vm.prank(users[x]);
                         staker.cooldown(users[x], bal / (x + 2));
                     }
@@ -396,10 +397,22 @@ contract GovStakerRewardsTest is Setup {
 
     // Helpers
     function airdropAndNotify(address _asset, uint256 _amount) public {
-        IGovStaker.Reward memory _rewardData = staker.rewardData(_asset);
-        address distributor =  _rewardData.rewardsDistributor;
+        (
+            address rewardsDistributor, // address with permission to update reward amount.
+            uint256 rewardsDuration,
+            uint256 periodFinish,
+            uint256 rewardRate,
+            uint256 lastUpdateTime,
+            uint256 rewardPerTokenStored
+        ) = staker.rewardData(_asset);
+        address distributor =  rewardsDistributor;
         MockToken(_asset).mint(distributor, _amount);
         vm.prank(distributor);
         staker.notifyRewardAmount(_asset, _amount);
+    }
+
+    function mintGovToken(address _to, uint256 _amount) public {
+        vm.prank(stakingToken.minter());
+        stakingToken.mint(_to, _amount);
     }
 }

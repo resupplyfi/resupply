@@ -4,17 +4,23 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IGovStaker } from "../../interfaces/IGovStaker.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
+
 contract PermaLocker is Ownable2Step {
 
     address public immutable core;
+    IPairRegistry public immutable registry;
     bool public unstakingAllowed;
     string public name;
     IGovStaker public staker;
+    IGovStaker public oldStaker;
     IERC20 public govToken;
     address public operator;
+    
 
     event UnstakingAllowed(bool indexed allowed);
     event OperatorUpdated(address indexed operator);
+    event StakerMigrated(address indexed oldStaker, address indexed newStaker);
     
     modifier onlyOwnerOrOperator {
         require(msg.sender == owner() || msg.sender == operator, "!ownerOrOperator");
@@ -36,12 +42,14 @@ contract PermaLocker is Ownable2Step {
         }
     }
 
-    constructor(address _core, address _owner, address _staker, string memory _name) {
+    constructor(address _core, address _owner, address _staker, address _registry, string memory _name) {
         core = _core;
-        name = _name;
+        registry = IPairRegistry(_registry);
         staker = IGovStaker(_staker);
-        govToken = IERC20(staker.stakeToken());
+        govToken = IERC20(IGovStaker(_staker).stakeToken());
         govToken.approve(address(staker), type(uint256).max);
+        registry = IPairRegistry(_registry);
+        name = _name;
         _transferOwnership(_owner);
     }
 
@@ -77,5 +85,20 @@ contract PermaLocker is Ownable2Step {
     function setOperator(address _operator) external onlyOwner {
         operator = _operator;
         emit OperatorUpdated(_operator);
+    }
+
+    /// @notice Migrates the staker contract to a new address
+    /// @dev Uses registry value to set new staker
+    function migrateStaker() external onlyOwner {
+        address _newStaker = registry.staker();
+        require(_newStaker != address(0), "Staker not set");
+        address _oldStaker = address(staker);
+        require(_oldStaker != _newStaker, "No change");
+
+        govToken.approve(_newStaker, type(uint256).max);
+        govToken.approve(_oldStaker, 0);
+        staker = IGovStaker(_newStaker);
+
+        emit StakerMigrated(_oldStaker, _newStaker);
     }
 }

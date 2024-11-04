@@ -20,17 +20,19 @@ import { Vesting } from "../../../src/dao/tge/Vesting.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { Treasury } from "../../../src/dao/Treasury.sol";
 import { PermaLocker } from "../../../src/dao/tge/PermaLocker.sol";
+import { ResupplyPairRegistry } from "../../../src/protocol/ResupplyPairRegistry.sol";
 
 contract Setup is Test {
     Core public core;
-    MockToken public stakingToken;
-    IGovStaker public staker;
+    GovStaker public staker;
     GovStakerEscrow public escrow;
     Voter public voter;
     GovToken public govToken;
+    GovToken public stakingToken;
     EmissionsController public emissionsController;
     Vesting public vesting;
     VestManager public vestManager;
+    ResupplyPairRegistry public registry;
     address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
     address public user1 = address(0x11);
     address public user2 = address(0x22);
@@ -42,18 +44,14 @@ contract Setup is Test {
     PermaLocker public permaLocker2;
 
     function setUp() public virtual {
-        // Deploy the mock factory first for deterministic location
-        stakingToken = new MockToken("GovToken", "GOV");
 
         deployContracts();
 
-        vm.startPrank(user1);
-        stakingToken.approve(address(staker), type(uint256).max);
-        stakingToken.mint(user1, 1_000_000 * 10 ** 18);
-        vm.stopPrank();
+        deal(address(govToken), user1, 1_000_000 * 10 ** 18);
+        vm.prank(user1);
+        govToken.approve(address(staker), type(uint256).max);
 
         // label all the used addresses for traces
-        vm.label(address(stakingToken), "Gov Token");
         vm.label(address(tempGov), "Temp Gov");
         vm.label(address(core), "Core");
         vm.label(address(voter), "Voter");
@@ -67,23 +65,9 @@ contract Setup is Test {
     }
 
     function deployContracts() public {
-        core = Core(
-            address(
-                new Core(tempGov, 1 weeks)
-            )
-        );
-        staker = IGovStaker(
-            address(
-                new GovStaker(
-                    address(core), 
-                    address(stakingToken), 
-                    2
-                )
-            )
-        );
-
-        voter = new Voter(address(core), IGovStaker(staker), 100, 3000);
-        address govTokenAddress = computeCreateAddress(address(this), vm.getNonce(address(this))+1);
+        core = new Core(tempGov, 1 weeks);
+        address govTokenAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
+        staker = new GovStaker(address(core), address(govTokenAddress), 2);
         vesting = new Vesting(address(core), govTokenAddress, 365 days);
         govToken = new GovToken(
             address(core), 
@@ -91,7 +75,8 @@ contract Setup is Test {
             "Resupply", 
             "RSUP"
         );
-
+        voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
+        stakingToken = govToken;
         assertEq(address(govToken), govTokenAddress);
 
         uint256 epochsPer = 10;
@@ -104,8 +89,9 @@ contract Setup is Test {
         );
 
         treasury = new Treasury(address(core));
-        permaLocker1 = new PermaLocker(address(core), user1, address(staker), "Yearn");
-        permaLocker2 = new PermaLocker(address(core), user2, address(staker), "Convex");
+        registry = new ResupplyPairRegistry(address(core), address(govToken));
+        permaLocker1 = new PermaLocker(address(core), user1, address(staker), address(registry), "Yearn");
+        permaLocker2 = new PermaLocker(address(core), user2, address(staker), address(registry), "Convex");
         assertEq(permaLocker1.owner(), user1);
         assertEq(permaLocker2.owner(), user2);
     }
