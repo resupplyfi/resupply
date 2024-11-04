@@ -19,7 +19,7 @@ import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
 import { Vesting } from "../../../src/dao/tge/Vesting.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { Treasury } from "../../../src/dao/Treasury.sol";
-import { SubDao } from "../../../src/dao/tge/SubDao.sol";
+import { PermaLocker } from "../../../src/dao/tge/PermaLocker.sol";
 
 contract Setup is Test {
     Core public core;
@@ -38,8 +38,8 @@ contract Setup is Test {
     address public dev = address(0x42069);
     address public tempGov = address(987);
     Treasury public treasury;
-    SubDao public subdao1;
-    SubDao public subdao2;
+    PermaLocker public permaLocker1;
+    PermaLocker public permaLocker2;
 
     function setUp() public virtual {
         // Deploy the mock factory first for deterministic location
@@ -59,8 +59,8 @@ contract Setup is Test {
         vm.label(address(voter), "Voter");
         vm.label(address(govToken), "Gov Token");
         vm.label(address(emissionsController), "Emissions Controller");
-        vm.label(address(subdao1), "SubDAO 1");
-        vm.label(address(subdao2), "SubDAO 2");
+        vm.label(address(permaLocker1), "PermaLocker 1");
+        vm.label(address(permaLocker2), "PermaLocker 2");
         vm.label(address(staker), "Gov Staker");
         vm.label(address(escrow), "Gov Staker Escrow");
         vm.label(address(treasury), "Treasury");
@@ -104,10 +104,10 @@ contract Setup is Test {
         );
 
         treasury = new Treasury(address(core));
-        subdao1 = new SubDao(address(core), user1, address(staker), "Yearn");
-        subdao2 = new SubDao(address(core), user2, address(staker), "Convex");
-        assertEq(subdao1.owner(), user1);
-        assertEq(subdao2.owner(), user2);
+        permaLocker1 = new PermaLocker(address(core), user1, address(staker), "Yearn");
+        permaLocker2 = new PermaLocker(address(core), user2, address(staker), "Convex");
+        assertEq(permaLocker1.owner(), user1);
+        assertEq(permaLocker2.owner(), user2);
     }
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {

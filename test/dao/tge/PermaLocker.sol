@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import { Setup } from "../utils/Setup.sol";
 import { MockVestManager } from "../../mocks/MockVestManager.sol";
 
-contract SubDaoTest is Setup {
+contract PermaLockerTest is Setup {
     MockVestManager public mockVestManager;
 
     function setUp() public override {
@@ -12,15 +12,15 @@ contract SubDaoTest is Setup {
     }
 
     function test_Execute() public {
-        vm.prank(subdao1.owner());
-        subdao1.safeExecute(
+        vm.prank(permaLocker1.owner());
+        permaLocker1.safeExecute(
             address(govToken), 
             abi.encodeWithSelector(govToken.approve.selector, user1, 100e18)
         );
 
         vm.prank(user2);
         vm.expectRevert("!ownerOrOperator");
-        subdao1.safeExecute(
+        permaLocker1.safeExecute(
             address(govToken), 
             abi.encodeWithSelector(govToken.approve.selector, user1, 100e18)
         );

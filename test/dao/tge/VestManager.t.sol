@@ -39,13 +39,13 @@ contract VestManagerTest is Setup {
             ],
             [   // _nonUserTargets
                 address(treasury), 
-                address(subdao1), // Convex
-                address(subdao2)  // Yearn
+                address(permaLocker1), // Convex
+                address(permaLocker2)  // Yearn
             ],
             [   // _durations
                 uint256(365 days),  // TREASURY
-                uint256(365 days),  // SUBDAO1
-                uint256(365 days),  // SUBDAO2
+                uint256(365 days),  // PERMA_LOCKER1
+                uint256(365 days),  // PERMA_LOCKER2
                 uint256(365 days),  // REDEMPTIONS
                 uint256(365 days),  // AIRDROP_TEAM
                 uint256(365 days),  // AIRDROP_VICTIMS
@@ -53,8 +53,8 @@ contract VestManagerTest is Setup {
             ],
             [ // _allocPercentages
                 uint256(1200),  // TREASURY
-                uint256(2000),  // SUBDAO1 - Convex
-                uint256(1000),  // SUBDAO2 - Yearn
+                uint256(2000),  // PERMA_LOCKER1 - Convex
+                uint256(1000),  // PERMA_LOCKER2 - Yearn
                 uint256(1500),  // REDEMPTIONS
                 uint256(100),   // AIRDROP_TEAM
                 uint256(200),   // AIRDROP_VICTIMS
@@ -68,8 +68,8 @@ contract VestManagerTest is Setup {
     function test_SetInitialParams() public {
         address[] memory targets = new address[](3);
         targets[0] = address(treasury);
-        targets[1] = address(subdao1);
-        targets[2] = address(subdao2);
+        targets[1] = address(permaLocker1);
+        targets[2] = address(permaLocker2);
 
         for (uint256 i = 0; i < uint256(type(VestManager.AllocationType).max); i++) {
             VestManager.AllocationType allocationType = VestManager.AllocationType(i);
@@ -89,8 +89,8 @@ contract VestManagerTest is Setup {
             }
             if (
                 allocationType == VestManager.AllocationType.TREASURY ||
-                allocationType == VestManager.AllocationType.SUBDAO1 ||
-                allocationType == VestManager.AllocationType.SUBDAO2
+                allocationType == VestManager.AllocationType.PERMA_LOCKER1 ||
+                allocationType == VestManager.AllocationType.PERMA_LOCKER2
             ) {
                 (uint256 _duration, uint256 _amount, uint256 _claimed) = vesting.userVests(targets[i], 0);
                 assertGt(_duration, 0);
@@ -289,8 +289,8 @@ contract VestManagerTest is Setup {
 
     function getAllocationTypeName(VestManager.AllocationType allocationType) internal pure returns (string memory) {
         if (allocationType == VestManager.AllocationType.TREASURY) return "TREASURY";
-        if (allocationType == VestManager.AllocationType.SUBDAO1) return "SUBDAO1";
-        if (allocationType == VestManager.AllocationType.SUBDAO2) return "SUBDAO2";
+        if (allocationType == VestManager.AllocationType.PERMA_LOCKER1) return "PERMA_LOCKER1";
+        if (allocationType == VestManager.AllocationType.PERMA_LOCKER2) return "PERMA_LOCKER2";
         if (allocationType == VestManager.AllocationType.REDEMPTIONS) return "REDEMPTIONS";
         if (allocationType == VestManager.AllocationType.AIRDROP_TEAM) return "AIRDROP_TEAM";
         if (allocationType == VestManager.AllocationType.AIRDROP_VICTIMS) return "AIRDROP_VICTIMS";

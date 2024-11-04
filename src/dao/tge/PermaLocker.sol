@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IGovStaker } from "../../interfaces/IGovStaker.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-contract SubDao is Ownable2Step {
+contract PermaLocker is Ownable2Step {
 
     address public immutable core;
     bool public unstakingAllowed;

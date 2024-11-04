@@ -11,7 +11,9 @@ contract InitVestManager is TenderlyHelper {
     function run() public {
         setEthBalance(core, 10 ether);
         vm.startBroadcast(core);
+        
         vesting.setVestManager(address(vestManager));
+        
         vestManager.setInitializationParams(
             150_000_000e18,             // _maxRedeemable
             [
@@ -21,13 +23,13 @@ contract InitVestManager is TenderlyHelper {
             ],
             [   // _nonUserTargets
                 0x3F75aeE5590aBB84fBb22C3F3a122Bb1092B2b93, // Treasury
-                0x0Ae5acD2eDAe1CA77D2d4F0f51B3d2357dE85A98, // SubDao - Convex
-                0x2D4aC522750bf7543E8567e18C82cfA8edB138E6  // SubDao - Yearn
+                0x0Ae5acD2eDAe1CA77D2d4F0f51B3d2357dE85A98, // PermaLocker - Convex
+                0x2D4aC522750bf7543E8567e18C82cfA8edB138E6  // PermaLocker - Yearn
             ],
             [   // _durations
                 uint256(365 days * 5),  // TREASURY
-                uint256(365 days * 5),  // SUBDAO1
-                uint256(365 days * 5),  // SUBDAO2
+                uint256(365 days * 5),  // PERMA_LOCKER1
+                uint256(365 days * 5),  // PERMA_LOCKER2
                 uint256(365 days * 5),  // REDEMPTIONS
                 uint256(365 days * 1),  // AIRDROP_TEAM
                 uint256(365 days * 2),  // AIRDROP_VICTIMS
@@ -44,6 +46,10 @@ contract InitVestManager is TenderlyHelper {
                 uint256(4000)   // Emissions, first 5 years
             ]
         );
+
+        // Set the lock penalty merkle root
+        vestManager.setLockPenaltyMerkleRoot(bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f));
+        
         vm.stopBroadcast();
     }
 }

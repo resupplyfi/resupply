@@ -32,8 +32,8 @@ contract VestManager is CoreOwnable {
 
     enum AllocationType {
         TREASURY,
-        SUBDAO1,
-        SUBDAO2,
+        PERMA_LOCKER1,
+        PERMA_LOCKER2,
         REDEMPTIONS,
         AIRDROP_TEAM,
         AIRDROP_VICTIMS,

@@ -24,8 +24,8 @@ contract DeployGov is TenderlyHelper, CreateXDeployer {
     address public vesting;
     address public vestManager;
     address public treasury;
-    address public subdao1;
-    address public subdao2;
+    address public permaLocker1;
+    address public permaLocker2;
     address public guardianOperator;
     address public guardianAuthHook;
     bytes32 salt; // Use same empty salt for all contracts
@@ -52,7 +52,7 @@ contract DeployGov is TenderlyHelper, CreateXDeployer {
         voter = deployVoter();
         emissionsController = deployEmissionsController();
         treasury = deployTreasury();
-        (subdao1, subdao2) = deploySubDaos();
+        (permaLocker1, permaLocker2) = deployPermaLockers();
         guardianOperator = deployGuardianOperator();
         guardianAuthHook = deployGuardianAuthHook();
     }
@@ -177,27 +177,27 @@ contract DeployGov is TenderlyHelper, CreateXDeployer {
         return treasury;
     }
 
-    function deploySubDaos() public doBroadcast returns (address, address) {
-        address subdao1Owner = address(1); // TODO: Change this to convex user
-        address subdao2Owner = address(2); // TODO: Change this to yearn user
+    function deployPermaLockers() public doBroadcast returns (address, address) {
+        address permaLocker1Owner = address(1); // TODO: Change this to convex user
+        address permaLocker2Owner = address(2); // TODO: Change this to yearn user
         staker = 0x2791b78390B814f5eBc4d0D3d7F37124Ac2a0b1c;
         bytes memory constructorArgs = abi.encode(
             address(core), 
-            subdao1Owner, 
+            permaLocker1Owner, 
             address(staker), 
             "Convex"
         );
-        bytes memory bytecode = abi.encodePacked(vm.getCode("SubDao.sol:SubDao"), constructorArgs);
-        subdao1 = deployContract(DeployType.CREATE3, salt, bytecode, "SubDao - Convex");
+        bytes memory bytecode = abi.encodePacked(vm.getCode("PermaLocker.sol:PermaLocker"), constructorArgs);
+        permaLocker1 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaLocker - Convex");
         constructorArgs = abi.encode(
             address(core), 
-            subdao2Owner, 
+            permaLocker2Owner, 
             address(staker), 
             "Yearn"
         );
-        bytecode = abi.encodePacked(vm.getCode("SubDao.sol:SubDao"), constructorArgs);
-        subdao2 = deployContract(DeployType.CREATE3, salt, bytecode, "SubDao - Yearn");
-        return (subdao1, subdao2);
+        bytecode = abi.encodePacked(vm.getCode("PermaLocker.sol:PermaLocker"), constructorArgs);
+        permaLocker2 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaLocker - Yearn");
+        return (permaLocker1, permaLocker2);
     }
 
     function deployGuardianOperator() public doBroadcast returns (address) {
