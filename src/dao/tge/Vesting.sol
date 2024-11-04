@@ -81,8 +81,8 @@ contract Vesting is CoreOwnable, DelegatedOps {
         }
     
         if (_totalClaimable > 0) {
-            token.transfer(_account, _totalClaimable);
             totalClaimed += _totalClaimable;
+            token.transfer(_account, _totalClaimable);
             emit Claimed(_account, _totalClaimable);
         }
     }
