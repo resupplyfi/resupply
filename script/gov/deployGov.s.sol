@@ -12,7 +12,7 @@ import "../../lib/forge-std/src/console2.sol";
 import "../../lib/forge-std/src/console.sol";
 
 contract DeployGov is TenderlyHelper, CreateXDeployer {
-    uint256 public iterator;
+    uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
     address public dev = address(0xc4ad);
     address tempGov = address(987);
     address public core;
@@ -87,8 +87,8 @@ contract DeployGov is TenderlyHelper, CreateXDeployer {
             }
         } 
         else if (_deployType == DeployType.CREATE3) {
-            _salt = bytes32(uint256(uint160(dev) + iterator));
-            iterator++;
+            randomness = uint88(uint256(keccak256(abi.encode(_contractName))));
+            _salt = bytes32(uint256(uint160(dev) + randomness));
             computedSalt = keccak256(abi.encode(_salt));
             computedAddress = deployer.computeCreate3Address(computedSalt);
             if (address(computedAddress).code.length == 0) {
