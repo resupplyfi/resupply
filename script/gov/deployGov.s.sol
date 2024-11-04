@@ -43,7 +43,6 @@ contract DeployGov is TenderlyHelper, CreateXDeployer {
     }
 
     function run() public {
-        // Array of contract names to deploy
         setEthBalance(dev, 10 ether);
         core = deployCore();
         govToken = deployGovToken();
@@ -181,12 +180,23 @@ contract DeployGov is TenderlyHelper, CreateXDeployer {
     function deploySubDaos() public doBroadcast returns (address, address) {
         address subdao1Owner = address(1); // TODO: Change this to convex user
         address subdao2Owner = address(2); // TODO: Change this to yearn user
-        bytes memory constructorArgs = abi.encode(address(core), subdao1Owner, address(staker), "Yearn");
+        staker = 0x2791b78390B814f5eBc4d0D3d7F37124Ac2a0b1c;
+        bytes memory constructorArgs = abi.encode(
+            address(core), 
+            subdao1Owner, 
+            address(staker), 
+            "Convex"
+        );
         bytes memory bytecode = abi.encodePacked(vm.getCode("SubDao.sol:SubDao"), constructorArgs);
-        subdao1 = deployContract(DeployType.CREATE3, salt, bytecode, "SubDao");
-        constructorArgs = abi.encode(address(core), subdao2Owner, address(staker), "Convex");
+        subdao1 = deployContract(DeployType.CREATE3, salt, bytecode, "SubDao - Convex");
+        constructorArgs = abi.encode(
+            address(core), 
+            subdao2Owner, 
+            address(staker), 
+            "Yearn"
+        );
         bytecode = abi.encodePacked(vm.getCode("SubDao.sol:SubDao"), constructorArgs);
-        subdao2 = deployContract(DeployType.CREATE3,salt, bytecode, "SubDao");
+        subdao2 = deployContract(DeployType.CREATE3, salt, bytecode, "SubDao - Yearn");
         return (subdao1, subdao2);
     }
 
