@@ -2,6 +2,17 @@
 pragma solidity >=0.8.19;
 
 interface IResupplyPair {
+    struct CurrentRateInfo {
+        uint32 lastBlock;
+        uint64 lastTimestamp;
+        uint64 ratePerSec;
+        uint256 lastPrice;
+        uint256 lastShares;
+    }
+    struct VaultAccount {
+        uint128 amount;
+        uint128 shares;
+    }
 
     function addCollateral(uint256 _collateralAmount, address _borrower) external;
     function addCollateralUnderlying(uint256 _collateralAmount, address _borrower) external;
@@ -38,6 +49,16 @@ interface IResupplyPair {
             uint256 lastShares
         );
     
+
+    function previewAddInterest()
+        external
+        view
+        returns (
+            uint256 _interestEarned,
+            CurrentRateInfo memory _newCurrentRateInfo,
+            uint256 _claimableFees,
+            VaultAccount memory _totalBorrow
+        );
 
     function exchangeRateInfo() external view returns (uint32 lastTimestamp, uint224 exchangeRate);
 
@@ -91,6 +112,8 @@ interface IResupplyPair {
 
     function borrowLimit() external view returns (uint256);
     function totalAssetAvailable() external view returns (uint256);
+    function minimumLeftoverAssets() external view returns (uint256);
+    function minimumBorrowAmount() external view returns (uint256);
 
     function redeem(uint256 _amount, uint256 _fee, address _redeemer) external returns(uint256 _collateralReturned);
 

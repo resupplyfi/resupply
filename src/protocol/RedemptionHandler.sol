@@ -7,7 +7,6 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 
-
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
 //for example can give fee discounts based on certain conditions (like utilization) to
@@ -31,6 +30,15 @@ contract RedemptionHandler is CoreOwnable{
         require(_fee <= 1e18, "!fee");
         baseRedemptionFee = _fee;
         emit SetBaseRedemptionFee(_fee);
+    }
+
+    //get max redeemable
+    //based on fee, true max redeemable will be slightly larger than this value
+    //this is just a quick estimate
+    function getMaxRedeemable(address _pair) external view returns(uint256){
+        (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        uint256 minimumLeftover = IResupplyPair(_pair).minimumLeftoverAssets();
+        return _totalBorrow.amount - minimumLeftover;
     }
 
     function getRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
