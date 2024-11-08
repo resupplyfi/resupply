@@ -8,7 +8,6 @@ import { EmissionsController } from "../../src/dao/emissions/EmissionsController
 import { Voter } from "../../src/dao/Voter.sol";
 import { IGovStaker } from "../../src/interfaces/IGovStaker.sol";
 import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
-import "../../lib/forge-std/src/console2.sol";
 import "../../lib/forge-std/src/console.sol";
 
 contract DeployDao is TenderlyHelper, CreateXDeployer {
@@ -21,7 +20,6 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
     address public voter;
     address public govToken;
     address public emissionsController;
-    address public vesting;
     address public vestManager;
     address public treasury;
     address public permaLocker1;
@@ -46,7 +44,6 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         setEthBalance(dev, 10 ether);
         core = deployCore();
         govToken = deployGovToken();
-        vesting = deployVesting();
         vestManager = deployVestManager();
         staker = deployGovStaker();
         voter = deployVoter();
@@ -108,10 +105,10 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
     }
 
     function deployGovToken() public doBroadcast returns (address) {
-        address _vesting = deployer.computeCreateAddress(vm.getNonce(address(deployer))+1);
+        address _vestManagerAddress = deployer.computeCreateAddress(vm.getNonce(address(deployer))+1);
         bytes memory constructorArgs = abi.encode(
             address(core), 
-            address(_vesting), // Next Nonce
+            _vestManagerAddress, // Next Nonce
             "Resupply", 
             "RSUP"
         );
@@ -120,23 +117,17 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         return govToken;
     }
 
-    function deployVesting() public doBroadcast returns (address) {
-        bytes memory constructorArgs = abi.encode(
-            address(core), 
-            address(govToken), 
-            365 days // TODO: set vesting duration
-        );
-        bytes memory bytecode = abi.encodePacked(vm.getCode("Vesting.sol:Vesting"), constructorArgs);
-        vesting = deployContract(DeployType.CREATE1,salt, bytecode, "Vesting");
-        return vesting;
-    }
-
     function deployVestManager() public doBroadcast returns (address) {
         bytes memory constructorArgs = abi.encode(
             address(core),      // core
-            address(vesting),   // vesting contract
-            address(0xdead),    // TODO: burn address
-            [address(0), address(0), address(0)] // redemption tokens
+            address(govToken),  // govToken
+            address(0xdead),    // TODO: set burn address
+            [                   // redemption tokens
+                0xdA47862a83dac0c112BA89c6abC2159b95afd71C, // prisma 
+                0xe3668873D944E4A949DA05fc8bDE419eFF543882, // yprisma
+                0x34635280737b5BFe6c7DC2FC3065D60d66e78185  // cvxprisma
+            ],
+            365 days           // TODO: Set time until deadline
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("VestManager.sol:VestManager"), constructorArgs);
         vestManager = deployContract(DeployType.CREATE1,salt, bytecode, "VestManager");
@@ -180,11 +171,12 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
     function deployPermaLockers() public doBroadcast returns (address, address) {
         address permaLocker1Owner = address(1); // TODO: Change this to convex user
         address permaLocker2Owner = address(2); // TODO: Change this to yearn user
-        staker = 0x2791b78390B814f5eBc4d0D3d7F37124Ac2a0b1c;
+        address registry = address(0);          // TODO: Change this to ResupplyRegistry
         bytes memory constructorArgs = abi.encode(
             address(core), 
             permaLocker1Owner, 
             address(staker), 
+            registry,
             "Convex"
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("PermaLocker.sol:PermaLocker"), constructorArgs);
@@ -192,7 +184,8 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         constructorArgs = abi.encode(
             address(core), 
             permaLocker2Owner, 
-            address(staker), 
+            address(staker),
+            registry, 
             "Yearn"
         );
         bytecode = abi.encodePacked(vm.getCode("PermaLocker.sol:PermaLocker"), constructorArgs);
