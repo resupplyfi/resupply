@@ -115,10 +115,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
     struct ExchangeRateInfo {
         address oracle;
-        // uint32 maxOracleDeviation; // % of larger number, 1e5 precision
         uint184 lastTimestamp;
         uint256 exchangeRate;
-        // uint256 highExchangeRate;
     }
 
     // Contract Level Accounting

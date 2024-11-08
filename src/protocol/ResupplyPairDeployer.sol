@@ -99,7 +99,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     ) public view returns (string memory _name) {
         _name = string(
             abi.encodePacked(
-                "XYZ Pair ",
+                "Resupply Pair ",
                 IERC20(_asset).safeSymbol(),
                 " (",
                 IERC20(_collateral).safeName(),

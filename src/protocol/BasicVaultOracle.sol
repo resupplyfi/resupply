@@ -20,7 +20,8 @@ contract BasicVaultOracle {
     /// @notice The ```getPrices``` function return shares to assets of given vault
     /// @return _price is share to asset ratio
     function getPrices(address _vault) external view returns (uint256 _price) {
-        _price = IERC4626(_vault).convertToAssets(1e18);    }
+        _price = IERC4626(_vault).convertToAssets(1e18);
+    }
 
     function decimals() external pure returns (uint8) {
         return DECIMALS;
