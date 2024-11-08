@@ -11,7 +11,7 @@ import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
 import "../../lib/forge-std/src/console2.sol";
 import "../../lib/forge-std/src/console.sol";
 
-contract DeployGov is TenderlyHelper, CreateXDeployer {
+contract DeployDao is TenderlyHelper, CreateXDeployer {
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
     address public dev = address(0xc4ad);
     address tempGov = address(987);

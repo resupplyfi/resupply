@@ -5,11 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
-contract Vesting is CoreOwnable, DelegatedOps {
+contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable deadline;
     uint256 public immutable VEST_GLOBAL_START_TIME;
     
-    address public vestManagerContract;
     uint256 public totalClaimed;
     uint256 public totalAllocated;
     IERC20 public token;
@@ -22,6 +21,7 @@ contract Vesting is CoreOwnable, DelegatedOps {
         uint112 claimed;
     }
 
+    event VestCreated(address indexed account, uint256 indexed duration, uint256 amount);
     event Claimed(address indexed account, uint256 amount);
 
     constructor(address _core, address _token, uint256 _timeUntilDeadline) CoreOwnable(_core) {
@@ -36,12 +36,11 @@ contract Vesting is CoreOwnable, DelegatedOps {
     /// @param _amount The amount of tokens to vest
     /// @return The total number of vesting instances for the account
     /// @dev Can only be called by the vest manager contract before the deadline
-    function createVest(
+    function _createVest(
         address _account,
         uint32 _duration,
         uint112 _amount
-    ) external returns (uint256) {
-        require(msg.sender == vestManagerContract, "!vestManager");
+    ) internal returns (uint256) {
         require(block.timestamp < deadline, "deadline passed");
         require(_account != address(0), "zero address");
         require(_amount > 0, "Amount must be greater than zero");
@@ -65,7 +64,7 @@ contract Vesting is CoreOwnable, DelegatedOps {
         ));
 
         totalAllocated += _amount;
-
+        emit VestCreated(_account, _duration, _amount);
         return numAccountVests(_account);
     }
 
@@ -176,11 +175,5 @@ contract Vesting is CoreOwnable, DelegatedOps {
 
     function getUnallocatedBalance() public view returns (uint256) {
         return token.balanceOf(address(this)) - totalAllocated;
-    }
-
-    function setVestManager(address _vestManager) external onlyOwner {
-        require(vestManagerContract == address(0), "Already set");
-        require(_vestManager != address(0), "Zero address");
-        vestManagerContract = _vestManager;
     }
 }

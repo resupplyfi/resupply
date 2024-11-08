@@ -17,7 +17,7 @@
 **/broadcast
 out
 data
-
+tenderly/
 # files
 *.env
 *.log

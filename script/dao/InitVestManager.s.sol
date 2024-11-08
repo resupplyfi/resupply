@@ -1,18 +1,14 @@
 import { TenderlyHelper } from "../utils/TenderlyHelper.s.sol";
 import { VestManager } from "../../src/dao/tge/VestManager.sol";
-import { Vesting } from "../../src/dao/tge/Vesting.sol";
 import "../../lib/forge-std/src/console2.sol";
 import "../../lib/forge-std/src/console.sol";
 
 contract InitVestManager is TenderlyHelper {
     VestManager public vestManager = VestManager(0x7A03f28b1A36a5fB125CE096DbB199290F14CBD9);
-    Vesting public vesting = Vesting(0xBe267095Fe172FCC66A2e9d007A28F957C0a749E);
     address public core = 0x33133231E84ce1B8a040b26260Df349A61E8dF68;
     function run() public {
         setEthBalance(core, 10 ether);
         vm.startBroadcast(core);
-        
-        vesting.setVestManager(address(vestManager));
         
         vestManager.setInitializationParams(
             150_000_000e18,             // _maxRedeemable
