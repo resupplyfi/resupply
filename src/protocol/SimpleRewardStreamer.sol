@@ -42,7 +42,7 @@ pragma solidity ^0.8.19;
 */
 
 import "../libraries/MathUtil.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -92,7 +92,7 @@ contract SimpleRewardStreamer is CoreOwnable{
     }
 
     modifier onlyRewardManager() {
-        require(msg.sender == owner() || msg.sender == IPairRegistry(registry).rewardHandler(), "!rewardManager");
+        require(msg.sender == owner() || msg.sender == IResupplyRegistry(registry).rewardHandler(), "!rewardManager");
         _;
     }
 

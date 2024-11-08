@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 
@@ -44,7 +44,7 @@ contract FeeDepositController{
         //send to treasury
         IERC20(feeToken).safeTransfer(treasury, treasuryAmount);
 
-        address rewardHandler = IPairRegistry(registry).rewardHandler();
+        address rewardHandler = IResupplyRegistry(registry).rewardHandler();
         //send to handler
         IERC20(feeToken).safeTransfer(rewardHandler, ipAmount);
         //process insurance rewards

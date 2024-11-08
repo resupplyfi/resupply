@@ -32,7 +32,7 @@ import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IFraxlendWhitelist } from "../interfaces/IFraxlendWhitelist.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 
@@ -108,7 +108,7 @@ contract ResupplyPairDeployer is CoreOwnable {
                 _uniqueId.toString()//(_length + 1).toString()
             )
         );
-        if(IPairRegistry(registry).pairsByName(_name) != address(0)){
+        if(IResupplyRegistry(registry).pairsByName(_name) != address(0)){
             revert NonUniqueName();
         }
     }

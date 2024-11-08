@@ -4,12 +4,12 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IGovStaker } from "../../interfaces/IGovStaker.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
 
 contract PermaLocker is Ownable2Step {
 
     address public immutable core;
-    IPairRegistry public immutable registry;
+    IResupplyRegistry public immutable registry;
     bool public unstakingAllowed;
     string public name;
     IGovStaker public staker;
@@ -44,11 +44,11 @@ contract PermaLocker is Ownable2Step {
 
     constructor(address _core, address _owner, address _staker, address _registry, string memory _name) {
         core = _core;
-        registry = IPairRegistry(_registry);
+        registry = IResupplyRegistry(_registry);
         staker = IGovStaker(_staker);
         govToken = IERC20(IGovStaker(_staker).stakeToken());
         govToken.approve(address(staker), type(uint256).max);
-        registry = IPairRegistry(_registry);
+        registry = IResupplyRegistry(_registry);
         name = _name;
         _transferOwnership(_owner);
     }

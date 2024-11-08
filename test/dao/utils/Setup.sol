@@ -20,7 +20,7 @@ import { Vesting } from "../../../src/dao/tge/Vesting.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { Treasury } from "../../../src/dao/Treasury.sol";
 import { PermaLocker } from "../../../src/dao/tge/PermaLocker.sol";
-import { ResupplyPairRegistry } from "../../../src/protocol/ResupplyPairRegistry.sol";
+import { ResupplyRegistry } from "../../../src/protocol/ResupplyRegistry.sol";
 
 contract Setup is Test {
     Core public core;
@@ -32,7 +32,7 @@ contract Setup is Test {
     EmissionsController public emissionsController;
     Vesting public vesting;
     VestManager public vestManager;
-    ResupplyPairRegistry public registry;
+    ResupplyRegistry public registry;
     address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
     address public user1 = address(0x11);
     address public user2 = address(0x22);
@@ -89,7 +89,7 @@ contract Setup is Test {
         );
 
         treasury = new Treasury(address(core));
-        registry = new ResupplyPairRegistry(address(core), address(govToken));
+        registry = new ResupplyRegistry(address(core), address(govToken));
         permaLocker1 = new PermaLocker(address(core), user1, address(staker), address(registry), "Yearn");
         permaLocker2 = new PermaLocker(address(core), user2, address(staker), address(registry), "Convex");
         assertEq(permaLocker1.owner(), user1);

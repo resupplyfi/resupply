@@ -7,7 +7,7 @@ import "src/Constants.sol" as Constants;
 import { DeployScriptReturn } from "./DeployScriptReturn.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { ResupplyPairRegistry } from "src/protocol/ResupplyPairRegistry.sol";
+import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { StableCoin } from "src/protocol/StableCoin.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
@@ -40,13 +40,13 @@ contract DeployTestEnvironment is BaseScript {
         _return.contractName = _name;
     }
 
-    function deployOthers(address _core, ResupplyPairRegistry _pairRegistry, address _stable, address _gov) private returns(DeployScriptReturn[] memory _return){
+    function deployOthers(address _core, ResupplyRegistry _registry, address _stable, address _gov) private returns(DeployScriptReturn[] memory _return){
         _return = new DeployScriptReturn[](9);
 
         InsurancePool _insurancepool = new InsurancePool(
         address(_core), //core
         address(_stable),
-        address(_pairRegistry));
+        address(_registry));
 
         _return[0].address_ = address(_insurancepool);
         _return[0].constructorParams = "";
@@ -54,7 +54,7 @@ contract DeployTestEnvironment is BaseScript {
 
         SimpleRewardStreamer _ipstablestream = new SimpleRewardStreamer(
             address(_stable),
-            address(_pairRegistry),
+            address(_registry),
             address(_core), //core
             address(_insurancepool));
         _return[1].address_ = address(_ipstablestream);
@@ -63,7 +63,7 @@ contract DeployTestEnvironment is BaseScript {
 
         SimpleRewardStreamer _ipemissionstream = new SimpleRewardStreamer(
             address(_gov),
-            address(_pairRegistry),
+            address(_registry),
             address(_core), //core
             address(_insurancepool));
         _return[2] = setReturnData(address(_ipemissionstream),"","Insurance Pool Emissions Stream");
@@ -72,19 +72,19 @@ contract DeployTestEnvironment is BaseScript {
 
         SimpleRewardStreamer _pairemissionstream = new SimpleRewardStreamer(
             address(_gov),
-            address(_pairRegistry),
+            address(_registry),
             address(_core), //core
             address(0));
         _return[3] = setReturnData(address(_pairemissionstream),"","Pair Emissions Stream");
 
         FeeDeposit _feedeposit = new FeeDeposit(
              address(_core), //core
-             address(_pairRegistry),
+             address(_registry),
              address(_stable)
              );
         _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
         FeeDepositController _feedepositController = new FeeDepositController(
-            address(_pairRegistry),
+            address(_registry),
             address(deployer), //todo treasury
             address(_feedeposit),
             address(_stable),
@@ -97,21 +97,21 @@ contract DeployTestEnvironment is BaseScript {
 
         RedemptionHandler _redemptionHandler = new RedemptionHandler(
             address(_core),//core
-            address(_pairRegistry),
+            address(_registry),
             address(_stable)
             );
         _return[6] = setReturnData(address(_redemptionHandler),"","Redemption Handler");
 
         LiquidationHandler _liqHandler = new LiquidationHandler(
             address(_core),//core
-            address(_pairRegistry),
+            address(_registry),
             address(_insurancepool)
             );
         _return[7] = setReturnData(address(_liqHandler),"","Liquidation Handler");
 
         RewardHandler _rewardHandler = new RewardHandler(
             address(_core),//core
-            address(_pairRegistry),
+            address(_registry),
             address(_stable),
             address(_pairemissionstream), //todo gov staking
             address(_insurancepool),
@@ -121,11 +121,11 @@ contract DeployTestEnvironment is BaseScript {
             );
         _return[8] = setReturnData(address(_rewardHandler),"","Reward Handler");
 
-        _pairRegistry.setLiquidationHandler(address(_liqHandler));
-        _pairRegistry.setFeeDeposit(address(_feedeposit));
-        _pairRegistry.setRedeemer(address(_redemptionHandler));
-        _pairRegistry.setInsurancePool(address(_insurancepool));
-        _pairRegistry.setRewardHandler(address(_rewardHandler));
+        _registry.setLiquidationHandler(address(_liqHandler));
+        _registry.setFeeDeposit(address(_feedeposit));
+        _registry.setRedeemer(address(_redemptionHandler));
+        _registry.setInsurancePool(address(_insurancepool));
+        _registry.setRewardHandler(address(_rewardHandler));
 
     }
 
@@ -156,19 +156,19 @@ contract DeployTestEnvironment is BaseScript {
         _return[1].constructorParams = "";
         _return[1].contractName = "GovToken";
 
-        ResupplyPairRegistry _pairRegistry = new ResupplyPairRegistry(
+        ResupplyRegistry _registry = new ResupplyRegistry(
             address(_stable),
             address(_core)
         );
-        _return[2].address_ = address(_pairRegistry);
+        _return[2].address_ = address(_registry);
         _return[2].constructorParams = "";
-        _return[2].contractName = "ResupplyPairRegistry";
+        _return[2].contractName = "ResupplyRegistry";
 
         //give registry mint rights
-        _stable.setOperator(address(_pairRegistry),true);
+        _stable.setOperator(address(_registry),true);
 
         ResupplyPairDeployer _pairDeployer = new ResupplyPairDeployer(
-            address(_pairRegistry),
+            address(_registry),
             address(_gov),
             address(deployer),
             address(_core)
@@ -236,11 +236,11 @@ contract DeployTestEnvironment is BaseScript {
         _return[7].constructorParams = "";
         _return[7].contractName = "Curvelend Pair SFRAX CRVUSD";
 
-        _pairRegistry.addPair(_fraxlendpairAddress);
-        _pairRegistry.addPair(_curvelendpairAddress);
+        _registry.addPair(_fraxlendpairAddress);
+        _registry.addPair(_curvelendpairAddress);
 
         
-        DeployScriptReturn[] memory _subreturn = deployOthers(_core, _pairRegistry, address(_stable), address(_gov));
+        DeployScriptReturn[] memory _subreturn = deployOthers(_core, _registry, address(_stable), address(_gov));
         for(uint256 i=0; i < _subreturn.length; i++){
             _return[i+8] = _subreturn[i];
         }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
@@ -103,7 +103,7 @@ contract RewardHandler is CoreOwnable{
     }
 
     function setPairWeight(address _pair, uint256 _amount) external{
-        require(msg.sender == IPairRegistry(registry).feeDeposit(), "!feeDeposist");
+        require(msg.sender == IResupplyRegistry(registry).feeDeposit(), "!feeDeposist");
 
         //get previous and update
         uint256 lastTimestamp = pairTimestamp[_pair];
@@ -138,7 +138,7 @@ contract RewardHandler is CoreOwnable{
 
     function queueInsuranceRewards() external{
         //check that caller is feedeposit or operator of fee deposit
-        address feeDeposit = IPairRegistry(registry).feeDeposit();
+        address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
 
         //queue up any reward tokens currently on this handler
@@ -147,7 +147,7 @@ contract RewardHandler is CoreOwnable{
 
     function queuePlatformRewards() external{
         //check that caller is feedeposit or operator of fee deposit
-        address feeDeposit = IPairRegistry(registry).feeDeposit();
+        address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
 
         //queue up any reward tokens currently on this handler

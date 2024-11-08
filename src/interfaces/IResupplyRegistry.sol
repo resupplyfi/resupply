@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-interface IPairRegistry {
+interface IResupplyRegistry {
     event AddPair(address pairAddress);
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);

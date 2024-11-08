@@ -30,7 +30,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 
-contract ResupplyPairRegistry is CoreOwnable{
+contract ResupplyRegistry is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable token;

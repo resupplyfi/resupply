@@ -36,7 +36,7 @@ import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 
 /// @title ResupplyPair
@@ -320,7 +320,7 @@ contract ResupplyPair is FraxlendPairCore {
         _addInterest();
 
         //get deposit contract
-        address feeDeposit = IPairRegistry(registry).feeDeposit();
+        address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         uint256 depositEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
         uint256 currentEpoch = block.timestamp/WEEK * WEEK;
 
@@ -336,7 +336,7 @@ contract ResupplyPair is FraxlendPairCore {
         claimableFees = 0;
         claimableOtherFees = 0;
         //mint new stables to the receiver
-        IPairRegistry(registry).mint(feeDeposit,_fees+_otherFees);
+        IResupplyRegistry(registry).mint(feeDeposit,_fees+_otherFees);
         //inform deposit contract of this pair's contribution
         IFeeDeposit(feeDeposit).incrementPairRevenue(_fees,_otherFees);
         emit WithdrawFees(feeDeposit, _fees, _otherFees);

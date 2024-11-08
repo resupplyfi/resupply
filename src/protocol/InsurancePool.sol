@@ -7,7 +7,7 @@ import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
 
@@ -87,11 +87,11 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     function _isRewardManager() internal view override returns(bool){
         return msg.sender == registry || msg.sender == owner()
-        || msg.sender == IPairRegistry(registry).rewardHandler();
+        || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
     function _claimPoolRewards() internal override{
-        IPairRegistry(registry).claimInsuranceRewards();
+        IResupplyRegistry(registry).claimInsuranceRewards();
     }
 
     function _totalRewardShares() internal view override returns(uint256){
@@ -132,7 +132,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     //burn underlying, liquidationHandler will send rewards in exchange
     function burnAssets(uint256 _amount) external{
-        require(msg.sender == IPairRegistry(registry).liquidationHandler(), "!liq handler");
+        require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
 
         IMintable(depositToken).burn(address(this), _amount);
 

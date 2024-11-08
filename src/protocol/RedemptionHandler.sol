@@ -4,8 +4,8 @@ pragma solidity ^0.8.19;
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 
 
 //Contract that interacts with pairs to perform redemptions
@@ -33,6 +33,10 @@ contract RedemptionHandler is CoreOwnable{
         emit SetBaseRedemptionFee(_fee);
     }
 
+    function getRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
+        return baseRedemptionFee;
+    }
+
     //a basic redemption
     //pull tokens and call redeem on the pair
     function redeem (
@@ -43,7 +47,7 @@ contract RedemptionHandler is CoreOwnable{
         //pull redeeming tokens
         IERC20(redemptionToken).safeTransferFrom(msg.sender, address(this), _amount);
         //redeem
-        return IResupplyPair(_pair).redeem(_amount, baseRedemptionFee, _returnTo);
+        return IResupplyPair(_pair).redeem(_amount, getRedemptionFee(_pair, _amount), _returnTo);
     }
 
 }

@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "src/protocol/fraxlend/FraxlendPairConstants.sol";
 import "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { ResupplyPairRegistry } from "src/protocol/ResupplyPairRegistry.sol";
+import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { StableCoin } from "src/protocol/StableCoin.sol";
@@ -55,7 +55,7 @@ contract BasePairTest is
     // contracts
     ResupplyPair public pair;
     ResupplyPairDeployer public deployer;
-    ResupplyPairRegistry public pairRegistry;
+    ResupplyRegistry public registry;
     Core public core;
     MockToken public stakingToken;
     StableCoin public stableToken;
@@ -165,9 +165,9 @@ contract BasePairTest is
     /// @dev
     function deployBaseContracts() public {
 
-        pairRegistry = new ResupplyPairRegistry(address(stableToken),address(core));
+        registry = new ResupplyRegistry(address(stableToken),address(core));
         deployer = new ResupplyPairDeployer(
-            address(pairRegistry),
+            address(registry),
             address(stakingToken),
             address(Constants.Mainnet.CONVEX_DEPLOYER),
             address(core)
@@ -175,7 +175,7 @@ contract BasePairTest is
         
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
-        stableToken.setOperator(address(pairRegistry),true);
+        stableToken.setOperator(address(registry),true);
         vm.stopPrank();
 
         rateContract = new InterestRateCalculator(
@@ -202,17 +202,17 @@ contract BasePairTest is
         insurancePool = new InsurancePool(
             address(core), //core
             address(stableToken),
-            address(pairRegistry));
+            address(registry));
 
         ipStableStream = new SimpleRewardStreamer(
             address(stableToken),
-            address(pairRegistry),
+            address(registry),
             address(core), //core
             address(insurancePool));
 
         ipEmissionStream = new SimpleRewardStreamer(
             address(stakingToken),
-            address(pairRegistry),
+            address(registry),
             address(core), //core
             address(insurancePool));
 
@@ -220,17 +220,17 @@ contract BasePairTest is
 
         pairEmissionStream = new SimpleRewardStreamer(
             address(stakingToken),
-            address(pairRegistry),
+            address(registry),
             address(core), //core
             address(0));
 
         feeDeposit = new FeeDeposit(
              address(core), //core
-             address(pairRegistry),
+             address(registry),
              address(stableToken)
              );
         feeDepositController = new FeeDepositController(
-            address(pairRegistry),
+            address(registry),
             address(users[1]), //todo treasury
             address(feeDeposit),
             address(stableToken),
@@ -244,19 +244,19 @@ contract BasePairTest is
 
         redemptionHandler = new RedemptionHandler(
             address(core),//core
-            address(pairRegistry),
+            address(registry),
             address(stableToken)
             );
 
         liquidationHandler = new LiquidationHandler(
             address(core),//core
-            address(pairRegistry),
+            address(registry),
             address(insurancePool)
             );
 
         rewardHandler = new RewardHandler(
             address(core),//core
-            address(pairRegistry),
+            address(registry),
             address(stableToken),
             address(pairEmissionStream), //todo gov staking
             address(insurancePool),
@@ -266,11 +266,11 @@ contract BasePairTest is
             );
 
         vm.startPrank(address(core));
-        pairRegistry.setLiquidationHandler(address(liquidationHandler));
-        pairRegistry.setFeeDeposit(address(feeDeposit));
-        pairRegistry.setRedeemer(address(redemptionHandler));
-        pairRegistry.setInsurancePool(address(insurancePool));
-        pairRegistry.setRewardHandler(address(rewardHandler));
+        registry.setLiquidationHandler(address(liquidationHandler));
+        registry.setFeeDeposit(address(feeDeposit));
+        registry.setRedeemer(address(redemptionHandler));
+        registry.setInsurancePool(address(insurancePool));
+        registry.setRewardHandler(address(rewardHandler));
         vm.stopPrank();
     }
 
@@ -287,7 +287,7 @@ contract BasePairTest is
         console.log("======================================");
         console.log("    Base Contracts     ");
         console.log("======================================");
-        console.log("Registry: ", address(pairRegistry));
+        console.log("Registry: ", address(registry));
         console.log("Deployer: ", address(deployer));
         console.log("govToken: ", address(stakingToken));
         console.log("stableToken: ", address(stableToken));
@@ -339,7 +339,7 @@ contract BasePairTest is
         vm.stopPrank();
 
         vm.startPrank(address(core));
-        pairRegistry.addPair(_pairAddress);
+        registry.addPair(_pairAddress);
         vm.stopPrank();
 
         // startHoax(Constants.Mainnet.COMPTROLLER_ADDRESS);

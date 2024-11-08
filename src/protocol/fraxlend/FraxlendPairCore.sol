@@ -34,7 +34,7 @@ import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { IOracle } from "../../interfaces/IOracle.sol";
 import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
-import { IPairRegistry } from "../../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
 import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { RewardDistributorMultiEpoch } from "../RewardDistributorMultiEpoch.sol";
 import { WriteOffToken } from "../WriteOffToken.sol";
@@ -288,7 +288,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     ) public view returns (uint256) {
         //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
         //be a limited amount of stables that have been bridged and available
-        uint256 mintable = IPairRegistry(registry).getMaxMintable(address(this));
+        uint256 mintable = IResupplyRegistry(registry).getMaxMintable(address(this));
         uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
         return borrowable < mintable ? borrowable : mintable;
@@ -348,11 +348,11 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return _isProtocolOrOwner() || msg.sender == IPairRegistry(registry).rewardHandler();
+        return _isProtocolOrOwner() || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
     function _claimPoolRewards() internal override{
-        IPairRegistry(registry).claimRewards(address(this));
+        IResupplyRegistry(registry).claimRewards(address(this));
     }
 
     function _totalRewardShares() internal view override returns(uint256){
@@ -707,7 +707,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Interactions
         // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
         // if (_receiver != address(this)) {
-            IPairRegistry(registry).mint(_receiver, _borrowAmount);
+            IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
         // }
         emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded, debtForMint - _borrowAmount);
     }
@@ -885,7 +885,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // burn from non-zero address.  zero address is only supplied during liquidations
         // for liqudations the handler will do the burning
         if (_payer != address(0)) {
-            IPairRegistry(registry).burn(_payer, _amountToRepay);
+            IResupplyRegistry(registry).burn(_payer, _amountToRepay);
         }
         emit RepayAsset(_payer, _borrower, _amountToRepay, _shares);
     }
@@ -922,7 +922,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
     function redeem(uint256 _amount, uint256 _fee, address _receiver) external nonReentrant returns(uint256 _collateralReturned){
         //check sender. must go through the registry's redeemer
-        if(msg.sender != IPairRegistry(registry).redeemer()) revert InvalidRedeemer();
+        if(msg.sender != IResupplyRegistry(registry).redeemer()) revert InvalidRedeemer();
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
@@ -975,7 +975,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
         ///// burn ////
         // burn from msg.sender the total _amount
-        IPairRegistry(registry).burn(msg.sender, _amount);
+        IResupplyRegistry(registry).burn(msg.sender, _amount);
 
         emit Redeemed(_receiver, _amount, _collateralReturned, platformFee, debtReduction);
     }
@@ -1000,7 +1000,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     function liquidate(
         address _borrower
     ) external nonReentrant returns (uint256 _collateralForLiquidator) {
-        address liquidationHandler = IPairRegistry(registry).liquidationHandler();
+        address liquidationHandler = IResupplyRegistry(registry).liquidationHandler();
         if(msg.sender != liquidationHandler) revert InvalidLiquidator();
 
         if (_borrower == address(0)) revert InvalidReceiver();

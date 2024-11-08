@@ -5,7 +5,7 @@ import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IPairRegistry } from "../interfaces/IPairRegistry.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
@@ -32,7 +32,7 @@ contract LiquidationHandler is CoreOwnable{
     //allow protocol to migrate collateral left in this handler if an update is required
     //registry must point to a different handler to ensure this contract is no longer being used
     function migrateCollateral(address _collateral, uint256 _amount, address _to) external onlyOwner{
-        require(IPairRegistry(registry).liquidationHandler() != address(this), "handler still used");
+        require(IResupplyRegistry(registry).liquidationHandler() != address(this), "handler still used");
         IERC20(_collateral).safeTransfer(_to, _amount);
     }
 
@@ -40,7 +40,7 @@ contract LiquidationHandler is CoreOwnable{
     //worth less than the amount of debt owed then the protocol should be able to choose to
     //immediately clear debt and distribute the "bad" collateral to insurance pool holders
     function distributeCollateralAndClearDebt(address _collateral) external onlyOwner{
-        require(IPairRegistry(registry).liquidationHandler() == address(this), "!liq handler");
+        require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
 
         //first need to make sure collateral is a valid reward before sending or else it wont get distributed
         //get reward slot
@@ -81,7 +81,7 @@ contract LiquidationHandler is CoreOwnable{
 
     function processLiquidationDebt(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{
         //ensure caller is a registered pair
-        require(IPairRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
+        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
 
         //add to debt needed to burn
         debtByCollateral[_collateral] += _debtAmount;
@@ -93,7 +93,7 @@ contract LiquidationHandler is CoreOwnable{
     //withdraw what is possible and send to insurance pool while
     //burning required debt
     function processCollateral(address _collateral) public{
-        require(IPairRegistry(registry).liquidationHandler() == address(this), "!liq handler");
+        require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
         //get underlying
         address underlyingAsset = IERC4626(_collateral).asset();

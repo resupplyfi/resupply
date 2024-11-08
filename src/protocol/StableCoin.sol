@@ -18,6 +18,9 @@ contract StableCoin is ERC20, CoreOwnable {
         )
         CoreOwnable(_core)
     {
+        //premint a small amount to deployer so that it can be used in the full deployment sequence
+        //ex. insurance pool needs a small seed
+        _mint(msg.sender, 1e18);
     }
 
    function setOperator(address _operator, bool _valid) external onlyOwner{
@@ -26,7 +29,7 @@ contract StableCoin is ERC20, CoreOwnable {
     }
 
     function mint(address _to, uint256 _amount) external {
-        require(operators[msg.sender], "!authorized");
+        require(operators[msg.sender] || msg.sender == owner(), "!authorized");
         
         _mint(_to, _amount);
     }
@@ -34,7 +37,7 @@ contract StableCoin is ERC20, CoreOwnable {
     function burn(address _from, uint256 _amount) external {
         //allow msg sender to burn from themselves
         if(msg.sender != _from){
-            require(operators[msg.sender], "!authorized");
+            require(operators[msg.sender] || msg.sender == owner(), "!authorized");
         }
         _burn(_from, _amount);
     }
