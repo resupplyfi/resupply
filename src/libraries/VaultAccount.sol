@@ -31,7 +31,7 @@ library VaultAccountingLibrary {
             amount = shares;
         } else {
             amount = (shares * total.amount) / total.shares;
-            if (roundUp && (amount * total.shares) / total.amount < shares) {
+            if (roundUp && total.amount > 0 && (amount * total.shares) / total.amount < shares) {
                 amount = amount + 1;
             }
         }

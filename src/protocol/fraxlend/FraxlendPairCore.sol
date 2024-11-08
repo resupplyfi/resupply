@@ -1210,6 +1210,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
         IERC20 _assetContract = assetContract;
         IERC20 _collateralContract = collateralContract;
+        VaultAccount memory _totalBorrow = totalBorrow;
 
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
@@ -1219,6 +1220,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         }
         if (_path[_path.length - 1] != address(_assetContract)) {
             revert InvalidPath(address(_assetContract), _path[_path.length - 1]);
+        }
+        //in case of a full redemption/shutdown via protocol,
+        //all user debt should be 0 and thus swapping to repay is unnecessary.
+        //toShares below will also return an incorrect value.
+        //in case of a full redemption, users can use the normal repayAsset with 0 cost
+        //or just withdraw collateral via removeCollateral
+        if(_totalBorrow.amount == 0){
+            revert InsufficientBorrowAmount();
         }
 
         // Effects: bookkeeping & write to state
@@ -1247,7 +1256,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             revert SlippageTooHigh(_amountAssetOutMin, _amountAssetOut);
         }
 
-        VaultAccount memory _totalBorrow = totalBorrow;
+        
         uint256 _sharesToRepay = _totalBorrow.toShares(_amountAssetOut, false);
 
         // Effects: write to state
