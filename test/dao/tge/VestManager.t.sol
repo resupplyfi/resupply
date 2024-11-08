@@ -14,20 +14,6 @@ contract VestManagerTest is Setup {
 
     function setUp() public override {
         super.setUp();
-        address[3] memory redemptionTokens;
-        redemptionTokens[0] = address(new MockToken('PRISMA', 'PRISMA'));
-        redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
-        redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
-        address vestManagerAddress = computeCreateAddress(address(this), vm.getNonce(address(this)));
-        vm.prank(address(core));
-        vesting.setVestManager(vestManagerAddress);
-        address burnAddress = address(core); // TODO: Decide which address to use here.
-        vestManager = new VestManager(
-            address(core),
-            address(vesting),
-            burnAddress,
-            redemptionTokens
-        );
         
         vm.prank(address(core));
         vestManager.setInitializationParams(
@@ -62,7 +48,6 @@ contract VestManagerTest is Setup {
                 uint256(4000)   // Emissions, first 5 years
             ]
         );
-        assertEq(address(vestManager), vestManagerAddress);
     }
 
     function test_SetInitialParams() public {
@@ -92,7 +77,7 @@ contract VestManagerTest is Setup {
                 allocationType == VestManager.AllocationType.PERMA_LOCKER1 ||
                 allocationType == VestManager.AllocationType.PERMA_LOCKER2
             ) {
-                (uint256 _duration, uint256 _amount, uint256 _claimed) = vesting.userVests(targets[i], 0);
+                (uint256 _duration, uint256 _amount, uint256 _claimed) = vestManager.userVests(targets[i], 0);
                 assertGt(_duration, 0);
                 assertGt(_amount, 0);
                 assertEq(_claimed, 0);
@@ -101,7 +86,7 @@ contract VestManagerTest is Setup {
         skip(1 weeks);
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(targets[i]);
-            vesting.claim(targets[i]);
+            vestManager.claim(targets[i]);
             assertGt(govToken.balanceOf(targets[i]), 0);
         }
         
@@ -237,18 +222,18 @@ contract VestManagerTest is Setup {
                 uint256 _locked,
                 uint256 _claimed,
                 uint256 _vested
-            ) = vesting.getSingleVestData(address(this), 0);
+            ) = vestManager.getSingleVestData(address(this), 0);
 
             // Check that the amount is correct
             totalUserGain += amount * redemptionRatio / 1e18;
             assertEq(totalUserGain, _locked + _vested);
-            assertEq(vesting.numAccountVests(address(this)), 1);
+            assertEq(vestManager.numAccountVests(address(this)), 1);
         }
 
         skip(1 weeks);
         for (uint256 i = 0; i < tokens.length; i++) {
             vm.startPrank(address(this));
-            vesting.claim(address(this));
+            vestManager.claim(address(this));
             vm.stopPrank();
         }
     }

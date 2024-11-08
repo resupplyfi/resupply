@@ -16,7 +16,6 @@ import { IGovStakerEscrow } from "../../../src/interfaces/IGovStakerEscrow.sol";
 import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
 import { GovToken } from "../../../src/dao/GovToken.sol";
 import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
-import { Vesting } from "../../../src/dao/tge/Vesting.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { Treasury } from "../../../src/dao/Treasury.sol";
 import { PermaLocker } from "../../../src/dao/tge/PermaLocker.sol";
@@ -30,7 +29,6 @@ contract Setup is Test {
     GovToken public govToken;
     GovToken public stakingToken;
     EmissionsController public emissionsController;
-    Vesting public vesting;
     VestManager public vestManager;
     ResupplyRegistry public registry;
     address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
@@ -65,19 +63,32 @@ contract Setup is Test {
     }
 
     function deployContracts() public {
+        address[3] memory redemptionTokens;
+        redemptionTokens[0] = address(new MockToken('PRISMA', 'PRISMA'));
+        redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
+        redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
+
         core = new Core(tempGov, 1 weeks);
-        address govTokenAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
-        staker = new GovStaker(address(core), address(govTokenAddress), 2);
-        vesting = new Vesting(address(core), govTokenAddress, 365 days);
+        address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
         govToken = new GovToken(
             address(core), 
-            address(vesting),
+            vestManagerAddress,
             "Resupply", 
             "RSUP"
         );
+        staker = new GovStaker(address(core), address(govToken), 2);
+        vestManager = new VestManager(
+            address(core), 
+            address(govToken),
+            address(0xdead),   // Burn address
+            redemptionTokens,  // Redemption tokens
+            365 days           // Time until deadline
+        );
+        assertEq(address(vestManager), vestManagerAddress);
+        
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
         stakingToken = govToken;
-        assertEq(address(govToken), govTokenAddress);
+        
 
         uint256 epochsPer = 10;
         emissionsController = new EmissionsController(

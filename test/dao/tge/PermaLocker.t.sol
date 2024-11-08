@@ -2,12 +2,10 @@ pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
 import { Setup } from "../utils/Setup.sol";
-import { MockVestManager } from "../../mocks/MockVestManager.sol";
 import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
 
 contract PermaLockerTest is Setup {
-    MockVestManager public mockVestManager;
 
     function setUp() public override {
         super.setUp();
