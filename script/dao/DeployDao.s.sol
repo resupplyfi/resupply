@@ -41,10 +41,11 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
     }
 
     function run() public {
+        bool isTestNet = true; // TODO: Change this to false
         setEthBalance(dev, 10 ether);
         core = deployCore();
         govToken = deployGovToken();
-        vestManager = deployVestManager();
+        vestManager = deployVestManager(isTestNet);
         staker = deployGovStaker();
         voter = deployVoter();
         emissionsController = deployEmissionsController();
@@ -117,7 +118,7 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         return govToken;
     }
 
-    function deployVestManager() public doBroadcast returns (address) {
+    function deployVestManager(bool _isTestNet) public doBroadcast returns (address) {
         bytes memory constructorArgs = abi.encode(
             address(core),      // core
             address(govToken),  // govToken
@@ -129,8 +130,15 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
             ],
             365 days           // TODO: Set time until deadline
         );
-        bytes memory bytecode = abi.encodePacked(vm.getCode("VestManager.sol:VestManager"), constructorArgs);
-        vestManager = deployContract(DeployType.CREATE1,salt, bytecode, "VestManager");
+        bytes memory bytecode;
+        if (_isTestNet) {
+            bytecode = abi.encodePacked(vm.getCode("VestManagerTEST.sol:VestManagerTEST"), constructorArgs);
+        }
+        else{
+            bytecode = abi.encodePacked(vm.getCode("VestManager.sol:VestManager"), constructorArgs);
+        }
+        
+        vestManager = deployContract(DeployType.CREATE1, salt, bytecode, "VestManager");
         return vestManager;
     }
 
