@@ -161,8 +161,9 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
             address(core), 
             address(govToken), 
             getEmissionsSchedule(), 
-            10, 
-            2
+            3,       // epochs per
+            2e16,    // tail rate 2%
+            2        // Bootstrap epochs
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("EmissionsController.sol:EmissionsController"), constructorArgs);
         emissionsController = deployContract(DeployType.CREATE1,salt, bytecode, "EmissionsController");

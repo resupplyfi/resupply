@@ -20,8 +20,6 @@ contract EmissionsControllerTest is Setup {
         vm.startPrank(address(core));
         govToken.setMinter(address(emissionsController));
         epochLength = emissionsController.epochLength();
-        // Do this to get some totalSupply
-        govToken.initialize(address(0x99999), 1000000 * 10 ** 18);
 
         basicReceiver1 = new BasicReceiver(address(core), address(emissionsController), "Basic Receiver 1");
         basicReceiver2 = new BasicReceiver(address(core), address(emissionsController), "Basic Receiver 2");
@@ -52,6 +50,52 @@ contract EmissionsControllerTest is Setup {
             vm.roll(block.number + 1);
             epoch = emissionsController.getEpoch();
         }
+    }
+
+    function getExpectedEmissions(uint256 rate, uint256 supply, uint256 epoch) public view returns (uint256) {
+        uint256 expected = supply * rate * epochLength / 365 days / 1e18;
+        return epoch < emissionsController.BOOTSTRAP_EPOCHS() ? 0 : expected;
+    }
+
+    function getEmissionsRate() public view returns (uint256) {
+        uint256 rate = emissionsController.emissionsRate();
+
+        uint256 epoch = emissionsController.getEpoch();
+        uint256 lastEmissionsUpdate = emissionsController.lastEmissionsUpdate();
+        if (epoch - lastEmissionsUpdate >= emissionsController.epochsPer()) {
+            rate = emissionsController.getScheduleLength() > 0
+                ? emissionsController.getSchedule()[emissionsController.getScheduleLength() - 1]
+                : emissionsController.tailRate();
+        }
+        return rate;
+    }
+
+    // TODO: test what happens when a few weeks pass without any receivers connected
+    function test_NoReceiversConnected() public {
+        uint256 i;
+        for (i = 0; i < 2; i++) {
+            skip(epochLength);
+            console.log("xxx", getEpoch(), emissionsController.emissionsRate());
+        }
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(basicReceiver1));
+        assertEq(emissionsController.nextReceiverId(), 1);
+        for (i = 0; i < 20; i++) {
+            skip(epochLength);
+            assertEq(emissionsController.nextReceiverId(), 1);
+            uint256 expected = getExpectedEmissions(
+                getEmissionsRate(), 
+                govToken.totalSupply(),
+                getEpoch()
+            );
+            // console2.log("xxxx", getEmissionsRate(), govToken.totalSupply(), emissionsController.getEpoch());
+            // expected *= (emissionsController.getEpoch()+1 - emissionsController.BOOTSTRAP_EPOCHS());
+            vm.prank(address(basicReceiver1));
+            uint256 amount = emissionsController.fetchEmissions();
+            console.log(getEpoch(), emissionsController.emissionsRate());
+            if (i != 0) assertEq(expected, amount);
+        }
+
     }
 
     function test_PreventDuplicateReceiver() public {
@@ -114,5 +158,9 @@ contract EmissionsControllerTest is Setup {
             assertEq(receiver, address(i == 0 ? basicReceiver1 : i == 1 ? basicReceiver2 : basicReceiver3));
             assertEq(weight, i==0 ? 10_000 : 0);
         }
+    }
+
+    function getEpoch() public view returns (uint256) {
+        return emissionsController.getEpoch();
     }
 }

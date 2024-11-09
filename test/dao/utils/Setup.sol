@@ -89,14 +89,13 @@ contract Setup is Test {
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
         stakingToken = govToken;
         
-
-        uint256 epochsPer = 10;
         emissionsController = new EmissionsController(
             address(core), 
             address(govToken), 
             getEmissionsSchedule(), 
-            epochsPer,
-            2 // Bootstrap epochs
+            3,      // epochs per
+            2e16,   // tail rate
+            2       // Bootstrap epochs
         );
 
         treasury = new Treasury(address(core));

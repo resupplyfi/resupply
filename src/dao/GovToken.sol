@@ -27,12 +27,6 @@ contract GovToken is ERC20, CoreOwnable {
         _mint(_to, _amount);
     }
 
-    function initialize(address _initVest, uint256 _initialSupply) external onlyOwner {
-        require(minter != address(0), "minter not set");
-        _mint(_initVest, _initialSupply);
-        // TODO: airdrop + vest initial supply
-    }
-
     function setMinter(address _minter) external onlyOwner {
         require(!minterFinalized, "minter revoked");
         minter = _minter;
