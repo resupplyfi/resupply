@@ -16,7 +16,7 @@ contract VestManagerTEST is VestManager {
     /**
         @notice TEST FUNCTION only to set merkle root
     */
-    function setMerkleRoot(AllocationType _type, bytes32 _root) external onlyOwner {
+    function setMerkleRoot(AllocationType _type, bytes32 _root) external {
         merkleRootByType[_type] = _root;
     }
 
