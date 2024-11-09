@@ -95,7 +95,7 @@ contract Setup is Test {
             getEmissionsSchedule(), 
             3,      // epochs per
             2e16,   // tail rate
-            2       // Bootstrap epochs
+            0       // Bootstrap epochs
         );
 
         treasury = new Treasury(address(core));

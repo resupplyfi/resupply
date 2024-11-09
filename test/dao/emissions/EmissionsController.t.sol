@@ -33,28 +33,24 @@ contract EmissionsControllerTest is Setup {
         emissionsController.registerReceiver(address(basicReceiver1)); // Defaults to 100% weight
 
         for (uint256 i = 0; i < 10; i++) {
-            uint256 epoch = emissionsController.getEpoch();
-            
-            uint256 supply = govToken.totalSupply();
+            uint256 expected = getExpectedEmissions(
+                getEmissionsRate(), 
+                govToken.totalSupply(), 
+                getEpoch()
+            );
+
             vm.prank(address(basicReceiver1));
             uint256 amount = emissionsController.fetchEmissions();
-            uint256 rate = emissionsController.emissionsRate(); // get the rate that was used at mint
-            
-            uint256 expected = supply * rate * epochLength / 365 days / 1e18;
-
-            expected = epoch < emissionsController.BOOTSTRAP_EPOCHS() ? 0 : expected; // No emissions during bootstrap
-
+            console.log("xxx", getEpoch(), expected, amount);
             assertEq(expected, amount);
 
             skip(epochLength);
-            vm.roll(block.number + 1);
-            epoch = emissionsController.getEpoch();
         }
     }
 
     function getExpectedEmissions(uint256 rate, uint256 supply, uint256 epoch) public view returns (uint256) {
         uint256 expected = supply * rate * epochLength / 365 days / 1e18;
-        return epoch < emissionsController.BOOTSTRAP_EPOCHS() ? 0 : expected;
+        return epoch <= emissionsController.BOOTSTRAP_EPOCHS() ? 0 : expected;
     }
 
     function getEmissionsRate() public view returns (uint256) {
@@ -62,6 +58,7 @@ contract EmissionsControllerTest is Setup {
 
         uint256 epoch = emissionsController.getEpoch();
         uint256 lastEmissionsUpdate = emissionsController.lastEmissionsUpdate();
+        if (lastEmissionsUpdate > epoch) return rate;
         if (epoch - lastEmissionsUpdate >= emissionsController.epochsPer()) {
             rate = emissionsController.getScheduleLength() > 0
                 ? emissionsController.getSchedule()[emissionsController.getScheduleLength() - 1]
@@ -75,7 +72,6 @@ contract EmissionsControllerTest is Setup {
         uint256 i;
         for (i = 0; i < 2; i++) {
             skip(epochLength);
-            console.log("xxx", getEpoch(), emissionsController.emissionsRate());
         }
         vm.prank(address(core));
         emissionsController.registerReceiver(address(basicReceiver1));

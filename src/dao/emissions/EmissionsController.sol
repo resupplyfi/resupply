@@ -46,10 +46,20 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     }
 
     struct Allocated {
-        uint56 lastFetchEpoch;
+        uint56 lastAllocEpoch;
         uint200 amount;
     }
 
+    /**
+     * @notice Initializes the emissions controller contract
+     * @param _core Address of the core contract
+     * @param _govToken Address of the governance token that will be minted as emissions
+     * @param _emissionsSchedule Array of emission rates, each representing a percentage with 18 decimals (1e18 = 100%)
+     * @param _epochsPer Number of epochs between emission rate changes
+     * @param _tailRate Final emission rate to use after schedule is exhausted
+     * @param _bootstrapEpochs Number of epochs to delay the start of emissions
+     * @dev the first epoch (0th) will never have emissions minted.
+     */
     constructor(
         address _core, 
         address _govToken, 
@@ -73,12 +83,12 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         }
     }
 
-
+    /**
+     * @notice Sets the weights for receivers
+     * @param _receiverIds Array of receiver IDs
+     * @param _newWeights Array of new weights corresponding to the receiver IDs
+     */
     function setReceiverWeights(uint256[] memory _receiverIds, uint256[] memory _newWeights) external onlyOwner {
-        // TODO: Refactor this to be more efficient - 
-        // only touch receivers that are specified in the calldata weights.
-        // prevent duplicate receiver ids in the calldata array.
-
         require(_receiverIds.length == _newWeights.length, "Length mismatch");
         uint256 totalWeight = BPS;
 
@@ -107,10 +117,13 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         emit ReceiverWeightsSet(_receiverIds, _newWeights);
     }
 
+    /**
+     * @notice Registers a new receiver
+     * @param _receiver Address of the receiver to register
+     */
     function registerReceiver(address _receiver) external onlyOwner {
         require(_receiver != address(0), "Invalid receiver");
         uint256 _id = nextReceiverId++;
-        // if foundId is zero, it either exists as id 0, or not yet registered.
         if (_id > 0) {
             require(
                 idToReceiver[receiverToId[_receiver]].receiver != _receiver, 
@@ -123,7 +136,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             weight: _id == 0 ? 10_000 : 0 // first receiver gets 100%
         });
         allocated[_receiver] = Allocated({
-            lastFetchEpoch: _id == 0 ? 0 : uint56(getEpoch()),
+            lastAllocEpoch: _id == 0 ? 0 : uint56(getEpoch()),
             amount: 0
         });
         receiverToId[_receiver] = _id;
@@ -168,22 +181,22 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     // dev: If no receivers are active, unallocated emissions will accumulate to next active receiver.
     function _fetchEmissions(address _receiver) internal returns (uint256) {
         uint256 epoch = getEpoch();
-        if (epoch < BOOTSTRAP_EPOCHS) return 0;
+        if (epoch <= BOOTSTRAP_EPOCHS) return 0;
         _mintEmissions(epoch); // bulk mints for the current epoch if not already done.
         Allocated memory _allocated = allocated[_receiver];
-        if (_allocated.lastFetchEpoch >= epoch) return 0;
+        if (_allocated.lastAllocEpoch >= epoch) return 0;
         Receiver memory receiver = idToReceiver[receiverToId[_receiver]];
         uint256 totalMinted;
         uint256 amount;
-        while (_allocated.lastFetchEpoch < epoch) {
-            _allocated.lastFetchEpoch++;
+        while (_allocated.lastAllocEpoch < epoch) {
+            _allocated.lastAllocEpoch++;
             amount = (
                 receiver.weight * 
-                emissionsPerEpoch[_allocated.lastFetchEpoch] /
+                emissionsPerEpoch[_allocated.lastAllocEpoch] /
                 BPS
             );
             totalMinted += amount;
-            emit EmissionsAllocated(_receiver, _allocated.lastFetchEpoch, !receiver.active, amount);
+            emit EmissionsAllocated(_receiver, _allocated.lastAllocEpoch, !receiver.active, amount);
         }
 
         if (!receiver.active) {
