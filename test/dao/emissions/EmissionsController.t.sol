@@ -69,7 +69,7 @@ contract EmissionsControllerTest is Setup {
             console.log(BasicReceiver(receiver).name(), getEpoch(), weight, amount);
         }
 
-        skip(epochLength);
+        skip(epochLength); // enter epoch 1
 
         vm.prank(address(core));
         emissionsController.registerReceiver(address(basicReceiver2));
@@ -80,62 +80,55 @@ contract EmissionsControllerTest is Setup {
             console.log(BasicReceiver(receiver).name(), getEpoch(), weight, amount);
         }
 
-        skip(epochLength);
+        skip(epochLength); // enter epoch 2
 
         vm.prank(address(core));
         emissionsController.registerReceiver(address(basicReceiver3));
 
         weights[0] = 2_001; // Exceeds 100% by 1 BPS
-        vm.startPrank(address(core));
         vm.expectRevert("Total weight must be 100%");
-        emissionsController.setReceiverWeights(
-            receiverIds, 
-            weights
-        );
-        weights[0] = 2_000;
-        emissionsController.setReceiverWeights(
-            receiverIds,
-            weights
-        );
-        vm.stopPrank();
-
+        setNewWeights(receiverIds, weights);
         
-        uint256 totalAmount;
-        for (uint256 i = 0; i < emissionsController.nextReceiverId(); i++) {
-            (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
-            vm.prank(receiver);
-            uint256 amount = emissionsController.fetchEmissions();
-            (, uint200 allocated) = emissionsController.allocated(receiver);
-            amount = uint256(allocated);
-            totalAmount += amount;
-            console.log(receiver, getEpoch(), weight, amount);
-        }
-        assertEq(totalAmount, govToken.balanceOf(address(emissionsController)));
+        weights[0] = 2_000; // Fix weight so the aggregate is now 100% even
+        setNewWeights(receiverIds, weights);
+        
+        checkTotalAllocatedMatchesECBalance();
 
-        skip(epochLength);
+        skip(epochLength); // enter epoch 3
         weights[0] = 1_000;
         weights[1] = 3_000;
         weights[2] = 6_000;
+        setNewWeights(receiverIds, weights);
+
+        skip(epochLength); // enter epoch 4
+
+        checkTotalAllocatedMatchesECBalance();
+
+        skip(epochLength); // enter epoch 5
+
+        uint256[] memory receiverIds2 = new uint256[](2);
+        receiverIds2[0] = 1;
+        receiverIds2[1] = 2;
+        uint256[] memory weights2 = new uint256[](2);
+        weights2[0] = 5_500;
+        weights2[1] = 3_500;
+        setNewWeights(receiverIds2, weights2);
+        
+        checkTotalAllocatedMatchesECBalance();
+
+        skip(epochLength); // enter epoch 6
+
+        checkTotalAllocatedMatchesECBalance();
+    }
+
+    function setNewWeights(uint256[] memory receiverIds, uint256[] memory weights) internal {
         vm.prank(address(core));
         emissionsController.setReceiverWeights(
             receiverIds,
             weights
         );
-        skip(epochLength);
-        totalAmount = 0;
-        for (uint256 i = 0; i < emissionsController.nextReceiverId(); i++) {
-            (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
-            vm.prank(receiver);
-            uint256 amount = emissionsController.fetchEmissions();
-            (, uint200 allocated) = emissionsController.allocated(receiver);
-            amount = uint256(allocated);
-            totalAmount += amount;
-            console.log(receiver, getEpoch(), weight, amount);
-        }
-        assertApproxEqAbs(totalAmount, govToken.balanceOf(address(emissionsController)), DUST);
     }
 
-    
 
     function test_NoReceiversConnected() public {
         uint256 i;
@@ -205,11 +198,57 @@ contract EmissionsControllerTest is Setup {
     }
 
     function test_ChangeEmissionsSchedule() public {
+        vm.startPrank(address(core));
 
+        uint256[] memory rates = new uint256[](0);
+        uint256 epochsPer = 0;
+        uint256 tailRate = 0;
+
+        // Schedule cannot be empty
+        vm.expectRevert("Schedule length not > 0");
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+
+        rates = new uint256[](2);
+        rates[0] = 100;
+        rates[1] = 99;
+
+        // Epochs per must be greater than 0
+        vm.expectRevert("Invalid epochs per");
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+        epochsPer = 1;
+
+        // Rates must be in decaying order
+        vm.expectRevert("Rates must decay");
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+
+        // Final rate must be greater than tail rate
+        rates[0] = 100;
+        rates[1] = 101;
+        tailRate = 100;
+        vm.expectRevert("Final rate not greater than tail rate");
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+
+        vm.stopPrank();
     }
 
     function test_EmissionsChangesAndTailRate() public {
+        vm.startPrank(address(core));
+        emissionsController.registerReceiver(address(basicReceiver1));
 
+        uint256[] memory rates = new uint256[](2);
+        rates[0] = 99;
+        rates[1] = 100;
+        uint256 epochsPer = 1;
+        uint256 tailRate = 98;
+        
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+        vm.stopPrank();
+        for (uint256 i = 0; i < 10; i++) {
+            skip(epochLength);
+            vm.prank(address(basicReceiver1));
+            emissionsController.fetchEmissions();
+            console.log(getEpoch(), emissionsController.emissionsRate());
+        }
     }
 
     function test_MultipleReceivers() public {
@@ -225,6 +264,23 @@ contract EmissionsControllerTest is Setup {
             assertEq(receiver, address(i == 0 ? basicReceiver1 : i == 1 ? basicReceiver2 : basicReceiver3));
             assertEq(weight, i==0 ? 10_000 : 0);
         }
+    }
+
+    function checkTotalAllocatedMatchesECBalance() internal {
+        uint256 totalAmount;
+        uint200 allocatedBefore;
+        uint200 allocatedAfter;
+        for (uint256 i = 0; i < emissionsController.nextReceiverId(); i++) {
+            (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
+            (, allocatedBefore) = emissionsController.allocated(receiver);
+            vm.prank(receiver);
+            uint256 amount = emissionsController.fetchEmissions();
+            (, allocatedAfter) = emissionsController.allocated(receiver);
+            console.log(receiver, 'diff', allocatedAfter - allocatedBefore);
+            totalAmount += allocatedAfter;
+            console.log(receiver, getEpoch(), weight, allocatedAfter);
+        }
+        assertApproxEqAbs(totalAmount, govToken.balanceOf(address(emissionsController)), DUST);
     }
 
     function getExpectedEmissions(uint256 rate, uint256 supply, uint256 epoch) public view returns (uint256) {

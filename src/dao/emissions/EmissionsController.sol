@@ -214,7 +214,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         if (epoch <= _lastMintEpoch) return;
         while (_lastMintEpoch < epoch) {
             if (++_lastMintEpoch < BOOTSTRAP_EPOCHS) continue;
-            uint256 mintable = _calculateNewEmissions(_lastMintEpoch);
+            uint256 mintable = _calcEmissionsForEpoch(_lastMintEpoch);
             if (mintable > 0) govToken.mint(address(this), mintable);
             emissionsPerEpoch[_lastMintEpoch] = mintable;
             if (nextReceiverId == 0) unallocated += mintable;
@@ -223,7 +223,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     }
 
 
-    function _calculateNewEmissions(uint256 _epoch) internal returns (uint256) {
+    function _calcEmissionsForEpoch(uint256 _epoch) internal returns (uint256) {
         uint256 _emissionsRate = emissionsRate;
         if (_epoch - lastEmissionsUpdate >= epochsPer) {
             uint256 len = emissionsSchedule.length;
@@ -254,18 +254,18 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      * @notice Sets the emissions schedule and epochs per schedule item
      * @param _rates An array of inflation rates expressed as annual pct of total supply (100% = 1e18)
      * @param _epochsPer Number of epochs each schedule item lasts
-     * @dev rates should be in reverse order. Last item will be used first.
+     * @dev rates must be in reverse order. Last item will be used first.
+     * @dev All updates take effect in the epoch following the epoch in which the call is made.
      */
     function setEmissionsSchedule(uint256[] memory _rates, uint256 _epochsPer, uint256 _tailRate) external onlyOwner {
-        require(_rates.length > 0, "Schedule must have at least one item");
-        if (_rates.length == 1) {
-            require(_epochsPer > 0, "Invalid epochs per");
+        require(_rates.length > 0, "Schedule length not > 0");
+        require(_epochsPer > 0, "Invalid epochs per");
+        for (uint256 i = 0; i < _rates.length; i++) {
+            if (i == _rates.length - 1) break; // prevent index out of bounds
+            require(_rates[i] <= _rates[i + 1], "Rates must decay"); // lower index must be <= than higher index
         }
-        for (uint256 i = 0; i < _rates.length - 1; i++) {
-            if (i == _rates.length - 1) break;
-            require(_rates[i] > _rates[i + 1], "Rates must decay");
-        }
-        require(_rates[_rates.length - 1] > _tailRate, "Final rate <= tail rate");
+        _mintEmissions(getEpoch()); // before updating, mint current epoch emissions at old rate
+        require(_rates[0] > _tailRate, "Final rate not greater than tail rate");
         emissionsSchedule = _rates;
         epochsPer = _epochsPer;
         tailRate = _tailRate;
