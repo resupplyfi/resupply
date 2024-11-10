@@ -104,7 +104,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             }
             receivers[i] = receiver.receiver;
 
-            if (receiver.weight > 0) IReceiver(receiver.receiver).allocateEmissions();
+            IReceiver(receiver.receiver).allocateEmissions(); // allocate according to old weight
             if (_newWeights[i] > receiver.weight) {
                 totalWeight += (_newWeights[i] - receiver.weight);
             } else {
@@ -173,12 +173,11 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         }
     }
 
-
     function fetchEmissions() external validReceiver(msg.sender) returns (uint256) {
         return _fetchEmissions(msg.sender);
     }
 
-    // dev: If no receivers are active, unallocated emissions will accumulate to next active receiver.
+    // If no receivers are active, unallocated emissions will accumulate to next active receiver.
     function _fetchEmissions(address _receiver) internal returns (uint256) {
         uint256 epoch = getEpoch();
         if (epoch <= BOOTSTRAP_EPOCHS) return 0;
