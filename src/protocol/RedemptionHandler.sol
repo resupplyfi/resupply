@@ -50,12 +50,19 @@ contract RedemptionHandler is CoreOwnable{
     function redeem (
         address _pair,
         uint256 _amount,
+        uint256 _maxFee,
         address _returnTo
     ) external returns(uint256){
         //pull redeeming tokens
         IERC20(redemptionToken).safeTransferFrom(msg.sender, address(this), _amount);
+
+        //get fee
+        uint256 fee = getRedemptionFee(_pair, _amount);
+        //check against maxfee to avoid frontrun
+        require(fee <= _maxFee,"over max fee");
+
         //redeem
-        return IResupplyPair(_pair).redeem(_amount, getRedemptionFee(_pair, _amount), _returnTo);
+        return IResupplyPair(_pair).redeem(_amount, fee, _returnTo);
     }
 
 }
