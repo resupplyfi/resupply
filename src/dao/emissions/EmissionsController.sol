@@ -166,11 +166,12 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         emit ReceiverEnabled(_id);
     }
 
-    function transferFromAllocation(address _recipient, uint256 _amount) external {
+    function transferFromAllocation(address _recipient, uint256 _amount) external returns (uint256) {
         if (_amount > 0) {
             allocated[msg.sender].amount -= uint200(_amount);
             govToken.transfer(_recipient, _amount);
         }
+        return _amount;
     }
 
     function fetchEmissions() external validReceiver(msg.sender) returns (uint256) {

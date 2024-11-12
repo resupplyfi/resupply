@@ -6,15 +6,15 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "../utils/Setup.sol";
 import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
 import { GovToken } from "../../../src/dao/GovToken.sol";
-import { BasicReceiver } from "../../../src/dao/emissions/receivers/BasicReceiver.sol";
+import { MockReceiver } from "../../mocks/MockReceiver.sol";
 
 contract EmissionsControllerTest is Setup {
 
     uint256 public constant DUST = 100;
     uint256 public epochLength;
-    BasicReceiver public basicReceiver1;
-    BasicReceiver public basicReceiver2;
-    BasicReceiver public basicReceiver3;
+    MockReceiver public mockReceiver1;
+    MockReceiver public mockReceiver2;
+    MockReceiver public mockReceiver3;
 
     function setUp() public override {
         super.setUp();
@@ -22,16 +22,16 @@ contract EmissionsControllerTest is Setup {
         govToken.setMinter(address(emissionsController));
         epochLength = emissionsController.epochLength();
 
-        basicReceiver1 = new BasicReceiver(address(core), address(emissionsController), "Basic Receiver 1");
-        basicReceiver2 = new BasicReceiver(address(core), address(emissionsController), "Basic Receiver 2");
-        basicReceiver3 = new BasicReceiver(address(core), address(emissionsController), "Basic Receiver 3");
+        mockReceiver1 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 1");
+        mockReceiver2 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 2");
+        mockReceiver3 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 3");
 
         vm.stopPrank();
     }
 
     function test_DefaultEmissionsSchedule() public {
         vm.prank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1)); // Defaults to 100% weight
+        emissionsController.registerReceiver(address(mockReceiver1)); // Defaults to 100% weight
 
         for (uint256 i = 0; i < 10; i++) {
             uint256 expected = getExpectedEmissions(
@@ -40,7 +40,7 @@ contract EmissionsControllerTest is Setup {
                 getEpoch()
             );
 
-            vm.prank(address(basicReceiver1));
+            vm.prank(address(mockReceiver1));
             uint256 amount = emissionsController.fetchEmissions();
             assertEq(expected, amount);
 
@@ -59,31 +59,31 @@ contract EmissionsControllerTest is Setup {
         weights[2] = 4_500;
 
         vm.prank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver1));
         uint256 amount;
 
         for (uint256 i = 0; i < emissionsController.nextReceiverId(); i++) {
             (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
             vm.prank(receiver);
             uint256 amount = emissionsController.fetchEmissions();
-            console.log(BasicReceiver(receiver).name(), getEpoch(), weight, amount);
+            console.log(MockReceiver(receiver).name(), getEpoch(), weight, amount);
         }
 
         skip(epochLength); // enter epoch 1
 
         vm.prank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver2));
+        emissionsController.registerReceiver(address(mockReceiver2));
         for (uint256 i = 0; i < emissionsController.nextReceiverId(); i++) {
             (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
             vm.prank(receiver);
             uint256 amount = emissionsController.fetchEmissions();
-            console.log(BasicReceiver(receiver).name(), getEpoch(), weight, amount);
+            console.log(MockReceiver(receiver).name(), getEpoch(), weight, amount);
         }
 
         skip(epochLength); // enter epoch 2
 
         vm.prank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver3));
+        emissionsController.registerReceiver(address(mockReceiver3));
 
         weights[0] = 2_001; // Exceeds 100% by 1 BPS
         vm.expectRevert("Total weight must be 100%");
@@ -137,7 +137,7 @@ contract EmissionsControllerTest is Setup {
         }
 
         vm.prank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver1));
         assertEq(emissionsController.nextReceiverId(), 1);
 
         for (i = 0; i < 20; i++) {
@@ -149,7 +149,7 @@ contract EmissionsControllerTest is Setup {
                 getEpoch()
             );
             
-            vm.prank(address(basicReceiver1));
+            vm.prank(address(mockReceiver1));
             uint256 amount = emissionsController.fetchEmissions();
             console.log(getEpoch(), emissionsController.emissionsRate());
             if (i != 0) assertEq(expected, amount);
@@ -160,20 +160,20 @@ contract EmissionsControllerTest is Setup {
 
     function test_PreventDuplicateReceiver() public {
         vm.startPrank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver1));
         vm.expectRevert("Receiver already added.");
-        emissionsController.registerReceiver(address(basicReceiver1));
-        emissionsController.registerReceiver(address(basicReceiver2));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver2));
         vm.expectRevert("Receiver already added.");
-        emissionsController.registerReceiver(address(basicReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver1));
         vm.expectRevert("Receiver already added.");
-        emissionsController.registerReceiver(address(basicReceiver2));
+        emissionsController.registerReceiver(address(mockReceiver2));
     }
 
     function test_RecoverUnallocated() public {
         vm.startPrank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1));
-        uint256 id = emissionsController.receiverToId(address(basicReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        uint256 id = emissionsController.receiverToId(address(mockReceiver1));
         emissionsController.deactivateReceiver(id); // By deactivating only receiver, all emissions are pushed to unallocated
         // Skip thru some epochs to build rewards
         for (uint256 i = 0; i < 10; i++) {
@@ -181,9 +181,9 @@ contract EmissionsControllerTest is Setup {
             vm.roll(block.number + 1);
         }
 
-        uint alloc = basicReceiver1.allocateEmissions(); // triggers ec.fetchEmissions()
+        uint alloc = mockReceiver1.allocateEmissions(); // triggers ec.fetchEmissions()
         (bool active, ,) = emissionsController.idToReceiver(id);
-        govToken.balanceOf(address(basicReceiver1));
+        govToken.balanceOf(address(mockReceiver1));
         if (!active) assertEq(alloc, 0);
         else assertGt(alloc, 0);
         // Verify we can recover unallocated
@@ -233,7 +233,7 @@ contract EmissionsControllerTest is Setup {
 
     function test_EmissionsChangesAndTailRate() public {
         vm.startPrank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver1));
 
         uint256[] memory rates = new uint256[](2);
         rates[0] = 99;
@@ -245,23 +245,23 @@ contract EmissionsControllerTest is Setup {
         vm.stopPrank();
         for (uint256 i = 0; i < 10; i++) {
             skip(epochLength);
-            vm.prank(address(basicReceiver1));
+            vm.prank(address(mockReceiver1));
             emissionsController.fetchEmissions();
             console.log(getEpoch(), emissionsController.emissionsRate());
         }
     }
 
-    function test_MultipleReceivers() public {
+    function test_AddMultipleReceivers() public {
         vm.startPrank(address(core));
-        emissionsController.registerReceiver(address(basicReceiver1));
-        emissionsController.registerReceiver(address(basicReceiver2));
-        emissionsController.registerReceiver(address(basicReceiver3));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        emissionsController.registerReceiver(address(mockReceiver2));
+        emissionsController.registerReceiver(address(mockReceiver3));
         uint256 nextId = emissionsController.nextReceiverId();
         assertEq(nextId, 3);
         for (uint256 i = 0; i < nextId; i++) {
             (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
             assertEq(active, true);
-            assertEq(receiver, address(i == 0 ? basicReceiver1 : i == 1 ? basicReceiver2 : basicReceiver3));
+            assertEq(receiver, address(i == 0 ? mockReceiver1 : i == 1 ? mockReceiver2 : mockReceiver3));
             assertEq(weight, i==0 ? 10_000 : 0);
         }
     }

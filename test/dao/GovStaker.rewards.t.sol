@@ -14,7 +14,6 @@ import { MultiRewardsDistributor } from "../../src/dao/staking/MultiRewardsDistr
 contract GovStakerRewardsTest is Setup {
     MockToken public rewardToken;
     MockToken public rewardToken2;
-    uint256 public constant EPOCH_LENGTH = 2 days;
 
     mapping(string => address) public tokenAddrs;
 
