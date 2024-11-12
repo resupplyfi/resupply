@@ -19,6 +19,7 @@ contract GuardianOperatorTest is Setup {
     GuardianOperator guardianOperator;
     address guardianMultisig = address(0x555);
     GuardianAuthHook authHook;
+    
     function setUp() public override {
         super.setUp();
 
@@ -31,9 +32,7 @@ contract GuardianOperatorTest is Setup {
 
         // Transfer ownership of the core contract to the voter contract
         vm.prank(address(core));
-        core.transferVoter(address(voter));
-        vm.prank(address(voter));
-        core.acceptTransferVoter();
+        core.setVoter(address(voter));
         
         // Give user1 some stake so they can create a proposal + vote.
         vm.prank(user1);
@@ -65,22 +64,22 @@ contract GuardianOperatorTest is Setup {
         (, IAuthHook hook) = core.operatorPermissions(
             address(guardianOperator), 
             address(core),
-            bytes4(keccak256("pauseProtocol(bool)"))
+            bytes4(keccak256("pauseProtocol()"))
         );
         assertEq(address(hook), address(authHook));
 
         // Pause the protocol
         vm.prank(address(core));
-        core.pauseProtocol(true);
+        core.pauseProtocol();
 
-        // Attempt to unpause the protocol
+        // To test the auth hook, we need to set the operator permissions for unpauseProtocol
+        setOperatorPermissionsToUnpauseProtocol();
         vm.prank(address(guardianMultisig));
         vm.expectRevert("Auth PostHook Failed");
         guardianOperator.execute(
             address(core),
             abi.encodeWithSelector(
-                bytes4(keccak256("pauseProtocol(bool)")),
-                false // Unpause
+                bytes4(keccak256("unpauseProtocol()"))
             )
         );
 
@@ -126,8 +125,20 @@ contract GuardianOperatorTest is Setup {
         assertEq(guardianOperator.guardian(), user1);
     }
 
+    function setOperatorPermissionsToUnpauseProtocol() public {
+        bytes4 selector = bytes4(keccak256("unpauseProtocol()"));
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(guardianOperator), // caller
+            address(core), // target
+            selector,
+            true, // authorized
+            IAuthHook(address(authHook))
+        );
+    }
+
     function setOperatorPermissionsToPauseProtocol() public {
-        bytes4 selector = bytes4(keccak256("pauseProtocol(bool)"));
+        bytes4 selector = bytes4(keccak256("pauseProtocol()"));
         vm.prank(address(core));
         core.setOperatorPermissions(
             address(guardianOperator), // caller

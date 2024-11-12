@@ -32,8 +32,7 @@ contract GuardianOperator is CoreOwnable {
         core.execute(
             address(core),
             abi.encodeWithSelector(
-                bytes4(keccak256("pauseProtocol(bool)")),
-                true
+                bytes4(keccak256("pauseProtocol()"))
             )
         );
     }

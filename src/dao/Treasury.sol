@@ -38,4 +38,8 @@ contract Treasury is CoreOwnable {
         require(success, "Sending ETH failed");
         emit RetrieveETH(_amount);
     }
+
+    function setTokenApproval(address _token, address _spender, uint256 _amount) external onlyOwner {
+        IERC20(_token).safeApprove(_spender, _amount);
+    }
 }

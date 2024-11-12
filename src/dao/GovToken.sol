@@ -28,13 +28,13 @@ contract GovToken is ERC20, CoreOwnable {
     }
 
     function setMinter(address _minter) external onlyOwner {
-        require(!minterFinalized, "minter revoked");
+        require(!minterFinalized, "minter finalized");
         minter = _minter;
         emit MinterSet(_minter);
     }
 
     function finalizeMinter() external onlyOwner {
-        require(!minterFinalized, "already finalized");
+        require(!minterFinalized, "minter finalized");
         minterFinalized = true;
         emit FinalizeMinter();
     }

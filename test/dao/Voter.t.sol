@@ -13,17 +13,19 @@ import { ICore } from "../../src/interfaces/ICore.sol";
 
 contract VoterTest is Setup {
     MockPair pair;
+    uint256 public MAX_PCT;
+
     function setUp() public override {
         super.setUp();
+        
+        MAX_PCT = voter.MAX_PCT();
 
         // Create a mock protocol contract for us to test with
         pair = new MockPair(address(core));
 
         // Transfer ownership of the core contract to the voter contract
         vm.prank(address(core));
-        core.transferVoter(address(voter));
-        vm.prank(address(voter));
-        core.acceptTransferVoter();
+        core.setVoter(address(voter));
 
         // Give user1 some stake so they can create a proposal + vote.
         vm.prank(user1);
@@ -90,14 +92,28 @@ contract VoterTest is Setup {
             buildProposalData(5)
         );
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+        vm.expectRevert("Pct must not exceed MAX_PCT");
+        voter.voteForProposal(user1, proposalId, MAX_PCT+1, MAX_PCT);
+        vm.expectRevert("Pct must not exceed MAX_PCT");
+        voter.voteForProposal(user1, proposalId, MAX_PCT, MAX_PCT+1);
+        vm.expectRevert("Sum of pcts must equal MAX_PCT");
+        voter.voteForProposal(user1, proposalId, MAX_PCT, 1);
+        vm.expectRevert("Sum of pcts must equal MAX_PCT");
+        voter.voteForProposal(user1, proposalId, 1, 1);
 
+        voter.voteForProposal(user1, proposalId, MAX_PCT, 0);
+        vm.expectRevert("Already voted");
         voter.voteForProposal(user1, proposalId);
 
+        vm.stopPrank();
+        
         assertEq(voter.quorumReached(proposalId), true);
         assertEq(voter.canExecute(proposalId), false);
         skip(voter.VOTING_PERIOD());
         assertEq(voter.canExecute(proposalId), false);
+        vm.expectRevert("Proposal cannot be executed");
+        voter.executeProposal(proposalId);
         skip(voter.EXECUTION_DELAY());
 
         (
@@ -123,13 +139,9 @@ contract VoterTest is Setup {
         assertEq(pair.value(), 5);
     }
 
-    function test_transferVoter() public {
+    function test_SetVoter() public {
         vm.prank(address(core));
-        core.transferVoter(address(user2));
-        assertEq(core.voter(), address(voter)); // Should not be transferred yet
-
-        vm.prank(address(user2));
-        core.acceptTransferVoter();
+        core.setVoter(address(user2));
         assertEq(core.voter(), address(user2));
     }
 
@@ -177,5 +189,35 @@ contract VoterTest is Setup {
         });
         vm.prank(user1);
         return voter.createNewProposal(user1, payload);
+    }
+
+    function test_setMinCreateProposalPct() public {
+        vm.expectRevert("!core");
+        voter.setMinCreateProposalPct(5000);
+
+        vm.startPrank(address(core));
+        voter.setMinCreateProposalPct(5000);
+
+        vm.expectRevert("Too low");
+        voter.setMinCreateProposalPct(0);
+
+        vm.expectRevert("Invalid value");
+        voter.setMinCreateProposalPct(MAX_PCT+1);
+        vm.stopPrank();
+    }
+
+    function test_setPassingPct() public {
+        vm.expectRevert("!core");
+        voter.setPassingPct(5000);
+
+        vm.startPrank(address(core));
+        voter.setPassingPct(5000);
+
+        vm.expectRevert("Too low");
+        voter.setPassingPct(0);
+
+        vm.expectRevert("Invalid value");
+        voter.setPassingPct(MAX_PCT+1);
+        vm.stopPrank();
     }
 }

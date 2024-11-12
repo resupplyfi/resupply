@@ -211,8 +211,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param pctNo Percent of account's total weight to vote against
      */
     function voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) external callerOrDelegated(account) {
-        require(pctYes <= MAX_PCT && pctNo <= MAX_PCT, "Pcts must not exceed MAX_PCT");
-        require(pctYes + pctNo == MAX_PCT, "Pcts sum must not exceed MAX_PCT");
+        require(pctYes <= MAX_PCT && pctNo <= MAX_PCT, "Pct must not exceed MAX_PCT");
+        require(pctYes + pctNo == MAX_PCT, "Sum of pcts must equal MAX_PCT");
         _voteForProposal(account, id, pctYes, pctNo);
     }
 
@@ -342,8 +342,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @dev Only callable via a passing proposal that includes a call
              to this contract and function within it's payload
      */
-    function setMinCreateProposalPct(uint256 pct) external returns (bool) {
-        require(msg.sender == address(this), "Only callable via proposal");
+    function setMinCreateProposalPct(uint256 pct) external onlyOwner returns (bool) {
+        require(pct > 0, "Too low");
         require(pct <= MAX_PCT, "Invalid value");
         minCreateProposalPct = pct;
         emit ProposalCreationMinPctSet(pct);
@@ -356,9 +356,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @dev Only callable via a passing proposal that includes a call
              to this contract and function within it's payload
      */
-    function setPassingPct(uint256 pct) external returns (bool) {
-        require(msg.sender == address(this), "Only callable via proposal");
-        require(pct > 0, "pct must be nonzero");
+    function setPassingPct(uint256 pct) external onlyOwner returns (bool) {
+        require(pct > 0, "Too low");
         require(pct <= MAX_PCT, "Invalid value");
         passingPct = pct;
         emit ProposalPassingPctSet(pct);

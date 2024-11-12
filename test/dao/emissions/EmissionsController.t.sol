@@ -266,6 +266,24 @@ contract EmissionsControllerTest is Setup {
         }
     }
 
+    function test_ActivateDeactivateReceiver() public {
+        vm.startPrank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        uint256 id = emissionsController.receiverToId(address(mockReceiver1));
+        emissionsController.deactivateReceiver(id);
+        vm.expectRevert("Receiver not active");
+        emissionsController.deactivateReceiver(id);
+        vm.expectRevert("Receiver not found");
+        emissionsController.deactivateReceiver(69);
+
+        emissionsController.activateReceiver(id);
+        vm.expectRevert("Receiver active");
+        emissionsController.activateReceiver(id);
+        vm.expectRevert("Receiver not found");
+        emissionsController.activateReceiver(69);
+        vm.stopPrank();
+    }
+
     function checkTotalAllocatedMatchesECBalance() internal {
         uint256 totalAmount;
         uint200 allocatedBefore;

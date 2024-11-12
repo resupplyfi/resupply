@@ -17,11 +17,7 @@ contract Core {
     using Address for address;
 
     address public voter;
-    address public pendingVoter;
-    uint256 public voterTransferDelay;
 
-    // We enforce a three day delay when swapping
-    uint256 public constant VOTER_TRANSFER_DELAY = 3 days;
     uint256 public immutable startTime;
     uint256 public immutable epochLength;
     // System-wide pause. When true, disables trove adjustments across all collaterals.
@@ -30,8 +26,7 @@ contract Core {
     // permission for callers to execute arbitrary calls via this contract's `execute` function
     mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) public operatorPermissions;
 
-    event VoterTransferStarted(address indexed previousVoter, address indexed newVoter);
-    event VoterTransferred(address indexed previousVoter, address indexed newVoter);
+    event VoterSet(address indexed newVoter);
     event ProtocolPaused(bool indexed paused);
     event OperatorExecuted(address indexed caller, address indexed target, bytes data);
     event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);
@@ -57,6 +52,7 @@ contract Core {
         startTime = (block.timestamp / _epochLength) * _epochLength;
         epochLength = _epochLength;
         voter = _voter;
+        emit VoterSet(_voter);
     }
 
     /**
@@ -95,26 +91,25 @@ contract Core {
         emit OperatorSet(caller, target, authorized, selector, authHook);
     }
 
-    function transferVoter(address newVoter) external onlyCore {
-        pendingVoter = newVoter;
-        emit VoterTransferStarted(voter, newVoter);
-    }
-
-    function acceptTransferVoter() external {
-        require(msg.sender == pendingVoter, "Only new owner");
-        emit VoterTransferred(voter, pendingVoter);
-        voter = pendingVoter;
-        pendingVoter = address(0);
+    function setVoter(address newVoter) external onlyCore {
+        voter = newVoter;
+        emit VoterSet(newVoter);
     }
 
     /**
      * @notice Sets the global pause state of the protocol
      *         Pausing is used to mitigate risks in exceptional circumstances.
-     * @param _paused If true the protocol is paused
      */
-    function pauseProtocol(bool _paused) public onlyCore {
-        paused = _paused;
-        emit ProtocolPaused(_paused);
+    function pauseProtocol() public onlyCore {
+        require(!paused, "Already Paused");
+        paused = true;
+        emit ProtocolPaused(true);
+    }
+
+    function unpauseProtocol() public onlyCore {
+        require(paused, "Already Unpaused");
+        paused = false;
+        emit ProtocolPaused(false);
     }
 
     function isProtocolPaused() external view returns (bool) {

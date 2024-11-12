@@ -13,12 +13,12 @@ contract CorePausable is CoreOwnable {
     constructor(address _core) CoreOwnable(_core) {}
 
     modifier whenProtocolNotPaused() {
-        require(!isProtocolPaused(), "Paused");
+        require(!isProtocolPaused(), "Protocol Paused");
         _;
     }
 
     modifier whenProtocolPaused() {
-        require(isProtocolPaused(), "!Paused");
+        require(isProtocolPaused(), "Protocol Not Paused");
         _;
     }
 

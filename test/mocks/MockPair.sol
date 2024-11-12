@@ -5,7 +5,7 @@ contract MockPair is CorePausable {
 
     constructor(address _core) CorePausable(_core) {}
 
-    function setValue(uint256 _value) external onlyOwner {
+    function setValue(uint256 _value) external whenProtocolNotPaused onlyOwner {
         value = _value;
     }
 }

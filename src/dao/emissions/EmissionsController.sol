@@ -150,8 +150,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     /// @param _id The ID of the receiver to deactivate
     function deactivateReceiver(uint256 _id) external onlyOwner {
         Receiver memory receiver = idToReceiver[_id];
+        require(receiver.receiver != address(0), "Receiver not found");
         require(receiver.active, "Receiver not active");
-        require(receiver.receiver != address(0), "Receiver not found.");
         _fetchEmissions(receiver.receiver);
         idToReceiver[_id].active = false;
         emit ReceiverDisabled(_id);
@@ -159,8 +159,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
     function activateReceiver(uint256 _id) external onlyOwner {
         Receiver memory receiver = idToReceiver[_id];
-        require(!receiver.active, "Receiver already active");
-        require(receiver.receiver != address(0), "Receiver not found.");
+        require(receiver.receiver != address(0), "Receiver not found");
+        require(!receiver.active, "Receiver active");
         _fetchEmissions(receiver.receiver);
         idToReceiver[_id].active = true;
         emit ReceiverEnabled(_id);
