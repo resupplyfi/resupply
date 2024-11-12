@@ -209,6 +209,9 @@ contract BasePairTest is
             rewards,
             address(registry));
 
+        //seed insurance pool
+        stableToken.transfer(address(insurancePool),1e18);
+        
         ipStableStream = new SimpleRewardStreamer(
             address(stableToken),
             address(registry),
