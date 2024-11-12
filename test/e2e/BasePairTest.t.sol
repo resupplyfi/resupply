@@ -165,7 +165,7 @@ contract BasePairTest is
     /// @dev
     function deployBaseContracts() public {
 
-        registry = new ResupplyRegistry(address(stableToken),address(core));
+        registry = new ResupplyRegistry(address(core),address(stableToken));
         deployer = new ResupplyPairDeployer(
             address(registry),
             address(stakingToken),
@@ -199,9 +199,14 @@ contract BasePairTest is
     }
 
     function deployAuxContracts() public {
+        address[] memory rewards = new address[](3);
+        rewards[0] = address(stakingToken);
+        rewards[1] = address(fraxToken);
+        rewards[2] = address(crvUsdToken);
         insurancePool = new InsurancePool(
             address(core), //core
             address(stableToken),
+            rewards,
             address(registry));
 
         ipStableStream = new SimpleRewardStreamer(

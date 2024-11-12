@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-import { BaseScript } from "frax-std/BaseScript.sol";
-import { console } from "frax-std/FraxTest.sol";
+// import { BaseScript } from "frax-std/BaseScript.sol";
+// import { console } from "frax-std/FraxTest.sol";
+import { TenderlyHelper } from "../utils/TenderlyHelper.s.sol";
+import { console } from "../../../lib/forge-std/src/console.sol";
 import "src/Constants.sol" as Constants;
 import { DeployScriptReturn } from "./DeployScriptReturn.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,15 +25,19 @@ import { RewardHandler } from "src/protocol/RewardHandler.sol";
 
 
 
-contract DeployTestEnvironment is BaseScript {
+contract DeployTestEnvironment is TenderlyHelper {
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 75% with 1e5 precision
     uint256 internal constant DEFAULT_LIQ_FEE = 500; // 5% with 1e5 precision
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
     uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
 
-    function run() external broadcaster returns (DeployScriptReturn[] memory _return) {
-        _return = deployEnvironment();
+    function run() external returns (DeployScriptReturn[] memory _return) {
+        address deployer = vm.rememberKey(vm.envUint("PK"));
+        console.log(">>> deploying from:", deployer);
+        vm.startBroadcast(deployer);
+        setEthBalance(deployer, 10 ether);
+        _return = deployEnvironment(deployer);
     }
 
     function setReturnData(address _address, bytes memory _constructor, string memory _name) private returns(DeployScriptReturn memory _return){
@@ -43,9 +49,15 @@ contract DeployTestEnvironment is BaseScript {
     function deployOthers(address _core, ResupplyRegistry _registry, address _stable, address _gov) private returns(DeployScriptReturn[] memory _return){
         _return = new DeployScriptReturn[](9);
 
+        address[] memory rewards = new address[](3);
+        rewards[0] = address(_gov);
+        rewards[1] = address(Constants.Mainnet.FRAX_ERC20);
+        rewards[2] = address(Constants.Mainnet.CURVE_USD_ERC20);
+
         InsurancePool _insurancepool = new InsurancePool(
         address(_core), //core
         address(_stable),
+        rewards,
         address(_registry));
 
         _return[0].address_ = address(_insurancepool);
@@ -85,7 +97,7 @@ contract DeployTestEnvironment is BaseScript {
         _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
         FeeDepositController _feedepositController = new FeeDepositController(
             address(_registry),
-            address(deployer), //todo treasury
+            address(_core), //todo treasury
             address(_feedeposit),
             address(_stable),
             1500,
@@ -129,12 +141,8 @@ contract DeployTestEnvironment is BaseScript {
 
     }
 
-    function deployEnvironment() private returns (DeployScriptReturn[] memory _return) {
+    function deployEnvironment(address deployer) private returns (DeployScriptReturn[] memory _return) {
         _return = new DeployScriptReturn[](17);
-
-        // address deployer = msg.sender;
-        address deployer = vm.rememberKey(vm.envUint("PK"));
-        console.log(">>> deploying from:", deployer);
 
         address _core = deployer;
 
@@ -157,8 +165,8 @@ contract DeployTestEnvironment is BaseScript {
         _return[1].contractName = "GovToken";
 
         ResupplyRegistry _registry = new ResupplyRegistry(
-            address(_stable),
-            address(_core)
+            address(_core),
+            address(_stable)
         );
         _return[2].address_ = address(_registry);
         _return[2].constructorParams = "";

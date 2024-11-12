@@ -290,7 +290,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     }
 
     //claim reward for given account (unguarded)
-    function getReward(address _account) external {
+    function getReward(address _account) public virtual {
         //check if there is a redirect address
         if(rewardRedirect[_account] != address(0)){
             _checkpoint(_account, rewardRedirect[_account], type(uint256).max);
@@ -301,7 +301,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     }
 
     //claim reward for given account and forward (guarded)
-    function getReward(address _account, address _forwardTo) external {
+    function getReward(address _account, address _forwardTo) public virtual {
         //in order to forward, must be called by the account itself
         require(msg.sender == _account, "!self");
         //use _forwardTo address instead of _account
