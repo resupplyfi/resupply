@@ -12,8 +12,9 @@ contract SimpleReceiverFactory is CoreOwnable {
     address public immutable emissionsController;
     address public implementation;
     address[] public receivers;
+    mapping(bytes32 => address) public nameHashToReceiver;
 
-    event ReceiverDeployed(address indexed receiver, uint256 index);
+    event ReceiverDeployed(address indexed receiver, address indexed implementation, uint256 index);
     event ClaimerApproved(uint256 indexed index, address indexed claimer);
     event ImplementationSet(address indexed implementation);
 
@@ -28,17 +29,24 @@ contract SimpleReceiverFactory is CoreOwnable {
         emit ImplementationSet(_implementation);
     }
 
+    /// @notice Deploys a new simple emissions receiver contract as a minimal proxy clone
+    /// @dev Receivers must have unique names, unless deployed from different implementations
+    /// @param _name The name of the receiver contract
+    /// @param _approvedClaimers Array of addresses approved to claim emissions from this receiver
+    /// @return receiver The address of the newly deployed receiver contract
     function deployNewReceiver(string memory _name, address[] memory _approvedClaimers) external onlyOwner returns (address receiver) {
         bytes32 nameHash = keccak256(bytes(_name));
         receiver = implementation.cloneDeterministic(nameHash);
         ISimpleReceiver(receiver).initialize(_name, _approvedClaimers);
         receivers.push(receiver);
-        emit ReceiverDeployed(address(receiver), receivers.length - 1);
+        nameHashToReceiver[nameHash] = receiver;
+        emit ReceiverDeployed(address(receiver), implementation, receivers.length - 1);
     }
 
+    /// @dev Returns address(0) if no receiver is found.
+    ///      If two receivers were deployed with the same name, only the latest is returned.
     function getReceiverByName(string memory _name) external view returns (address receiver) {
-        receiver = getDeterministicAddress(_name);
-        return receiver.code.length > 0 ? receiver : address(0);
+        receiver = nameHashToReceiver[keccak256(bytes(_name))];
     }
 
     function getReceiversLength() external view returns (uint256) {

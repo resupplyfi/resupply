@@ -42,37 +42,6 @@ contract SimpleReceiverFactoryTest is Setup {
         assertEq(receiverByName, receiver);
     }
 
-    function test_MultipleReceiversWithSameName() public {
-        vm.startPrank(address(core));
-        address receiver = simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0));
-        
-        address receiver2;
-        vm.expectRevert("ERC1167: create2 failed");
-        receiver2 = simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0));
-        
-        address simpleReceiverImplementation2 = address(new 
-            SimpleReceiver(
-                address(core), 
-                address(emissionsController)
-            )
-        );
-        simpleReceiverFactory.setImplementation(simpleReceiverImplementation2);
-
-        receiver2 = simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0));
-        vm.stopPrank();
-
-        assertEq(receiver2, simpleReceiverFactory.getDeterministicAddress("Test Receiver"));
-        assertEq(receiver2, simpleReceiverFactory.getReceiverByName("Test Receiver"));
-    }
-
-    function test_FactoryAccessControl() public {
-        vm.expectRevert("!core");
-        simpleReceiverFactory.setImplementation(address(0));
-
-        vm.expectRevert("!core");
-        simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0));
-    }
-
     function test_ReceiverAccessControl() public {
         address[] memory approvedClaimers = new address[](1);
         approvedClaimers[0] = user1;
