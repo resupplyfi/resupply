@@ -29,7 +29,7 @@ contract MockReceiver {
 
     // REQUIRED: any function to claim emissions from the receiver's allocated amount
     function claimEmissions(address receiver) external returns (uint256) {
-        uint256 amount = emissionsController.allocated(address(this)); // returns totalamount allocated to receiver
-        return emissionsController.transferFromAllocation(receiver, amount); // pulls from receiver's allocation
+        (, uint256 allocated) = emissionsController.allocated(address(this)); // returns totalamount allocated to receiver
+        return emissionsController.transferFromAllocation(receiver, allocated); // pulls from receiver's allocation
     }
 }

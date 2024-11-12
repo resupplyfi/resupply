@@ -47,12 +47,13 @@ contract SimpleReceiver is CoreOwnable {
 
     function claimEmissions(address receiver) external onlyOwnerOrApprovedClaimers returns (uint256 amount) {
         emissionsController.fetchEmissions();
-        amount = emissionsController.allocated(address(this));
-        return emissionsController.transferFromAllocation(receiver, amount);
+        (, uint256 allocated) = emissionsController.allocated(address(this));
+        return emissionsController.transferFromAllocation(receiver, allocated);
     }
 
     function claimableEmissions() external view returns (uint256) {
-        return emissionsController.allocated(address(this));
+        (, uint256 allocated) = emissionsController.allocated(address(this));
+        return allocated;
     }
 
     function setApprovedClaimer(address claimer, bool approved) external onlyOwner {

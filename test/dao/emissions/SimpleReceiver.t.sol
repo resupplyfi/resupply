@@ -42,6 +42,29 @@ contract SimpleReceiverFactoryTest is Setup {
         assertEq(receiverByName, receiver);
     }
 
+    function test_AllocateEmissions() public {
+        vm.startPrank(address(core));
+        SimpleReceiver receiver = SimpleReceiver(
+            simpleReceiverFactory.deployNewReceiver(
+                "Test Receiver", 
+                new address[](0)
+            )
+        );
+        emissionsController.registerReceiver(address(receiver));
+        uint256 amount = receiver.allocateEmissions();
+        assertEq(amount, 0);
+        skip(epochLength);
+        amount = receiver.allocateEmissions();
+        assertGt(amount, 0);
+        assertEq(receiver.claimableEmissions(), amount);
+
+        assertEq(receiver.claimEmissions(address(user1)), amount);
+        (, uint256 allocated) = emissionsController.allocated(address(receiver));
+        assertEq(allocated, 0);
+        assertEq(receiver.claimableEmissions(), 0);
+        vm.stopPrank();
+    }
+
     function test_ReceiverAccessControl() public {
         address[] memory approvedClaimers = new address[](1);
         approvedClaimers[0] = user1;

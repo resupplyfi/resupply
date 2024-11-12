@@ -14,6 +14,7 @@ import { MultiRewardsDistributor } from "../../src/dao/staking/MultiRewardsDistr
 contract GovStakerRewardsTest is Setup {
     MockToken public rewardToken;
     MockToken public rewardToken2;
+    MockToken public sweepToken;
 
     mapping(string => address) public tokenAddrs;
 
@@ -36,6 +37,7 @@ contract GovStakerRewardsTest is Setup {
         owner = address(core);
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
+        sweepToken = new MockToken("SweepToken", "ST");
         rewardToken.mint(owner, 1_000_000 * 10 ** 18);
         rewardToken2.mint(owner, 1_000_000 * 10 ** 18);
         vm.startPrank(owner);
@@ -54,6 +56,112 @@ contract GovStakerRewardsTest is Setup {
             stakingToken.approve(address(staker), type(uint256).max);
             mintGovToken(users[i], 1_000_000 * 10 ** 18);
         }
+    }
+
+    function test_RewardTooHigh() public {
+        vm.prank(owner);
+        staker.addReward(
+            address(rewardToken), 
+            address(owner), 
+            3*WEEK
+        );
+        vm.expectRevert(MultiRewardsDistributor.SupplyMustBeGreaterThanZero.selector);
+        vm.prank(owner);
+        staker.notifyRewardAmount(address(rewardToken), 1e18);
+
+        depositStake();
+
+        vm.expectRevert(MultiRewardsDistributor.Unauthorized.selector);
+        staker.notifyRewardAmount(address(rewardToken), 0);
+
+        vm.startPrank(owner);
+        vm.expectRevert(MultiRewardsDistributor.MustBeGreaterThanZero.selector);
+        staker.notifyRewardAmount(address(rewardToken), 0);
+
+        deal(address(rewardToken), address(owner), 10_000e18);
+        staker.notifyRewardAmount(address(rewardToken), 10_000e18);
+
+        vm.stopPrank();
+        // vm.startPrank(owner);
+        // staker.addReward(address(rewardToken), owner, 3*WEEK);
+        // rewardToken.approve(address(staker), type(uint256).max);
+        // staker.notifyRewardAmount(address(rewardToken), 1e18);
+    }
+
+    function test_setRewardsDistributor() public {
+        vm.prank(owner);
+        staker.addReward(
+            address(rewardToken), 
+            address(owner), 
+            3*WEEK
+        );
+    
+        vm.expectRevert("!core");
+        staker.setRewardsDistributor(address(rewardToken), address(user1));
+
+        vm.prank(owner);
+        staker.setRewardsDistributor(address(rewardToken), address(user1));
+
+        (address rewardsDistributor, , , , , ) = staker.rewardData(address(rewardToken));
+        assertEq(rewardsDistributor, address(user1));
+
+    }
+
+    function test_recoverERC20() public {
+        depositStake();
+        deal(address(stakingToken), address(user1), 1e18);
+        vm.prank(user1);
+        stakingToken.transfer(address(staker), 1e18);
+
+        vm.prank(owner);
+        staker.addReward(address(rewardToken), owner, 3*WEEK);
+
+        assertGt(stakingToken.balanceOf(address(staker)), staker.totalSupply());
+
+        uint256 balance = stakingToken.balanceOf(address(staker));
+        vm.prank(owner);
+        staker.recoverERC20(address(stakingToken), 1e18);
+        assertLt(stakingToken.balanceOf(address(staker)), balance);
+
+        sweepToken.mint(address(staker), 1e18);
+        assertEq(sweepToken.balanceOf(address(staker)), 1e18);
+        vm.prank(owner);
+        staker.recoverERC20(address(sweepToken), 1e18);
+        assertEq(sweepToken.balanceOf(address(staker)), 0);
+
+        deal(address(rewardToken), address(staker), 1e18);
+        assertEq(rewardToken.balanceOf(address(staker)), 1e18);
+        vm.prank(owner);
+        staker.recoverERC20(address(rewardToken), 1e18);
+        assertEq(rewardToken.balanceOf(address(staker)), 1e18); // Can't sweep reward token
+    }
+
+    function test_setRewardsDuration() public {
+        depositStake();
+
+        vm.prank(owner);
+        staker.addReward(
+            address(rewardToken), 
+            address(owner), 
+            3*WEEK
+        );
+
+        vm.expectRevert(MultiRewardsDistributor.Unauthorized.selector);
+        staker.setRewardsDuration(address(rewardToken), 3*WEEK);
+
+        vm.startPrank(owner);
+        vm.expectRevert(MultiRewardsDistributor.MustBeGreaterThanZero.selector);
+        staker.setRewardsDuration(address(rewardToken), 0);
+
+        staker.setRewardsDuration(address(rewardToken), WEEK);
+
+        staker.notifyRewardAmount(address(rewardToken), 1e18);
+
+        vm.expectRevert(MultiRewardsDistributor.RewardsStillActive.selector);
+        staker.setRewardsDuration(address(rewardToken), WEEK);
+
+        skip(WEEK+1);
+        staker.setRewardsDuration(address(rewardToken), WEEK);
     }
 
     function test_basicOperation() public {
@@ -102,6 +210,8 @@ contract GovStakerRewardsTest is Setup {
         // check earnings, get reward
         uint256 earned = staker.earned(user1, address(rewardToken));
         assertGt(earned, 0);
+        vm.prank(user1);
+        staker.getOneReward(address(rewardToken));
         vm.prank(user1);
         staker.getReward();
         assertGe(rewardToken.balanceOf(user1), earned);
@@ -413,5 +523,15 @@ contract GovStakerRewardsTest is Setup {
     function mintGovToken(address _to, uint256 _amount) public {
         vm.prank(stakingToken.minter());
         stakingToken.mint(_to, _amount);
+    }
+
+    function depositStake() public {
+        uint256 amount = 1_000e18;
+        mintGovToken(user1, amount);
+        assertGt(stakingToken.balanceOf(user1), 0);
+        vm.startPrank(user1);
+        stakingToken.approve(address(staker), type(uint256).max);
+        staker.stake(user1, amount);
+        vm.stopPrank();
     }
 }
