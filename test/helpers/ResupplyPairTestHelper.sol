@@ -48,10 +48,10 @@ library ResupplyPairTestHelper {
         _newRate = _results.currentRateInfo.ratePerSec;
     }
 
-    function __totalAssetsAvailable(ResupplyPair _pair) internal view returns (uint256 _totalAssetsAvailable) {
+    function __totalDebtAvailable(ResupplyPair _pair) internal view returns (uint256 _totalDebtAvailable) {
         // (, , VaultAccount memory _totalAsset, VaultAccount memory _totalBorrow) = _pair.previewAddInterest();
         // return _totalAsset.amount - _totalBorrow.amount;
-        return _pair.totalAssetAvailable();
+        return _pair.totalDebtAvailable();
     }
 
     function __totalBorrowAmount(ResupplyPair _pair) internal view returns (uint256 _totalBorrowAmount) {

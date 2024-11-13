@@ -115,7 +115,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
     struct ExchangeRateInfo {
         address oracle;
-        uint184 lastTimestamp;
+        uint96 lastTimestamp;
         uint256 exchangeRate;
     }
 
@@ -123,7 +123,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     VaultAccount public totalBorrow; // amount = total borrow amount with interest accrued, shares = total shares outstanding
     uint256 public claimableFees; //amount of interest gained that is claimable as fees
     uint256 public claimableOtherFees; //amount of redemption/mint fees claimable by protocol
-    WriteOffToken public redemptionWriteOff; //token to keep track of redemption write offs
+    WriteOffToken immutable public redemptionWriteOff; //token to keep track of redemption write offs
 
     // User Level Accounting
     /// @notice Stores the balance of collateral for each user
@@ -280,13 +280,13 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _collateralAmount = _collateralAmount > total ? total : _collateralAmount;
     }
 
-    /// @notice The ```totalAssetAvailable``` function returns the total balance of Asset Tokens in the contract
-    /// @return The balance of Asset Tokens held by contract
-    function totalAssetAvailable(
+    /// @notice The ```totalDebtAvailable``` function returns the total balance of debt tokens in the contract
+    /// @return The balance of debt tokens held by contract
+    function totalDebtAvailable(
     ) public view returns (uint256) {
         //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
         //be a limited amount of stables that have been bridged and available
-        uint256 mintable = IResupplyRegistry(registry).getMaxMintable(address(this));
+        uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
         uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
         return borrowable < mintable ? borrowable : mintable;
@@ -617,7 +617,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             _exchangeRate = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateralContract));
 
             // Effects: Bookkeeping and write to storage
-            _exchangeRateInfo.lastTimestamp = uint184(block.timestamp);
+            _exchangeRateInfo.lastTimestamp = uint96(block.timestamp);
             _exchangeRateInfo.exchangeRate = _exchangeRate;
             exchangeRateInfo = _exchangeRateInfo;
             emit UpdateExchangeRate(_exchangeRate);
@@ -667,11 +667,11 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         uint256 _mintFees
     );
 
-    /// @notice The ```_borrowAsset``` function is the internal implementation for borrowing assets
+    /// @notice The ```_borrow``` function is the internal implementation for borrowing assets
     /// @param _borrowAmount The amount of the Asset Token to borrow
     /// @param _receiver The address to receive the Asset Tokens
     /// @return _sharesAdded The amount of borrow shares the msg.sender will be debited
-    function _borrowAsset(uint128 _borrowAmount, address _receiver) internal returns (uint256 _sharesAdded) {
+    function _borrow(uint128 _borrowAmount, address _receiver) internal returns (uint256 _sharesAdded) {
         // Get borrow accounting from storage to save gas
         VaultAccount memory _totalBorrow = totalBorrow;
 
@@ -680,9 +680,9 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         }
 
         // Check available capital
-        uint256 _assetsAvailable = totalAssetAvailable();
+        uint256 _assetsAvailable = totalDebtAvailable();
         if (_assetsAvailable < _borrowAmount) {
-            revert InsufficientAssetsInContract(_assetsAvailable, _borrowAmount);
+            revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
         }
 
         //mint fees
@@ -735,7 +735,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         }
 
         // Effects: Call internal borrow function
-        _shares = _borrowAsset(_borrowAmount.toUint128(), _receiver);
+        _shares = _borrow(_borrowAmount.toUint128(), _receiver);
     }
 
     /// @notice The ```AddCollateral``` event is emitted when a borrower adds collateral to their position
@@ -1139,7 +1139,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
         // Debit borrowers account
         // setting recipient to address(this) so that swapping can occur from this contract (debt still goes to msg.sender)
-        uint256 _borrowShares = _borrowAsset(_borrowAmount.toUint128(), address(this));
+        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
 
         // Interactions
         _assetContract.approve(_swapperAddress, _borrowAmount);

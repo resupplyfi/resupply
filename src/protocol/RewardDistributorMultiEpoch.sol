@@ -19,8 +19,8 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
 
     struct RewardType {
         address reward_token;
-        uint256 reward_remaining;
         bool is_non_claimable; //a bit unothrodox setting but need to block claims on our redemption tokens as they will be processed differently
+        uint256 reward_remaining;
     }
 
     //rewards
