@@ -24,7 +24,7 @@ contract PermaLockerTest is Setup {
         skip(staker.epochLength());
     }
 
-    function test_Execute() public {
+    function test_SafeExecute() public {
         vm.prank(permaLocker1.owner());
         permaLocker1.safeExecute(
             address(govToken), 
@@ -67,5 +67,75 @@ contract PermaLockerTest is Setup {
                 address(permaLocker1)
             )
         );
+    }
+
+    function test_Execute() public {
+        vm.expectRevert("!ownerOrOperator");
+        permaLocker1.execute(
+            address(govToken), 
+            abi.encodeWithSelector(
+                govToken.approve.selector, 
+                address(permaLocker1), 
+                100e18
+            )
+        );
+
+        vm.startPrank(permaLocker1.owner());
+        permaLocker1.execute(
+            address(govToken), 
+            abi.encodeWithSelector(
+                govToken.approve.selector, 
+                address(permaLocker1), 
+                100e18
+            )
+        );
+
+        permaLocker1.execute(
+            address(govToken), 
+            abi.encodeWithSelector(
+                govToken.transfer.selector, 
+                address(permaLocker1), 
+                100e18
+            )
+        );
+        vm.stopPrank();
+    }
+
+    function test_AllowUnstaking() public {
+        vm.prank(permaLocker1.owner());
+        vm.expectRevert("!core");
+        permaLocker1.allowUnstaking(true);
+
+        vm.prank(address(core));
+        permaLocker1.allowUnstaking(true);
+    }
+
+    function test_Stake() public {
+        uint256 balance = staker.balanceOf(address(permaLocker1));
+        deal(address(govToken), address(permaLocker1), 1000e18);
+
+        vm.startPrank(permaLocker1.owner());
+        permaLocker1.stake();
+        assertGt(staker.balanceOf(address(permaLocker1)), balance);
+
+
+        balance = staker.balanceOf(address(permaLocker1));
+        deal(address(govToken), address(permaLocker1), 1000e18);
+        permaLocker1.stake(1000e18);
+        assertGt(staker.balanceOf(address(permaLocker1)), balance);
+        vm.stopPrank();
+    }
+
+    function stakeSome() public {
+        deal(address(govToken), address(permaLocker1), 1000e18);
+        vm.prank(permaLocker1.owner());
+        permaLocker1.stake();
+        assertGt(staker.balanceOf(address(permaLocker1)), 0);
+    }
+
+    function test_SetOperator() public {
+        vm.prank(permaLocker1.owner());
+        permaLocker1.setOperator(address(user1));
+        assertEq(permaLocker1.operator(), address(user1));
     }
 }

@@ -106,6 +106,7 @@ contract VestManager is VestManagerBase {
         redemptionRatio = (
             allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable
         );
+        require(redemptionRatio != 0, "ratio is 0");
         require(totalPctAllocated == BPS, "Total not 100%");
         emit InitializationParamsSet();
     }
@@ -170,6 +171,7 @@ contract VestManager is VestManagerBase {
             _token == address(cvxprisma), 
             "invalid token"
         );
+        require(_amount > 0, "amount too low");
         uint256 _ratio = redemptionRatio;
         require(_ratio != 0, "ratio not set");
         IERC20(_token).transferFrom(msg.sender, BURN_ADDRESS, _amount);

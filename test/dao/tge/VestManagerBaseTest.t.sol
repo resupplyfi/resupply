@@ -9,8 +9,6 @@ contract VestManagerBaseTest is Setup {
 
     function setUp() public override {
         super.setUp();
-
-        
         vm.prank(address(core));
         govToken.approve(address(vestManager), type(uint256).max);
     }
@@ -102,7 +100,61 @@ contract VestManagerBaseTest is Setup {
         assertEq(claimable, vested - claimed);
         assertEq(locked, 0);
         assertEq(vested, claimable + claimed);
+    }
 
+    function test_CannotCreateInvalidVest() public {
+        deal(address(govToken), address(core), 1_000_000e18);
+        vm.expectRevert("!core");
+        vestManager.createVest(
+            address(core),
+            address(user1),
+            365 days,
+            1_000e18
+        );
+
+        vm.startPrank(address(core));
+        
+        vm.expectRevert("invalid funder");
+        vestManager.createVest(
+            address(vestManager),
+            address(user1),
+            365 days,
+            0
+        );
+
+        vm.expectRevert("invalid amount");
+        vestManager.createVest(
+            address(core),
+            address(user1),
+            100,
+            type(uint112).max
+        );
+
+        vm.expectRevert("Amount must be greater than zero");
+        vestManager.createVest(
+            address(core),
+            address(user1),
+            100,
+            0
+        );
+
+        vm.expectRevert("invalid duration");
+        vestManager.createVest(
+            address(core),
+            address(user1),
+            type(uint32).max,
+            1e18
+        );
+
+        vm.expectRevert("zero address");
+        vestManager.createVest(
+            address(core),
+            address(0),
+            100,
+            1e18
+        );
+
+        vm.stopPrank();
     }
 
     function test_sweepUnclaimed() public {

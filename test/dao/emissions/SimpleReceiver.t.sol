@@ -90,4 +90,15 @@ contract SimpleReceiverFactoryTest is Setup {
         amount = receiver.claimEmissions(address(user1));
         assertGt(amount, 0);
     }
+
+    function test_SetApprovedClaimer() public {
+        vm.prank(address(core));
+        SimpleReceiver receiver = SimpleReceiver(simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0)));
+        
+        assertEq(receiver.approvedClaimers(user1), false);
+
+        vm.prank(address(core));
+        receiver.setApprovedClaimer(user1, true);
+        assertEq(receiver.approvedClaimers(user1), true);
+    }
 }

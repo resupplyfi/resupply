@@ -81,7 +81,7 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     function claim(address _account) external callerOrDelegated(_account) returns (uint256 _claimed) {
         Vest[] storage vests = userVests[_account];
         uint256 length = vests.length;
-        require(vests.length > 0, "No vests to claim");
+        require(length > 0, "No vests to claim");
 
         for (uint256 i = 0; i < length; i++) {
             uint112 claimable = _claimableAmount(vests[i]);

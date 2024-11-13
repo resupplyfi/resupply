@@ -74,8 +74,8 @@ contract PermaLocker is Ownable2Step {
         emit UnstakingAllowed(_allowed);
     }
 
-    function stake(address account, uint256 amount) external onlyOwnerOrOperator {
-        staker.stake(account, amount);
+    function stake(uint256 amount) external onlyOwnerOrOperator {
+        staker.stake(address(this), amount);
     }
 
     function stake() external onlyOwnerOrOperator {

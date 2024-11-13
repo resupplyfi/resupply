@@ -15,6 +15,11 @@ contract VestManagerTest is Setup {
     function setUp() public override {
         super.setUp();
         
+        assertEq(vestManager.redemptionRatio(), 0);
+        address prisma = address(vestManager.prisma());
+        vm.expectRevert("ratio not set");
+        vestManager.redeem(prisma, address(this), 1e18);
+
         vm.prank(address(core));
         vestManager.setInitializationParams(
             maxRedeemable,      // _maxRedeemable
@@ -49,6 +54,8 @@ contract VestManagerTest is Setup {
             ]
         );
     }
+
+    
 
     function test_SetInitialParams() public {
         address[] memory targets = new address[](3);
@@ -204,6 +211,9 @@ contract VestManagerTest is Setup {
     }
 
     function test_Redemption() public {
+        vm.expectRevert("invalid token");
+        vestManager.redeem(address(govToken), address(this), 1e18);
+
         uint256 redemptionRatio = vestManager.redemptionRatio();
         address[] memory tokens = new address[](3);
         tokens[0] = address(vestManager.prisma());
@@ -281,5 +291,42 @@ contract VestManagerTest is Setup {
         if (allocationType == VestManager.AllocationType.AIRDROP_VICTIMS) return "AIRDROP_VICTIMS";
         if (allocationType == VestManager.AllocationType.AIRDROP_LOCK_PENALTY) return "AIRDROP_LOCK_PENALTY";
         return "UNKNOWN";
+    }
+
+    function test_CannotReinitializeParams() public {
+        vm.prank(address(core));
+        vm.expectRevert("params already set");
+        vestManager.setInitializationParams(
+            maxRedeemable,      // _maxRedeemable
+            [
+                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
+                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
+                bytes32(0) // We set this one later
+            ],
+            [   // _nonUserTargets
+                address(treasury), 
+                address(permaLocker1), // Convex
+                address(permaLocker2)  // Yearn
+            ],
+            [   // _durations
+                uint256(365 days),  // TREASURY
+                uint256(365 days),  // PERMA_LOCKER1
+                uint256(365 days),  // PERMA_LOCKER2
+                uint256(365 days),  // REDEMPTIONS
+                uint256(365 days),  // AIRDROP_TEAM
+                uint256(365 days),  // AIRDROP_VICTIMS
+                uint256(365 days)   // AIRDROP_LOCK_PENALTY
+            ],
+            [ // _allocPercentages
+                uint256(1200),  // TREASURY
+                uint256(2000),  // PERMA_LOCKER1 - Convex
+                uint256(1000),  // PERMA_LOCKER2 - Yearn
+                uint256(1500),  // REDEMPTIONS
+                uint256(100),   // AIRDROP_TEAM
+                uint256(200),   // AIRDROP_VICTIMS
+                uint256(0),     // AIRDROP_LOCK_PENALTY
+                uint256(4000)   // Emissions, first 5 years
+            ]
+        );
     }
 }
