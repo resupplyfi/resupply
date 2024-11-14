@@ -196,12 +196,15 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function exit() external{
-        uint256 exitTime = block.timestamp + withdrawTime;
-        withdrawQueue[msg.sender] = exitTime;
-
+        
         //claim all rewards now because reward0 will be excluded during
         //the withdraw sequence
+        //will error if already in withdraw process
         getReward(msg.sender);
+
+        //set withdraw time
+        uint256 exitTime = block.timestamp + withdrawTime;
+        withdrawQueue[msg.sender] = exitTime;
 
         emit Cooldown(msg.sender, balanceOf(msg.sender), exitTime);
     }
@@ -211,17 +214,19 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _clearWithdrawQueue(address _account) internal{
-        _checkpoint(_account);
-        //get reward 0 info
-        RewardType storage reward = rewards[0];
-        //note how much is claimable
-        uint256 reward0 = claimable_reward[reward.reward_token][_account];
-        //reset claimable
-        claimable_reward[reward.reward_token][_account] = 0;
-        //redistribute back to pool
-        reward.reward_remaining -= reward0;
+        if(withdrawQueue[msg.sender] != 0){
+            _checkpoint(_account);
+            //get reward 0 info
+            RewardType storage reward = rewards[0];
+            //note how much is claimable
+            uint256 reward0 = claimable_reward[reward.reward_token][_account];
+            //reset claimable
+            claimable_reward[reward.reward_token][_account] = 0;
+            //redistribute back to pool
+            reward.reward_remaining -= reward0;
 
-        withdrawQueue[msg.sender] = 0; //flag as not waiting for withdraw
+            withdrawQueue[msg.sender] = 0; //flag as not waiting for withdraw
+        }
     }
 
     function _checkWithdrawReady(address _account) internal{

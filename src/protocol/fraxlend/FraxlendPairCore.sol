@@ -770,14 +770,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @dev msg.sender must call ERC20.approve() on the Collateral Token contract prior to invocation
     /// @param _collateralAmount The amount of Collateral Token to be added to borrower's position
     /// @param _borrower The account to be credited
-    function addCollateral(uint256 _collateralAmount, address _borrower) external nonReentrant {
+    function addCollateralVault(uint256 _collateralAmount, address _borrower) external nonReentrant {
         if (_borrower == address(0)) revert InvalidReceiver();
 
         _addInterest();
         _addCollateral(msg.sender, _collateralAmount, _borrower);
     }
 
-    function addCollateralUnderlying(uint256 _collateralAmount, address _borrower) external nonReentrant {
+    function addCollateral(uint256 _collateralAmount, address _borrower) external nonReentrant {
         if (_borrower == address(0)) revert InvalidReceiver();
 
         _addInterest();
@@ -825,7 +825,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @dev msg.sender must be solvent after invocation or transaction will revert
     /// @param _collateralAmount The amount of Collateral Token to transfer
     /// @param _receiver The address to receive the transferred funds
-    function removeCollateral(
+    function removeCollateralVault(
         uint256 _collateralAmount,
         address _receiver
     ) external nonReentrant isSolvent(msg.sender) {
@@ -839,6 +839,23 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             _updateExchangeRate();
         }
         _removeCollateral(_collateralAmount, _receiver, msg.sender);
+    }
+
+    function removeCollateral(
+        uint256 _collateralAmount,
+        address _receiver
+    ) external nonReentrant isSolvent(msg.sender) {
+        //note: isSolvent checkpoints msg.sender via _syncUserRedemptions
+
+        if (_receiver == address(0)) revert InvalidReceiver();
+
+        _addInterest();
+        // Note: exchange rate is irrelevant when borrower has no debt shares
+        if (_userBorrowShares[msg.sender] > 0) {
+            _updateExchangeRate();
+        }
+        _removeCollateral(_collateralAmount, address(this), msg.sender);
+        IERC4626(address(collateralContract)).redeem(_collateralAmount, _receiver, address(this));
     }
 
     /// @notice The ```RepayAsset``` event is emitted whenever a debt position is repaid

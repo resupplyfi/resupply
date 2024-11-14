@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
+import { IERC4626 } from "../interfaces/IERC4626.sol";
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
@@ -36,9 +37,17 @@ contract RedemptionHandler is CoreOwnable{
     //based on fee, true max redeemable will be slightly larger than this value
     //this is just a quick estimate
     function getMaxRedeemable(address _pair) external view returns(uint256){
+        //get max redeemable of pair
         (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
-        uint256 minimumLeftover = IResupplyPair(_pair).minimumLeftoverAssets();
-        return _totalBorrow.amount - minimumLeftover;
+        uint256 redeemable = IResupplyPair(_pair).minimumLeftoverAssets();
+        redeemable = _totalBorrow.amount - redeemable;
+
+        //get collateral max withdraw
+        address vault = IResupplyPair(_pair).collateralContract();
+        uint256 maxwithdraw = IERC4626(vault).maxWithdraw(_pair);
+
+        //take lower of redeemable and maxwithdraw
+        return redeemable > maxwithdraw ? maxwithdraw : redeemable;
     }
 
     function getRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
@@ -62,7 +71,12 @@ contract RedemptionHandler is CoreOwnable{
         require(fee <= _maxFee,"over max fee");
 
         //redeem
-        return IResupplyPair(_pair).redeem(_amount, fee, _returnTo);
+        IResupplyPair(_pair).redeem(_amount, fee, address(this));
+
+        //withdraw
+        address vault = IResupplyPair(_pair).collateralContract();
+        uint256 vbalance = IERC20(vault).balanceOf(address(this));
+        IERC4626(vault).redeem(vbalance, _returnTo, address(this));
     }
 
 }
