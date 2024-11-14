@@ -25,7 +25,7 @@ contract SetupProtocol is Test {
     Treasury public treasury;
     PermaLocker public permaLocker1;
     PermaLocker public permaLocker2;
-
+    
     function setUp() public virtual {
         deployContracts();
 
@@ -40,33 +40,38 @@ contract SetupProtocol is Test {
 
     function deployContracts() public {
         address[3] memory redemptionTokens;
-        redemptionTokens[0] = address(new MockToken("PRISMA", "PRISMA"));
-        redemptionTokens[1] = address(new MockToken("yPRISMA", "yPRISMA"));
-        redemptionTokens[2] = address(new MockToken("cvxPRISMA", "cvxPRISMA"));
+        redemptionTokens[0] = address(new MockToken('PRISMA', 'PRISMA'));
+        redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
+        redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
         core = new Core(tempGov, 1 weeks);
-        address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 2);
-        govToken = new GovToken(address(core), vestManagerAddress, "Resupply", "RSUP");
+        address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
+        govToken = new GovToken(
+            address(core), 
+            vestManagerAddress,
+            "Resupply", 
+            "RSUP"
+        );
         staker = new GovStaker(address(core), address(govToken), 2);
         vestManager = new VestManager(
-            address(core),
+            address(core), 
             address(govToken),
-            address(0xdead), // Burn address
-            redemptionTokens, // Redemption tokens
-            365 days // Time until deadline
+            address(0xdead),   // Burn address
+            redemptionTokens,  // Redemption tokens
+            365 days           // Time until deadline
         );
         assertEq(address(vestManager), vestManagerAddress);
-
+        
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
         stakingToken = govToken;
-
+        
         emissionsController = new EmissionsController(
-            address(core),
-            address(govToken),
-            getEmissionsSchedule(),
-            3, // epochs per
-            2e16, // tail rate
-            0 // Bootstrap epochs
+            address(core), 
+            address(govToken), 
+            getEmissionsSchedule(), 
+            3,      // epochs per
+            2e16,   // tail rate
+            0       // Bootstrap epochs
         );
 
         treasury = new Treasury(address(core));
@@ -79,11 +84,12 @@ contract SetupProtocol is Test {
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {
         uint256[] memory schedule = new uint256[](5);
-        schedule[0] = 2 * 10 ** 16; // 2%
-        schedule[1] = 4 * 10 ** 16; // 4%
-        schedule[2] = 6 * 10 ** 16; // 6%
-        schedule[3] = 8 * 10 ** 16; // 8%
-        schedule[4] = 10 * 10 ** 16; // 10%
+        schedule[0] = 2 * 10 ** 16;     // 2%
+        schedule[1] = 4 * 10 ** 16;     // 4%
+        schedule[2] = 6 * 10 ** 16;     // 6%
+        schedule[3] = 8 * 10 ** 16;     // 8%
+        schedule[4] = 10 * 10 ** 16;    // 10%
         return schedule;
     }
+
 }
