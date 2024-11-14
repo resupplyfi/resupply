@@ -25,7 +25,7 @@ interface IResupplyPair {
 
     function balanceOf(address account) external view returns (uint256);
 
-    function borrowAsset(
+    function borrow(
         uint256 _borrowAmount,
         uint256 _collateralAmount,
         address _receiver

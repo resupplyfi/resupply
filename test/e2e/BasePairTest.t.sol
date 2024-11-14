@@ -721,7 +721,7 @@ contract BasePairTest is
     ) internal returns (uint256 _finalShares, uint256 _finalCollateralBalance) {
         vm.startPrank(_user);
         collateral.approve(address(pair), _collateralAmount);
-        _pair.borrowAsset(uint128(_amountToBorrow), _collateralAmount, _user);
+        _pair.borrow(uint128(_amountToBorrow), _collateralAmount, _user);
         _finalShares = pair.userBorrowShares(_user);
         _finalCollateralBalance = pair.userCollateralBalance(_user);
         vm.stopPrank();

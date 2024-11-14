@@ -55,7 +55,6 @@ contract VestManagerTest is Setup {
         );
     }
 
-    
 
     function test_SetInitialParams() public {
         address[] memory targets = new address[](3);

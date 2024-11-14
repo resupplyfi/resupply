@@ -654,12 +654,12 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _userCollateralBalance[_account] = _userCollateralBalance[_account] >= rTokens ? _userCollateralBalance[_account] - rTokens : 0;
     }
 
-    /// @notice The ```BorrowAsset``` event is emitted when a borrower increases their position
+    /// @notice The ```Borrow``` event is emitted when a borrower increases their position
     /// @param _borrower The borrower whose account was debited
     /// @param _receiver The address to which the Asset Tokens were transferred
     /// @param _borrowAmount The amount of Asset Tokens transferred
     /// @param _sharesAdded The number of Borrow Shares the borrower was debited
-    event BorrowAsset(
+    event Borrow(
         address indexed _borrower,
         address indexed _receiver,
         uint256 _borrowAmount,
@@ -708,16 +708,16 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // if (_receiver != address(this)) {
             IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
         // }
-        emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded, otherFees);
+        emit Borrow(msg.sender, _receiver, _borrowAmount, _sharesAdded, otherFees);
     }
 
-    /// @notice The ```borrowAsset``` function allows a user to open/increase a borrow position
+    /// @notice The ```borrow``` function allows a user to open/increase a borrow position
     /// @dev Borrower must call ```ERC20.approve``` on the Collateral Token contract if applicable
     /// @param _borrowAmount The amount of Asset Token to borrow
     /// @param _collateralAmount The amount of Collateral Token to transfer to Pair
     /// @param _receiver The address which will receive the Asset Tokens
     /// @return _shares The number of borrow Shares the msg.sender will be debited
-    function borrowAsset(
+    function borrow(
         uint256 _borrowAmount,
         uint256 _collateralAmount,
         address _receiver
