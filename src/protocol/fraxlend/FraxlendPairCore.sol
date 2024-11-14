@@ -777,14 +777,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _addCollateral(msg.sender, _collateralAmount, _borrower);
     }
 
-    function addCollateral(uint256 _collateralAmount, address _borrower) external nonReentrant {
+    function addCollateral(uint256 _amount, address _borrower) external nonReentrant {
         if (_borrower == address(0)) revert InvalidReceiver();
 
         _addInterest();
 
-        underlyingAsset.safeTransferFrom(msg.sender, address(this), _collateralAmount);
-        IERC4626(address(collateralContract)).deposit(_collateralAmount, address(this));
-        _addCollateral(address(this), _collateralAmount, _borrower);
+        underlyingAsset.safeTransferFrom(msg.sender, address(this), _amount);
+        uint256 collateralShares = IERC4626(address(collateralContract)).deposit(_amount, address(this));
+        _addCollateral(address(this), collateralShares, _borrower);
     }
 
     /// @notice The ```RemoveCollateral``` event is emitted when collateral is removed from a borrower's position
