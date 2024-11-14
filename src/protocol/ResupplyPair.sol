@@ -51,8 +51,8 @@ contract ResupplyPair is FraxlendPairCore {
     uint256 public lastFeeEpoch;
 
     // Staking Info
-    address convexBooster;
-    uint256 convexPid;
+    address public convexBooster;
+    uint256 public convexPid;
     
     error InvalidFeeTimestamp();
     error IncorrectStakeBalance();
