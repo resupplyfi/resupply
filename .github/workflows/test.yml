@@ -7,6 +7,7 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  MAINNET_URL: https://ethereum-rpc.publicnode.com
 
 jobs:
   check:
