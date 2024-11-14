@@ -3,7 +3,7 @@ pragma solidity ^0.8.22;
 
 import { Test } from "../../../lib/forge-std/src/Test.sol";
 import { Setup, MockToken, GovToken, GovStaker, VestManager, Voter, IGovStaker, EmissionsController, Treasury, ResupplyRegistry, PermaLocker } from "test/dao/utils/Setup.sol";
-import { console } from "../../../lib/forge-std/src/console.sol";
+import { console } from "forge-std/console.sol";
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Core } from "../../../src/dao/Core.sol";
 
