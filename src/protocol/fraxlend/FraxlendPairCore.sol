@@ -700,14 +700,15 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _userBorrowShares[msg.sender] += _sharesAdded;
 
         // add platform fee
-        claimableOtherFees += (debtForMint - _borrowAmount);
+        uint256 otherFees = debtForMint - _borrowAmount;
+        if (otherFees > 0) claimableOtherFees += otherFees;
 
         // Interactions
         // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
         // if (_receiver != address(this)) {
             IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
         // }
-        emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded, debtForMint - _borrowAmount);
+        emit BorrowAsset(msg.sender, _receiver, _borrowAmount, _sharesAdded, otherFees);
     }
 
     /// @notice The ```borrowAsset``` function allows a user to open/increase a borrow position
