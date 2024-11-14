@@ -13,7 +13,7 @@ interface IERC20 {
 }
 /**
     @title Relend DAO Voting
-    @author Prisma Finance (with edits by Relend.fi)
+    @author Relend.fi (code inspired by Prisma Finance)
     @notice Primary ownership contract for all protocol contracts. Allows executing
             arbitrary function calls only after a required percentage of stakers
             have signalled in favor of performing the action.
