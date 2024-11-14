@@ -43,8 +43,8 @@ contract ResupplyAccountingTest is BasePairTest {
     }
 
     function test_fuzz_removeCollateral(uint64 amount) public {
-        uint256 amount = uint(amount) * 2;
-        addCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
+        uint256 amountToDeposit = uint(amount) * 2;
+        addCollateralFlow(pair1, user9, amountToDeposit, Constants.Mainnet.FRAX_ERC20);
         removeCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
     }
 
