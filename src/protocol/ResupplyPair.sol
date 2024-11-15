@@ -401,7 +401,7 @@ contract ResupplyPair is FraxlendPairCore {
     function _unstakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
             (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount, true);
+            IConvexStaking(rewards).withdrawAndUnwrap(_amount, false);
         }
     }
 
