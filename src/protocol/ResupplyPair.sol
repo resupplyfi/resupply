@@ -382,7 +382,7 @@ contract ResupplyPair is FraxlendPairCore {
             
             if(stakedBalance > 0){
                 //withdraw
-                IConvexStaking(convexBooster).withdrawAndUnwrap(stakedBalance,false);
+                IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
                 if(collateralContract.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }

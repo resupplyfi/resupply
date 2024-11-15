@@ -517,7 +517,7 @@ contract BasePairTest is
             uint256 _collateralBalance = _pair.userCollateralBalance(_user);
             faucetFunds(_asset, _borrowAmount, _user);
             _asset.approve(address(_pair), _borrowAmount);
-            _pair.repayAsset(_borrowShares, _user);
+            _pair.repay(_borrowShares, _user);
             _pair.removeCollateral(_collateralBalance, _user);
             vm.stopPrank();
         }
@@ -762,7 +762,7 @@ contract BasePairTest is
     ) internal returns (uint256 _finalShares) {
         uint256 _amountToApprove = toBorrowAmount(_sharesToRepay, true);
         asset.approve(address(_pair), _amountToApprove);
-        _pair.repayAsset(_sharesToRepay, _user);
+        _pair.repay(_sharesToRepay, _user);
         _finalShares = _pair.userBorrowShares(_user);
     }
 
