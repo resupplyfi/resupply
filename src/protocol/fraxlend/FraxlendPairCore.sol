@@ -26,6 +26,7 @@ pragma solidity ^0.8.19;
 // ====================================================================
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
@@ -175,6 +176,9 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             // Pair Settings
             assetContract = IERC20(_asset);
             collateralContract = IERC20(_collateral);
+            if(IERC20Metadata(_collateral).decimals() != 18){
+                revert InvalidParameter();
+            }
             underlyingAsset = IERC20(IERC4626(_collateral).asset());
             // approve so this contract can deposit
             underlyingAsset.approve(_collateral, type(uint256).max);

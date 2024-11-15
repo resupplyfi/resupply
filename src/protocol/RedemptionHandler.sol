@@ -77,6 +77,7 @@ contract RedemptionHandler is CoreOwnable{
         address vault = IResupplyPair(_pair).collateralContract();
         uint256 vbalance = IERC20(vault).balanceOf(address(this));
         IERC4626(vault).redeem(vbalance, _returnTo, address(this));
+        return vbalance;
     }
 
 }
