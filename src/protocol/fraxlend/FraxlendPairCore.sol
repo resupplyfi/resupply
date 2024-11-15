@@ -63,7 +63,6 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
     // Asset and collateral contracts
     address public immutable registry;
-    IERC20 internal immutable assetContract;
     IERC20 public immutable collateralContract;
     IERC20 public immutable underlyingAsset;
 

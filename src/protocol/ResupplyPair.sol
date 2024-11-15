@@ -90,10 +90,6 @@ contract ResupplyPair is FraxlendPairCore {
     // Functions: Helpers
     // ============================================================================================
 
-    function asset() external view returns (address) {
-        return address(assetContract);
-    }
-
     function getConstants()
         external
         pure
