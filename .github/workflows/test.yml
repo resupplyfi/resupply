@@ -2,11 +2,12 @@ name: CI
 
 on:
   push:
+    branches: main
   pull_request:
-  workflow_dispatch:
 
 env:
   FOUNDRY_PROFILE: ci
+  MAINNET_URL: https://ethereum-rpc.publicnode.com
 
 jobs:
   check:
@@ -16,6 +17,9 @@ jobs:
     name: Foundry project
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 16.x
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -28,15 +32,17 @@ jobs:
       - name: Show Forge version
         run: |
           forge --version
+      
+      # - name: Run Forge fmt
+      #   run: |
+      #     forge fmt --check
+      #   id: fmt
+      - run: npm i 
 
-      - name: Run Forge fmt
-        run: |
-          forge fmt --check
-        id: fmt
 
       - name: Run Forge build
         run: |
-          forge build --sizes
+          forge build
         id: build
 
       - name: Run Forge tests

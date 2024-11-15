@@ -213,7 +213,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     }
 
     //checkpoint with claim
-    function _checkpoint(address _account, address _claimTo, uint256 _maxloops) internal nonReentrant{
+    function _checkpoint(address _account, address _claimTo, uint256 _maxloops) internal {
         //claim rewards first
         _claimPoolRewards();
 

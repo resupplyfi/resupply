@@ -2,16 +2,31 @@
 pragma solidity ^0.8.22;
 
 import { Test } from "../../../lib/forge-std/src/Test.sol";
-import { console } from "../../../lib/forge-std/src/console.sol";
-import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import { Setup, MockToken, GovToken, GovStaker, VestManager, Voter, IGovStaker, EmissionsController, Treasury, ResupplyRegistry, PermaLocker } from "test/dao/utils/Setup.sol";
+import { console } from "forge-std/console.sol";
+import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Core } from "../../../src/dao/Core.sol";
 
-contract Setup is Test {
+contract SetupProtocol is Test {
     Core public core;
+    GovStaker public staker;
+    Voter public voter;
+    GovToken public govToken;
+    GovToken public stakingToken;
+    EmissionsController public emissionsController;
+    VestManager public vestManager;
+    ResupplyRegistry public registry;
+    address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
+    address public user1 = address(0x11);
+    address public user2 = address(0x22);
+    address public user3 = address(0x33);
+    address public dev = address(0x42069);
+    address public tempGov = address(987);
+    Treasury public treasury;
+    PermaLocker public permaLocker1;
+    PermaLocker public permaLocker2;
     
-
     function setUp() public virtual {
-
         deployContracts();
 
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
