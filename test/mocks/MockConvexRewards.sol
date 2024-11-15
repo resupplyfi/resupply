@@ -10,23 +10,9 @@ contract MockConvexRewards {
     uint256 public constant duration = 7 days;
 
     uint256 public pid;
-    uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
-    uint256 public lastUpdateTime;
-    uint256 public rewardPerTokenStored;
-    uint256 public queuedRewards = 0;
-    uint256 public currentRewards = 0;
-    uint256 public historicalRewards = 0;
-    uint256 public constant newRewardRatio = 830;
     uint256 private _totalSupply;
     mapping(address => uint256) public userRewardPerTokenPaid;
-    mapping(address => uint256) public rewards;
     mapping(address => uint256) private _balances;
-
-    event RewardAdded(uint256 reward);
-    event Staked(address indexed user, uint256 amount);
-    event Withdrawn(address indexed user, uint256 amount);
-    event RewardPaid(address indexed user, uint256 reward);
 
     constructor(
         uint256 pid_,
