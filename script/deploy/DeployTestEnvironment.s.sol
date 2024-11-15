@@ -164,7 +164,7 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[0].constructorParams = "";
         _return[0].contractName = "StableCoin";
 
-        _return[1].address_ = address(_stable);
+        _return[1].address_ = address(_gov);
         _return[1].constructorParams = "";
         _return[1].contractName = "GovToken";
 
