@@ -615,6 +615,9 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         if (_exchangeRateInfo.lastTimestamp != block.timestamp) {
             // Get the latest exchange rate from the oracle
             _exchangeRate = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateralContract));
+            //convert price of collateral as debt is priced in terms of collateral amount (inverse)
+            _exchangeRate = 1e36 / _exchangeRate;
+
 
             // Effects: Bookkeeping and write to storage
             _exchangeRateInfo.lastTimestamp = uint96(block.timestamp);
