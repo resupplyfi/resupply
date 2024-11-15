@@ -49,6 +49,8 @@ contract ResupplyPair is FraxlendPairCore {
 
     uint256 private constant WEEK = 7 * 86400;
     uint256 public lastFeeEpoch;
+    address public constant CRV = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+    address public constant CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
 
     // Staking Info
     address public immutable convexBooster;
@@ -66,7 +68,7 @@ contract ResupplyPair is FraxlendPairCore {
         bytes memory _customConfigData
     ) FraxlendPairCore(_configData, _immutables, _customConfigData) {
 
-        (string memory _name, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
+        (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,
             (string, address, address, uint256)
         );
@@ -77,8 +79,9 @@ contract ResupplyPair is FraxlendPairCore {
             //approve
             collateralContract.approve(convexBooster, type(uint256).max);
             //add rewards
-            _insertRewardToken(address(0xD533a949740bb3306d119CC777fa900bA034cd52)); //crv
-            _insertRewardToken(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B)); //cvx
+            _insertRewardToken(_govToken);
+            _insertRewardToken(CRV);
+            _insertRewardToken(CVX);
         }
     }
 

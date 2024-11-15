@@ -211,15 +211,13 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         rewards[0].is_non_claimable = true;
 
         {
-            (string memory _name, address _govToken, address _stakingContract, uint256 _stakingId) = abi.decode(
+            (string memory _name,,,) = abi.decode(
                 _customConfigData,
                 (string, address, address, uint256)
             );
 
             // Metadata
             name = _name;
-            //add gov token reward
-            _insertRewardToken(_govToken);
 
             // Instantiate Interest
             _addInterest();
