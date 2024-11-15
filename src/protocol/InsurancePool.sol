@@ -171,7 +171,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     //  deposit/withdraw
     // ===============================================================================
 
-    function deposit(uint256 _assets, address _receiver) external returns (uint256 shares){
+    function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
 
          if (_assets > 0) {
             shares = previewDeposit(_assets);
@@ -183,7 +183,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
-    function mint(uint256 _shares, address _receiver) external returns (uint256 assets){
+    function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
 
         if (_shares > 0) {
             assets = previewMint(_shares);
@@ -234,7 +234,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         require(block.timestamp <= withdrawQueue[msg.sender] + withdrawTimeLimit, "withdraw time over");
     }
 
-    function redeem(uint256 _shares, address _receiver, address _owner) public returns (uint256 assets){
+    function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_shares > 0) {
@@ -248,7 +248,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
-    function withdraw(uint256 _amount, address _receiver, address _owner) public returns(uint256 shares){
+    function withdraw(uint256 _amount, address _receiver, address _owner) public nonReentrant returns(uint256 shares){
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_amount > 0) {
@@ -260,12 +260,12 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
-    function getReward(address _account) public override {
+    function getReward(address _account) public override{
         require(withdrawQueue[_account] == 0, "claim while queued");
         super.getReward(_account);
     }
 
-    function getReward(address _account, address _forwardTo) public override {
+    function getReward(address _account, address _forwardTo) public override{
         require(withdrawQueue[_account] == 0, "claim while queued");
         super.getReward(_account,_forwardTo);
     }
