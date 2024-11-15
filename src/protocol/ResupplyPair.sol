@@ -385,7 +385,7 @@ contract ResupplyPair is FraxlendPairCore {
             }
 
             //stake in new pool
-            IConvexStaking(convexBooster).deposit(_pid,stakedBalance,false);
+            IConvexStaking(convexBooster).deposit(_pid, stakedBalance, true);
 
             //update pid
             convexPid = _pid;
@@ -394,14 +394,14 @@ contract ResupplyPair is FraxlendPairCore {
 
     function _stakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
-            IConvexStaking(convexBooster).deposit(convexPid,_amount,false);
+            IConvexStaking(convexBooster).deposit(convexPid, _amount, true);
         }
     }
 
     function _unstakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
             (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount,false);
+            IConvexStaking(rewards).withdrawAndUnwrap(_amount, true);
         }
     }
 
