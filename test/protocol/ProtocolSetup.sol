@@ -321,7 +321,7 @@ contract ProtocolSetup is
     }
 
     function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
-        vm.startPrank(address(Constants.Mainnet.CONVEX_DEPLOYER));
+        vm.startPrank(deployer.owner());
 
         address _pairAddress = deployer.deploy(
             abi.encode(

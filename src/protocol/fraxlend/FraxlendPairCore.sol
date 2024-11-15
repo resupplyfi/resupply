@@ -779,6 +779,9 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _addCollateral(msg.sender, _collateralAmount, _borrower);
     }
 
+    /// @notice Allows depositing in terms of underlying asset, and have it converted to collateral shares to the borrower's position.
+    /// @param _amount The amount of the underlying asset to deposit.
+    /// @param _borrower The address of the borrower whose collateral balance will be credited.
     function addCollateral(uint256 _amount, address _borrower) external nonReentrant {
         if (_borrower == address(0)) revert InvalidReceiver();
 

@@ -48,19 +48,19 @@ contract MockConvexRewards {
 
     function stake(uint256 _amount) public returns(bool) {
         _balances[msg.sender] += _amount;
-        IERC20(stakingToken).transferFrom(msg.sender, address(this), _amount);
+        // IERC20(stakingToken).transferFrom(msg.sender, address(this), _amount);
         return true;
     }
 
     function withdraw(uint256 _amount) public returns(bool) {
         _balances[msg.sender] -= _amount;
-        IERC20(stakingToken).transfer(msg.sender, _amount);
+        // IERC20(stakingToken).transfer(msg.sender, _amount);
         return true;
     }
 
     function withdrawAndUnwrap(uint256 _amount, bool _claim) public returns(bool){
         _balances[msg.sender] -= _amount;
-        IERC20(stakingToken).transfer(msg.sender, _amount);
+        // IERC20(stakingToken).transfer(msg.sender, _amount);
         return true;
     }
 
