@@ -221,7 +221,7 @@ contract ResupplyAccountingTest is BasePairTest {
             /// @notice Given there is no interest accrued 
             ///         debtShare price 1:1 w/ debtAmount
             assertEq({
-                a: stableToken.balanceOf(user),
+                a: pair.userBorrowShares(user),
                 b: amountToBorrow,
                 err: "// THEN: stableToken Issued != amount borrowed"
             });
