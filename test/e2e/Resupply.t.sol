@@ -39,8 +39,7 @@ contract ResupplyAccountingTest is BasePairTest {
         removeCollateralVaultFlow(pair1, user9, amount);
     }
 
-    function test_fuzz_addCollateral(uint128 amount) public {
-        amount = uint128(bound(amount, 0, type(uint128).max - 10));
+    function test_fuzz_addCollateral(uint96 amount) public {
         addCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
     }
 
