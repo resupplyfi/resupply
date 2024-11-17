@@ -24,6 +24,7 @@ import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
+import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 
@@ -59,6 +60,7 @@ contract BasePairTest is
     Core public core;
     MockToken public stakingToken;
     StableCoin public stableToken;
+    EmissionsController public emissionsController;
 
     InterestRateCalculator public rateContract;
     IOracle public oracle;
@@ -194,6 +196,25 @@ contract BasePairTest is
         collateral = IERC20(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX);
         fraxToken = IERC20(Constants.Mainnet.FRAX_ERC20);
         crvUsdToken = IERC20(Constants.Mainnet.CURVE_USD_ERC20);
+
+        emissionsController = new EmissionsController(
+            address(core), 
+            address(stakingToken), 
+            getEmissionsSchedule(), 
+            3,      // epochs per
+            2e16,   // tail rate
+            0       // Bootstrap epochs
+        );
+    }
+
+    function getEmissionsSchedule() public view returns (uint256[] memory) {
+        uint256[] memory schedule = new uint256[](5);
+        schedule[0] = 2 * 10 ** 16;     // 2%
+        schedule[1] = 4 * 10 ** 16;     // 4%
+        schedule[2] = 6 * 10 ** 16;     // 6%
+        schedule[3] = 8 * 10 ** 16;     // 8%
+        schedule[4] = 10 * 10 ** 16;    // 10%
+        return schedule;
     }
 
     function deployAuxContracts() public {
@@ -261,6 +282,13 @@ contract BasePairTest is
             );
 
         // emissionReceiver = new SimpleReceiver//TODO
+        emissionReceiver = new SimpleReceiver(
+            address(core),
+            address(emissionsController)
+            );
+        vm.startPrank(address(core));
+        emissionsController.registerReceiver(address(emissionReceiver));
+        vm.stopPrank();
 
         rewardHandler = new RewardHandler(
             address(core),//core
@@ -275,6 +303,7 @@ contract BasePairTest is
             );
 
         vm.startPrank(address(core));
+        emissionReceiver.setApprovedClaimer(address(rewardHandler), true);
         registry.setLiquidationHandler(address(liquidationHandler));
         registry.setFeeDeposit(address(feeDeposit));
         registry.setRedeemer(address(redemptionHandler));

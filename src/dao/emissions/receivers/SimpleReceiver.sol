@@ -13,7 +13,7 @@ contract SimpleReceiver is CoreOwnable {
     string public name;
     mapping(address => bool) public approvedClaimers;
 
-    event ClaimerApproved(address indexed claimer, bool indexedapproved);
+    event ClaimerApproved(address indexed claimer, bool indexed approved);
 
     modifier onlyOwnerOrApprovedClaimers() {
         require(approvedClaimers[msg.sender] || msg.sender == owner(), "Not approved claimer");
