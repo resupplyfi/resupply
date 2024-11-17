@@ -404,7 +404,7 @@ contract BasePairTest is
                 borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
                 borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
                 collateralBalance: _collateralBalance,
-                balanceOfAsset: IERC20(_pair.underlyingAsset()).balanceOf(_userAddress),
+                balanceOfAsset: stableToken.balanceOf(_userAddress),
                 balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
             });
     }
@@ -423,7 +423,7 @@ contract BasePairTest is
             borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
             borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
             collateralBalance: _collateralBalance,
-            balanceOfAsset: IERC20(_pair.underlyingAsset()).balanceOf(_userAddress),
+            balanceOfAsset: stableToken.balanceOf(_userAddress),
             balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
         });
         _net = UserAccounting({
@@ -441,7 +441,6 @@ contract BasePairTest is
         ResupplyPair _pair
     ) internal returns (PairAccounting memory _initial) {
         address _pairAddress = address(_pair);
-        IERC20 _asset = IERC20(_pair.underlyingAsset());
         IERC20 _collateral = _pair.collateralContract();
 
         (
@@ -455,7 +454,7 @@ contract BasePairTest is
         _initial.totalBorrowAmount = _totalBorrowAmount;
         _initial.totalBorrowShares = _totalBorrowShares;
         _initial.totalCollateral = _totalCollateral;
-        _initial.balanceOfAsset = _asset.balanceOf(_pairAddress);
+        _initial.balanceOfAsset = stableToken.balanceOf(_pairAddress);
         _initial.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
         _initial.collateralBalance = _pair.userCollateralBalance(_pairAddress);
     }
@@ -465,7 +464,6 @@ contract BasePairTest is
     ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
         address _pairAddress = _initial.pairAddress;
         ResupplyPair _pair = ResupplyPair(_pairAddress);
-        IERC20 _asset = IERC20(_pair.underlyingAsset());
         IERC20 _collateral = _pair.collateralContract();
 
         (
@@ -480,7 +478,7 @@ contract BasePairTest is
         _final.totalBorrowAmount = _totalBorrowAmount;
         _final.totalBorrowShares = _totalBorrowShares;
         _final.totalCollateral = _totalCollateral;
-        _final.balanceOfAsset = _asset.balanceOf(_pairAddress);
+        _final.balanceOfAsset = stableToken.balanceOf(_pairAddress);
         _final.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
         _final.collateralBalance = _pair.userCollateralBalance(_pairAddress);
 
@@ -536,15 +534,14 @@ contract BasePairTest is
     }
 
     function assertUnwind(ResupplyPair _pair) public {
-        IERC20 _asset = IERC20(_pair.underlyingAsset());
         for (uint256 i = 0; i < users.length; i++) {
             address _user = users[i];
             startHoax(_user);
             uint256 _borrowShares = _pair.userBorrowShares(_user);
             uint256 _borrowAmount = _pair.toBorrowAmount(_borrowShares, true, false);
             uint256 _collateralBalance = _pair.userCollateralBalance(_user);
-            faucetFunds(_asset, _borrowAmount, _user);
-            _asset.approve(address(_pair), _borrowAmount);
+            faucetFunds(stableToken, _borrowAmount, _user);
+            stableToken.approve(address(_pair), _borrowAmount);
             _pair.repay(_borrowShares, _user);
             _pair.removeCollateral(_collateralBalance, _user);
             vm.stopPrank();
@@ -563,44 +560,6 @@ contract BasePairTest is
     // ============================================================================================
     // Pair View Helpers
     // ============================================================================================
-
-    // helper to convert assets shares to amount
-    // function toAssetAmount(uint256 _shares, bool roundup) public view returns (uint256 _amount) {
-    //     (uint256 _amountTotal, uint256 _sharesTotal) = pair.totalAsset();
-    //     _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
-    // }
-
-    // function toAssetAmount(
-    //     ResupplyPair _pair,
-    //     uint256 _shares,
-    //     bool roundup
-    // ) public view returns (uint256 _amount) {
-    //     (uint256 _amountTotal, uint256 _sharesTotal) = _pair.totalAsset();
-    //     _amount = toAssetAmount(_amountTotal, _sharesTotal, _shares, roundup);
-    // }
-
-    // // helper to convert assets shares to amount
-    // function toAssetAmount(
-    //     uint256 _amountTotal,
-    //     uint256 _sharesTotal,
-    //     uint256 _shares,
-    //     bool roundup
-    // ) public pure returns (uint256 _amount) {
-    //     if (_sharesTotal == 0) {
-    //         _amount = _shares;
-    //     } else {
-    //         _amount = (_shares * _amountTotal) / _sharesTotal;
-    //         if (roundup && (_amount * _sharesTotal) / _amountTotal < _shares) {
-    //             _amount++;
-    //         }
-    //     }
-    // }
-
-    // helper to convert borrows shares to amount
-    // function toBorrowAmount(uint256 _shares, bool roundup) public view returns (uint256 _amount) {
-    //     (uint256 _amountTotal, uint256 _sharesTotal) = _pair.totalBorrow();
-    //     _amount = toBorrowAmount(_amountTotal, _sharesTotal, _shares, roundup);
-    // }
 
     function toBorrowAmount(
         ResupplyPair _pair,
@@ -627,29 +586,6 @@ contract BasePairTest is
             }
         }
     }
-
-    // // helper to convert asset amount to shares
-    // function toAssetShares(uint256 _amount, bool roundup) public view returns (uint256 _shares) {
-    //     (uint256 _amountTotal, uint256 _sharesTotal) = pair.totalAsset();
-    //     _shares = toAssetShares(_amountTotal, _sharesTotal, _amount, roundup);
-    // }
-
-    // // helper to convert asset amount to shares
-    // function toAssetShares(
-    //     uint256 _amountTotal,
-    //     uint256 _sharesTotal,
-    //     uint256 _amount,
-    //     bool roundup
-    // ) public pure returns (uint256 _shares) {
-    //     if (_amountTotal == 0) {
-    //         _shares = _amount;
-    //     } else {
-    //         _shares = (_amount * _sharesTotal) / _amountTotal;
-    //         if (roundup && (_shares * _amountTotal) / _sharesTotal < _amount) {
-    //             _shares++;
-    //         }
-    //     }
-    // }
 
     // helper to convert borrow amount to shares
     function toBorrowShares(ResupplyPair _pair, uint256 _amount, bool roundup) public view returns (uint256 _shares) {
@@ -683,10 +619,6 @@ contract BasePairTest is
     function ratePerSec(ResupplyPair _pair) internal view returns (uint64 _ratePerSec) {
         (, , _ratePerSec,, ) = _pair.currentRateInfo();
     }
-
-    // function feeToProtocolRate(ResupplyPair _pair) internal view returns (uint64 _feeToProtocolRate) {
-    //     (, _feeToProtocolRate, , , ) = _pair.currentRateInfo();
-    // }
 
     function getCollateralAmount(
         uint256 _borrowAmount,
@@ -732,15 +664,6 @@ contract BasePairTest is
         _collateral.approve(address(_pair), _borrowAction.collateralAmount);
     }
 
-    // // helper to approve and lend in one step
-    // function borrowToken(
-    //     uint256 _amountToBorrow,
-    //     uint256 _collateralAmount,
-    //     address _user
-    // ) internal returns (uint256 _finalShares, uint256 _finalCollateralBalance) {
-    //     (_finalShares, _finalCollateralBalance) = borrowToken(pair, _amountToBorrow, _collateralAmount, _user);
-    // }
-
     function borrowToken(
         ResupplyPair _pair,
         uint256 _amountToBorrow,
@@ -775,12 +698,6 @@ contract BasePairTest is
         uint256 shares;
     }
 
-    // function _preRepayFaucetApprove(RepayAction memory _repayAction) internal {
-    //     IERC20 _asset = IERC20(_repayAction.pair.underlyingAsset());
-    //     faucetFunds(_asset, _repayAction.shares * 2, _repayAction.user);
-    //     _asset.approve(address(_repayAction.pair), _repayAction.shares);
-    // }
-
     // helper to approve and repay in one step, should have called addInterest before hand
 
     function repayToken(
@@ -799,19 +716,9 @@ contract BasePairTest is
         uint256 _sharesToRepay,
         address _user
     ) internal returns (uint256 _finalShares) {
-        faucetFunds(IERC20(_pair.underlyingAsset()), 2 * _sharesToRepay, _user);
+        faucetFunds(stableToken, 2 * _sharesToRepay, _user);
         _finalShares = repayToken(_pair, _sharesToRepay, _user);
     }
-
-    // function repayTokenWithFaucet(RepayAction memory _repayAction) internal returns (uint256 _finalShares) {
-    //     ResupplyPair _pair = _repayAction.pair;
-    //     faucetFunds(
-    //         IERC20(_pair.underlyingAsset()),
-    //         _pair.toBorrowAmount(_repayAction.shares, true, true),
-    //         _repayAction.user
-    //     );
-    //     _finalShares = repayToken(_pair, _repayAction.shares, _repayAction.user);
-    // }
 
     // helper to move forward multiple blocks and add interest each time
     function addInterestAndMineBulk(ResupplyPair _pair, uint256 _blocks) internal returns (uint256 _sumOfInt) {
