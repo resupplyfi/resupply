@@ -6,7 +6,7 @@ import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 
 /**
     @title Core
-    @author Prisma Finance (with edits by Relend.fi)
+    @author Prisma Finance (with edits by resupply.fi)
     @notice Single source of truth for system-wide values and contract ownership.
 
             Ownership of this contract should be the DAO via `Voting`.
