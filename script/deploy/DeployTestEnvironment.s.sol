@@ -125,12 +125,15 @@ contract DeployTestEnvironment is TenderlyHelper {
             );
         _return[7] = setReturnData(address(_liqHandler),"","Liquidation Handler");
 
+        // address _emissionReceiver = address(0); //TODO emission receiver
+
         RewardHandler _rewardHandler = new RewardHandler(
             address(_core),//core
             address(_registry),
             address(_stable),
             address(_pairemissionstream), //todo gov staking
             address(_insurancepool),
+            address(0),//address(_emissionReceiver),
             address(_pairemissionstream),
             address(_ipemissionstream),
             address(_ipstablestream)

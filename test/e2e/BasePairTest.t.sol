@@ -23,6 +23,7 @@ import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
+import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 
@@ -71,6 +72,7 @@ contract BasePairTest is
     RedemptionHandler public redemptionHandler;
     LiquidationHandler public liquidationHandler;
     RewardHandler public rewardHandler;
+    SimpleReceiver public emissionReceiver;
 
 
     uint256 mainnetFork;
@@ -258,12 +260,15 @@ contract BasePairTest is
             address(insurancePool)
             );
 
+        // emissionReceiver = new SimpleReceiver//TODO
+
         rewardHandler = new RewardHandler(
             address(core),//core
             address(registry),
             address(stableToken),
             address(pairEmissionStream), //todo gov staking
             address(insurancePool),
+            address(emissionReceiver),
             address(pairEmissionStream),
             address(ipEmissionStream),
             address(ipStableStream)
@@ -303,6 +308,7 @@ contract BasePairTest is
         console.log("redemptionHandler: ", address(redemptionHandler));
         console.log("liquidationHandler: ", address(liquidationHandler));
         console.log("rewardHandler: ", address(rewardHandler));
+        console.log("emissionReceiver: ", address(emissionReceiver));
         console.log("======================================");
         console.log("balance of frax: ", fraxToken.balanceOf(users[0]));
         console.log("balance of crvusd: ", crvUsdToken.balanceOf(users[0]));

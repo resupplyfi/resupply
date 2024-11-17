@@ -8,6 +8,7 @@ import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
+import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
@@ -23,6 +24,8 @@ contract RewardHandler is CoreOwnable{
     address public immutable insuranceEmissions;
     address public immutable insuranceRevenue;
     address public immutable platformRewards;
+    address public immutable emissionReceiver;
+    address public immutable emissionToken;
 
     mapping(address => uint256) public pairTimestamp;
     mapping(address => uint256) public minimumWeights;
@@ -31,7 +34,7 @@ contract RewardHandler is CoreOwnable{
     event BaseMinimumWeightSet(uint256 bweight);
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
-    constructor(address _core, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _emissionReceiver, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue) CoreOwnable(_core){
         registry = _registry;
         revenueToken = _revenueToken;
         platformRewards = _platformRewards;
@@ -39,8 +42,11 @@ contract RewardHandler is CoreOwnable{
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
+        emissionReceiver = _emissionReceiver;
+        emissionToken = IRewards(pairEmissions).rewardToken();
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_platformRewards, type(uint256).max);
+        IERC20(emissionToken).approve(pairEmissions, type(uint256).max);
     }
 
     function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
@@ -152,5 +158,12 @@ contract RewardHandler is CoreOwnable{
 
         //queue up any reward tokens currently on this handler
         IRewards(platformRewards).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
+
+        //since this should get called once per epoch, can do emission handling as well
+        ISimpleReceiver(emissionReceiver).allocateEmissions();
+        if(ISimpleReceiver(emissionReceiver).claimableEmissions() > 0){
+            ISimpleReceiver(emissionReceiver).claimEmissions(address(this));
+            IRewards(pairEmissions).queueNewRewards(IERC20(emissionToken).balanceOf(address(this)));
+        }
     }
 }

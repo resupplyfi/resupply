@@ -26,6 +26,7 @@ import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
+import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import "src/Constants.sol" as Constants;
 
 import { Core } from "../../src/dao/Core.sol";
@@ -67,6 +68,7 @@ contract ProtocolSetup is
     RedemptionHandler public redemptionHandler;
     LiquidationHandler public liquidationHandler;
     RewardHandler public rewardHandler;
+    SimpleReceiver public emissionReceiver;
 
 
     uint256 mainnetFork;
@@ -266,6 +268,7 @@ contract ProtocolSetup is
             address(stableToken),
             address(pairEmissionStream), //todo gov staking
             address(insurancePool),
+            address(emissionReceiver),
             address(pairEmissionStream),
             address(ipEmissionStream),
             address(ipStableStream)
@@ -305,6 +308,7 @@ contract ProtocolSetup is
         console.log("redemptionHandler: ", address(redemptionHandler));
         console.log("liquidationHandler: ", address(liquidationHandler));
         console.log("rewardHandler: ", address(rewardHandler));
+        console.log("emissionReceiver: ", address(emissionReceiver));
         console.log("======================================");
         console.log("balance of frax: ", fraxToken.balanceOf(users[0]));
         console.log("balance of crvusd: ", crvUsdToken.balanceOf(users[0]));

@@ -10,5 +10,7 @@ interface ISimpleReceiver {
 
     function claimEmissions(address receiver) external;
 
+    function claimableEmissions() external view returns (uint256);
+
     function setApprovedClaimer(address claimer, bool approved) external;
 }
