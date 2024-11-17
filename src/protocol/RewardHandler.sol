@@ -11,10 +11,11 @@ import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { EpochTracker } from "../dependencies/EpochTracker.sol";
 
 
 //claim rewards for various contracts
-contract RewardHandler is CoreOwnable{
+contract RewardHandler is CoreOwnable, EpochTracker {
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -34,7 +35,17 @@ contract RewardHandler is CoreOwnable{
     event BaseMinimumWeightSet(uint256 bweight);
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
-    constructor(address _core, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _emissionReceiver, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue) CoreOwnable(_core){
+    constructor(
+        address _core, 
+        address _registry, 
+        address _revenueToken, 
+        address _platformRewards, 
+        address _insurancepool, 
+        address _emissionReceiver, 
+        address _pairEmissions, 
+        address _insuranceEmissions, 
+        address _insuranceRevenue
+    ) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;
         revenueToken = _revenueToken;
         platformRewards = _platformRewards;
@@ -121,10 +132,8 @@ contract RewardHandler is CoreOwnable{
         //if borrow limit is 0, dont apply any weight
         if(borrowLimit > 0){
 
-            //if first record, assume 7 days
-            if(lastTimestamp == 0){            
-                lastTimestamp = block.timestamp - 7 days;
-            }
+            // if first call for pair use epoch length
+            lastTimestamp = lastTimestamp == 0 ? block.timestamp - epochLength : lastTimestamp;
 
             //convert amount to amount per second. (precision loss ok as its just weights)
             rate = block.timestamp - lastTimestamp;
