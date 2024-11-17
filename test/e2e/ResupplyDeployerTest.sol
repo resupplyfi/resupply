@@ -21,6 +21,7 @@ contract ResupplyDeployerTest is BasePairTest {
             console.log("    Deployed Pair     ");
             console.log("======================================");
             console.log("pair: ", address(pair));
+            console.log("pair: ", pair.name());
             console.log("collateral: ", address(pair.collateralContract()));
             console.log("underlying: ", address(pair.underlyingAsset()));
         }

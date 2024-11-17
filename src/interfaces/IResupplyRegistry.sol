@@ -49,4 +49,5 @@ interface IResupplyRegistry {
     function setInsurancePool(address _newAddress) external;
     function setStaker(address _newAddress) external;
     function staker() external view returns(address);
+    function token() external view returns(address);
 }

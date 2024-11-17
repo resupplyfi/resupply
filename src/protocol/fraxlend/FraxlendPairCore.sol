@@ -63,6 +63,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
     // Asset and collateral contracts
     address public immutable registry;
+    IERC20 internal immutable debtToken;
     IERC20 public immutable collateralContract;
     IERC20 public immutable underlyingAsset;
 
@@ -153,13 +154,12 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             (address)
         );
         registry = _registry;
+        debtToken = IERC20(IResupplyRegistry(registry).token());
         {
             (
                 address _collateral,
                 address _oracle,
-                // uint32 _maxOracleDeviation,
                 address _rateContract,
-                // uint64 _fullUtilizationRate,
                 uint256 _maxLTV,
                 uint256 _initialBorrowLimit,
                 uint256 _liquidationFee,
@@ -1142,14 +1142,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Update exchange rate
         _updateExchangeRate();
 
-        IERC20 _underlyingAsset = underlyingAsset;
+        IERC20 _debtToken = debtToken;
         IERC20 _collateralContract = collateralContract;
 
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_underlyingAsset)) {
-            revert InvalidPath(address(_underlyingAsset), _path[0]);
+        if (_path[0] != address(_debtToken)) {
+            revert InvalidPath(address(_debtToken), _path[0]);
         }
         if (_path[_path.length - 1] != address(_collateralContract)) {
             revert InvalidPath(address(_collateralContract), _path[_path.length - 1]);
@@ -1165,7 +1165,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
 
         // Interactions
-        _underlyingAsset.approve(_swapperAddress, _borrowAmount);
+        _debtToken.approve(_swapperAddress, _borrowAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateralContract.balanceOf(address(this));
@@ -1231,7 +1231,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Update exchange rate
         _updateExchangeRate();
 
-        IERC20 _underlyingAsset = underlyingAsset;
+        IERC20 _debtToken = debtToken;
         IERC20 _collateralContract = collateralContract;
         VaultAccount memory _totalBorrow = totalBorrow;
 
@@ -1241,8 +1241,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         if (_path[0] != address(_collateralContract)) {
             revert InvalidPath(address(_collateralContract), _path[0]);
         }
-        if (_path[_path.length - 1] != address(_underlyingAsset)) {
-            revert InvalidPath(address(_underlyingAsset), _path[_path.length - 1]);
+        if (_path[_path.length - 1] != address(_debtToken)) {
+            revert InvalidPath(address(_debtToken), _path[_path.length - 1]);
         }
         //in case of a full redemption/shutdown via protocol,
         //all user debt should be 0 and thus swapping to repay is unnecessary.
@@ -1262,7 +1262,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _collateralContract.approve(_swapperAddress, _collateralToSwap);
 
         // Even though swappers are trusted, we verify the balance before and after swap
-        uint256 _initialUnderlyingBalance = _underlyingAsset.balanceOf(address(this));
+        uint256 _initialBalance = _debtToken.balanceOf(address(this));
         ISwapper(_swapperAddress).swapExactTokensForTokens(
             _collateralToSwap,
             _amountOutMin,
@@ -1270,11 +1270,11 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             address(this),
             block.timestamp
         );
-        uint256 _finalUnderlyingBalance = _underlyingAsset.balanceOf(address(this));
+        uint256 _finalBalance = _debtToken.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping
-        _amountOut = _finalUnderlyingBalance - _initialUnderlyingBalance;
+        _amountOut = _finalBalance - _initialBalance;
         if (_amountOut < _amountOutMin) {
             revert SlippageTooHigh(_amountOutMin, _amountOut);
         }

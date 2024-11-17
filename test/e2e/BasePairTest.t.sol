@@ -318,16 +318,15 @@ contract BasePairTest is
 
     /// @notice The ```deployFraxlendPublic``` function helps deploy Fraxlend public pairs with default config
     function deployDefaultLendingPairs() public{
-        deployLendingPair(address(Constants.Mainnet.FRAX_ERC20), address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
-        deployLendingPair(address(Constants.Mainnet.CURVE_USD_ERC20), address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
     }
 
-    function deployLendingPair(address _asset, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
+    function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
         vm.startPrank(address(Constants.Mainnet.CONVEX_DEPLOYER));
 
         address _pairAddress = deployer.deploy(
             abi.encode(
-                _asset,
                 _collateral,
                 address(oracle),
                 address(rateContract),
