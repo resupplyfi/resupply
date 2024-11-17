@@ -63,7 +63,6 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
     // Asset and collateral contracts
     address public immutable registry;
-    IERC20 internal immutable assetContract;
     IERC20 public immutable collateralContract;
     IERC20 public immutable underlyingAsset;
 
@@ -156,7 +155,6 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         registry = _registry;
         {
             (
-                address _asset,
                 address _collateral,
                 address _oracle,
                 // uint32 _maxOracleDeviation,
@@ -169,12 +167,11 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
                 uint256 _protocolRedemptionFee
             ) = abi.decode(
                     _configData,
-                    (address, address, address, address, uint256, uint256, uint256, uint256, uint256)
+                    (address, address, address, uint256, uint256, uint256, uint256, uint256)
                 );
 
             
             // Pair Settings
-            assetContract = IERC20(_asset);
             collateralContract = IERC20(_collateral);
             if(IERC20Metadata(_collateral).decimals() != 18){
                 revert InvalidParameter();
@@ -211,15 +208,13 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         rewards[0].is_non_claimable = true;
 
         {
-            (string memory _name, address _govToken, address _stakingContract, uint256 _stakingId) = abi.decode(
+            (string memory _name,,,) = abi.decode(
                 _customConfigData,
                 (string, address, address, uint256)
             );
 
             // Metadata
             name = _name;
-            //add gov token reward
-            _insertRewardToken(_govToken);
 
             // Instantiate Interest
             _addInterest();
@@ -784,6 +779,9 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _addCollateral(msg.sender, _collateralAmount, _borrower);
     }
 
+    /// @notice Allows depositing in terms of underlying asset, and have it converted to collateral shares to the borrower's position.
+    /// @param _amount The amount of the underlying asset to deposit.
+    /// @param _borrower The address of the borrower whose collateral balance will be credited.
     function addCollateral(uint256 _amount, address _borrower) external nonReentrant {
         if (_borrower == address(0)) revert InvalidReceiver();
 
@@ -870,16 +868,16 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @param borrower The borrower whose account will be credited
     /// @param amountToRepay The amount of Asset token to be transferred
     /// @param shares The amount of Borrow Shares which will be debited from the borrower after repayment
-    event RepayAsset(address indexed payer, address indexed borrower, uint256 amountToRepay, uint256 shares);
+    event Repay(address indexed payer, address indexed borrower, uint256 amountToRepay, uint256 shares);
 
-    /// @notice The ```_repayAsset``` function is the internal implementation for repaying a borrow position
+    /// @notice The ```_repay``` function is the internal implementation for repaying a borrow position
     /// @dev The payer must have called ERC20.approve() on the Asset Token contract prior to invocation
     /// @param _totalBorrow An in memory copy of the totalBorrow VaultAccount struct
     /// @param _amountToRepay The amount of Asset Token to transfer
     /// @param _shares The number of Borrow Shares the sender is repaying
     /// @param _payer The address from which funds will be transferred
     /// @param _borrower The borrower account which will be credited
-    function _repayAsset(
+    function _repay(
         VaultAccount memory _totalBorrow,
         uint128 _amountToRepay,
         uint128 _shares,
@@ -910,7 +908,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         if (_payer != address(0)) {
             IResupplyRegistry(registry).burn(_payer, _amountToRepay);
         }
-        emit RepayAsset(_payer, _borrower, _amountToRepay, _shares);
+        emit Repay(_payer, _borrower, _amountToRepay, _shares);
     }
 
     /// @notice The ```repayAsset``` function allows the caller to pay down the debt for a given borrower.
@@ -918,7 +916,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @param _shares The number of Borrow Shares which will be repaid by the call
     /// @param _borrower The account for which the debt will be reduced
     /// @return _amountToRepay The amount of Asset Tokens which were transferred in order to repay the Borrow Shares
-    function repayAsset(uint256 _shares, address _borrower) external nonReentrant returns (uint256 _amountToRepay) {
+    function repay(uint256 _shares, address _borrower) external nonReentrant returns (uint256 _amountToRepay) {
         if (_borrower == address(0)) revert InvalidReceiver();
 
         // Accrue interest if necessary
@@ -929,7 +927,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _amountToRepay = _totalBorrow.toAmount(_shares, true);
 
         // Execute repayment effects
-        _repayAsset(_totalBorrow, _amountToRepay.toUint128(), _shares.toUint128(), msg.sender, _borrower);
+        _repay(_totalBorrow, _amountToRepay.toUint128(), _shares.toUint128(), msg.sender, _borrower);
     }
 
     // ============================================================================================
@@ -1084,7 +1082,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Effects & Interactions
         // NOTE: reverts if _shares > _userBorrowShares
         // repay using address(0) to skip burning (liquidationHandler will burn from insurance pool)
-        _repayAsset(
+        _repay(
             _totalBorrow,
             _amountLiquidatorToRepay,
             _borrowerShares,
@@ -1144,14 +1142,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Update exchange rate
         _updateExchangeRate();
 
-        IERC20 _assetContract = assetContract;
+        IERC20 _underlyingAsset = underlyingAsset;
         IERC20 _collateralContract = collateralContract;
 
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_assetContract)) {
-            revert InvalidPath(address(_assetContract), _path[0]);
+        if (_path[0] != address(_underlyingAsset)) {
+            revert InvalidPath(address(_underlyingAsset), _path[0]);
         }
         if (_path[_path.length - 1] != address(_collateralContract)) {
             revert InvalidPath(address(_collateralContract), _path[_path.length - 1]);
@@ -1167,7 +1165,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
 
         // Interactions
-        _assetContract.approve(_swapperAddress, _borrowAmount);
+        _underlyingAsset.approve(_swapperAddress, _borrowAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateralContract.balanceOf(address(this));
@@ -1201,13 +1199,13 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         );
     }
 
-    /// @notice The ```RepayAssetWithCollateral``` event is emitted whenever ```repayAssetWithCollateral()``` is invoked
+    /// @notice The ```RepayWithCollateral``` event is emitted whenever ```repayWithCollateral()``` is invoked
     /// @param _borrower The borrower account for which the repayment is taking place
     /// @param _swapperAddress The address of the whitelisted swapper to use for token swaps
     /// @param _collateralToSwap The amount of Collateral Token to swap and use for repayment
     /// @param _amountAssetOut The amount of Asset Token which was repaid
     /// @param _sharesRepaid The number of Borrow Shares which were repaid
-    event RepayAssetWithCollateral(
+    event RepayWithCollateral(
         address indexed _borrower,
         address _swapperAddress,
         uint256 _collateralToSwap,
@@ -1215,25 +1213,25 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         uint256 _sharesRepaid
     );
 
-    /// @notice The ```repayAssetWithCollateral``` function allows a borrower to repay their debt using existing collateral in contract
+    /// @notice The ```repayWithCollateral``` function allows a borrower to repay their debt using existing collateral in contract
     /// @param _swapperAddress The address of the whitelisted swapper to use for token swaps
     /// @param _collateralToSwap The amount of Collateral Tokens to swap for Asset Tokens
-    /// @param _amountAssetOutMin The minimum amount of Asset Tokens to receive during the swap
+    /// @param _amountOutMin The minimum amount of Asset Tokens to receive during the swap
     /// @param _path An array containing the addresses of ERC20 tokens to swap.  Adheres to UniV2 style path params.
-    /// @return _amountAssetOut The amount of Asset Tokens received for the Collateral Tokens, the amount the borrowers account was credited
-    function repayAssetWithCollateral(
+    /// @return _amountOut The amount of Asset Tokens received for the Collateral Tokens, the amount the borrowers account was credited
+    function repayWithCollateral(
         address _swapperAddress,
         uint256 _collateralToSwap,
-        uint256 _amountAssetOutMin,
+        uint256 _amountOutMin,
         address[] calldata _path
-    ) external nonReentrant isSolvent(msg.sender) returns (uint256 _amountAssetOut) {
+    ) external nonReentrant isSolvent(msg.sender) returns (uint256 _amountOut) {
         // Accrue interest if necessary
         _addInterest();
 
         // Update exchange rate
         _updateExchangeRate();
 
-        IERC20 _assetContract = assetContract;
+        IERC20 _underlyingAsset = underlyingAsset;
         IERC20 _collateralContract = collateralContract;
         VaultAccount memory _totalBorrow = totalBorrow;
 
@@ -1243,8 +1241,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         if (_path[0] != address(_collateralContract)) {
             revert InvalidPath(address(_collateralContract), _path[0]);
         }
-        if (_path[_path.length - 1] != address(_assetContract)) {
-            revert InvalidPath(address(_assetContract), _path[_path.length - 1]);
+        if (_path[_path.length - 1] != address(_underlyingAsset)) {
+            revert InvalidPath(address(_underlyingAsset), _path[_path.length - 1]);
         }
         //in case of a full redemption/shutdown via protocol,
         //all user debt should be 0 and thus swapping to repay is unnecessary.
@@ -1264,30 +1262,30 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _collateralContract.approve(_swapperAddress, _collateralToSwap);
 
         // Even though swappers are trusted, we verify the balance before and after swap
-        uint256 _initialAssetBalance = _assetContract.balanceOf(address(this));
+        uint256 _initialUnderlyingBalance = _underlyingAsset.balanceOf(address(this));
         ISwapper(_swapperAddress).swapExactTokensForTokens(
             _collateralToSwap,
-            _amountAssetOutMin,
+            _amountOutMin,
             _path,
             address(this),
             block.timestamp
         );
-        uint256 _finalAssetBalance = _assetContract.balanceOf(address(this));
+        uint256 _finalUnderlyingBalance = _underlyingAsset.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping
-        _amountAssetOut = _finalAssetBalance - _initialAssetBalance;
-        if (_amountAssetOut < _amountAssetOutMin) {
-            revert SlippageTooHigh(_amountAssetOutMin, _amountAssetOut);
+        _amountOut = _finalUnderlyingBalance - _initialUnderlyingBalance;
+        if (_amountOut < _amountOutMin) {
+            revert SlippageTooHigh(_amountOutMin, _amountOut);
         }
 
         
-        uint256 _sharesToRepay = _totalBorrow.toShares(_amountAssetOut, false);
+        uint256 _sharesToRepay = _totalBorrow.toShares(_amountOut, false);
 
         // Effects: write to state
         // Note: setting _payer to address(this) means no actual transfer will occur.  Contract already has funds
-        _repayAsset(_totalBorrow, _amountAssetOut.toUint128(), _sharesToRepay.toUint128(), address(this), msg.sender);
+        _repay(_totalBorrow, _amountOut.toUint128(), _sharesToRepay.toUint128(), address(this), msg.sender);
 
-        emit RepayAssetWithCollateral(msg.sender, _swapperAddress, _collateralToSwap, _amountAssetOut, _sharesToRepay);
+        emit RepayWithCollateral(msg.sender, _swapperAddress, _collateralToSwap, _amountOut, _sharesToRepay);
     }
 }

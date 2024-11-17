@@ -49,6 +49,8 @@ contract ResupplyPair is FraxlendPairCore {
 
     uint256 private constant WEEK = 7 * 86400;
     uint256 public lastFeeEpoch;
+    address public constant CRV = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+    address public constant CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
 
     // Staking Info
     address public immutable convexBooster;
@@ -66,7 +68,7 @@ contract ResupplyPair is FraxlendPairCore {
         bytes memory _customConfigData
     ) FraxlendPairCore(_configData, _immutables, _customConfigData) {
 
-        (string memory _name, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
+        (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,
             (string, address, address, uint256)
         );
@@ -77,8 +79,9 @@ contract ResupplyPair is FraxlendPairCore {
             //approve
             collateralContract.approve(convexBooster, type(uint256).max);
             //add rewards
-            _insertRewardToken(address(0xD533a949740bb3306d119CC777fa900bA034cd52)); //crv
-            _insertRewardToken(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B)); //cvx
+            _insertRewardToken(_govToken);
+            _insertRewardToken(CRV);
+            _insertRewardToken(CVX);
         }
     }
 
@@ -86,10 +89,6 @@ contract ResupplyPair is FraxlendPairCore {
     // ============================================================================================
     // Functions: Helpers
     // ============================================================================================
-
-    function asset() external view returns (address) {
-        return address(assetContract);
-    }
 
     function getConstants()
         external
@@ -379,14 +378,14 @@ contract ResupplyPair is FraxlendPairCore {
             
             if(stakedBalance > 0){
                 //withdraw
-                IConvexStaking(convexBooster).withdrawAndUnwrap(stakedBalance,false);
+                IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
                 if(collateralContract.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
             }
 
             //stake in new pool
-            IConvexStaking(convexBooster).deposit(_pid,stakedBalance,false);
+            IConvexStaking(convexBooster).deposit(_pid, stakedBalance, true);
 
             //update pid
             convexPid = _pid;
@@ -395,14 +394,14 @@ contract ResupplyPair is FraxlendPairCore {
 
     function _stakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
-            IConvexStaking(convexBooster).deposit(convexPid,_amount,false);
+            IConvexStaking(convexBooster).deposit(convexPid, _amount, true);
         }
     }
 
     function _unstakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
             (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount,false);
+            IConvexStaking(rewards).withdrawAndUnwrap(_amount, false);
         }
     }
 

@@ -59,7 +59,6 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @notice Emits when a new pair is deployed
     /// @notice The ```LogDeploy``` event is emitted when a new Pair is deployed
     /// @param address_ The address of the pair
-    /// @param asset The address of the Asset Token contract
     /// @param collateral The address of the Collateral Token contract
     /// @param name The name of the Pair
     /// @param configData The config data of the Pair
@@ -67,7 +66,6 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @param customConfigData The custom config data of the Pair
     event LogDeploy(
         address indexed address_,
-        address indexed asset,
         address indexed collateral,
         string name,
         bytes configData,
@@ -94,14 +92,12 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     function getNextName(
-        address _asset,
         address _collateral,
         uint256 _uniqueId
     ) public view returns (string memory _name) {
         _name = string(
             abi.encodePacked(
                 "Resupply Pair ",
-                IERC20(_asset).safeSymbol(),
                 " (",
                 IERC20(_collateral).safeName(),
                 ")",
@@ -175,26 +171,26 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```deploy``` function allows the deployment of a FraxlendPair with default values
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
+    /// @param _configData abi.encode(address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @return _pairAddress The address to which the Pair was deployed
     function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId, uint256 _uniqueId) external returns (address _pairAddress) {
         if (!operators[msg.sender]) {
             revert WhitelistedDeployersOnly();
         }
 
-        (address _asset, address _collateral,,,,,,,) = abi.decode(
+        (address _collateral,,,,,,,) = abi.decode(
             _configData,
-            (address, address, address, address, uint256, uint256, uint256, uint256, uint256)
+            (address, address, address, uint256, uint256, uint256, uint256, uint256)
         );
 
-        string memory _name = getNextName(_asset, _collateral, _uniqueId);
+        string memory _name = getNextName(_collateral, _uniqueId);
 
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
 
-        emit LogDeploy(_pairAddress, _asset, _collateral, _name, _configData, _immutables, _customConfigData);
+        emit LogDeploy(_pairAddress, _collateral, _name, _configData, _immutables, _customConfigData);
     }
 
     // ============================================================================================
