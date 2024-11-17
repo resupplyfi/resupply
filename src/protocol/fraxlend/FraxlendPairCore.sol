@@ -348,7 +348,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         return _isProtocolOrOwner() || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
-    function _claimPoolRewards() internal override{
+    function _fetchIncentives() internal override{
         IResupplyRegistry(registry).claimRewards(address(this));
     }
 

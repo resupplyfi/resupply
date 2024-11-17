@@ -57,7 +57,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
 
     function _isRewardManager() internal view virtual returns(bool);
 
-    function _claimPoolRewards() internal virtual;
+    function _fetchIncentives() internal virtual;
 
     function _totalRewardShares() internal view virtual returns(uint256);
 
@@ -215,7 +215,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     //checkpoint with claim
     function _checkpoint(address _account, address _claimTo, uint256 _maxloops) internal {
         //claim rewards first
-        _claimPoolRewards();
+        _fetchIncentives();
 
         uint256 globalEpoch = currentRewardEpoch;
 
