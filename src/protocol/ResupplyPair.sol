@@ -38,11 +38,11 @@ import { ISwapper } from "../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
-
+import { EpochTracker } from "../dependencies/EpochTracker.sol";
 /// @title ResupplyPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  The FraxlendPair is a lending pair that allows users to engage in lending and borrowing activities
-contract ResupplyPair is FraxlendPairCore {
+contract ResupplyPair is FraxlendPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -63,10 +63,11 @@ contract ResupplyPair is FraxlendPairCore {
     /// @param _immutables immutable data
     /// @param _customConfigData extras
     constructor(
+        address _core,
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) FraxlendPairCore(_configData, _immutables, _customConfigData) {
+    ) FraxlendPairCore(_configData, _immutables, _customConfigData) EpochTracker(_core) {
 
         (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,
@@ -323,7 +324,7 @@ contract ResupplyPair is FraxlendPairCore {
         //get deposit contract
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         uint256 depositEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
-        uint256 currentEpoch = block.timestamp/WEEK * WEEK;
+        uint256 currentEpoch = getEpoch();
 
         //current epoch must be greater than last claimed epoch
         //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)

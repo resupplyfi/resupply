@@ -7,11 +7,11 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-
+import { EpochTracker } from '../dependencies/EpochTracker.sol';
 
 
 //Fee deposit to collect/track fees and distribute
-contract FeeDeposit is CoreOwnable{
+contract FeeDeposit is CoreOwnable, EpochTracker {
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -29,7 +29,7 @@ contract FeeDeposit is CoreOwnable{
     event ReceivedRevenue(address indexed _address, uint256 _fees, uint256 _otherFees);
     event SetOperator(address oldAddress, address newAddress);
 
-    constructor(address _core, address _registry, address _feeToken) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _feeToken) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;
         feeToken = _feeToken;
     }
@@ -45,7 +45,7 @@ contract FeeDeposit is CoreOwnable{
     }
 
     function distributeFees() external onlyOperator{
-        uint256 currentEpoch = block.timestamp/WEEK * WEEK;
+        uint256 currentEpoch = getEpoch();
         require(currentEpoch > lastDistributedEpoch, "!new epoch");
 
         lastDistributedEpoch = currentEpoch;

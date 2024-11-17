@@ -151,11 +151,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         // Get bytecode
         bytes memory bytecode = abi.encodePacked(
             _creationCode,
-            abi.encode(_configData, _immutables, _customConfigData)
+            abi.encode(core, _configData, _immutables, _customConfigData)
         );
 
         // Generate salt using constructor params
-        bytes32 salt = keccak256(abi.encodePacked(_configData, _immutables, _customConfigData));
+        bytes32 salt = keccak256(abi.encodePacked(core, _configData, _immutables, _customConfigData));
 
         /// @solidity memory-safe-assembly
         assembly {
