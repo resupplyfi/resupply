@@ -72,14 +72,16 @@ contract ResupplyPair is FraxlendPairCore {
             _customConfigData,
             (string, address, address, uint256)
         );
+        //add gov token rewards
+        _insertRewardToken(_govToken);
+
         //convex info
         if(_convexBooster != address(0)){
             convexBooster = _convexBooster;
             convexPid = _convexpid;
             //approve
             collateralContract.approve(convexBooster, type(uint256).max);
-            //add rewards
-            _insertRewardToken(_govToken);
+            //add rewards for curve staking
             _insertRewardToken(CRV);
             _insertRewardToken(CVX);
         }
