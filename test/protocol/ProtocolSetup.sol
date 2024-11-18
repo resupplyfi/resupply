@@ -119,9 +119,6 @@ contract ProtocolSetup is
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
     uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
-    // uint256 internal constant DEFAULT_PROTOCOL_LIQ_FEE = 200; // 2% of fee total collateral
-    // uint64 internal constant DEFAULT_MIN_INTEREST = 158_247_046;
-    // uint64 internal constant DEFAULT_MAX_INTEREST = 146_248_476_607;
     uint64 internal constant FIFTY_BPS = 158_247_046;
     uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
     uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
@@ -265,7 +262,7 @@ contract ProtocolSetup is
         rewardHandler = new RewardHandler(
             address(core),//core
             address(registry),
-            address(stableToken),
+            // address(stableToken),
             address(pairEmissionStream), //todo gov staking
             address(insurancePool),
             address(emissionReceiver),

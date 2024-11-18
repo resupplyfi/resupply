@@ -12,7 +12,7 @@ import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
-
+import { IGovStaker } from "../interfaces/IGovStaker.sol";
 
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
@@ -24,7 +24,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     address public immutable pairEmissions;
     address public immutable insuranceEmissions;
     address public immutable insuranceRevenue;
-    address public immutable platformRewards;
+    address public immutable govStaker;
     address public immutable emissionReceiver;
     address public immutable emissionToken;
 
@@ -37,9 +37,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
     constructor(
         address _core, 
-        address _registry, 
-        address _revenueToken, 
-        address _platformRewards, 
+        address _registry,
+        address _govStaker, 
         address _insurancepool, 
         address _emissionReceiver, 
         address _pairEmissions, 
@@ -47,17 +46,22 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         address _insuranceRevenue
     ) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;
+        address _revenueToken = IResupplyRegistry(registry).token();
+        require(_revenueToken != address(0), "revenueToken not set");
+        address _emissionToken = IRewards(pairEmissions).rewardToken();
+        require(_emissionToken != address(0), "emissionToken not set");
         revenueToken = _revenueToken;
-        platformRewards = _platformRewards;
+        emissionToken = _emissionToken;
+        govStaker = _govStaker;
         insurancepool = _insurancepool;
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
         emissionReceiver = _emissionReceiver;
-        emissionToken = IRewards(pairEmissions).rewardToken();
+        
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
-        IERC20(_revenueToken).approve(_platformRewards, type(uint256).max);
-        IERC20(emissionToken).approve(pairEmissions, type(uint256).max);
+        IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
+        IERC20(_emissionToken).approve(pairEmissions, type(uint256).max);
     }
 
     function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
@@ -137,9 +141,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
             // if first call for pair use epoch length
             lastTimestamp = lastTimestamp == 0 ? block.timestamp - epochLength : lastTimestamp;
 
-            //convert amount to amount per second. (precision loss ok as its just weights)
-            rate = block.timestamp - lastTimestamp;
-            rate = _amount / rate;
+            //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
+            rate = _amount / (block.timestamp - lastTimestamp);
 
             //if minimum set check if rate is below
             if(minimumWeights[_pair] != 0 && rate < minimumWeights[_pair]){
@@ -162,13 +165,13 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
     }
 
-    function queuePlatformRewards() external{
+    function queueStakingRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
 
         //queue up any reward tokens currently on this handler
-        IRewards(platformRewards).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
+        IGovStaker(govStaker).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
 
         //since this should get called once per epoch, can do emission handling as well
         ISimpleReceiver(emissionReceiver).allocateEmissions();

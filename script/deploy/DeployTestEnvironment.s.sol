@@ -130,7 +130,6 @@ contract DeployTestEnvironment is TenderlyHelper {
         RewardHandler _rewardHandler = new RewardHandler(
             address(_core),//core
             address(_registry),
-            address(_stable),
             address(_pairemissionstream), //todo gov staking
             address(_insurancepool),
             address(0),//address(_emissionReceiver),
