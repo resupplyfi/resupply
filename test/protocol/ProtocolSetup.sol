@@ -78,8 +78,6 @@ contract ProtocolSetup is
 
     IERC20 public asset;
     IERC20 public collateral;
-    
-    uint256 public uniqueId;
 
     struct UserAccounting {
         address _address;
@@ -148,15 +146,6 @@ contract ProtocolSetup is
         );
 
         stablecoin = new Stablecoin(address(core));
-
-        vm.startPrank(users[0]);
-        stakingToken.mint(users[0], 1_000_000 * 10 ** 18);
-        vm.stopPrank();
-
-        // label all the used addresses for traces
-        vm.label(address(stakingToken), "Gov Token");
-        vm.label(address(tempGov), "Temp Gov");
-        vm.label(address(core), "Core");
     }
     /// @notice The ```deployNonDynamicExternalContracts``` function deploys all contracts other than the pairs using default values
     /// @dev
@@ -164,10 +153,10 @@ contract ProtocolSetup is
 
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(stakingToken));
         deployer = new ResupplyPairDeployer(
+            address(core),
             address(registry),
             address(stakingToken),
-            address(Constants.Mainnet.CONVEX_DEPLOYER),
-            address(core)
+            address(Constants.Mainnet.CONVEX_DEPLOYER)
         );
         
         vm.startPrank(address(core));
@@ -335,11 +324,8 @@ contract ProtocolSetup is
                 DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             _staking,
-            _stakingId,
-            uniqueId
+            _stakingId
         );
-
-        uniqueId += 1;
         pair = ResupplyPair(_pairAddress);
         vm.stopPrank();
 

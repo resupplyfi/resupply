@@ -181,10 +181,10 @@ contract DeployTestEnvironment is TenderlyHelper {
         _stable.setOperator(address(_registry),true);
 
         ResupplyPairDeployer _pairDeployer = new ResupplyPairDeployer(
+            address(_core),
             address(_registry),
             address(_gov),
-            address(deployer),
-            address(_core)
+            address(deployer)
         );
         _return[3].address_ = address(_pairDeployer);
         _return[3].constructorParams = "";
@@ -220,8 +220,7 @@ contract DeployTestEnvironment is TenderlyHelper {
                 DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             address(0), //staking
-            0, //staking id
-            0 //resupply unique id
+            0 //staking id
         );
 
         _return[6].address_ = address(_fraxlendpairAddress);
@@ -241,8 +240,7 @@ contract DeployTestEnvironment is TenderlyHelper {
                 DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             address(Constants.Mainnet.CONVEX_BOOSTER), //staking
-            uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID), //staking id
-            1 //resupply unique id
+            uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID) //staking id
         );
 
         _return[7].address_ = address(_curvelendpairAddress);

@@ -167,10 +167,10 @@ contract BasePairTest is
 
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(stakingToken));
         deployer = new ResupplyPairDeployer(
+            address(core),
             address(registry),
             address(stakingToken),
-            address(Constants.Mainnet.CONVEX_DEPLOYER),
-            address(core)
+            address(Constants.Mainnet.CONVEX_DEPLOYER)
         );
         
         vm.startPrank(address(core));
@@ -367,11 +367,9 @@ contract BasePairTest is
                 DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             _staking,
-            _stakingId,
-            uniqueId
+            _stakingId
         );
 
-        uniqueId += 1;
         _pair = ResupplyPair(_pairAddress);
         vm.stopPrank();
 
