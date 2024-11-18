@@ -64,7 +64,7 @@ contract ResupplyAccountingTest is BasePairTest {
 
     function test_fuzz_borrowAssetInvairant_varyER(uint96 collateral, uint96 amountToBorrow, uint96 er) public {
         (address oracle, ,) = pair1.exchangeRateInfo();
-        address collateralAddress = address(pair1.collateralContract());
+        address collateralAddress = address(pair1.collateral());
         uint256 totalDebtAvailable = pair1.totalDebtAvailable();
         uint _er = bound(er, 0.5e18, 1000e18); // Seems reasonable
         amountToBorrow = uint96(bound(amountToBorrow, 1000e18, totalDebtAvailable));
@@ -88,7 +88,7 @@ contract ResupplyAccountingTest is BasePairTest {
         address user, 
         uint256 amountToAdd
     ) public {
-        IERC20 collateral = pair.collateralContract();
+        IERC20 collateral = pair.collateral();
         deal(address(collateral), user, amountToAdd);
 
 
@@ -109,7 +109,7 @@ contract ResupplyAccountingTest is BasePairTest {
         address user, 
         uint256 amountToRemove
     ) public {
-        IERC20 collateral = pair.collateralContract();
+        IERC20 collateral = pair.collateral();
         uint256 collateralBefore = collateral.balanceOf(user);
         uint256 userCollateralBalanceBefore = pair1.userCollateralBalance(user);
         
@@ -137,12 +137,12 @@ contract ResupplyAccountingTest is BasePairTest {
         ResupplyPair pair,
         address user,
         uint256 amountToAdd,
-        address underlyingAsset
+        address underlying
     ) public {
-        IERC20 underlying = IERC20(underlyingAsset);
-        deal(underlyingAsset, user, amountToAdd);
+        IERC20 underlying = IERC20(underlying);
+        deal(address(underlying), user, amountToAdd);
 
-        uint256 sharesToReceive = IERC4626(address(pair.collateralContract())).previewDeposit(amountToAdd);
+        uint256 sharesToReceive = IERC4626(address(pair.collateral())).previewDeposit(amountToAdd);
 
         vm.startPrank(user);
         underlying.approve(address(pair), amountToAdd);
@@ -173,7 +173,7 @@ contract ResupplyAccountingTest is BasePairTest {
         );
         vm.stopPrank();
 
-        uint256 underlyingToReceive = IERC4626(address(pair.collateralContract())).previewRedeem(amountToRemove);
+        uint256 underlyingToReceive = IERC4626(address(pair.collateral())).previewRedeem(amountToRemove);
 
         assertEq({
             a: userCollateralBalanceBefore - pair1.userCollateralBalance(user),

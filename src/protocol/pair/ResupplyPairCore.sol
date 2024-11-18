@@ -64,8 +64,8 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
     // Asset and collateral contracts
     address public immutable registry;
     IERC20 internal immutable debtToken;
-    IERC20 public immutable collateralContract;
-    IERC20 public immutable underlyingAsset;
+    IERC20 public immutable collateral;
+    IERC20 public immutable underlying;
 
     // LTV Settings
     /// @notice The maximum LTV allowed for this pair
@@ -87,7 +87,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
     
 
     // Interest Rate Calculator Contract
-    IRateCalculator public rateContract; // For complex rate calculations
+    IRateCalculator public rateCalculator; // For complex rate calculations
 
     // Swapper
     mapping(address => bool) public swappers; // approved swapper addresses
@@ -141,7 +141,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
     // ============================================================================================
 
     /// @notice The ```constructor``` function is called on deployment
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
+    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
     /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
     constructor(
@@ -159,7 +159,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
             (
                 address _collateral,
                 address _oracle,
-                address _rateContract,
+                address _rateCalculator,
                 uint256 _maxLTV,
                 uint256 _initialBorrowLimit,
                 uint256 _liquidationFee,
@@ -172,13 +172,13 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
 
             
             // Pair Settings
-            collateralContract = IERC20(_collateral);
+            collateral = IERC20(_collateral);
             if(IERC20Metadata(_collateral).decimals() != 18){
                 revert InvalidParameter();
             }
-            underlyingAsset = IERC20(IERC4626(_collateral).asset());
+            underlying = IERC20(IERC4626(_collateral).asset());
             // approve so this contract can deposit
-            underlyingAsset.approve(_collateral, type(uint256).max);
+            underlying.approve(_collateral, type(uint256).max);
 
             currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastBlock = uint32(block.number - 1);
@@ -187,7 +187,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
 
             exchangeRateInfo.oracle = _oracle;
 
-            rateContract = IRateCalculator(_rateContract);
+            rateCalculator = IRateCalculator(_rateCalculator);
 
             borrowLimit = _initialBorrowLimit;
 
@@ -503,8 +503,8 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
             uint256 _deltaTime = block.timestamp - _currentRateInfo.lastTimestamp;
 
             // Request new interest rate and full utilization rate from the rate calculator
-            (_results.newRate, _results.newPrice, _results.newShares) = IRateCalculator(rateContract).getNewRate(
-                address(collateralContract),
+            (_results.newRate, _results.newPrice, _results.newShares) = IRateCalculator(rateCalculator).getNewRate(
+                address(collateral),
                 _deltaTime,
                 _currentRateInfo.lastShares,
                 _currentRateInfo.lastPrice
@@ -613,7 +613,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         // Short circuit if already updated this block
         if (_exchangeRateInfo.lastTimestamp != block.timestamp) {
             // Get the latest exchange rate from the oracle
-            _exchangeRate = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateralContract));
+            _exchangeRate = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateral));
             //convert price of collateral as debt is priced in terms of collateral amount (inverse)
             _exchangeRate = 1e36 / _exchangeRate;
 
@@ -760,7 +760,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
 
         // Interactions
         if (_sender != address(this)) {
-            collateralContract.safeTransferFrom(_sender, address(this), _collateralAmount);
+            collateral.safeTransferFrom(_sender, address(this), _collateralAmount);
         }
         //stake underlying
         _stakeUnderlying(_collateralAmount);
@@ -787,8 +787,8 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
 
         _addInterest();
 
-        underlyingAsset.safeTransferFrom(msg.sender, address(this), _amount);
-        uint256 collateralShares = IERC4626(address(collateralContract)).deposit(_amount, address(this));
+        underlying.safeTransferFrom(msg.sender, address(this), _amount);
+        uint256 collateralShares = IERC4626(address(collateral)).deposit(_amount, address(this));
         _addCollateral(address(this), collateralShares, _borrower);
     }
 
@@ -821,12 +821,12 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
 
         // Interactions
         if (_receiver != address(this)) {
-            collateralContract.safeTransfer(_receiver, _collateralAmount);
+            collateral.safeTransfer(_receiver, _collateralAmount);
         }
         emit RemoveCollateral(msg.sender, _collateralAmount, _receiver, _borrower);
     }
 
-    /// @notice The ```removeCollateral``` function is used to remove collateral from msg.sender's borrow position
+    /// @notice The ```removeCollateralVault``` function is used to remove collateral from msg.sender's borrow position
     /// @dev msg.sender must be solvent after invocation or transaction will revert
     /// @param _collateralAmount The amount of Collateral Token to transfer
     /// @param _receiver The address to receive the transferred funds
@@ -846,6 +846,10 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         _removeCollateral(_collateralAmount, _receiver, msg.sender);
     }
 
+    /// @notice The ```removeCollateral``` function is used to remove collateral from msg.sender's borrow position and redeem it for underlying tokens
+    /// @dev msg.sender must be solvent after invocation or transaction will revert
+    /// @param _collateralAmount The amount of Collateral Token to redeem
+    /// @param _receiver The address to receive the redeemed underlying tokens
     function removeCollateral(
         uint256 _collateralAmount,
         address _receiver
@@ -860,7 +864,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
             _updateExchangeRate();
         }
         _removeCollateral(_collateralAmount, address(this), msg.sender);
-        IERC4626(address(collateralContract)).redeem(_collateralAmount, _receiver, address(this));
+        IERC4626(address(collateral)).redeem(_collateralAmount, _receiver, address(this));
     }
 
     /// @notice The ```RepayAsset``` event is emitted whenever a debt position is repaid
@@ -989,7 +993,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         //unstake
         _unstakeUnderlying(_collateralReturned);
         //send to receiver
-        collateralContract.safeTransfer(_receiver, _collateralReturned);
+        collateral.safeTransfer(_receiver, _collateralReturned);
 
         //distribute write off tokens to adjust userCollateralbalances
         redemptionWriteOff.mint(_collateralReturned);
@@ -1098,7 +1102,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
         //call liquidation handler to distribute and burn debt
-        ILiquidationHandler(liquidationHandler).processLiquidationDebt(address(collateralContract), _collateralForLiquidator, _amountLiquidatorToRepay);
+        ILiquidationHandler(liquidationHandler).processLiquidationDebt(address(collateral), _collateralForLiquidator, _amountLiquidatorToRepay);
     }
 
     // ============================================================================================
@@ -1143,7 +1147,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         _updateExchangeRate();
 
         IERC20 _debtToken = debtToken;
-        IERC20 _collateralContract = collateralContract;
+        IERC20 _collateral = collateral;
 
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
@@ -1151,8 +1155,8 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         if (_path[0] != address(_debtToken)) {
             revert InvalidPath(address(_debtToken), _path[0]);
         }
-        if (_path[_path.length - 1] != address(_collateralContract)) {
-            revert InvalidPath(address(_collateralContract), _path[_path.length - 1]);
+        if (_path[_path.length - 1] != address(_collateral)) {
+            revert InvalidPath(address(_collateral), _path[_path.length - 1]);
         }
 
         // Add initial collateral
@@ -1168,7 +1172,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         _debtToken.approve(_swapperAddress, _borrowAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
-        uint256 _initialCollateralBalance = _collateralContract.balanceOf(address(this));
+        uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
         ISwapper(_swapperAddress).swapExactTokensForTokens(
             _borrowAmount,
             _amountCollateralOutMin,
@@ -1176,7 +1180,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
             address(this),
             block.timestamp
         );
-        uint256 _finalCollateralBalance = _collateralContract.balanceOf(address(this));
+        uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping & write to state
@@ -1232,14 +1236,14 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         _updateExchangeRate();
 
         IERC20 _debtToken = debtToken;
-        IERC20 _collateralContract = collateralContract;
+        IERC20 _collateral = collateral;
         VaultAccount memory _totalBorrow = totalBorrow;
 
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_collateralContract)) {
-            revert InvalidPath(address(_collateralContract), _path[0]);
+        if (_path[0] != address(_collateral)) {
+            revert InvalidPath(address(_collateral), _path[0]);
         }
         if (_path[_path.length - 1] != address(_debtToken)) {
             revert InvalidPath(address(_debtToken), _path[_path.length - 1]);
@@ -1259,7 +1263,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
 
         // Interactions
-        _collateralContract.approve(_swapperAddress, _collateralToSwap);
+        _collateral.approve(_swapperAddress, _collateralToSwap);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));

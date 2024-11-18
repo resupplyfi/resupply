@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
+import "src/Constants.sol" as Constants;
+
 // DAO Contracts
 import { Test } from "lib/forge-std/src/Test.sol";
 import { console } from "lib/forge-std/src/console.sol";
@@ -42,6 +44,7 @@ import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceive
 contract Setup is Test {
 
     // Deployer constants
+    address public immutable _THIS;
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 75% with 1e5 precision
     uint256 internal constant DEFAULT_LIQ_FEE = 500; // 5% with 1e5 precision
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
@@ -69,7 +72,7 @@ contract Setup is Test {
     PermaLocker public permaLocker2;
     Stablecoin public stablecoin;
     BasicVaultOracle public oracle;
-    InterestRateCalculator public rateContract;
+    InterestRateCalculator public rateCalculator;
     ResupplyPairDeployer public deployer;
     RedemptionHandler public redemptionHandler;
     LiquidationHandler public liquidationHandler;
@@ -82,11 +85,15 @@ contract Setup is Test {
     InsurancePool public insurancePool;
     SimpleReceiverFactory public receiverFactory;
     SimpleReceiver public debtReceiver;
-    MockToken public mockFrax;
-    MockToken public mockCrvusd;
+    IERC20 public fraxToken;
+    IERC20 public crvusdToken;
+
+    constructor() {
+        _THIS = address(this);
+    }
 
     function setUp() public virtual {
-
+        vm.createSelectFork(vm.envString("MAINNET_URL"));
         deployDaoContracts();
         deployProtocolContracts();
         deployRewardsContracts();
@@ -94,8 +101,8 @@ contract Setup is Test {
         vm.prank(user1);
         govToken.approve(address(staker), type(uint256).max);
 
-        mockFrax = new MockToken("Mock FRAX", "mFRAX");
-        mockCrvusd = new MockToken("Mock CRVUSD", "mCRVUSD");
+        fraxToken = IERC20(address(Constants.Mainnet.FRAX_ERC20));
+        crvusdToken = IERC20(address(Constants.Mainnet.CURVE_USD_ERC20));
 
         // label all the used addresses for traces
         vm.label(address(tempGov), "Temp Gov");
@@ -126,7 +133,7 @@ contract Setup is Test {
         registry.setStaker(address(staker));
         vm.stopPrank();
 
-        rateContract = new InterestRateCalculator(
+        rateCalculator = new InterestRateCalculator(
             "suffix",
             634_195_840,//(2 * 1e16) / 365 / 86400, //2% todo check
             2
@@ -147,8 +154,8 @@ contract Setup is Test {
     function deployRewardsContracts() public {
         address[] memory rewards = new address[](3);
         rewards[0] = address(govToken);
-        rewards[1] = address(mockFrax);
-        rewards[2] = address(mockCrvusd);
+        rewards[1] = address(fraxToken);
+        rewards[2] = address(crvusdToken);
         insurancePool = new InsurancePool(
             address(core), //core
             address(stablecoin),
@@ -273,7 +280,7 @@ contract Setup is Test {
             abi.encode(
                 _collateral,
                 address(oracle),
-                address(rateContract),
+                address(rateCalculator),
                 DEFAULT_MAX_LTV, //max ltv 75%
                 DEFAULT_BORROW_LIMIT,
                 DEFAULT_LIQ_FEE,
@@ -291,6 +298,11 @@ contract Setup is Test {
         vm.stopPrank();
 
         return pair;
+    }
+
+    function deployDefaultLendingPairs() public{
+        deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
     }
 
     function printAddresses() public view {

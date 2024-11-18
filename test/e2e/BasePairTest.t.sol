@@ -62,7 +62,7 @@ contract BasePairTest is
     Stablecoin public stablecoin;
     EmissionsController public emissionsController;
 
-    InterestRateCalculator public rateContract;
+    InterestRateCalculator public rateCalculator;
     IOracle public oracle;
 
     InsurancePool public insurancePool;
@@ -180,7 +180,7 @@ contract BasePairTest is
         registry.setStaker(address(users[1]));
         vm.stopPrank();
 
-        rateContract = new InterestRateCalculator(
+        rateCalculator = new InterestRateCalculator(
             "suffix",
             634_195_840,//(2 * 1e16) / 365 / 86400, //2% todo check
             2
@@ -359,7 +359,7 @@ contract BasePairTest is
             abi.encode(
                 _collateral,
                 address(oracle),
-                address(rateContract),
+                address(rateCalculator),
                 DEFAULT_MAX_LTV, //max ltv 75%
                 DEFAULT_BORROW_LIMIT,
                 DEFAULT_LIQ_FEE,
@@ -402,7 +402,7 @@ contract BasePairTest is
                 borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
                 collateralBalance: _collateralBalance,
                 balanceOfAsset: stablecoin.balanceOf(_userAddress),
-                balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
+                balanceOfCollateral: IERC20(address(_pair.collateral())).balanceOf(_userAddress)
             });
     }
 
@@ -421,7 +421,7 @@ contract BasePairTest is
             borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
             collateralBalance: _collateralBalance,
             balanceOfAsset: stablecoin.balanceOf(_userAddress),
-            balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
+            balanceOfCollateral: IERC20(address(_pair.collateral())).balanceOf(_userAddress)
         });
         _net = UserAccounting({
             _address: _userAddress,
@@ -438,7 +438,7 @@ contract BasePairTest is
         ResupplyPair _pair
     ) internal returns (PairAccounting memory _initial) {
         address _pairAddress = address(_pair);
-        IERC20 _collateral = _pair.collateralContract();
+        IERC20 _collateral = _pair.collateral();
 
         (
             uint256 _claimableFees,
@@ -461,7 +461,7 @@ contract BasePairTest is
     ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
         address _pairAddress = _initial.pairAddress;
         ResupplyPair _pair = ResupplyPair(_pairAddress);
-        IERC20 _collateral = _pair.collateralContract();
+        IERC20 _collateral = _pair.collateral();
 
         (
             uint256 _claimableFees,
@@ -656,7 +656,7 @@ contract BasePairTest is
     }
 
     function _preBorrowFaucetApprove(ResupplyPair _pair, BorrowAction memory _borrowAction) internal {
-        IERC20 _collateral = _pair.collateralContract();
+        IERC20 _collateral = _pair.collateral();
         faucetFunds(_collateral, _borrowAction.collateralAmount, _borrowAction.user);
         _collateral.approve(address(_pair), _borrowAction.collateralAmount);
     }
@@ -679,7 +679,7 @@ contract BasePairTest is
         ResupplyPair _pair,
         BorrowAction memory _borrowAction
     ) internal returns (uint256 _finalShares, uint256 _finalCollateralBalance) {
-        faucetFunds(_pair.collateralContract(), _borrowAction.collateralAmount, _borrowAction.user);
+        faucetFunds(_pair.collateral(), _borrowAction.collateralAmount, _borrowAction.user);
         (_finalShares, _finalCollateralBalance) = borrowToken(
             _pair,
             _borrowAction.borrowAmount,

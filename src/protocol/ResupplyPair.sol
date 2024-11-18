@@ -81,7 +81,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             convexBooster = _convexBooster;
             convexPid = _convexpid;
             //approve
-            collateralContract.approve(convexBooster, type(uint256).max);
+            collateral.approve(convexBooster, type(uint256).max);
             //add rewards for curve staking
             _insertRewardToken(CRV);
             _insertRewardToken(CVX);
@@ -216,17 +216,17 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     }
 
  
-    /// @notice The ```SetRateContract``` event is emitted when the rate contract is set
-    /// @param oldRateContract The old rate contract
-    /// @param newRateContract The new rate contract
-    event SetRateContract(address oldRateContract, address newRateContract);
+    /// @notice The ```SetRateCalculator``` event is emitted when the rate contract is set
+    /// @param oldRateCalculator The old rate contract
+    /// @param newRateCalculator The new rate contract
+    event SetRateCalculator(address oldRateCalculator, address newRateCalculator);
 
-    /// @notice The ```setRateContract``` function sets the rate contract address
-    /// @param _newRateContract The new rate contract address
-    function setRateContract(address _newRateContract) external {
+    /// @notice The ```setRateCalculator``` function sets the rate contract address
+    /// @param _newRateCalculator The new rate contract address
+    function setRateCalculator(address _newRateCalculator) external {
         _requireProtocolOrOwner();
-        emit SetRateContract(address(rateContract), _newRateContract);
-        rateContract = IRateCalculator(_newRateContract);
+        emit SetRateCalculator(address(rateCalculator), _newRateCalculator);
+        rateCalculator = IRateCalculator(_newRateCalculator);
     }
 
 
@@ -382,7 +382,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             if(stakedBalance > 0){
                 //withdraw
                 IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
-                if(collateralContract.balanceOf(address(this)) < stakedBalance){
+                if(collateral.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
             }
@@ -415,7 +415,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             //get balance
             _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
         }else{
-            _totalCollateralBalance = collateralContract.balanceOf(address(this));   
+            _totalCollateralBalance = collateral.balanceOf(address(this));   
         }
     }
 
