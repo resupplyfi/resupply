@@ -1169,14 +1169,16 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateralContract.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
-            _borrowAmount,
-            _amountCollateralOutMin,
-            _path,
-            address(this),
-            block.timestamp
-        );
-        IERC4626(address(collateralContract)).deposit(_amount, address(this));
+        {
+            uint256 out = ISwapper(_swapperAddress).swapExactTokensForTokens(
+                _borrowAmount,
+                _amountCollateralOutMin,
+                _path,
+                address(this),
+                block.timestamp
+            )[0];
+            IERC4626(address(collateralContract)).deposit(out, address(this));
+        }
         uint256 _finalCollateralBalance = _collateralContract.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
@@ -1259,7 +1261,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
         uint256 underlyingAmount = IERC4626(address(collateralContract)).redeem(
-            _collateralAmount, 
+            _collateralToSwap, 
             address(this), 
             address(this)
         );
