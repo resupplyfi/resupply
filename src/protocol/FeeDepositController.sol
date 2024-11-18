@@ -31,12 +31,13 @@ contract FeeDepositController is CoreOwnable{
     constructor(
         address _core,
         address _registry, 
-        address _treasury, 
         address _feeDeposit, 
         uint256 _insuranceSplit, 
         uint256 _treasurySplit
     ) CoreOwnable(_core){
         registry = _registry;
+        address _treasury = IResupplyRegistry(_registry).treasury();
+        require(_treasury != address(0), "treasury not set");
         treasury = _treasury;
         feeDeposit = _feeDeposit;
         feeToken = IResupplyRegistry(_registry).token();

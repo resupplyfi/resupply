@@ -99,7 +99,7 @@ contract Setup is Test {
         );
 
         treasury = new Treasury(address(core));
-        registry = new ResupplyRegistry(address(core), address(govToken));
+        registry = new ResupplyRegistry(address(core), address(govToken), address(stakingToken));
         permaLocker1 = new PermaLocker(address(core), user1, address(staker), address(registry), "Yearn");
         permaLocker2 = new PermaLocker(address(core), user2, address(staker), address(registry), "Convex");
         assertEq(permaLocker1.owner(), user1);

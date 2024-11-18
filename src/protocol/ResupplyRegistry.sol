@@ -34,7 +34,7 @@ contract ResupplyRegistry is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable token;
-
+    address public immutable govToken;
     /// @notice List of the addresses of all deployed Pairs
     address[] public registeredPairs;
 
@@ -51,9 +51,11 @@ contract ResupplyRegistry is CoreOwnable{
     address public rewardHandler;
     address public insurancePool;
     address public staker;
+    address public treasury;
 
-    constructor(address _core, address _token) CoreOwnable(_core){
+    constructor(address _core, address _token, address _govToken) CoreOwnable(_core){
         token = _token;
+        govToken = _govToken;
     }
 
     // ============================================================================================
@@ -116,6 +118,13 @@ contract ResupplyRegistry is CoreOwnable{
     function setStaker(address _newAddress) external onlyOwner{
         emit SetStaker(staker, _newAddress);
         staker = _newAddress;
+    }
+
+    event SetTreasury(address oldAddress, address newAddress);
+
+    function setTreasury(address _newAddress) external onlyOwner{
+        emit SetTreasury(treasury, _newAddress);
+        treasury = _newAddress;
     }
 
     /// @notice The ```AddPair``` event is emitted when a new pair is added to the registry

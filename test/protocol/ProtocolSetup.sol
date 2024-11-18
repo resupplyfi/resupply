@@ -162,7 +162,7 @@ contract ProtocolSetup is
     /// @dev
     function deployBaseContracts() public {
 
-        registry = new ResupplyRegistry(address(core),address(stableToken));
+        registry = new ResupplyRegistry(address(core), address(stableToken), address(stakingToken));
         deployer = new ResupplyPairDeployer(
             address(registry),
             address(stakingToken),
@@ -173,6 +173,8 @@ contract ProtocolSetup is
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
         stableToken.setOperator(address(registry),true);
+        registry.setTreasury(address(users[1]));
+        registry.setStaker(address(users[1]));
         vm.stopPrank();
 
         rateContract = new InterestRateCalculator(
@@ -235,10 +237,9 @@ contract ProtocolSetup is
              address(stableToken)
              );
         feeDepositController = new FeeDepositController(
+            address(core), //core
             address(registry),
-            address(users[1]), //todo treasury
             address(feeDeposit),
-            address(stableToken),
             1500,
             500
             );

@@ -100,10 +100,9 @@ contract DeployTestEnvironment is TenderlyHelper {
              );
         _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
         FeeDepositController _feedepositController = new FeeDepositController(
+            address(_core), //core
             address(_registry),
-            address(_core), //todo treasury
             address(_feedeposit),
-            address(_stable),
             1500,
             1000
             );
@@ -171,7 +170,8 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         ResupplyRegistry _registry = new ResupplyRegistry(
             address(_core),
-            address(_stable)
+            address(_stable),
+            address(0) // TODO: gov token
         );
         _return[2].address_ = address(_registry);
         _return[2].constructorParams = "";

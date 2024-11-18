@@ -47,7 +47,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         registry = _registry;
         address _revenueToken = IResupplyRegistry(registry).token();
         require(_revenueToken != address(0), "revenueToken not set");
-        address _emissionToken = IRewards(pairEmissions).rewardToken();
+        address _emissionToken = IResupplyRegistry(registry).govToken();
         require(_emissionToken != address(0), "emissionToken not set");
         address _govStaker = IResupplyRegistry(registry).staker();
         require(_govStaker != address(0), "govStaker not set");
