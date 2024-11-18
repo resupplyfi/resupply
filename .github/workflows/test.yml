@@ -23,7 +23,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          path: ./
       - name: Debugging - Print Working Directory
         run: pwd
 
