@@ -2,42 +2,42 @@
 pragma solidity ^0.8.22;
 
 // DAO Contracts
-import { Test } from "../../../lib/forge-std/src/Test.sol";
-import { console } from "../../../lib/forge-std/src/console.sol";
+import { Test } from "lib/forge-std/src/Test.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
-import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
-import { Core } from "../../../src/dao/Core.sol";
-import { Voter } from "../../../src/dao/Voter.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
+import { GovStaker } from "src/dao/staking/GovStaker.sol";
+import { Core } from "src/dao/Core.sol";
+import { Voter } from "src/dao/Voter.sol";
 import { MockToken } from "./mocks/MockToken.sol";
-import { GovStakerEscrow } from "../../../src/dao/staking/GovStakerEscrow.sol";
-import { IGovStakerEscrow } from "../../../src/interfaces/IGovStakerEscrow.sol";
-import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
-import { GovToken } from "../../../src/dao/GovToken.sol";
-import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
-import { VestManager } from "../../../src/dao/tge/VestManager.sol";
-import { Treasury } from "../../../src/dao/Treasury.sol";
-import { PermaLocker } from "../../../src/dao/tge/PermaLocker.sol";
-import { ResupplyRegistry } from "../../../src/protocol/ResupplyRegistry.sol";
+import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
+import { IGovStakerEscrow } from "src/interfaces/IGovStakerEscrow.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+import { GovToken } from "src/dao/GovToken.sol";
+import { IGovToken } from "src/interfaces/IGovToken.sol";
+import { VestManager } from "src/dao/tge/VestManager.sol";
+import { Treasury } from "src/dao/Treasury.sol";
+import { PermaLocker } from "src/dao/tge/PermaLocker.sol";
+import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 // Protocol Contracts
-import { Stablecoin } from "../../../src/protocol/Stablecoin.sol";
-import { ResupplyPair } from "../../../src/protocol/ResupplyPair.sol";
-import { ResupplyRegistry } from "../../../src/protocol/ResupplyRegistry.sol";
-import { ResupplyPairDeployer } from "../../../src/protocol/ResupplyPairDeployer.sol";
-import { InsurancePool } from "../../../src/protocol/InsurancePool.sol";
-import { BasicVaultOracle } from "../../../src/protocol/BasicVaultOracle.sol";
-import { InterestRateCalculator } from "../../../src/protocol/InterestRateCalculator.sol";
-import { RedemptionHandler } from "../../../src/protocol/RedemptionHandler.sol";
-import { LiquidationHandler } from "../../../src/protocol/LiquidationHandler.sol";
-import { RewardHandler } from "../../../src/protocol/RewardHandler.sol";
+import { Stablecoin } from "src/protocol/Stablecoin.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
+import { InsurancePool } from "src/protocol/InsurancePool.sol";
+import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
+import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
+import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
+import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
+import { RewardHandler } from "src/protocol/RewardHandler.sol";
 
 // Incentive Contracts
-import { SimpleRewardStreamer } from "../../../src/protocol/SimpleRewardStreamer.sol";
-import { FeeDeposit } from "../../../src/protocol/FeeDeposit.sol";
-import { FeeDepositController } from "../../../src/protocol/FeeDepositController.sol";
-import { SimpleReceiver } from "../../../src/dao/emissions/receivers/SimpleReceiver.sol";
-import { SimpleReceiverFactory } from "../../../src/dao/emissions/receivers/SimpleReceiverFactory.sol";
+import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
+import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
+import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
+import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
+import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceiverFactory.sol";
 
 contract Setup is Test {
 
@@ -53,7 +53,6 @@ contract Setup is Test {
 
     Core public core;
     GovStaker public staker;
-    GovStakerEscrow public escrow;
     Voter public voter;
     GovToken public govToken;
     GovToken public stakingToken;
@@ -107,7 +106,6 @@ contract Setup is Test {
         vm.label(address(permaLocker1), "PermaLocker 1");
         vm.label(address(permaLocker2), "PermaLocker 2");
         vm.label(address(staker), "Gov Staker");
-        vm.label(address(escrow), "Gov Staker Escrow");
         vm.label(address(treasury), "Treasury");
     }
 
@@ -207,7 +205,8 @@ contract Setup is Test {
         feeDeposit.setOperator(address(feeDepositController));
         vm.stopPrank();
 
-        rewardHandler = new RewardHandler(address(core),
+        rewardHandler = new RewardHandler(
+            address(core),
             address(registry),
             address(insurancePool), 
             address(debtReceiver),

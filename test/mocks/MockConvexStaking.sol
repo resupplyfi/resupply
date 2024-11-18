@@ -7,8 +7,10 @@ import { MockConvexRewards } from "test/mocks/MockConvexRewards.sol";
 contract MockConvexStaking {
     struct PoolInfo {
         address lpToken;
+        address token;
         address gauge;
         address rewards;
+        address stash;
         bool shutdown;
     }
 
@@ -20,14 +22,18 @@ contract MockConvexStaking {
     function setPoolInfo(
         uint256 _pid,
         address _lpToken,
+        address _token,
         address _gauge,
         address _rewards,
+        address _stash,
         bool _shutdown
     ) external {
         poolInfo[_pid] = PoolInfo({
             lpToken: _lpToken,
+            token: _token,
             gauge: _gauge,
             rewards: _rewards,
+            stash: _stash,
             shutdown: _shutdown
         });
     }
@@ -56,7 +62,9 @@ contract MockConvexStaking {
             lpToken: _lpToken,
             gauge: address(0),
             rewards: _rewards,
-            shutdown: false
+            shutdown: false,
+            token: address(0),
+            stash: address(0)
         });
         IERC20(_lpToken).approve(_rewards, type(uint256).max);
         return _pid;

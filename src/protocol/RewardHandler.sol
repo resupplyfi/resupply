@@ -25,8 +25,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     address public immutable insuranceEmissions;
     address public immutable insuranceRevenue;
     address public immutable govStaker;
-    address public immutable emissionReceiver;
     address public immutable emissionToken;
+    ISimpleReceiver public immutable debtEmissionsReceiver;
 
     mapping(address => uint256) public pairTimestamp;
     mapping(address => uint256) public minimumWeights;
@@ -39,7 +39,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         address _core, 
         address _registry, 
         address _insurancepool, 
-        address _emissionReceiver, 
+        address _debtEmissionsReceiver, 
         address _pairEmissions, 
         address _insuranceEmissions, 
         address _insuranceRevenue
@@ -58,7 +58,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
-        emissionReceiver = _emissionReceiver;
+        debtEmissionsReceiver = ISimpleReceiver(_debtEmissionsReceiver);
         
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
@@ -175,9 +175,9 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         IGovStaker(govStaker).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
 
         //since this should get called once per epoch, can do emission handling as well
-        ISimpleReceiver(emissionReceiver).allocateEmissions();
-        if(ISimpleReceiver(emissionReceiver).claimableEmissions() > 0){
-            ISimpleReceiver(emissionReceiver).claimEmissions(address(this));
+        debtEmissionsReceiver.allocateEmissions();
+        if(debtEmissionsReceiver.claimableEmissions() > 0){
+            debtEmissionsReceiver.claimEmissions(address(this));
             IRewards(pairEmissions).queueNewRewards(IERC20(emissionToken).balanceOf(address(this)));
         }
     }

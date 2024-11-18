@@ -55,6 +55,11 @@ contract MockConvexRewards {
         return true;
     }
 
+    function getReward(address, bool) public returns(bool) {
+        // Implementation for getReward function
+        return true;
+    }
+
     function exit() public returns(bool) {
         // Implementation for exit function
         return true;

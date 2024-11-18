@@ -27,7 +27,7 @@ contract PairTest is Setup {
         poolId = mockStaking.addPool(address(mockCollateral));
         assertGt(poolId, 0, "PoolAddFailed");
         assertEq(mockStaking.lpToPid(address(mockCollateral)), poolId);
-        (address lpToken,, address rewards,) = mockStaking.poolInfo(poolId);
+        (address lpToken,, address rewards,,,) = mockStaking.poolInfo(poolId);
         assertEq(lpToken, address(mockCollateral));
         mockRewards = MockConvexRewards(rewards);
         pair = deployLendingPair(
@@ -43,12 +43,16 @@ contract PairTest is Setup {
         assertEq(address(underlyingAsset), address(pair.underlyingAsset()));
     }
 
-    function test_Borrow() public {
-        deal(address(mockCollateral), user, 1000e18);
+    function test_AddCollateral() public {
+        uint256 collateralAmount = 100e18;
+        deal(address(mockCollateral), user, collateralAmount);
         vm.startPrank(user);
         mockCollateral.approve(address(pair), type(uint256).max);
         underlyingAsset.approve(address(pair), type(uint256).max);
-        pair.addCollateral(100e18, address(this));
+
+        pair.addCollateral(collateralAmount, address(this));
+        assertEq(pair.userCollateralBalance(user), collateralAmount);
+        
         assertEq(address(0), address(0));
     }
 }
