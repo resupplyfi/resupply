@@ -15,7 +15,7 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
-import { StableCoin } from "src/protocol/StableCoin.sol";
+import { Stablecoin } from "src/protocol/StableCoin.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
@@ -59,7 +59,7 @@ contract BasePairTest is
     ResupplyRegistry public registry;
     Core public core;
     MockToken public stakingToken;
-    StableCoin public stableToken;
+    Stablecoin public stablecoin;
     EmissionsController public emissionsController;
 
     InterestRateCalculator public rateContract;
@@ -150,7 +150,7 @@ contract BasePairTest is
             )
         );
 
-        stableToken = new StableCoin(address(core));
+        stablecoin = new Stablecoin(address(core));
 
         vm.startPrank(users[0]);
         stakingToken.mint(users[0], 1_000_000 * 10 ** 18);
@@ -165,7 +165,7 @@ contract BasePairTest is
     /// @dev
     function deployBaseContracts() public {
 
-        registry = new ResupplyRegistry(address(core), address(stableToken), address(stakingToken));
+        registry = new ResupplyRegistry(address(core), address(stablecoin), address(stakingToken));
         deployer = new ResupplyPairDeployer(
             address(registry),
             address(stakingToken),
@@ -175,7 +175,7 @@ contract BasePairTest is
         
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
-        stableToken.setOperator(address(registry),true);
+        stablecoin.setOperator(address(registry),true);
         registry.setTreasury(address(users[1]));
         registry.setStaker(address(users[1]));
         vm.stopPrank();
@@ -226,15 +226,15 @@ contract BasePairTest is
         rewards[2] = address(crvUsdToken);
         insurancePool = new InsurancePool(
             address(core), //core
-            address(stableToken),
+            address(stablecoin),
             rewards,
             address(registry));
 
         //seed insurance pool
-        stableToken.transfer(address(insurancePool),1e18);
+        stablecoin.transfer(address(insurancePool),1e18);
         
         ipStableStream = new SimpleRewardStreamer(
-            address(stableToken),
+            address(stablecoin),
             address(registry),
             address(core), //core
             address(insurancePool));
@@ -256,7 +256,7 @@ contract BasePairTest is
         feeDeposit = new FeeDeposit(
              address(core), //core
              address(registry),
-             address(stableToken)
+             address(stablecoin)
              );
         feeDepositController = new FeeDepositController(
             address(core), //core
@@ -273,7 +273,7 @@ contract BasePairTest is
         redemptionHandler = new RedemptionHandler(
             address(core),//core
             address(registry),
-            address(stableToken)
+            address(stablecoin)
             );
 
         liquidationHandler = new LiquidationHandler(
@@ -327,7 +327,7 @@ contract BasePairTest is
         console.log("Registry: ", address(registry));
         console.log("Deployer: ", address(deployer));
         console.log("govToken: ", address(stakingToken));
-        console.log("stableToken: ", address(stableToken));
+        console.log("stablecoin: ", address(stablecoin));
         console.log("insurancePool: ", address(insurancePool));
         console.log("ipStableStream: ", address(ipStableStream));
         console.log("pairEmissionStream: ", address(pairEmissionStream));
@@ -403,7 +403,7 @@ contract BasePairTest is
                 borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
                 borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
                 collateralBalance: _collateralBalance,
-                balanceOfAsset: stableToken.balanceOf(_userAddress),
+                balanceOfAsset: stablecoin.balanceOf(_userAddress),
                 balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
             });
     }
@@ -422,7 +422,7 @@ contract BasePairTest is
             borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
             borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
             collateralBalance: _collateralBalance,
-            balanceOfAsset: stableToken.balanceOf(_userAddress),
+            balanceOfAsset: stablecoin.balanceOf(_userAddress),
             balanceOfCollateral: IERC20(address(_pair.collateralContract())).balanceOf(_userAddress)
         });
         _net = UserAccounting({
@@ -453,7 +453,7 @@ contract BasePairTest is
         _initial.totalBorrowAmount = _totalBorrowAmount;
         _initial.totalBorrowShares = _totalBorrowShares;
         _initial.totalCollateral = _totalCollateral;
-        _initial.balanceOfAsset = stableToken.balanceOf(_pairAddress);
+        _initial.balanceOfAsset = stablecoin.balanceOf(_pairAddress);
         _initial.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
         _initial.collateralBalance = _pair.userCollateralBalance(_pairAddress);
     }
@@ -477,7 +477,7 @@ contract BasePairTest is
         _final.totalBorrowAmount = _totalBorrowAmount;
         _final.totalBorrowShares = _totalBorrowShares;
         _final.totalCollateral = _totalCollateral;
-        _final.balanceOfAsset = stableToken.balanceOf(_pairAddress);
+        _final.balanceOfAsset = stablecoin.balanceOf(_pairAddress);
         _final.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
         _final.collateralBalance = _pair.userCollateralBalance(_pairAddress);
 
@@ -539,8 +539,8 @@ contract BasePairTest is
             uint256 _borrowShares = _pair.userBorrowShares(_user);
             uint256 _borrowAmount = _pair.toBorrowAmount(_borrowShares, true, false);
             uint256 _collateralBalance = _pair.userCollateralBalance(_user);
-            faucetFunds(stableToken, _borrowAmount, _user);
-            stableToken.approve(address(_pair), _borrowAmount);
+            faucetFunds(stablecoin, _borrowAmount, _user);
+            stablecoin.approve(address(_pair), _borrowAmount);
             _pair.repay(_borrowShares, _user);
             _pair.removeCollateral(_collateralBalance, _user);
             vm.stopPrank();
@@ -715,7 +715,7 @@ contract BasePairTest is
         uint256 _sharesToRepay,
         address _user
     ) internal returns (uint256 _finalShares) {
-        faucetFunds(stableToken, 2 * _sharesToRepay, _user);
+        faucetFunds(stablecoin, 2 * _sharesToRepay, _user);
         _finalShares = repayToken(_pair, _sharesToRepay, _user);
     }
 

@@ -7,7 +7,7 @@ import {GovStakerEscrow} from "../../src/dao/staking/GovStakerEscrow.sol";
 import {MockToken} from "../mocks/MockToken.sol";
 import {IGovStakerEscrow} from "../../src/interfaces/IGovStakerEscrow.sol";
 import {IGovStaker} from "../../src/interfaces/IGovStaker.sol";
-import {Setup} from "./utils/Setup.sol";
+import {Setup} from "../Setup.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract GovStakerStakingTest is Setup {

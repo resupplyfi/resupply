@@ -18,7 +18,7 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
-import { StableCoin } from "src/protocol/StableCoin.sol";
+import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
@@ -54,7 +54,7 @@ contract ProtocolSetup is
     ResupplyRegistry public registry;
     Core public core;
     MockToken public stakingToken;
-    StableCoin public stableToken;
+    Stablecoin public stablecoin;
 
     InterestRateCalculator public rateContract;
     IOracle public oracle;
@@ -147,7 +147,7 @@ contract ProtocolSetup is
             )
         );
 
-        stableToken = new StableCoin(address(core));
+        stablecoin = new Stablecoin(address(core));
 
         vm.startPrank(users[0]);
         stakingToken.mint(users[0], 1_000_000 * 10 ** 18);
@@ -162,7 +162,7 @@ contract ProtocolSetup is
     /// @dev
     function deployBaseContracts() public {
 
-        registry = new ResupplyRegistry(address(core), address(stableToken), address(stakingToken));
+        registry = new ResupplyRegistry(address(core), address(stablecoin), address(stakingToken));
         deployer = new ResupplyPairDeployer(
             address(registry),
             address(stakingToken),
@@ -172,7 +172,7 @@ contract ProtocolSetup is
         
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
-        stableToken.setOperator(address(registry),true);
+        stablecoin.setOperator(address(registry),true);
         registry.setTreasury(address(users[1]));
         registry.setStaker(address(users[1]));
         vm.stopPrank();
@@ -204,15 +204,15 @@ contract ProtocolSetup is
         rewards[2] = address(crvUsdToken);
         insurancePool = new InsurancePool(
             address(core), //core
-            address(stableToken),
+            address(stablecoin),
             rewards,
             address(registry));
 
         //seed insurance pool
-        stableToken.transfer(address(insurancePool),1e18);
+        stablecoin.transfer(address(insurancePool),1e18);
         
         ipStableStream = new SimpleRewardStreamer(
-            address(stableToken),
+            address(stablecoin),
             address(registry),
             address(core), //core
             address(insurancePool));
@@ -234,7 +234,7 @@ contract ProtocolSetup is
         feeDeposit = new FeeDeposit(
              address(core), //core
              address(registry),
-             address(stableToken)
+             address(stablecoin)
              );
         feeDepositController = new FeeDepositController(
             address(core), //core
@@ -251,7 +251,7 @@ contract ProtocolSetup is
         redemptionHandler = new RedemptionHandler(
             address(core),//core
             address(registry),
-            address(stableToken)
+            address(stablecoin)
             );
 
         liquidationHandler = new LiquidationHandler(
@@ -295,7 +295,7 @@ contract ProtocolSetup is
         console.log("Registry: ", address(registry));
         console.log("Deployer: ", address(deployer));
         console.log("govToken: ", address(stakingToken));
-        console.log("stableToken: ", address(stableToken));
+        console.log("stablecoin: ", address(stablecoin));
         console.log("insurancePool: ", address(insurancePool));
         console.log("ipStableStream: ", address(ipStableStream));
         console.log("pairEmissionStream: ", address(pairEmissionStream));

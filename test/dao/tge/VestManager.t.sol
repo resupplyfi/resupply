@@ -1,7 +1,6 @@
 pragma solidity ^0.8.22;
 
-// import "forge-std/Test.sol";
-import { Setup } from "../utils/Setup.sol";
+import { Setup } from "../../Setup.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";

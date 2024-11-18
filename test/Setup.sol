@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
-// import "forge-std/Test.sol";
-// import "forge-std/console.sol";
 import { Test } from "../../../lib/forge-std/src/Test.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
@@ -10,7 +8,7 @@ import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
 import { Core } from "../../../src/dao/Core.sol";
 import { Voter } from "../../../src/dao/Voter.sol";
-import { MockToken } from "../../mocks/MockToken.sol";
+import { MockToken } from "./mocks/MockToken.sol";
 import { GovStakerEscrow } from "../../../src/dao/staking/GovStakerEscrow.sol";
 import { IGovStakerEscrow } from "../../../src/interfaces/IGovStakerEscrow.sol";
 import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
@@ -19,6 +17,10 @@ import { IGovToken } from "../../../src/interfaces/IGovToken.sol";
 import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { Treasury } from "../../../src/dao/Treasury.sol";
 import { PermaLocker } from "../../../src/dao/tge/PermaLocker.sol";
+import { ResupplyRegistry } from "../../../src/protocol/ResupplyRegistry.sol";
+
+// Protocol Contracts
+import { Stablecoin } from "../../../src/protocol/Stablecoin.sol";
 import { ResupplyRegistry } from "../../../src/protocol/ResupplyRegistry.sol";
 
 contract Setup is Test {
@@ -31,7 +33,6 @@ contract Setup is Test {
     EmissionsController public emissionsController;
     VestManager public vestManager;
     ResupplyRegistry public registry;
-    address public prismaToken = 0xdA47862a83dac0c112BA89c6abC2159b95afd71C;
     address public user1 = address(0x11);
     address public user2 = address(0x22);
     address public user3 = address(0x33);
@@ -40,10 +41,11 @@ contract Setup is Test {
     Treasury public treasury;
     PermaLocker public permaLocker1;
     PermaLocker public permaLocker2;
-
+    Stablecoin public stablecoin;
     function setUp() public virtual {
 
-        deployContracts();
+        deployDaoContracts();
+        deployProtocolContracts();
 
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
@@ -62,7 +64,11 @@ contract Setup is Test {
         vm.label(address(treasury), "Treasury");
     }
 
-    function deployContracts() public {
+    function deployProtocolContracts() public {
+        stablecoin = new Stablecoin(address(core));
+    }
+
+    function deployDaoContracts() public {
         address[3] memory redemptionTokens;
         redemptionTokens[0] = address(new MockToken('PRISMA', 'PRISMA'));
         redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
@@ -99,7 +105,7 @@ contract Setup is Test {
         );
 
         treasury = new Treasury(address(core));
-        registry = new ResupplyRegistry(address(core), address(govToken), address(stakingToken));
+        registry = new ResupplyRegistry(address(core), address(govToken), address(govToken));
         permaLocker1 = new PermaLocker(address(core), user1, address(staker), address(registry), "Yearn");
         permaLocker2 = new PermaLocker(address(core), user2, address(staker), address(registry), "Convex");
         assertEq(permaLocker1.owner(), user1);

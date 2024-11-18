@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { StableCoin } from "src/protocol/StableCoin.sol";
+import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -65,7 +65,7 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[0].contractName = "Insurance Pool";
 
         //seed insurance pool
-        StableCoin stableToken = StableCoin(_stable);
+        Stablecoin stableToken = Stablecoin(_stable);
         stableToken.transfer(address(_insurancepool),1e18);
 
         SimpleRewardStreamer _ipstablestream = new SimpleRewardStreamer(
@@ -150,8 +150,8 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         address _core = deployer;
 
-        StableCoin _stable = new StableCoin(_core);
-        StableCoin _gov = new StableCoin(_core);
+        Stablecoin _stable = new Stablecoin(_core);
+        Stablecoin _gov = new Stablecoin(_core);
 
         console.log("owner/core: ", _stable.owner());
         _stable.setOperator(deployer,true);
@@ -162,7 +162,7 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         _return[0].address_ = address(_stable);
         _return[0].constructorParams = "";
-        _return[0].contractName = "StableCoin";
+        _return[0].contractName = "Stablecoin";
 
         _return[1].address_ = address(_gov);
         _return[1].constructorParams = "";

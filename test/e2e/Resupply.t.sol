@@ -209,10 +209,10 @@ contract ResupplyAccountingTest is BasePairTest {
         } else {
             vm.prank(user);
             pair1.borrow(amountToBorrow, 0, user);
-            console.log(stableToken.balanceOf(user));
+            console.log(stablecoin.balanceOf(user));
 
             assertEq({
-                a: stableToken.balanceOf(user),
+                a: stablecoin.balanceOf(user),
                 b: amountToBorrow,
                 err: "// THEN: stableToken Issued != amount borrowed"
             });
