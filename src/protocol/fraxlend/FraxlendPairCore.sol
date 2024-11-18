@@ -1126,14 +1126,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
     /// @param _swapperAddress The address of the whitelisted swapper to use to swap borrowed Asset Tokens for Collateral Tokens
     /// @param _borrowAmount The amount of Asset Tokens borrowed
     /// @param _initialCollateralAmount The initial amount of Collateral Tokens supplied by the borrower
-    /// @param _amountCollateralOutMin The minimum amount of Collateral Tokens to be received in exchange for the borrowed Asset Tokens
+    /// @param _amountUnderlyingOutMin The minimum amount of Underlying Collateral Tokens to be received in exchange for the borrowed Asset Tokens
     /// @param _path An array containing the addresses of ERC20 tokens to swap.  Adheres to UniV2 style path params.
     /// @return _totalCollateralBalance The total amount of Collateral Tokens added to a users account (initial + swap)
     function leveragedPosition(
         address _swapperAddress,
         uint256 _borrowAmount,
         uint256 _initialCollateralAmount,
-        uint256 _amountCollateralOutMin,
+        uint256 _amountUnderlyingOutMin,
         address[] memory _path
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _totalCollateralBalance) {
         // Accrue interest if necessary
@@ -1143,7 +1143,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _updateExchangeRate();
 
         IERC20 _debtToken = debtToken;
-        IERC20 _collateralContract = collateralContract;
+        IERC20 _underlyingAsset = underlyingAsset;
 
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
@@ -1168,37 +1168,36 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         _debtToken.approve(_swapperAddress, _borrowAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
-        uint256 _initialCollateralBalance = _collateralContract.balanceOf(address(this));
-        {
-            uint256 out = ISwapper(_swapperAddress).swapExactTokensForTokens(
-                _borrowAmount,
-                _amountCollateralOutMin,
-                _path,
-                address(this),
-                block.timestamp
-            )[0];
-            IERC4626(address(collateralContract)).deposit(out, address(this));
-        }
-        uint256 _finalCollateralBalance = _collateralContract.balanceOf(address(this));
-
+        uint256 _initialUnderlyingBalance = _underlyingAsset.balanceOf(address(this));
+        
+        ISwapper(_swapperAddress).swapExactTokensForTokens(
+            _borrowAmount,
+            _amountUnderlyingOutMin,
+            _path,
+            address(this),
+            block.timestamp
+        );
+        uint256 _finalUnderlyingBalance = _underlyingAsset.balanceOf(address(this));
+        
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping & write to state
-        uint256 _amountCollateralOut = _finalCollateralBalance - _initialCollateralBalance;
-        if (_amountCollateralOut < _amountCollateralOutMin) {
-            revert SlippageTooHigh(_amountCollateralOutMin, _amountCollateralOut);
+        uint256 _amountOut = _finalUnderlyingBalance - _initialUnderlyingBalance;
+        if (_amountOut < _amountUnderlyingOutMin) {
+            revert SlippageTooHigh(_amountUnderlyingOutMin, _amountOut);
         }
 
+        _amountOut = IERC4626(address(collateralContract)).deposit(_amountOut, address(this));
         // address(this) as _sender means no transfer occurs as the pair has already received the collateral during swap
-        _addCollateral(address(this), _amountCollateralOut, msg.sender);
+        _addCollateral(address(this), _amountOut, msg.sender);
 
-        _totalCollateralBalance = _initialCollateralAmount + _amountCollateralOut;
+        _totalCollateralBalance = _initialCollateralAmount + _amountOut;
         emit LeveragedPosition(
             msg.sender,
             _swapperAddress,
             _borrowAmount,
             _borrowShares,
             _initialCollateralAmount,
-            _amountCollateralOut
+            _amountOut
         );
     }
 
@@ -1260,19 +1259,19 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Debit users collateral balance in preparation for swap, setting _recipient to address(this) means no transfer occurs
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
-        uint256 underlyingAmount = IERC4626(address(collateralContract)).redeem(
+        uint256 _underlyingAmount = IERC4626(address(_collateralContract)).redeem(
             _collateralToSwap, 
             address(this), 
             address(this)
         );
 
         // Interactions
-        underlyingAsset.approve(_swapperAddress, underlyingAmount);
+        underlyingAsset.approve(_swapperAddress, _underlyingAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
         ISwapper(_swapperAddress).swapExactTokensForTokens(
-            _collateralToSwap,
+            _underlyingAmount,
             _amountOutMin,
             _path,
             address(this),
