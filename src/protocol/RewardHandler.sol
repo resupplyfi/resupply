@@ -37,8 +37,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
     constructor(
         address _core, 
-        address _registry,
-        address _govStaker, 
+        address _registry, 
         address _insurancepool, 
         address _emissionReceiver, 
         address _pairEmissions, 
@@ -50,6 +49,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         require(_revenueToken != address(0), "revenueToken not set");
         address _emissionToken = IRewards(pairEmissions).rewardToken();
         require(_emissionToken != address(0), "emissionToken not set");
+        address _govStaker = IResupplyRegistry(registry).staker();
+        require(_govStaker != address(0), "govStaker not set");
         revenueToken = _revenueToken;
         emissionToken = _emissionToken;
         govStaker = _govStaker;

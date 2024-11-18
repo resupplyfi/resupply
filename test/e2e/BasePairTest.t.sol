@@ -293,7 +293,6 @@ contract BasePairTest is
         rewardHandler = new RewardHandler(
             address(core),//core
             address(registry),
-            address(pairEmissionStream), //todo gov staking
             address(insurancePool),
             address(emissionReceiver),
             address(pairEmissionStream),
