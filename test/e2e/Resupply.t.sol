@@ -59,7 +59,7 @@ contract ResupplyAccountingTest is BasePairTest {
         uint256 totalDebtAvailable = pair1.totalDebtAvailable();
         amountToBorrow = uint96(bound(amountToBorrow, 2000e18, totalDebtAvailable));
         addCollateralVaultFlow(pair1, user9, collateral);
-        borrowStableCoinFlow(pair1, user9, amountToBorrow, er);
+        borrowStablecoinFlow(pair1, user9, amountToBorrow, er);
     }
 
     function test_fuzz_borrowAssetInvairant_varyER(uint96 collateral, uint96 amountToBorrow, uint96 er) public {
@@ -75,7 +75,7 @@ contract ResupplyAccountingTest is BasePairTest {
             abi.encode(_er)
         );
         vm.warp(block.timestamp + 10); /// @notice needed to change internal ER
-        borrowStableCoinFlow(pair1, user9, amountToBorrow, 1e36/_er);
+        borrowStablecoinFlow(pair1, user9, amountToBorrow, 1e36/_er);
     }
 
     // ############################################
@@ -187,7 +187,7 @@ contract ResupplyAccountingTest is BasePairTest {
         });
     }
 
-    function borrowStableCoinFlow(
+    function borrowStablecoinFlow(
         ResupplyPair pair, 
         address user, 
         uint256 amountToBorrow, 
@@ -214,7 +214,7 @@ contract ResupplyAccountingTest is BasePairTest {
             assertEq({
                 a: stablecoin.balanceOf(user),
                 b: amountToBorrow,
-                err: "// THEN: stableToken Issued != amount borrowed"
+                err: "// THEN: stablecoin Issued != amount borrowed"
             });
 
             /// @notice Given there is no interest accrued 
@@ -222,7 +222,7 @@ contract ResupplyAccountingTest is BasePairTest {
             assertEq({
                 a: pair.userBorrowShares(user),
                 b: amountToBorrow,
-                err: "// THEN: stableToken Issued != amount borrowed"
+                err: "// THEN: stablecoin Issued != amount borrowed"
             });
         }
     }

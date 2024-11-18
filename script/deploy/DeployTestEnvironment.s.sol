@@ -65,8 +65,8 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[0].contractName = "Insurance Pool";
 
         //seed insurance pool
-        Stablecoin stableToken = Stablecoin(_stable);
-        stableToken.transfer(address(_insurancepool),1e18);
+        Stablecoin stablecoin = Stablecoin(_stable);
+        stablecoin.transfer(address(_insurancepool),1e18);
 
         SimpleRewardStreamer _ipstablestream = new SimpleRewardStreamer(
             address(_stable),

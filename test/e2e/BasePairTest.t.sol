@@ -15,7 +15,7 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
-import { Stablecoin } from "src/protocol/StableCoin.sol";
+import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
