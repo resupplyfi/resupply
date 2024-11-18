@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ========================= FraxlendPairCore =========================
+// ========================= ResupplyPairCore =========================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -29,7 +29,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { FraxlendPairConstants } from "./FraxlendPairConstants.sol";
+import { ResupplyPairConstants } from "./ResupplyPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
 import { SafeERC20 } from "../../libraries/SafeERC20.sol";
 import { IOracle } from "../../interfaces/IOracle.sol";
@@ -42,10 +42,10 @@ import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 import "../../interfaces/IOwnership.sol";
 
-/// @title FraxlendPairCore
+/// @title ResupplyPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  An abstract contract which contains the core logic and storage for the FraxlendPair
-abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMultiEpoch {
+/// @notice  An abstract contract which contains the core logic and storage for the ResupplyPair
+abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMultiEpoch {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;

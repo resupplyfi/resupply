@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ========================== FraxlendPair ============================
+// ========================== ResupplyPair ============================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -29,8 +29,8 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { FraxlendPairConstants } from "./fraxlend/FraxlendPairConstants.sol";
-import { FraxlendPairCore } from "./fraxlend/FraxlendPairCore.sol";
+import { ResupplyPairConstants } from "./pair/ResupplyPairConstants.sol";
+import { ResupplyPairCore } from "./pair/ResupplyPairCore.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
@@ -41,8 +41,8 @@ import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
 /// @title ResupplyPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  The FraxlendPair is a lending pair that allows users to engage in lending and borrowing activities
-contract ResupplyPair is FraxlendPairCore, EpochTracker {
+/// @notice  The ResupplyPair is a lending pair that allows users to engage in lending and borrowing activities
+contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -67,7 +67,7 @@ contract ResupplyPair is FraxlendPairCore, EpochTracker {
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) FraxlendPairCore(_configData, _immutables, _customConfigData) EpochTracker(_core) {
+    ) ResupplyPairCore(_configData, _immutables, _customConfigData) EpochTracker(_core) {
 
         (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,

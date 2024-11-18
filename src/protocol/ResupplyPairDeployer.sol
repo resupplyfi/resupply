@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ====================== FraxlendPairDeployer ========================
+// ====================== ResupplyPairDeployer ========================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -38,7 +38,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 /// @title PairDeployer
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice Deploys and initializes new FraxlendPairs
+/// @notice Deploys and initializes new ResupplyPairs
 /// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
@@ -119,9 +119,9 @@ contract ResupplyPairDeployer is CoreOwnable {
         emit SetOperator(_operator, _valid);
     }
 
-    /// @notice The ```setCreationCode``` function sets the bytecode for the fraxlendPair
+    /// @notice The ```setCreationCode``` function sets the bytecode for the ResupplyPair
     /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
-    /// @param _creationCode The creationCode for the Fraxlend Pair
+    /// @param _creationCode The creationCode for the Resupply Pair
     function setCreationCode(bytes calldata _creationCode) external onlyOwner{
         bytes memory _firstHalf = BytesLib.slice(_creationCode, 0, 13_000);
         contractAddress1 = SSTORE2.write(_firstHalf);
@@ -170,7 +170,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Functions: External Deploy Methods
     // ============================================================================================
 
-    /// @notice The ```deploy``` function allows the deployment of a FraxlendPair with default values
+    /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
     /// @param _configData abi.encode(address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @return _pairAddress The address to which the Pair was deployed
     function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {

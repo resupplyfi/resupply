@@ -43,7 +43,7 @@ contract PairTest is Setup {
         assertEq(address(underlyingAsset), address(pair.underlyingAsset()));
     }
 
-    function test_borrow() public {
+    function test_Borrow() public {
         deal(address(mockCollateral), user, 1000e18);
         vm.startPrank(user);
         mockCollateral.approve(address(pair), type(uint256).max);

@@ -207,7 +207,7 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[5].constructorParams = "";
         _return[5].contractName = "BasicVaultOracle";
 
-        address _fraxlendpairAddress = _pairDeployer.deploy(
+        address _resupplypairAddress = _pairDeployer.deploy(
             abi.encode(
                 address(Constants.Mainnet.FRAX_ERC20),
                 address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX),
@@ -223,9 +223,9 @@ contract DeployTestEnvironment is TenderlyHelper {
             0 //staking id
         );
 
-        _return[6].address_ = address(_fraxlendpairAddress);
+        _return[6].address_ = address(_resupplypairAddress);
         _return[6].constructorParams = "";
-        _return[6].contractName = "Fraxlend Pair SFRXETH FRAX";
+        _return[6].contractName = "Resupply Pair SFRXETH FRAX";
 
         address _curvelendpairAddress = _pairDeployer.deploy(
             abi.encode(
@@ -247,7 +247,7 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[7].constructorParams = "";
         _return[7].contractName = "Curvelend Pair SFRAX CRVUSD";
 
-        _registry.addPair(_fraxlendpairAddress);
+        _registry.addPair(_resupplypairAddress);
         _registry.addPair(_curvelendpairAddress);
 
         

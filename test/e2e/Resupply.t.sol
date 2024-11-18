@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
-import { FraxlendPairConstants } from "src/protocol/fraxlend/FraxlendPairConstants.sol";
+import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import "src/Constants.sol" as Constants;
 
 contract ResupplyAccountingTest is BasePairTest {
@@ -198,7 +198,7 @@ contract ResupplyAccountingTest is BasePairTest {
         if (amountToBorrow > maxDebtToIssue) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    FraxlendPairConstants.Insolvent.selector,
+                    ResupplyPairConstants.Insolvent.selector,
                     amountToBorrow,
                     collat,
                     er

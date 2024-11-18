@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ====================== FraxlendPairRegistry ========================
+// ====================== ResupplyPairRegistry ========================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -143,7 +143,7 @@ contract ResupplyRegistry is CoreOwnable{
         if (pairsByName[_name] != address(0)) revert NameMustBeUnique();
         pairsByName[_name] = _pairAddress;
 
-        // Set additional values for FraxlendPair
+        // Set additional values for ResupplyPair
         IResupplyPair _pair = IResupplyPair(_pairAddress);
         address[] memory _defaultSwappers = defaultSwappers;
         for (uint256 i = 0; i < _defaultSwappers.length; i++) {

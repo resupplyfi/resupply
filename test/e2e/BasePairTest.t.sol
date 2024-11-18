@@ -9,8 +9,8 @@ import "src/interfaces/IOracle.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "src/protocol/fraxlend/FraxlendPairConstants.sol";
-import "src/protocol/BasicVaultOracle.sol";
+import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
+import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
@@ -41,7 +41,7 @@ struct CurrentRateInfo {
     }
 
 contract BasePairTest is
-    FraxlendPairConstants,
+    ResupplyPairConstants,
     TestHelper,
     // Constants.Helper,
     FraxTest
