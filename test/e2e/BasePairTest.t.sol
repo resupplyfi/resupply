@@ -24,7 +24,7 @@ import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
-import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 import "src/Constants.sol" as Constants;
 import "frax-std/FraxTest.sol";
 

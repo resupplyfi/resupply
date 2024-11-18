@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 // import { BaseScript } from "frax-std/BaseScript.sol";
 // import { console } from "frax-std/FraxTest.sol";
 import { TenderlyHelper } from "../utils/TenderlyHelper.s.sol";
-import { console } from "../../../lib/forge-std/src/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import "src/Constants.sol" as Constants;
 import { DeployScriptReturn } from "./DeployScriptReturn.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
