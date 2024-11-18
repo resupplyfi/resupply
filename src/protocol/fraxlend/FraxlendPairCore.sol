@@ -1151,8 +1151,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         if (_path[0] != address(_debtToken)) {
             revert InvalidPath(address(_debtToken), _path[0]);
         }
-        if (_path[_path.length - 1] != address(_collateralContract)) {
-            revert InvalidPath(address(_collateralContract), _path[_path.length - 1]);
+        if (_path[_path.length - 1] != address(underlyingAsset)) {
+            revert InvalidPath(address(underlyingAsset), _path[_path.length - 1]);
         }
 
         // Add initial collateral
@@ -1176,6 +1176,7 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
             address(this),
             block.timestamp
         );
+        IERC4626(address(collateralContract)).deposit(_amount, address(this));
         uint256 _finalCollateralBalance = _collateralContract.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
@@ -1238,8 +1239,8 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_collateralContract)) {
-            revert InvalidPath(address(_collateralContract), _path[0]);
+        if (_path[0] != address(underlyingAsset)) {
+            revert InvalidPath(address(underlyingAsset), _path[0]);
         }
         if (_path[_path.length - 1] != address(_debtToken)) {
             revert InvalidPath(address(_debtToken), _path[_path.length - 1]);
@@ -1257,9 +1258,14 @@ abstract contract FraxlendPairCore is FraxlendPairConstants, RewardDistributorMu
         // Debit users collateral balance in preparation for swap, setting _recipient to address(this) means no transfer occurs
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
+        uint256 underlyingAmount = IERC4626(address(collateralContract)).redeem(
+            _collateralAmount, 
+            address(this), 
+            address(this)
+        );
 
         // Interactions
-        _collateralContract.approve(_swapperAddress, _collateralToSwap);
+        underlyingAsset.approve(_swapperAddress, underlyingAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
