@@ -49,7 +49,6 @@ jobs:
         run: |
           forge build
         id: build
-        working-directory: ./overtherainbow-dev
 
       - name: Run Forge tests
         run: |
