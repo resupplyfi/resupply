@@ -26,6 +26,10 @@ jobs:
       - name: Debugging - Print Working Directory
         run: pwd
 
+      - name: Debugging - List Files
+        run: |
+          ls -Rla
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
