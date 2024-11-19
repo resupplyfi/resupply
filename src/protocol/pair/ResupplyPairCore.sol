@@ -955,7 +955,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // return 99$ of collateral
         // burn $100 of stables
         uint256 collateralValue = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
-        uint256 totalFee = _amount - collateralValue;
         uint256 protocolFee = (_amount - collateralValue) * protocolRedemptionFee / EXCHANGE_PRECISION;
 
         //check if theres enough debt to write off
