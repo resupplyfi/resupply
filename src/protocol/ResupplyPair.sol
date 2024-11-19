@@ -292,6 +292,9 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     event SetProtocolRedemptionFee(uint256 fee);
 
+    /// @notice Sets the redemption fee percentage for this specific pair
+    /// @dev The fee is 1e18 precision (1e16 = 1%) and taken from redemptions and sent to the protocol.
+    /// @param _fee The new redemption fee percentage. Must be less than 1e18 (100%)
     function setProtocolRedemptionFee(uint256 _fee) external onlyOwner{
         if(_fee > EXCHANGE_PRECISION) revert InvalidParameter();
 

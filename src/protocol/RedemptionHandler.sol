@@ -27,6 +27,9 @@ contract RedemptionHandler is CoreOwnable{
         debtToken = IResupplyRegistry(_registry).token();
     }
 
+    /// @notice Sets the base redemption fee.
+    /// @dev This fee is not the effective fee. The effective fee is calculated at time of redemption via ``getRedemptionFee``.
+    /// @param _fee The new base redemption fee, must be <= 1e18 (100%)
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
         require(_fee <= 1e18, "!fee");
         baseRedemptionFee = _fee;
@@ -50,6 +53,7 @@ contract RedemptionHandler is CoreOwnable{
         return redeemable > maxwithdraw ? maxwithdraw : redeemable;
     }
 
+    /// @notice Calculate the base fee for a redemption. Fee serves to discount the total redemption value.
     function getRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
         return baseRedemptionFee;
     }
@@ -57,13 +61,13 @@ contract RedemptionHandler is CoreOwnable{
     /// @notice Redeem stablecoins for collateral from a pair
     /// @param _pair The address of the pair to redeem from
     /// @param _amount The amount of stablecoins to redeem
-    /// @param _maxFee The maximum fee rate (in basis points) that the caller will accept
+    /// @param _maxFeePct The maximum fee pct (in 1e18) that the caller will accept
     /// @param _receiver The address that will receive the withdrawn collateral
     /// @return _ amount of vault shares redeemed and sent to receiver
     function redeemCollateral (
         address _pair,
         uint256 _amount,
-        uint256 _maxFee,
+        uint256 _maxFeePct,
         address _receiver
     ) external returns(uint256){
         //pull redeeming tokens
@@ -72,7 +76,7 @@ contract RedemptionHandler is CoreOwnable{
         //get fee
         uint256 fee = getRedemptionFee(_pair, _amount);
         //check against maxfee to avoid frontrun
-        require(fee <= _maxFee,"over max fee");
+        require(fee <= _maxFeePct, "fee > maxFee");
 
         //redeem
         IResupplyPair(_pair).redeemCollateral(_amount, fee, address(this));

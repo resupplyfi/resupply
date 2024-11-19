@@ -67,7 +67,7 @@ contract PairTest is PairTestBase {
     }
 
     function test_Borrow() public {
-        uint256 collateralAmount = 105_000e18;
+        uint256 collateralAmount = 106_000e18;
         uint256 borrowAmount = 100_000e18;
 
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
@@ -77,17 +77,28 @@ contract PairTest is PairTestBase {
     function test_Redemption() public {
         uint256 collateralAmount = 150_000e18;
         uint256 borrowAmount = 100_000e18;
+        uint256 redeemAmount = 10_000e18;
 
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
 
-        // deal(address(stablecoin), address(this), borrowAmount);
+        deal(address(stablecoin), address(this), redeemAmount);
         
+        vm.expectRevert("fee > maxFee");
         redemptionHandler.redeemCollateral(
             address(pair),  // pair
-            borrowAmount,   // amount
+            redeemAmount,   // amount
             0,              // max fee
             address(this)   // return to
         );
+
+        redemptionHandler.redeemCollateral(
+            address(pair),  // pair
+            redeemAmount,   // amount
+            1e18,           // max fee
+            address(this)   // return to
+        );
+
+
     }
 }
