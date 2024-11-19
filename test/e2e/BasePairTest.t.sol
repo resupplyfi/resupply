@@ -120,8 +120,8 @@ contract BasePairTest is
     address tempGov = address(987);
 
     // Deployer constants
-    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 75% with 1e5 precision
-    uint256 internal constant DEFAULT_LIQ_FEE = 500; // 5% with 1e5 precision
+    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
+    uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 5% with 1e5 precision
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
     uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
@@ -181,8 +181,8 @@ contract BasePairTest is
         vm.stopPrank();
 
         rateCalculator = new InterestRateCalculator(
-            "suffix",
-            634_195_840,//(2 * 1e16) / 365 / 86400, //2% todo check
+            "Base",
+            2e16 / uint256(365 days),//2%
             2
         );
 
