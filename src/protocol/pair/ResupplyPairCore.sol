@@ -249,7 +249,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             //need to calculate shares while keeping this as a view function
             for(;;){
                 //reduce shares by refactoring amount (will never be 0)
-                borrowShares /= SHARE_REFACTOR;
+                borrowShares /= SHARE_REFACTOR_PRECISION;
                 userEpoch += 1;
                 if(userEpoch == globalEpoch){
                     break;
@@ -354,7 +354,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _userBorrowShares[_account] = _userBorrowShares[_account] / SHARE_REFACTOR;
+        _userBorrowShares[_account] = _userBorrowShares[_account] / SHARE_REFACTOR_PRECISION;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -967,9 +967,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _totalBorrow.amount -= uint128(collateralValue);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-        if(_totalBorrow.amount * SHARE_REFACTOR < _totalBorrow.shares){
+        //cast to uint256 to reduce change of overflow
+        if(uint256(_totalBorrow.amount) * SHARE_REFACTOR_PRECISION < _totalBorrow.shares){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalBorrow.shares /= SHARE_REFACTOR;
+            _totalBorrow.shares /= uint128(SHARE_REFACTOR_PRECISION);
         }
 
         // Effects: write to state
