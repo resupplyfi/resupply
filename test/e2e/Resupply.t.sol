@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-import { BasePairTest } from "test/e2e/BasePairTest.t.sol";
 import { console } from "forge-std/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -9,21 +8,83 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
+import { Setup } from "test/Setup.sol";
 import "src/Constants.sol" as Constants;
 
-contract ResupplyAccountingTest is BasePairTest {
+contract ResupplyAccountingTest is Setup {
     ResupplyPair pair1;
     ResupplyPair pair2;
 
     address public user9 = address(0xDEADFED5);
+    address public user8 = address(0xFA9904);
 
-    function setUp() public {
-        defaultSetUp();
+    function setUp() public override {
+        super.setUp();
         deployDefaultLendingPairs();
         address[] memory _pairs = registry.getAllPairAddresses();
         pair1 = ResupplyPair(_pairs[0]); 
         pair2 = ResupplyPair(_pairs[1]);
     }
+
+    function test_redemptionFlow() public {
+        // vm.warp(block.timestamp + 1200 days);
+        pair1.addInterest(false);
+        // ResupplyPair(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX).addInterest(false);
+        // vm.warp(block.timestamp + 12 days);
+        (, , uint er) = pair1.exchangeRateInfo();
+        addCollateralVaultFlow(pair1, user9, 20_000e18);
+        borrowStablecoinFlow(pair1, user9, 15_000e18, er);
+        console.log("The redemption handler: ", address(redemptionHandler));
+        console.log("The redemption fee: ", redemptionHandler.getRedemptionFee(address(pair1), 50e18));
+
+        deal(address(stablecoin), user8, 50e18);
+        console.log(stablecoin.balanceOf(user8));
+
+        console.log("Collateral before redeem: ", pair1.collateral().balanceOf(address(pair1)));
+        vm.startPrank(user8);
+        stablecoin.approve(address(redemptionHandler), 50e18);
+        redemptionHandler.redeem(address(pair1), 50e18, 0.1e18, user8);
+        console.log(pair1.underlying().balanceOf(user8));
+        console.log(pair1.underlying().balanceOf(address(redemptionHandler)));
+        vm.stopPrank();
+        console.log("Collateral post redeem: ", pair1.collateral().balanceOf(address(pair1)));
+        console.log("The ER: ", er);
+        console.log("The collateral balance of user9, post redemption: ", pair1.userCollateralBalance(user9));
+    }
+
+    // ############################################
+    // ############ Unit Test Redeem  #############
+    // ############################################
+    function test_redeemStablecoinFromPair() public {
+        (, , uint er) = pair1.exchangeRateInfo();
+        addCollateralVaultFlow(pair1, user9, 20_000e18);
+        borrowStablecoinFlow(pair1, user9, 15_000e18, er);
+        redeemStablecoinFlow(pair1, user8, 2_000e18);
+    }
+
+
+    // ############################################
+    // ############## Fuzz  Redeem  ###############
+    // ############################################
+
+    function test_fuzz_redeem(uint96 amount) public {
+        (, , uint er) = pair1.exchangeRateInfo();
+        addCollateralVaultFlow(pair1, user9, amount);
+        amount /= 4;
+        amount *= 3;
+        uint _amount = 
+            bound(
+                amount, 
+                pair1.minimumBorrowAmount(), 
+                pair1.totalDebtAvailable()
+            );
+        
+    
+        borrowStablecoinFlow(pair1, user9, _amount, er);
+        _amount -= pair1.minimumBorrowAmount();
+        redeemStablecoinFlow(pair1, user8, _amount);
+    }
+
 
     // ############################################
     // ############ Fuzz Add Collateral ###########
@@ -82,6 +143,53 @@ contract ResupplyAccountingTest is BasePairTest {
     // ###### Flow And Functional Invariants ######
     // ############################################
 
+    function redeemStablecoinFlow(
+        ResupplyPair pair,
+        address userToRedeem,
+        uint256 amountToRedeem
+    ) public {
+        uint underlyingBalanceBefore = pair.underlying().balanceOf(userToRedeem);
+        IERC20 stablecoin = IERC20(redemptionHandler.redemptionToken());
+
+        /// @notice if no available liquidity call will revert in collateralContractRedeem
+        uint256 amountCanRedeem = pair.underlying().balanceOf(address(pair.collateral()));
+
+        if (amountToRedeem > amountCanRedeem) amountToRedeem = amountCanRedeem;
+        deal(address(stablecoin), userToRedeem, amountToRedeem);
+
+        vm.startPrank(userToRedeem);
+        stablecoin.approve(address(redemptionHandler), amountToRedeem);
+        (uint totalBorrowAmount, ) = pair.totalBorrow();
+
+        uint fee = redemptionHandler.getRedemptionFee(address(pair), amountToRedeem);
+        
+        if (totalBorrowAmount <= amountToRedeem) {
+            vm.expectRevert(ResupplyPairConstants.InsufficientAssetsForRedemption.selector);
+            redemptionHandler.redeem(
+                address(pair), 
+                amountToRedeem, 
+                fee, 
+                userToRedeem
+            );
+            vm.stopPrank();
+            return;
+        }
+        
+        redemptionHandler.redeem(
+            address(pair), 
+            amountToRedeem, 
+            fee, 
+            userToRedeem
+        );
+        vm.stopPrank();
+
+        assertApproxEqAbs(
+            (amountToRedeem * 99) / 100, // Fee schema
+            pair.underlying().balanceOf(userToRedeem) - underlyingBalanceBefore,
+            0.001e18
+        );
+    }
+
     /// @notice Assumes `user` starts with no balance
     function addCollateralVaultFlow(
         ResupplyPair pair, 
@@ -98,8 +206,8 @@ contract ResupplyAccountingTest is BasePairTest {
         vm.stopPrank();
 
         assertEq({
-            a: pair.userCollateralBalance(user),
-            b: amountToAdd,
+            left: pair.userCollateralBalance(user),
+            right: amountToAdd,
             err: "// THEN: Collateral not as expected"
         });
     }
@@ -121,13 +229,13 @@ contract ResupplyAccountingTest is BasePairTest {
         vm.stopPrank();
 
         assertEq({
-            a: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
-            b: amountToRemove,
+            left: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
+            right: amountToRemove,
             err: "// THEN: ResupplyPair collateral balance decremented incorrectly"
         });
         assertEq({
-            a: collateral.balanceOf(user) - collateralBefore,
-            b: amountToRemove,
+            left: collateral.balanceOf(user) - collateralBefore,
+            right: amountToRemove,
             err: "// THEN: Collateral balance not as expected"
         });
     }
@@ -150,8 +258,8 @@ contract ResupplyAccountingTest is BasePairTest {
         vm.stopPrank();
 
         assertEq({
-            a: sharesToReceive,
-            b: pair.userCollateralBalance(user),
+            left: sharesToReceive,
+            right: pair.userCollateralBalance(user),
             err: "// THEN: userCollateralBalance not as expected"
         });
     }
@@ -176,13 +284,13 @@ contract ResupplyAccountingTest is BasePairTest {
         uint256 underlyingToReceive = IERC4626(address(pair.collateral())).previewRedeem(amountToRemove);
 
         assertEq({
-            a: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
-            b: amountToRemove,
+            left: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
+            right: amountToRemove,
             err: "// THEN: ResupplyPair collateral balance decremented incorrectly"
         });
         assertEq({
-            a: underlying.balanceOf(user) - underlyingBalanceBefore,
-            b: underlyingToReceive,
+            left: underlying.balanceOf(user) - underlyingBalanceBefore,
+            right: underlyingToReceive,
             err: "// THEN: Collateral balance not as expected"
         });
     }
@@ -212,16 +320,16 @@ contract ResupplyAccountingTest is BasePairTest {
             console.log(stablecoin.balanceOf(user));
 
             assertEq({
-                a: stablecoin.balanceOf(user),
-                b: amountToBorrow,
+                left: stablecoin.balanceOf(user),
+                right: amountToBorrow,
                 err: "// THEN: stablecoin Issued != amount borrowed"
             });
 
             /// @notice Given there is no interest accrued 
             ///         debtShare price 1:1 w/ debtAmount
             assertEq({
-                a: pair.userBorrowShares(user),
-                b: amountToBorrow,
+                left: pair.userBorrowShares(user),
+                right: amountToBorrow,
                 err: "// THEN: stablecoin Issued != amount borrowed"
             });
         }
