@@ -22,6 +22,7 @@ contract PairTest is PairTestBase {
 
         collateral.approve(address(pair), type(uint256).max);
         underlying.approve(address(pair), type(uint256).max);
+        stablecoin.approve(address(redemptionHandler), type(uint256).max);
     }
 
     function test_AddCollateral() public {
@@ -66,10 +67,27 @@ contract PairTest is PairTestBase {
     }
 
     function test_Borrow() public {
-        uint256 collateralAmount = 110_000e18;
+        uint256 collateralAmount = 105_000e18;
         uint256 borrowAmount = 100_000e18;
 
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
+    }
+
+    function test_Redemption() public {
+        uint256 collateralAmount = 150_000e18;
+        uint256 borrowAmount = 100_000e18;
+
+        addCollateral(pair, convertToShares(address(collateral), collateralAmount));
+        borrow(pair, borrowAmount, 0);
+
+        // deal(address(stablecoin), address(this), borrowAmount);
+        
+        redemptionHandler.redeemCollateral(
+            address(pair),  // pair
+            borrowAmount,   // amount
+            0,              // max fee
+            address(this)   // return to
+        );
     }
 }

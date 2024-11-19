@@ -938,7 +938,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _debtReduction
     );
 
-    function redeem(uint256 _amount, uint256 _fee, address _receiver) external nonReentrant returns(uint256 _collateralReturned){
+    /// @notice The ```redeem``` function allows redemption of thedebt tokens for collateral at a discount
+    /// @dev Only callable by the registry's redeemer contract
+    /// @param _amount The amount of debt tokens to redeem
+    /// @param _fee The fee to charge on redemption, in EXCHANGE_PRECISION
+    /// @param _receiver The address to receive the collateral tokens
+    /// @return _collateralReturned The amount of collateral tokens returned to receiver
+    function redeemCollateral(uint256 _amount, uint256 _fee, address _receiver) external nonReentrant returns(uint256 _collateralReturned){
         //check sender. must go through the registry's redeemer
         if(msg.sender != IResupplyRegistry(registry).redeemer()) revert InvalidRedeemer();
 

@@ -112,8 +112,7 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         RedemptionHandler _redemptionHandler = new RedemptionHandler(
             address(_core),//core
-            address(_registry),
-            address(_stable)
+            address(_registry)
             );
         _return[6] = setReturnData(address(_redemptionHandler),"","Redemption Handler");
 

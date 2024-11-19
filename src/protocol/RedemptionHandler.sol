@@ -16,15 +16,15 @@ contract RedemptionHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
-    address public immutable redemptionToken;
+    address public immutable debtToken;
 
     uint256 public baseRedemptionFee = 1e16; //1%
 
     event SetBaseRedemptionFee(uint256 _fee);
 
-    constructor(address _core, address _registry, address _redemptionToken) CoreOwnable(_core){
+    constructor(address _core, address _registry) CoreOwnable(_core){
         registry = _registry;
-        redemptionToken = _redemptionToken;
+        debtToken = IResupplyRegistry(_registry).token();
     }
 
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
@@ -54,16 +54,20 @@ contract RedemptionHandler is CoreOwnable{
         return baseRedemptionFee;
     }
 
-    //a basic redemption
-    //pull tokens and call redeem on the pair
-    function redeem (
+    /// @notice Redeem stablecoins for collateral from a pair
+    /// @param _pair The address of the pair to redeem from
+    /// @param _amount The amount of stablecoins to redeem
+    /// @param _maxFee The maximum fee rate (in basis points) that the caller will accept
+    /// @param _receiver The address that will receive the withdrawn collateral
+    /// @return _ amount of vault shares redeemed and sent to receiver
+    function redeemCollateral (
         address _pair,
         uint256 _amount,
         uint256 _maxFee,
-        address _returnTo
+        address _receiver
     ) external returns(uint256){
         //pull redeeming tokens
-        IERC20(redemptionToken).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(debtToken).safeTransferFrom(msg.sender, address(this), _amount);
 
         //get fee
         uint256 fee = getRedemptionFee(_pair, _amount);
@@ -71,13 +75,13 @@ contract RedemptionHandler is CoreOwnable{
         require(fee <= _maxFee,"over max fee");
 
         //redeem
-        IResupplyPair(_pair).redeem(_amount, fee, address(this));
+        IResupplyPair(_pair).redeemCollateral(_amount, fee, address(this));
 
         //withdraw
         address vault = IResupplyPair(_pair).collateral();
-        uint256 vbalance = IERC20(vault).balanceOf(address(this));
-        IERC4626(vault).redeem(vbalance, _returnTo, address(this));
-        return vbalance;
+        uint256 collateralBalance = IERC20(vault).balanceOf(address(this));
+        IERC4626(vault).redeem(collateralBalance, _receiver, address(this));
+        return collateralBalance;
     }
 
 }

@@ -141,7 +141,7 @@ contract Setup is Test {
 
         oracle = new BasicVaultOracle("Basic Vault Oracle");
 
-        redemptionHandler = new RedemptionHandler(address(core),address(registry),address(stablecoin));
+        redemptionHandler = new RedemptionHandler(address(core),address(registry));
         liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
 
         vm.startPrank(address(core));

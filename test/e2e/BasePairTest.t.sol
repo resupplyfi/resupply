@@ -272,8 +272,7 @@ contract BasePairTest is
 
         redemptionHandler = new RedemptionHandler(
             address(core),//core
-            address(registry),
-            address(stablecoin)
+            address(registry)
             );
 
         liquidationHandler = new LiquidationHandler(
