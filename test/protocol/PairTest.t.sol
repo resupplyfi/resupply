@@ -92,13 +92,14 @@ contract PairTest is PairTestBase {
             address(this)   // return to
         );
 
+        uint256 balBefore = underlying.balanceOf(address(this));
         redemptionHandler.redeemCollateral(
             address(pair),  // pair
             redeemAmount,   // amount
             1e18,           // max fee
             address(this)   // return to
         );
-
-
+        uint256 balAfter = underlying.balanceOf(address(this));
+        uint256 feesPaid = redeemAmount - (balAfter - balBefore);
     }
 }

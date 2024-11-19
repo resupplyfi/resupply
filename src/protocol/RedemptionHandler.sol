@@ -78,10 +78,9 @@ contract RedemptionHandler is CoreOwnable{
         //check against maxfee to avoid frontrun
         require(fee <= _maxFeePct, "fee > maxFee");
 
-        //redeem
         IResupplyPair(_pair).redeemCollateral(_amount, fee, address(this));
 
-        //withdraw
+        //withdraw to underlying
         address vault = IResupplyPair(_pair).collateral();
         uint256 collateralBalance = IERC20(vault).balanceOf(address(this));
         IERC4626(vault).redeem(collateralBalance, _receiver, address(this));

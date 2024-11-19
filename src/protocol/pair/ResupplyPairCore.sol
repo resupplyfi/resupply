@@ -131,8 +131,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     mapping(address => uint256) internal _userCollateralBalance; // amount of collateral each user is backed
     /// @notice Stores the balance of borrow shares for each user
     mapping(address => uint256) internal _userBorrowShares; // represents the shares held by individuals
-    //refactor amount for each reward epoch
-    uint256 constant public shareRefactor = 1e18;
 
     
 
@@ -251,7 +249,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             //need to calculate shares while keeping this as a view function
             for(;;){
                 //reduce shares by refactoring amount (will never be 0)
-                borrowShares /= shareRefactor;
+                borrowShares /= SHARE_REFACTOR;
                 userEpoch += 1;
                 if(userEpoch == globalEpoch){
                     break;
@@ -356,7 +354,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _userBorrowShares[_account] = _userBorrowShares[_account] / shareRefactor;
+        _userBorrowShares[_account] = _userBorrowShares[_account] / SHARE_REFACTOR;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -957,23 +955,21 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // return 99$ of collateral
         // burn $100 of stables
         uint256 collateralValue = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
-        uint256 protocolFee = collateralValue * protocolRedemptionFee / EXCHANGE_PRECISION;
-        uint256 debtReduction = collateralValue - protocolFee;
-
-        //// reduce total pool debt by debtReduction///
+        uint256 totalFee = _amount - collateralValue;
+        uint256 protocolFee = (_amount - collateralValue) * protocolRedemptionFee / EXCHANGE_PRECISION;
 
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
-        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverAssets ){
+        if(collateralValue > _totalBorrow.amount || _totalBorrow.amount - collateralValue < minimumLeftoverAssets ){
             revert InsufficientAssetsForRedemption();
         }
 
-        _totalBorrow.amount -= uint128(debtReduction);
+        _totalBorrow.amount -= uint128(collateralValue);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-        if(_totalBorrow.amount * 1e12 < _totalBorrow.shares){
+        if(_totalBorrow.amount * SHARE_REFACTOR < _totalBorrow.shares){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalBorrow.shares /= uint128(shareRefactor);
+            _totalBorrow.shares /= SHARE_REFACTOR;
         }
 
         // Effects: write to state
@@ -995,7 +991,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         IResupplyRegistry(registry).burn(msg.sender, _amount);
 
-        emit Redeemed(_receiver, _amount, _collateralReturned, protocolFee, debtReduction);
+        emit Redeemed(_receiver, _amount, _collateralReturned, protocolFee, collateralValue);
     }
 
     // ============================================================================================
