@@ -26,42 +26,16 @@ contract ResupplyAccountingTest is Setup {
         pair2 = ResupplyPair(_pairs[1]);
     }
 
-    function test_redemptionFlow() public {
-        // vm.warp(block.timestamp + 1200 days);
-        pair1.addInterest(false);
-        // ResupplyPair(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX).addInterest(false);
-        // vm.warp(block.timestamp + 12 days);
-        (, , uint er) = pair1.exchangeRateInfo();
-        addCollateralVaultFlow(pair1, user9, 20_000e18);
-        borrowStablecoinFlow(pair1, user9, 15_000e18, er);
-        console.log("The redemption handler: ", address(redemptionHandler));
-        console.log("The redemption fee: ", redemptionHandler.getRedemptionFee(address(pair1), 50e18));
-
-        deal(address(stablecoin), user8, 50e18);
-        console.log(stablecoin.balanceOf(user8));
-
-        console.log("Collateral before redeem: ", pair1.collateral().balanceOf(address(pair1)));
-        vm.startPrank(user8);
-        stablecoin.approve(address(redemptionHandler), 50e18);
-        redemptionHandler.redeem(address(pair1), 50e18, 0.1e18, user8);
-        console.log(pair1.underlying().balanceOf(user8));
-        console.log(pair1.underlying().balanceOf(address(redemptionHandler)));
-        vm.stopPrank();
-        console.log("Collateral post redeem: ", pair1.collateral().balanceOf(address(pair1)));
-        console.log("The ER: ", er);
-        console.log("The collateral balance of user9, post redemption: ", pair1.userCollateralBalance(user9));
-    }
-
     // ############################################
     // ############ Unit Test Redeem  #############
     // ############################################
+
     function test_redeemStablecoinFromPair() public {
         (, , uint er) = pair1.exchangeRateInfo();
         addCollateralVaultFlow(pair1, user9, 20_000e18);
         borrowStablecoinFlow(pair1, user9, 15_000e18, er);
         redeemStablecoinFlow(pair1, user8, 2_000e18);
     }
-
 
     // ############################################
     // ############## Fuzz  Redeem  ###############
@@ -81,7 +55,6 @@ contract ResupplyAccountingTest is Setup {
         
     
         borrowStablecoinFlow(pair1, user9, _amount, er);
-        _amount -= pair1.minimumBorrowAmount();
         redeemStablecoinFlow(pair1, user8, _amount);
     }
 
@@ -163,7 +136,11 @@ contract ResupplyAccountingTest is Setup {
 
         uint fee = redemptionHandler.getRedemptionFee(address(pair), amountToRedeem);
         
-        if (totalBorrowAmount <= amountToRedeem) {
+        console.log(totalBorrowAmount - pair1.minimumBorrowAmount(), amountToRedeem);
+        if (
+            totalBorrowAmount <= amountToRedeem || 
+            totalBorrowAmount - pair1.minimumLeftoverAssets() < amountToRedeem
+        ) {
             vm.expectRevert(ResupplyPairConstants.InsufficientAssetsForRedemption.selector);
             redemptionHandler.redeem(
                 address(pair), 
