@@ -50,7 +50,7 @@ contract BasePairTest is
     // using OracleHelper for AggregatorV3Interface;
     using SafeCast for uint256;
     using Strings for uint256;
-    using ResupplyPairTestHelper for ResupplyPair;
+    // using ResupplyPairTestHelper for ResupplyPair;
     using NumberFormat for *;
     using StringsHelper for *;
 
@@ -387,107 +387,107 @@ contract BasePairTest is
     // Snapshots
     // ============================================================================================
 
-    function initialUserAccountingSnapshot(
-        ResupplyPair _pair,
-        address _userAddress
-    ) public returns (UserAccounting memory) {
-        (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
-            _userAddress
-        );
-        return
-            UserAccounting({
-                _address: _userAddress,
-                borrowShares: _borrowShares,
-                borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
-                borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
-                collateralBalance: _collateralBalance,
-                balanceOfAsset: stablecoin.balanceOf(_userAddress),
-                balanceOfCollateral: IERC20(address(_pair.collateral())).balanceOf(_userAddress)
-            });
-    }
+    // function initialUserAccountingSnapshot(
+    //     ResupplyPair _pair,
+    //     address _userAddress
+    // ) public returns (UserAccounting memory) {
+    //     (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
+    //         _userAddress
+    //     );
+    //     return
+    //         UserAccounting({
+    //             _address: _userAddress,
+    //             borrowShares: _borrowShares,
+    //             borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
+    //             borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
+    //             collateralBalance: _collateralBalance,
+    //             balanceOfAsset: stablecoin.balanceOf(_userAddress),
+    //             balanceOfCollateral: IERC20(address(_pair.collateral())).balanceOf(_userAddress)
+    //         });
+    // }
 
-    function finalUserAccountingSnapshot(
-        ResupplyPair _pair,
-        UserAccounting memory _initial
-    ) public returns (UserAccounting memory _final, UserAccounting memory _net) {
-        address _userAddress = _initial._address;
-        (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
-            _userAddress
-        );
-        _final = UserAccounting({
-            _address: _userAddress,
-            borrowShares: _borrowShares,
-            borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
-            borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
-            collateralBalance: _collateralBalance,
-            balanceOfAsset: stablecoin.balanceOf(_userAddress),
-            balanceOfCollateral: IERC20(address(_pair.collateral())).balanceOf(_userAddress)
-        });
-        _net = UserAccounting({
-            _address: _userAddress,
-            borrowShares: stdMath.delta(_initial.borrowShares, _final.borrowShares),
-            borrowAmountFalse: stdMath.delta(_initial.borrowAmountFalse, _final.borrowAmountFalse),
-            borrowAmountTrue: stdMath.delta(_initial.borrowAmountTrue, _final.borrowAmountTrue),
-            collateralBalance: stdMath.delta(_initial.collateralBalance, _final.collateralBalance),
-            balanceOfAsset: stdMath.delta(_initial.balanceOfAsset, _final.balanceOfAsset),
-            balanceOfCollateral: stdMath.delta(_initial.balanceOfCollateral, _final.balanceOfCollateral)
-        });
-    }
+    // function finalUserAccountingSnapshot(
+    //     ResupplyPair _pair,
+    //     UserAccounting memory _initial
+    // ) public returns (UserAccounting memory _final, UserAccounting memory _net) {
+    //     address _userAddress = _initial._address;
+    //     (uint256 _borrowShares, uint256 _collateralBalance) = _pair.getUserSnapshot(
+    //         _userAddress
+    //     );
+    //     _final = UserAccounting({
+    //         _address: _userAddress,
+    //         borrowShares: _borrowShares,
+    //         borrowAmountFalse: toBorrowAmount(_pair, _borrowShares, false),
+    //         borrowAmountTrue: toBorrowAmount(_pair, _borrowShares, true),
+    //         collateralBalance: _collateralBalance,
+    //         balanceOfAsset: stablecoin.balanceOf(_userAddress),
+    //         balanceOfCollateral: IERC20(address(_pair.collateral())).balanceOf(_userAddress)
+    //     });
+    //     _net = UserAccounting({
+    //         _address: _userAddress,
+    //         borrowShares: stdMath.delta(_initial.borrowShares, _final.borrowShares),
+    //         borrowAmountFalse: stdMath.delta(_initial.borrowAmountFalse, _final.borrowAmountFalse),
+    //         borrowAmountTrue: stdMath.delta(_initial.borrowAmountTrue, _final.borrowAmountTrue),
+    //         collateralBalance: stdMath.delta(_initial.collateralBalance, _final.collateralBalance),
+    //         balanceOfAsset: stdMath.delta(_initial.balanceOfAsset, _final.balanceOfAsset),
+    //         balanceOfCollateral: stdMath.delta(_initial.balanceOfCollateral, _final.balanceOfCollateral)
+    //     });
+    // }
 
-    function takeInitialAccountingSnapshot(
-        ResupplyPair _pair
-    ) internal returns (PairAccounting memory _initial) {
-        address _pairAddress = address(_pair);
-        IERC20 _collateral = _pair.collateral();
+    // function takeInitialAccountingSnapshot(
+    //     ResupplyPair _pair
+    // ) internal returns (PairAccounting memory _initial) {
+    //     address _pairAddress = address(_pair);
+    //     IERC20 _collateral = _pair.collateral();
 
-        (
-            uint256 _claimableFees,
-            uint128 _totalBorrowAmount,
-            uint128 _totalBorrowShares,
-            uint256 _totalCollateral
-        ) = _pair.__getPairAccounting();
-        _initial.pairAddress = _pairAddress;
-        _initial.claimableFees = _claimableFees;
-        _initial.totalBorrowAmount = _totalBorrowAmount;
-        _initial.totalBorrowShares = _totalBorrowShares;
-        _initial.totalCollateral = _totalCollateral;
-        _initial.balanceOfAsset = stablecoin.balanceOf(_pairAddress);
-        _initial.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
-        _initial.collateralBalance = _pair.userCollateralBalance(_pairAddress);
-    }
+    //     (
+    //         uint256 _claimableFees,
+    //         uint128 _totalBorrowAmount,
+    //         uint128 _totalBorrowShares,
+    //         uint256 _totalCollateral
+    //     ) = _pair.__getPairAccounting();
+    //     _initial.pairAddress = _pairAddress;
+    //     _initial.claimableFees = _claimableFees;
+    //     _initial.totalBorrowAmount = _totalBorrowAmount;
+    //     _initial.totalBorrowShares = _totalBorrowShares;
+    //     _initial.totalCollateral = _totalCollateral;
+    //     _initial.balanceOfAsset = stablecoin.balanceOf(_pairAddress);
+    //     _initial.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
+    //     _initial.collateralBalance = _pair.userCollateralBalance(_pairAddress);
+    // }
 
-    function takeFinalAccountingSnapshot(
-        PairAccounting memory _initial
-    ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
-        address _pairAddress = _initial.pairAddress;
-        ResupplyPair _pair = ResupplyPair(_pairAddress);
-        IERC20 _collateral = _pair.collateral();
+    // function takeFinalAccountingSnapshot(
+    //     PairAccounting memory _initial
+    // ) internal returns (PairAccounting memory _final, PairAccounting memory _net) {
+    //     address _pairAddress = _initial.pairAddress;
+    //     ResupplyPair _pair = ResupplyPair(_pairAddress);
+    //     IERC20 _collateral = _pair.collateral();
 
-        (
-            uint256 _claimableFees,
-            uint128 _totalBorrowAmount,
-            uint128 _totalBorrowShares,
-            uint256 _totalCollateral
-        ) = _pair.getPairAccounting();
-        // Sorry for mutation syntax
-        _final.pairAddress = _pairAddress;
-        _final.claimableFees = _claimableFees;
-        _final.totalBorrowAmount = _totalBorrowAmount;
-        _final.totalBorrowShares = _totalBorrowShares;
-        _final.totalCollateral = _totalCollateral;
-        _final.balanceOfAsset = stablecoin.balanceOf(_pairAddress);
-        _final.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
-        _final.collateralBalance = _pair.userCollateralBalance(_pairAddress);
+    //     (
+    //         uint256 _claimableFees,
+    //         uint128 _totalBorrowAmount,
+    //         uint128 _totalBorrowShares,
+    //         uint256 _totalCollateral
+    //     ) = _pair.getPairAccounting();
+    //     // Sorry for mutation syntax
+    //     _final.pairAddress = _pairAddress;
+    //     _final.claimableFees = _claimableFees;
+    //     _final.totalBorrowAmount = _totalBorrowAmount;
+    //     _final.totalBorrowShares = _totalBorrowShares;
+    //     _final.totalCollateral = _totalCollateral;
+    //     _final.balanceOfAsset = stablecoin.balanceOf(_pairAddress);
+    //     _final.balanceOfCollateral = _collateral.balanceOf(_pairAddress);
+    //     _final.collateralBalance = _pair.userCollateralBalance(_pairAddress);
 
-        _net.pairAddress = _pairAddress;
-        _net.claimableFees = stdMath.delta(_final.claimableFees, _initial.claimableFees).toUint128();
-        _net.totalBorrowAmount = stdMath.delta(_final.totalBorrowAmount, _initial.totalBorrowAmount).toUint128();
-        _net.totalBorrowShares = stdMath.delta(_final.totalBorrowShares, _initial.totalBorrowShares).toUint128();
-        _net.totalCollateral = stdMath.delta(_final.totalCollateral, _initial.totalCollateral);
-        _net.balanceOfAsset = stdMath.delta(_final.balanceOfAsset, _initial.balanceOfAsset);
-        _net.balanceOfCollateral = stdMath.delta(_final.balanceOfCollateral, _initial.balanceOfCollateral);
-        _net.collateralBalance = stdMath.delta(_final.collateralBalance, _initial.collateralBalance).toUint128();
-    }
+    //     _net.pairAddress = _pairAddress;
+    //     _net.claimableFees = stdMath.delta(_final.claimableFees, _initial.claimableFees).toUint128();
+    //     _net.totalBorrowAmount = stdMath.delta(_final.totalBorrowAmount, _initial.totalBorrowAmount).toUint128();
+    //     _net.totalBorrowShares = stdMath.delta(_final.totalBorrowShares, _initial.totalBorrowShares).toUint128();
+    //     _net.totalCollateral = stdMath.delta(_final.totalCollateral, _initial.totalCollateral);
+    //     _net.balanceOfAsset = stdMath.delta(_final.balanceOfAsset, _initial.balanceOfAsset);
+    //     _net.balanceOfCollateral = stdMath.delta(_final.balanceOfCollateral, _initial.balanceOfCollateral);
+    //     _net.collateralBalance = stdMath.delta(_final.collateralBalance, _initial.collateralBalance).toUint128();
+    // }
 
     function assertPairAccountingCorrect(ResupplyPair _pair) public {
         // require(1 == 2, "This is a test function with a very long reason string that should be truncated");
