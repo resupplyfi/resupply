@@ -134,18 +134,23 @@ contract ResupplyAccountingTest is Setup {
         stablecoin.approve(address(redemptionHandler), amountToRedeem);
         (uint totalBorrowAmount, ) = pair.totalBorrow();
 
-        uint fee = redemptionHandler.getRedemptionFee(address(pair), amountToRedeem);
+        uint _fee = redemptionHandler.getRedemptionFee(address(pair), amountToRedeem);
         
-        console.log(totalBorrowAmount - pair1.minimumBorrowAmount(), amountToRedeem);
+        uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
+        uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
+        uint256 debtReduction = (amountToRedeem - collateralValue) - platformFee;
+
+
+
         if (
-            totalBorrowAmount <= amountToRedeem || 
-            totalBorrowAmount - pair1.minimumLeftoverAssets() < amountToRedeem
+            totalBorrowAmount <= debtReduction ||
+            totalBorrowAmount - debtReduction < pair.minimumLeftoverAssets()
         ) {
             vm.expectRevert(ResupplyPairConstants.InsufficientAssetsForRedemption.selector);
             redemptionHandler.redeem(
                 address(pair), 
                 amountToRedeem, 
-                fee, 
+                _fee, 
                 userToRedeem
             );
             vm.stopPrank();
@@ -155,7 +160,7 @@ contract ResupplyAccountingTest is Setup {
         redemptionHandler.redeem(
             address(pair), 
             amountToRedeem, 
-            fee, 
+            _fee, 
             userToRedeem
         );
         vm.stopPrank();
