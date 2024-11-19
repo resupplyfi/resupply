@@ -936,13 +936,18 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _debtReduction
     );
 
-    /// @notice The ```redeem``` function allows redemption of thedebt tokens for collateral at a discount
+    /// @notice Allows redemption of the debt tokens for collateral
     /// @dev Only callable by the registry's redeemer contract
     /// @param _amount The amount of debt tokens to redeem
     /// @param _fee The fee to charge on redemption, in EXCHANGE_PRECISION
     /// @param _receiver The address to receive the collateral tokens
+    /// @return _collateralToken The address of the collateral token
     /// @return _collateralReturned The amount of collateral tokens returned to receiver
-    function redeemCollateral(uint256 _amount, uint256 _fee, address _receiver) external nonReentrant returns(uint256 _collateralReturned){
+    function redeemCollateral(
+        uint256 _amount,
+        uint256 _fee,
+        address _receiver
+    ) external nonReentrant returns(address _collateralToken, uint256 _collateralReturned){
         //check sender. must go through the registry's redeemer
         if(msg.sender != IResupplyRegistry(registry).redeemer()) revert InvalidRedeemer();
 
@@ -985,7 +990,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _collateralReturned = ((valueToRedeem * _exchangeRate) / EXCHANGE_PRECISION);
         
         _unstakeUnderlying(_collateralReturned);
-        collateral.safeTransfer(_receiver, _collateralReturned);
+        _collateralToken = address(collateral);
+        IERC20(_collateralToken).safeTransfer(_receiver, _collateralReturned);
 
         //distribute write off tokens to adjust userCollateralbalances
         redemptionWriteOff.mint(_collateralReturned);

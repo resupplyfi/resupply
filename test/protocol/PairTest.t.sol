@@ -85,19 +85,21 @@ contract PairTest is PairTestBase {
         deal(address(stablecoin), address(this), redeemAmount);
         
         vm.expectRevert("fee > maxFee");
-        redemptionHandler.redeemCollateral(
+        redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
             0,              // max fee
-            address(this)   // return to
+            address(this),  // return to
+            false           // unwrap
         );
 
         uint256 balBefore = underlying.balanceOf(address(this));
-        redemptionHandler.redeemCollateral(
+        redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
             1e18,           // max fee
-            address(this)   // return to
+            address(this),  // return to
+            true           // unwrap
         );
         uint256 balAfter = underlying.balanceOf(address(this));
         uint256 feesPaid = redeemAmount - (balAfter - balBefore);

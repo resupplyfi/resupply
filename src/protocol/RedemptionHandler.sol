@@ -63,12 +63,14 @@ contract RedemptionHandler is CoreOwnable{
     /// @param _amount The amount of stablecoins to redeem
     /// @param _maxFeePct The maximum fee pct (in 1e18) that the caller will accept
     /// @param _receiver The address that will receive the withdrawn collateral
+    /// @param _redeemToUnderlying Whether to unwrap the collateral to the underlying asset
     /// @return _ amount of vault shares redeemed and sent to receiver
-    function redeemCollateral (
+    function redeemFromPair (
         address _pair,
         uint256 _amount,
         uint256 _maxFeePct,
-        address _receiver
+        address _receiver,
+        bool _redeemToUnderlying
     ) external returns(uint256){
         //pull redeeming tokens
         IERC20(debtToken).safeTransferFrom(msg.sender, address(this), _amount);
@@ -78,13 +80,14 @@ contract RedemptionHandler is CoreOwnable{
         //check against maxfee to avoid frontrun
         require(fee <= _maxFeePct, "fee > maxFee");
 
-        IResupplyPair(_pair).redeemCollateral(_amount, fee, address(this));
+        (address _collateral, uint256 _returnedCollateral) = IResupplyPair(_pair).redeemCollateral(_amount, fee, address(this));
 
         //withdraw to underlying
-        address vault = IResupplyPair(_pair).collateral();
-        uint256 collateralBalance = IERC20(vault).balanceOf(address(this));
-        IERC4626(vault).redeem(collateralBalance, _receiver, address(this));
-        return collateralBalance;
+        if(_redeemToUnderlying){
+            return IERC4626(_collateral).redeem(_returnedCollateral, _receiver, address(this));
+        }
+        IERC20(_collateral).safeTransfer(_receiver, _returnedCollateral);
+        return _returnedCollateral;
     }
 
 }
