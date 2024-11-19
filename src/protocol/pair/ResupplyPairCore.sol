@@ -24,6 +24,7 @@ pragma solidity ^0.8.19;
 // Rich Gee: https://github.com/zer0blockchain
 
 // ====================================================================
+import "lib/forge-std/src/console.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -957,8 +958,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // return 99$ of collateral
         // burn $100 of stables
         uint256 collateralValue = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
-        uint256 platformFee = (_amount - collateralValue) * protocolRedemptionFee / EXCHANGE_PRECISION;
-        uint256 debtReduction = (_amount - collateralValue) - platformFee;
+        uint256 protocolFee = collateralValue * protocolRedemptionFee / EXCHANGE_PRECISION;
+        uint256 debtReduction = collateralValue - protocolFee;
 
         //// reduce total pool debt by debtReduction///
 
@@ -968,11 +969,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             revert InsufficientAssetsForRedemption();
         }
 
-        // Effects: Bookkeeping
         _totalBorrow.amount -= uint128(debtReduction);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-        if(_totalBorrow.amount * 1e18 < _totalBorrow.shares){
+        if(_totalBorrow.amount * 1e12 < _totalBorrow.shares){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
             _totalBorrow.shares /= uint128(shareRefactor);
         }
@@ -981,27 +981,22 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         totalBorrow = _totalBorrow;
 
         //// add platform fees using platformFee////
-        claimableOtherFees += platformFee; //increase claimable fees
-
-        ///// return collateral using collateralValue////
+        claimableOtherFees += protocolFee; //increase claimable fees
 
         // Update exchange rate
         uint256 _exchangeRate = _updateExchangeRate();
         //calc collateral units
         _collateralReturned = ((collateralValue * _exchangeRate) / EXCHANGE_PRECISION);
-        //unstake
+        
         _unstakeUnderlying(_collateralReturned);
-        //send to receiver
         collateral.safeTransfer(_receiver, _collateralReturned);
 
         //distribute write off tokens to adjust userCollateralbalances
         redemptionWriteOff.mint(_collateralReturned);
 
-        ///// burn ////
-        // burn from msg.sender the total _amount
         IResupplyRegistry(registry).burn(msg.sender, _amount);
 
-        emit Redeemed(_receiver, _amount, _collateralReturned, platformFee, debtReduction);
+        emit Redeemed(_receiver, _amount, _collateralReturned, protocolFee, debtReduction);
     }
 
     // ============================================================================================
