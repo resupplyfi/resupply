@@ -6,7 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
 
-contract StableCoin is ERC20, CoreOwnable {
+contract Stablecoin is ERC20, CoreOwnable {
 
     mapping(address => bool) public operators;
     event SetOperator(address indexed _op, bool _valid);

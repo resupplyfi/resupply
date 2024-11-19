@@ -2,7 +2,7 @@
 pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
-import { Setup } from "../utils/Setup.sol";
+import { Setup } from "../../Setup.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract VestManagerBaseTest is Setup {

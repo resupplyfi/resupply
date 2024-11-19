@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
-import { FraxlendPairConstants } from "src/protocol/fraxlend/FraxlendPairConstants.sol";
+import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import "src/Constants.sol" as Constants;
 
 contract ResupplyAccountingTest is BasePairTest {
@@ -59,12 +59,12 @@ contract ResupplyAccountingTest is BasePairTest {
         uint256 totalDebtAvailable = pair1.totalDebtAvailable();
         amountToBorrow = uint96(bound(amountToBorrow, 2000e18, totalDebtAvailable));
         addCollateralVaultFlow(pair1, user9, collateral);
-        borrowStableCoinFlow(pair1, user9, amountToBorrow, er);
+        borrowStablecoinFlow(pair1, user9, amountToBorrow, er);
     }
 
     function test_fuzz_borrowAssetInvairant_varyER(uint96 collateral, uint96 amountToBorrow, uint96 er) public {
         (address oracle, ,) = pair1.exchangeRateInfo();
-        address collateralAddress = address(pair1.collateralContract());
+        address collateralAddress = address(pair1.collateral());
         uint256 totalDebtAvailable = pair1.totalDebtAvailable();
         uint _er = bound(er, 0.5e18, 1000e18); // Seems reasonable
         amountToBorrow = uint96(bound(amountToBorrow, 1000e18, totalDebtAvailable));
@@ -75,7 +75,7 @@ contract ResupplyAccountingTest is BasePairTest {
             abi.encode(_er)
         );
         vm.warp(block.timestamp + 10); /// @notice needed to change internal ER
-        borrowStableCoinFlow(pair1, user9, amountToBorrow, 1e36/_er);
+        borrowStablecoinFlow(pair1, user9, amountToBorrow, 1e36/_er);
     }
 
     // ############################################
@@ -88,7 +88,7 @@ contract ResupplyAccountingTest is BasePairTest {
         address user, 
         uint256 amountToAdd
     ) public {
-        IERC20 collateral = pair.collateralContract();
+        IERC20 collateral = pair.collateral();
         deal(address(collateral), user, amountToAdd);
 
 
@@ -109,7 +109,7 @@ contract ResupplyAccountingTest is BasePairTest {
         address user, 
         uint256 amountToRemove
     ) public {
-        IERC20 collateral = pair.collateralContract();
+        IERC20 collateral = pair.collateral();
         uint256 collateralBefore = collateral.balanceOf(user);
         uint256 userCollateralBalanceBefore = pair1.userCollateralBalance(user);
         
@@ -137,12 +137,12 @@ contract ResupplyAccountingTest is BasePairTest {
         ResupplyPair pair,
         address user,
         uint256 amountToAdd,
-        address underlyingAsset
+        address underlying
     ) public {
-        IERC20 underlying = IERC20(underlyingAsset);
-        deal(underlyingAsset, user, amountToAdd);
+        IERC20 underlying = IERC20(underlying);
+        deal(address(underlying), user, amountToAdd);
 
-        uint256 sharesToReceive = IERC4626(address(pair.collateralContract())).previewDeposit(amountToAdd);
+        uint256 sharesToReceive = IERC4626(address(pair.collateral())).previewDeposit(amountToAdd);
 
         vm.startPrank(user);
         underlying.approve(address(pair), amountToAdd);
@@ -173,7 +173,7 @@ contract ResupplyAccountingTest is BasePairTest {
         );
         vm.stopPrank();
 
-        uint256 underlyingToReceive = IERC4626(address(pair.collateralContract())).previewRedeem(amountToRemove);
+        uint256 underlyingToReceive = IERC4626(address(pair.collateral())).previewRedeem(amountToRemove);
 
         assertEq({
             a: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
@@ -187,7 +187,7 @@ contract ResupplyAccountingTest is BasePairTest {
         });
     }
 
-    function borrowStableCoinFlow(
+    function borrowStablecoinFlow(
         ResupplyPair pair, 
         address user, 
         uint256 amountToBorrow, 
@@ -198,7 +198,7 @@ contract ResupplyAccountingTest is BasePairTest {
         if (amountToBorrow > maxDebtToIssue) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    FraxlendPairConstants.Insolvent.selector,
+                    ResupplyPairConstants.Insolvent.selector,
                     amountToBorrow,
                     collat,
                     er
@@ -209,12 +209,12 @@ contract ResupplyAccountingTest is BasePairTest {
         } else {
             vm.prank(user);
             pair1.borrow(amountToBorrow, 0, user);
-            console.log(stableToken.balanceOf(user));
+            console.log(stablecoin.balanceOf(user));
 
             assertEq({
-                a: stableToken.balanceOf(user),
+                a: stablecoin.balanceOf(user),
                 b: amountToBorrow,
-                err: "// THEN: stableToken Issued != amount borrowed"
+                err: "// THEN: stablecoin Issued != amount borrowed"
             });
 
             /// @notice Given there is no interest accrued 
@@ -222,7 +222,7 @@ contract ResupplyAccountingTest is BasePairTest {
             assertEq({
                 a: pair.userBorrowShares(user),
                 b: amountToBorrow,
-                err: "// THEN: stableToken Issued != amount borrowed"
+                err: "// THEN: stablecoin Issued != amount borrowed"
             });
         }
     }

@@ -111,7 +111,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
-    function _claimPoolRewards() internal override{
+    function _fetchIncentives() internal override{
         IResupplyRegistry(registry).claimInsuranceRewards();
     }
 

@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ====================== FraxlendPairDeployer ========================
+// ====================== ResupplyPairDeployer ========================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -38,7 +38,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 /// @title PairDeployer
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice Deploys and initializes new FraxlendPairs
+/// @notice Deploys and initializes new ResupplyPairs
 /// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
@@ -47,6 +47,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
+    mapping(address => uint256) public collateralId;
 
     // immutable contracts
     address public immutable registry;
@@ -75,7 +76,7 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     event SetOperator(address indexed _op, bool _valid);
 
-    constructor(address _registry, address _govToken, address _initialoperator, address _core) CoreOwnable(_core){
+    constructor(address _core,address _registry, address _govToken, address _initialoperator) CoreOwnable(_core){
         registry = _registry;
         govToken = _govToken;
         operators[_initialoperator] = true;
@@ -92,19 +93,18 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     function getNextName(
-        address _collateral,
-        uint256 _uniqueId
+        address _collateral
     ) public view returns (string memory _name) {
-        _name = string(
+        uint256 _collateralId = collateralId[_collateral] + 1;
+        string memory _baseName = string(
             abi.encodePacked(
                 "Resupply Pair ",
                 " (",
                 IERC20(_collateral).safeName(),
-                ")",
-                " - ",
-                _uniqueId.toString()//(_length + 1).toString()
+                ")"
             )
         );
+        _name = string(abi.encodePacked(_baseName, " - ", _collateralId.toString()));
         if(IResupplyRegistry(registry).pairsByName(_name) != address(0)){
             revert NonUniqueName();
         }
@@ -119,9 +119,9 @@ contract ResupplyPairDeployer is CoreOwnable {
         emit SetOperator(_operator, _valid);
     }
 
-    /// @notice The ```setCreationCode``` function sets the bytecode for the fraxlendPair
+    /// @notice The ```setCreationCode``` function sets the bytecode for the ResupplyPair
     /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
-    /// @param _creationCode The creationCode for the Fraxlend Pair
+    /// @param _creationCode The creationCode for the Resupply Pair
     function setCreationCode(bytes calldata _creationCode) external onlyOwner{
         bytes memory _firstHalf = BytesLib.slice(_creationCode, 0, 13_000);
         contractAddress1 = SSTORE2.write(_firstHalf);
@@ -136,7 +136,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```_deploy``` function is an internal function with deploys the pair
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
+    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
     /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
     /// @return _pairAddress The address to which the Pair was deployed
@@ -151,11 +151,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         // Get bytecode
         bytes memory bytecode = abi.encodePacked(
             _creationCode,
-            abi.encode(_configData, _immutables, _customConfigData)
+            abi.encode(core, _configData, _immutables, _customConfigData)
         );
 
         // Generate salt using constructor params
-        bytes32 salt = keccak256(abi.encodePacked(_configData, _immutables, _customConfigData));
+        bytes32 salt = keccak256(abi.encodePacked(core, _configData, _immutables, _customConfigData));
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -170,10 +170,10 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Functions: External Deploy Methods
     // ============================================================================================
 
-    /// @notice The ```deploy``` function allows the deployment of a FraxlendPair with default values
-    /// @param _configData abi.encode(address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateContract, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
+    /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
+    /// @param _configData abi.encode(address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId, uint256 _uniqueId) external returns (address _pairAddress) {
+    function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
         if (!operators[msg.sender]) {
             revert WhitelistedDeployersOnly();
         }
@@ -183,7 +183,8 @@ contract ResupplyPairDeployer is CoreOwnable {
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
         );
 
-        string memory _name = getNextName(_collateral, _uniqueId);
+        string memory _name = getNextName(_collateral);
+        collateralId[_collateral] += 1;
 
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);

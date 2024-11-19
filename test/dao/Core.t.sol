@@ -1,8 +1,6 @@
 pragma solidity ^0.8.22;
 
-import "forge-std/Test.sol";
-import "forge-std/console2.sol";
-import { Setup } from "./utils/Setup.sol";
+import { Setup } from "../Setup.sol";
 import { MockPair } from "../mocks/MockPair.sol";
 
 contract CoreTest is Setup {

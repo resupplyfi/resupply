@@ -96,7 +96,7 @@ contract LiquidationHandler is CoreOwnable{
         require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
         //get underlying
-        address underlyingAsset = IERC4626(_collateral).asset();
+        address underlying = IERC4626(_collateral).asset();
 
         //try to max redeem
         uint256 redeemable = IERC4626(_collateral).maxRedeem(address(this));
@@ -104,7 +104,7 @@ contract LiquidationHandler is CoreOwnable{
         try IERC4626(_collateral).redeem(redeemable, address(this), address(this)){}catch{}
 
         //check what was withdrawn
-        uint256 withdrawnAmount = IERC20(underlyingAsset).balanceOf(address(this));
+        uint256 withdrawnAmount = IERC20(underlying).balanceOf(address(this));
         if(withdrawnAmount == 0) return;
 
         //debt to burn (clamp to debtByCollateral)
@@ -115,7 +115,7 @@ contract LiquidationHandler is CoreOwnable{
         debtByCollateral[_collateral] -= toburn;
 
         //send underlying to be distributed
-        IERC20(underlyingAsset).safeTransfer(insurancepool, withdrawnAmount);
+        IERC20(underlying).safeTransfer(insurancepool, withdrawnAmount);
 
         emit CollateralProccessed(_collateral, redeemable, withdrawnAmount, toburn);
     }

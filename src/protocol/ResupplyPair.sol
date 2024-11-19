@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ========================== FraxlendPair ============================
+// ========================== ResupplyPair ============================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -29,8 +29,8 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { FraxlendPairConstants } from "./fraxlend/FraxlendPairConstants.sol";
-import { FraxlendPairCore } from "./fraxlend/FraxlendPairCore.sol";
+import { ResupplyPairConstants } from "./pair/ResupplyPairConstants.sol";
+import { ResupplyPairCore } from "./pair/ResupplyPairCore.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
@@ -38,11 +38,11 @@ import { ISwapper } from "../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
-
+import { EpochTracker } from "../dependencies/EpochTracker.sol";
 /// @title ResupplyPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  The FraxlendPair is a lending pair that allows users to engage in lending and borrowing activities
-contract ResupplyPair is FraxlendPairCore {
+/// @notice  The ResupplyPair is a lending pair that allows users to engage in lending and borrowing activities
+contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -63,10 +63,11 @@ contract ResupplyPair is FraxlendPairCore {
     /// @param _immutables immutable data
     /// @param _customConfigData extras
     constructor(
+        address _core,
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) FraxlendPairCore(_configData, _immutables, _customConfigData) {
+    ) ResupplyPairCore(_configData, _immutables, _customConfigData) EpochTracker(_core) {
 
         (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,
@@ -80,7 +81,7 @@ contract ResupplyPair is FraxlendPairCore {
             convexBooster = _convexBooster;
             convexPid = _convexpid;
             //approve
-            collateralContract.approve(convexBooster, type(uint256).max);
+            collateral.approve(convexBooster, type(uint256).max);
             //add rewards for curve staking
             _insertRewardToken(CRV);
             _insertRewardToken(CVX);
@@ -215,17 +216,17 @@ contract ResupplyPair is FraxlendPairCore {
     }
 
  
-    /// @notice The ```SetRateContract``` event is emitted when the rate contract is set
-    /// @param oldRateContract The old rate contract
-    /// @param newRateContract The new rate contract
-    event SetRateContract(address oldRateContract, address newRateContract);
+    /// @notice The ```SetRateCalculator``` event is emitted when the rate contract is set
+    /// @param oldRateCalculator The old rate contract
+    /// @param newRateCalculator The new rate contract
+    event SetRateCalculator(address oldRateCalculator, address newRateCalculator);
 
-    /// @notice The ```setRateContract``` function sets the rate contract address
-    /// @param _newRateContract The new rate contract address
-    function setRateContract(address _newRateContract) external {
+    /// @notice The ```setRateCalculator``` function sets the rate contract address
+    /// @param _newRateCalculator The new rate contract address
+    function setRateCalculator(address _newRateCalculator) external {
         _requireProtocolOrOwner();
-        emit SetRateContract(address(rateContract), _newRateContract);
-        rateContract = IRateCalculator(_newRateContract);
+        emit SetRateCalculator(address(rateCalculator), _newRateCalculator);
+        rateCalculator = IRateCalculator(_newRateCalculator);
     }
 
 
@@ -323,7 +324,7 @@ contract ResupplyPair is FraxlendPairCore {
         //get deposit contract
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         uint256 depositEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
-        uint256 currentEpoch = block.timestamp/WEEK * WEEK;
+        uint256 currentEpoch = getEpoch();
 
         //current epoch must be greater than last claimed epoch
         //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)
@@ -381,7 +382,7 @@ contract ResupplyPair is FraxlendPairCore {
             if(stakedBalance > 0){
                 //withdraw
                 IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
-                if(collateralContract.balanceOf(address(this)) < stakedBalance){
+                if(collateral.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
             }
@@ -414,7 +415,7 @@ contract ResupplyPair is FraxlendPairCore {
             //get balance
             _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
         }else{
-            _totalCollateralBalance = collateralContract.balanceOf(address(this));   
+            _totalCollateralBalance = collateral.balanceOf(address(this));   
         }
     }
 

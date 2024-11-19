@@ -48,6 +48,9 @@ interface IResupplyRegistry {
     function setLiquidationHandler(address _newAddress) external;
     function setInsurancePool(address _newAddress) external;
     function setStaker(address _newAddress) external;
+    function setTreasury(address _newAddress) external;
     function staker() external view returns(address);
     function token() external view returns(address);
+    function treasury() external view returns(address);
+    function govToken() external view returns(address);
 }

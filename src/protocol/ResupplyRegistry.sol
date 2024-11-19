@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ====================== FraxlendPairRegistry ========================
+// ====================== ResupplyPairRegistry ========================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -34,7 +34,7 @@ contract ResupplyRegistry is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable token;
-
+    address public immutable govToken;
     /// @notice List of the addresses of all deployed Pairs
     address[] public registeredPairs;
 
@@ -51,9 +51,11 @@ contract ResupplyRegistry is CoreOwnable{
     address public rewardHandler;
     address public insurancePool;
     address public staker;
+    address public treasury;
 
-    constructor(address _core, address _token) CoreOwnable(_core){
+    constructor(address _core, address _token, address _govToken) CoreOwnable(_core){
         token = _token;
+        govToken = _govToken;
     }
 
     // ============================================================================================
@@ -118,6 +120,13 @@ contract ResupplyRegistry is CoreOwnable{
         staker = _newAddress;
     }
 
+    event SetTreasury(address oldAddress, address newAddress);
+
+    function setTreasury(address _newAddress) external onlyOwner{
+        emit SetTreasury(treasury, _newAddress);
+        treasury = _newAddress;
+    }
+
     /// @notice The ```AddPair``` event is emitted when a new pair is added to the registry
     /// @param pairAddress The address of the pair
     event AddPair(address pairAddress);
@@ -134,7 +143,7 @@ contract ResupplyRegistry is CoreOwnable{
         if (pairsByName[_name] != address(0)) revert NameMustBeUnique();
         pairsByName[_name] = _pairAddress;
 
-        // Set additional values for FraxlendPair
+        // Set additional values for ResupplyPair
         IResupplyPair _pair = IResupplyPair(_pairAddress);
         address[] memory _defaultSwappers = defaultSwappers;
         for (uint256 i = 0; i < _defaultSwappers.length; i++) {

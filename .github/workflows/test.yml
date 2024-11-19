@@ -32,13 +32,8 @@ jobs:
       - name: Show Forge version
         run: |
           forge --version
-      
-      # - name: Run Forge fmt
-      #   run: |
-      #     forge fmt --check
-      #   id: fmt
-      - run: npm i 
 
+      - run: npm i
 
       - name: Run Forge build
         run: |

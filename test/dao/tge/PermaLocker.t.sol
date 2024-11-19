@@ -1,7 +1,7 @@
 pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
-import { Setup } from "../utils/Setup.sol";
+import { Setup } from "../../Setup.sol";
 import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
 

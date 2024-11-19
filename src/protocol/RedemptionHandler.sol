@@ -43,7 +43,7 @@ contract RedemptionHandler is CoreOwnable{
         redeemable = _totalBorrow.amount - redeemable;
 
         //get collateral max withdraw
-        address vault = IResupplyPair(_pair).collateralContract();
+        address vault = IResupplyPair(_pair).collateral();
         uint256 maxwithdraw = IERC4626(vault).maxWithdraw(_pair);
 
         //take lower of redeemable and maxwithdraw
@@ -74,7 +74,7 @@ contract RedemptionHandler is CoreOwnable{
         IResupplyPair(_pair).redeem(_amount, fee, address(this));
 
         //withdraw
-        address vault = IResupplyPair(_pair).collateralContract();
+        address vault = IResupplyPair(_pair).collateral();
         uint256 vbalance = IERC20(vault).balanceOf(address(this));
         IERC4626(vault).redeem(vbalance, _returnTo, address(this));
         return vbalance;

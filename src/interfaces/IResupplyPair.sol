@@ -36,7 +36,7 @@ interface IResupplyPair {
     function mintFee() external view returns (uint256);
     function liquidationFee() external view returns (uint256);
 
-    function collateralContract() external view returns (address);
+    function collateral() external view returns (address);
 
     function currentRateInfo()
         external
@@ -108,7 +108,7 @@ interface IResupplyPair {
 
     function paused() external view returns (bool);
 
-    function rateContract() external view returns (address);
+    function rateCalculator() external view returns (address);
 
     function borrowLimit() external view returns (uint256);
     function totalAssetAvailable() external view returns (uint256);

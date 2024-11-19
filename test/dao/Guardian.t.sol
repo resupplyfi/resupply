@@ -6,7 +6,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { GovStaker } from "../../src/dao/staking/GovStaker.sol";
 import { GovStakerEscrow } from "../../src/dao/staking/GovStakerEscrow.sol";
 import { MockToken } from "../mocks/MockToken.sol";
-import { Setup } from "./utils/Setup.sol";
+import { Setup } from "../Setup.sol";
 import { MockPair } from "../mocks/MockPair.sol";
 import { Voter } from "../../src/dao/Voter.sol";
 import { GuardianOperator } from "../../src/dao/operators/GuardianOperator.sol";

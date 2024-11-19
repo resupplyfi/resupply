@@ -9,7 +9,7 @@ pragma solidity ^0.8.19;
 // | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
 // |                                                                  |
 // ====================================================================
-// ===================== FraxlendPairConstants ========================
+// ===================== ResupplyPairConstants ========================
 // ====================================================================
 // Frax Finance: https://github.com/FraxFinance
 
@@ -25,10 +25,10 @@ pragma solidity ^0.8.19;
 
 // ====================================================================
 
-/// @title FraxlendPairConstants
+/// @title ResupplyPairConstants
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  An abstract contract which contains the errors and constants for the FraxlendPair contract
-abstract contract FraxlendPairConstants {
+/// @notice  An abstract contract which contains the errors and constants for the ResupplyPair contract
+abstract contract ResupplyPairConstants {
     // ============================================================================================
     // Constants
     // ============================================================================================

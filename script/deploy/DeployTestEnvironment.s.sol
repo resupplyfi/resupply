@@ -4,14 +4,14 @@ pragma solidity ^0.8.19;
 // import { BaseScript } from "frax-std/BaseScript.sol";
 // import { console } from "frax-std/FraxTest.sol";
 import { TenderlyHelper } from "../utils/TenderlyHelper.s.sol";
-import { console } from "../../../lib/forge-std/src/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import "src/Constants.sol" as Constants;
 import { DeployScriptReturn } from "./DeployScriptReturn.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { StableCoin } from "src/protocol/StableCoin.sol";
+import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -65,8 +65,8 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[0].contractName = "Insurance Pool";
 
         //seed insurance pool
-        StableCoin stableToken = StableCoin(_stable);
-        stableToken.transfer(address(_insurancepool),1e18);
+        Stablecoin stablecoin = Stablecoin(_stable);
+        stablecoin.transfer(address(_insurancepool),1e18);
 
         SimpleRewardStreamer _ipstablestream = new SimpleRewardStreamer(
             address(_stable),
@@ -100,10 +100,9 @@ contract DeployTestEnvironment is TenderlyHelper {
              );
         _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
         FeeDepositController _feedepositController = new FeeDepositController(
+            address(_core), //core
             address(_registry),
-            address(_core), //todo treasury
             address(_feedeposit),
-            address(_stable),
             1500,
             1000
             );
@@ -130,8 +129,6 @@ contract DeployTestEnvironment is TenderlyHelper {
         RewardHandler _rewardHandler = new RewardHandler(
             address(_core),//core
             address(_registry),
-            address(_stable),
-            address(_pairemissionstream), //todo gov staking
             address(_insurancepool),
             address(0),//address(_emissionReceiver),
             address(_pairemissionstream),
@@ -153,8 +150,8 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         address _core = deployer;
 
-        StableCoin _stable = new StableCoin(_core);
-        StableCoin _gov = new StableCoin(_core);
+        Stablecoin _stable = new Stablecoin(_core);
+        Stablecoin _gov = new Stablecoin(_core);
 
         console.log("owner/core: ", _stable.owner());
         _stable.setOperator(deployer,true);
@@ -165,7 +162,7 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         _return[0].address_ = address(_stable);
         _return[0].constructorParams = "";
-        _return[0].contractName = "StableCoin";
+        _return[0].contractName = "Stablecoin";
 
         _return[1].address_ = address(_gov);
         _return[1].constructorParams = "";
@@ -173,7 +170,8 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         ResupplyRegistry _registry = new ResupplyRegistry(
             address(_core),
-            address(_stable)
+            address(_stable),
+            address(0) // TODO: gov token
         );
         _return[2].address_ = address(_registry);
         _return[2].constructorParams = "";
@@ -183,10 +181,10 @@ contract DeployTestEnvironment is TenderlyHelper {
         _stable.setOperator(address(_registry),true);
 
         ResupplyPairDeployer _pairDeployer = new ResupplyPairDeployer(
+            address(_core),
             address(_registry),
             address(_gov),
-            address(deployer),
-            address(_core)
+            address(deployer)
         );
         _return[3].address_ = address(_pairDeployer);
         _return[3].constructorParams = "";
@@ -209,7 +207,7 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[5].constructorParams = "";
         _return[5].contractName = "BasicVaultOracle";
 
-        address _fraxlendpairAddress = _pairDeployer.deploy(
+        address _resupplypairAddress = _pairDeployer.deploy(
             abi.encode(
                 address(Constants.Mainnet.FRAX_ERC20),
                 address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX),
@@ -222,13 +220,12 @@ contract DeployTestEnvironment is TenderlyHelper {
                 DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             address(0), //staking
-            0, //staking id
-            0 //resupply unique id
+            0 //staking id
         );
 
-        _return[6].address_ = address(_fraxlendpairAddress);
+        _return[6].address_ = address(_resupplypairAddress);
         _return[6].constructorParams = "";
-        _return[6].contractName = "Fraxlend Pair SFRXETH FRAX";
+        _return[6].contractName = "Resupply Pair SFRXETH FRAX";
 
         address _curvelendpairAddress = _pairDeployer.deploy(
             abi.encode(
@@ -243,15 +240,14 @@ contract DeployTestEnvironment is TenderlyHelper {
                 DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             address(Constants.Mainnet.CONVEX_BOOSTER), //staking
-            uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID), //staking id
-            1 //resupply unique id
+            uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID) //staking id
         );
 
         _return[7].address_ = address(_curvelendpairAddress);
         _return[7].constructorParams = "";
         _return[7].contractName = "Curvelend Pair SFRAX CRVUSD";
 
-        _registry.addPair(_fraxlendpairAddress);
+        _registry.addPair(_resupplypairAddress);
         _registry.addPair(_curvelendpairAddress);
 
         

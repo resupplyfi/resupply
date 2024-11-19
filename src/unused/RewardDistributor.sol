@@ -53,7 +53,7 @@ abstract contract RewardDistributor is ReentrancyGuard{
 
     function _isRewardManager() internal view virtual returns(bool);
 
-    function _claimPoolRewards() internal virtual;
+    function _fetchIncentives() internal virtual;
 
     function _totalRewardShares() internal view virtual returns(uint256);
 
@@ -190,7 +190,7 @@ abstract contract RewardDistributor is ReentrancyGuard{
     //checkpoint with claim
     function _checkpoint(address _account, address _claimTo) internal nonReentrant{
         //claim rewards first
-        _claimPoolRewards();
+        _fetchIncentives();
 
         //calc reward integrals
         uint256 rewardCount = rewards.length;

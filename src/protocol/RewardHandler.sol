@@ -11,10 +11,11 @@ import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
-
+import { EpochTracker } from "../dependencies/EpochTracker.sol";
+import { IGovStaker } from "../interfaces/IGovStaker.sol";
 
 //claim rewards for various contracts
-contract RewardHandler is CoreOwnable{
+contract RewardHandler is CoreOwnable, EpochTracker {
     using SafeERC20 for IERC20;
 
     address public immutable registry;
@@ -23,9 +24,9 @@ contract RewardHandler is CoreOwnable{
     address public immutable pairEmissions;
     address public immutable insuranceEmissions;
     address public immutable insuranceRevenue;
-    address public immutable platformRewards;
-    address public immutable emissionReceiver;
+    address public immutable govStaker;
     address public immutable emissionToken;
+    ISimpleReceiver public immutable debtEmissionsReceiver;
 
     mapping(address => uint256) public pairTimestamp;
     mapping(address => uint256) public minimumWeights;
@@ -34,19 +35,34 @@ contract RewardHandler is CoreOwnable{
     event BaseMinimumWeightSet(uint256 bweight);
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
-    constructor(address _core, address _registry, address _revenueToken, address _platformRewards, address _insurancepool, address _emissionReceiver, address _pairEmissions, address _insuranceEmissions, address _insuranceRevenue) CoreOwnable(_core){
+    constructor(
+        address _core, 
+        address _registry, 
+        address _insurancepool, 
+        address _debtEmissionsReceiver, 
+        address _pairEmissions, 
+        address _insuranceEmissions, 
+        address _insuranceRevenue
+    ) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;
+        address _revenueToken = IResupplyRegistry(registry).token();
+        require(_revenueToken != address(0), "revenueToken not set");
+        address _emissionToken = IResupplyRegistry(registry).govToken();
+        require(_emissionToken != address(0), "emissionToken not set");
+        address _govStaker = IResupplyRegistry(registry).staker();
+        require(_govStaker != address(0), "govStaker not set");
         revenueToken = _revenueToken;
-        platformRewards = _platformRewards;
+        emissionToken = _emissionToken;
+        govStaker = _govStaker;
         insurancepool = _insurancepool;
         pairEmissions = _pairEmissions;
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
-        emissionReceiver = _emissionReceiver;
-        emissionToken = IRewards(pairEmissions).rewardToken();
+        debtEmissionsReceiver = ISimpleReceiver(_debtEmissionsReceiver);
+        
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
-        IERC20(_revenueToken).approve(_platformRewards, type(uint256).max);
-        IERC20(emissionToken).approve(pairEmissions, type(uint256).max);
+        IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
+        IERC20(_emissionToken).approve(pairEmissions, type(uint256).max);
     }
 
     function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
@@ -87,6 +103,8 @@ contract RewardHandler is CoreOwnable{
         }
     }
 
+    /// @notice Claims Relend emissions and external protocol rewards for a given pair
+    /// @param _pair The address of the pair to claim rewards for
     function claimRewards(address _pair) external{
         //claim convex staking
         uint256 pid = IResupplyPair(_pair).convexPid();
@@ -121,14 +139,11 @@ contract RewardHandler is CoreOwnable{
         //if borrow limit is 0, dont apply any weight
         if(borrowLimit > 0){
 
-            //if first record, assume 7 days
-            if(lastTimestamp == 0){            
-                lastTimestamp = block.timestamp - 7 days;
-            }
+            // if first call for pair use epoch length
+            lastTimestamp = lastTimestamp == 0 ? block.timestamp - epochLength : lastTimestamp;
 
-            //convert amount to amount per second. (precision loss ok as its just weights)
-            rate = block.timestamp - lastTimestamp;
-            rate = _amount / rate;
+            //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
+            rate = _amount / (block.timestamp - lastTimestamp);
 
             //if minimum set check if rate is below
             if(minimumWeights[_pair] != 0 && rate < minimumWeights[_pair]){
@@ -151,18 +166,18 @@ contract RewardHandler is CoreOwnable{
         IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
     }
 
-    function queuePlatformRewards() external{
+    function queueStakingRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
 
         //queue up any reward tokens currently on this handler
-        IRewards(platformRewards).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
+        IGovStaker(govStaker).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
 
         //since this should get called once per epoch, can do emission handling as well
-        ISimpleReceiver(emissionReceiver).allocateEmissions();
-        if(ISimpleReceiver(emissionReceiver).claimableEmissions() > 0){
-            ISimpleReceiver(emissionReceiver).claimEmissions(address(this));
+        debtEmissionsReceiver.allocateEmissions();
+        if(debtEmissionsReceiver.claimableEmissions() > 0){
+            debtEmissionsReceiver.claimEmissions(address(this));
             IRewards(pairEmissions).queueNewRewards(IERC20(emissionToken).balanceOf(address(this)));
         }
     }

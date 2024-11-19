@@ -1,9 +1,8 @@
 pragma solidity ^0.8.22;
 
-import "forge-std/Test.sol";
-import "forge-std/console2.sol";
+import { console } from "../../../lib/forge-std/src/console.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Setup } from "../utils/Setup.sol";
+import { Setup } from "../../Setup.sol";
 import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
 import { GovToken } from "../../../src/dao/GovToken.sol";
 import { MockReceiver } from "../../mocks/MockReceiver.sol";
