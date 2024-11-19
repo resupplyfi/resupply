@@ -954,16 +954,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // add 0.5$ to protocol earned fees
         // return 99$ of collateral
         // burn $100 of stables
-        uint256 collateralValue = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
-        uint256 protocolFee = (_amount - collateralValue) * protocolRedemptionFee / EXCHANGE_PRECISION;
+        uint256 valueToRedeem = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
+        uint256 protocolFee = (_amount - valueToRedeem) * protocolRedemptionFee / EXCHANGE_PRECISION;
+        uint256 debtReduction = valueToRedeem - protocolFee; // protocol fee portion is not burned
 
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
-        if(collateralValue > _totalBorrow.amount || _totalBorrow.amount - collateralValue < minimumLeftoverAssets ){
+        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverAssets ){
             revert InsufficientAssetsForRedemption();
         }
 
-        _totalBorrow.amount -= uint128(collateralValue);
+        _totalBorrow.amount -= uint128(debtReduction);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
         //cast to uint256 to reduce change of overflow
@@ -981,7 +982,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Update exchange rate
         uint256 _exchangeRate = _updateExchangeRate();
         //calc collateral units
-        _collateralReturned = ((collateralValue * _exchangeRate) / EXCHANGE_PRECISION);
+        _collateralReturned = ((valueToRedeem * _exchangeRate) / EXCHANGE_PRECISION);
         
         _unstakeUnderlying(_collateralReturned);
         collateral.safeTransfer(_receiver, _collateralReturned);
@@ -991,7 +992,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         IResupplyRegistry(registry).burn(msg.sender, _amount);
 
-        emit Redeemed(_receiver, _amount, _collateralReturned, protocolFee, collateralValue);
+        emit Redeemed(_receiver, _amount, _collateralReturned, protocolFee, debtReduction);
     }
 
     // ============================================================================================
