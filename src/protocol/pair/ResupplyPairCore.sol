@@ -224,15 +224,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
     }
 
-
-    // ============================================================================================
-    // Functions: Access Control
-    // ============================================================================================
-
-    function _isOwner() internal view returns(bool){
-        return msg.sender == owner();
-    }
-
     // ============================================================================================
     // Helpers
     // ============================================================================================
@@ -338,7 +329,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return _isOwner() || msg.sender == IResupplyRegistry(registry).rewardHandler();
+        return msg.sender == address(core) || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
     function _fetchIncentives() internal override{
