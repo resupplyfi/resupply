@@ -40,12 +40,12 @@ import { ILiquidationHandler } from "../../interfaces/ILiquidationHandler.sol";
 import { RewardDistributorMultiEpoch } from "../RewardDistributorMultiEpoch.sol";
 import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
-import "../../interfaces/IOwnership.sol";
+import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 
 /// @title ResupplyPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
 /// @notice  An abstract contract which contains the core logic and storage for the ResupplyPair
-abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMultiEpoch {
+abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, RewardDistributorMultiEpoch {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -145,10 +145,11 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
     /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
     /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
     constructor(
+        address _core,
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) {
+    ) CoreOwnable(_core){
         (address _registry) = abi.decode(
             _immutables,
             (address)
@@ -228,16 +229,8 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
     // Functions: Access Control
     // ============================================================================================
 
-    function _isProtocolOrOwner() internal view returns(bool){
-        return msg.sender == registry || msg.sender == IOwnership(registry).owner();
-    }
-
-    function _requireProtocolOrOwner() internal view {
-        if (
-            !_isProtocolOrOwner()
-        ) {
-            revert OnlyProtocolOrOwner();
-        }
+    function _isOwner() internal view returns(bool){
+        return msg.sender == owner();
     }
 
     // ============================================================================================
@@ -345,7 +338,7 @@ abstract contract ResupplyPairCore is ResupplyPairConstants, RewardDistributorMu
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return _isProtocolOrOwner() || msg.sender == IResupplyRegistry(registry).rewardHandler();
+        return _isOwner() || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
     function _fetchIncentives() internal override{

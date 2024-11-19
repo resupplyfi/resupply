@@ -67,7 +67,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         bytes memory _configData,
         bytes memory _immutables,
         bytes memory _customConfigData
-    ) ResupplyPairCore(_configData, _immutables, _customConfigData) EpochTracker(_core) {
+    ) ResupplyPairCore(_core, _configData, _immutables, _customConfigData) EpochTracker(_core) {
 
         (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,
@@ -191,8 +191,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setOracleInfo``` function sets the oracle data
     /// @param _newOracle The new oracle address
-    function setOracle(address _newOracle) external {
-        _requireProtocolOrOwner();
+    function setOracle(address _newOracle) external onlyOwner{
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
         emit SetOracleInfo(
             _exchangeRateInfo.oracle,
@@ -209,8 +208,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setMaxLTV``` function sets the max LTV
     /// @param _newMaxLTV The new max LTV
-    function setMaxLTV(uint256 _newMaxLTV) external {
-        _requireProtocolOrOwner();
+    function setMaxLTV(uint256 _newMaxLTV) external onlyOwner{
         emit SetMaxLTV(maxLTV, _newMaxLTV);
         maxLTV = _newMaxLTV;
     }
@@ -223,8 +221,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setRateCalculator``` function sets the rate contract address
     /// @param _newRateCalculator The new rate contract address
-    function setRateCalculator(address _newRateCalculator) external {
-        _requireProtocolOrOwner();
+    function setRateCalculator(address _newRateCalculator) external onlyOwner{
         emit SetRateCalculator(address(rateCalculator), _newRateCalculator);
         rateCalculator = IRateCalculator(_newRateCalculator);
     }
@@ -242,8 +239,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @param _newLiquidationFee The new clean liquidation fee
     function setLiquidationFees(
         uint256 _newLiquidationFee
-    ) external {
-        _requireProtocolOrOwner();
+    ) external onlyOwner{
         emit SetLiquidationFees(
             liquidationFee,
             _newLiquidationFee
@@ -263,8 +259,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @param _newMintFee The new mint fee
     function setMintFees(
         uint256 _newMintFee
-    ) external {
-        _requireProtocolOrOwner();
+    ) external onlyOwner{
         emit SetMintFees(
             mintFee,
             _newMintFee
@@ -283,26 +278,23 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     event SetMinimumLeftover(uint256 min);
 
-    function setMinimumLeftoverAssets(uint256 _min) internal {
-        _requireProtocolOrOwner();
+    function setMinimumLeftoverAssets(uint256 _min) external onlyOwner{
         minimumLeftoverAssets = _min;
         emit SetMinimumLeftover(_min);
     }
 
     event SetMinimumBorrowAmount(uint256 min);
 
-    function setMinimumBorrowAmount(uint256 _min) internal {
-        _requireProtocolOrOwner();
+    function setMinimumBorrowAmount(uint256 _min) external onlyOwner{
         minimumBorrowAmount = _min;
         emit SetMinimumBorrowAmount(_min);
     }
 
     event SetProtocolRedemptionFee(uint256 fee);
 
-    function setProtocolRedemptionFee(uint256 _fee) internal {
+    function setProtocolRedemptionFee(uint256 _fee) external onlyOwner{
         if(_fee > EXCHANGE_PRECISION) revert InvalidParameter();
 
-        _requireProtocolOrOwner();
         protocolRedemptionFee = _fee;
         emit SetProtocolRedemptionFee(_fee);
     }
@@ -353,8 +345,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @dev
     /// @param _swapper The swapper address
     /// @param _approval The approval
-    function setSwapper(address _swapper, bool _approval) external {
-        _requireProtocolOrOwner();
+    function setSwapper(address _swapper, bool _approval) external onlyOwner{
         swappers[_swapper] = _approval;
         emit SetSwapper(_swapper, _approval);
     }
@@ -366,8 +357,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @notice The ```setConvexPool``` function is called update the underlying convex pool
     /// @dev
     /// @param pid the convex pool id
-    function setConvexPool(uint256 pid) external {
-        _requireProtocolOrOwner();
+    function setConvexPool(uint256 pid) external onlyOwner{
         _updateConvexPool(pid);
         emit SetConvexPool(pid);
     }
@@ -425,15 +415,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     uint256 previousBorrowLimit;
     /// @notice The ```pause``` function is called to pause all contract functionality
-    function pause() external {
-        _requireProtocolOrOwner();
+    function pause() external onlyOwner{
         previousBorrowLimit = borrowLimit;
         _setBorrowLimit(0);
     }
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality
-    function unpause() external {
-        _requireProtocolOrOwner();
+    function unpause() external onlyOwner{
         _setBorrowLimit(previousBorrowLimit);
     }
 }
