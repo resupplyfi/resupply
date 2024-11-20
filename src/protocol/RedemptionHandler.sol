@@ -65,7 +65,7 @@ contract RedemptionHandler is CoreOwnable{
     /// @param _maxFeePct The maximum fee pct (in 1e18) that the caller will accept
     /// @param _receiver The address that will receive the withdrawn collateral
     /// @param _redeemToUnderlying Whether to unwrap the collateral to the underlying asset
-    /// @return _ amount of vault shares redeemed and sent to receiver
+    /// @return _ amount received of either collateral shares or underlying, depending on `_redeemToUnderlying`
     function redeemFromPair (
         address _pair,
         uint256 _amount,

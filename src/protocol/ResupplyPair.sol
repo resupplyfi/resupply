@@ -56,7 +56,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     address public immutable convexBooster;
     uint256 public convexPid;
     
-    error InvalidFeeTimestamp();
+    error FeesAlreadyDistributed();
     error IncorrectStakeBalance();
 
     /// @param _configData config data
@@ -318,14 +318,16 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
         //get deposit contract
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        uint256 depositEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
+        uint256 lastDistributedEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
         uint256 currentEpoch = getEpoch();
 
         //current epoch must be greater than last claimed epoch
         //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)
-        if(currentEpoch <= lastFeeEpoch || currentEpoch != depositEpoch){
-            revert InvalidFeeTimestamp();
+        if(currentEpoch <= lastFeeEpoch || currentEpoch != lastDistributedEpoch){
+            revert FeesAlreadyDistributed();
         }
+
+        lastFeeEpoch = currentEpoch;
 
         //get fees and clear
         _fees = claimableFees;

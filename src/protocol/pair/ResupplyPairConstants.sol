@@ -51,7 +51,7 @@ abstract contract ResupplyPairConstants {
     error InvalidLiquidator();
     error InvalidRedemptionHandler();
     error InvalidParameter();
-    error InsufficientAssetsForRedemption();
+    error InsufficientDebtToRedeem();
     error InsufficientBorrowAmount();
     error OnlyProtocolOrOwner();
 }

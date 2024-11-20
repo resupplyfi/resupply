@@ -10,7 +10,6 @@ contract SimpleReceiverFactoryTest is Setup {
 
     address public simpleReceiverImplementation;
     SimpleReceiverFactory public simpleReceiverFactory;
-    uint256 public epochLength;
 
     function setUp() public override {
         super.setUp();
@@ -26,7 +25,6 @@ contract SimpleReceiverFactoryTest is Setup {
             address(emissionsController), 
             simpleReceiverImplementation
         );
-        epochLength = emissionsController.epochLength();
         vm.prank(address(core));
         govToken.setMinter(address(emissionsController));
     }

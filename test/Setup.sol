@@ -44,6 +44,7 @@ import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceive
 contract Setup is Test {
 
     // Deployer constants
+    uint256 public constant epochLength = 1 weeks;
     address public immutable _THIS;
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
     uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 5% with 1e5 precision
@@ -234,7 +235,7 @@ contract Setup is Test {
         redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
-        core = new Core(tempGov, 1 weeks);
+        core = new Core(tempGov, epochLength);
         address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
         govToken = new GovToken(
             address(core), 

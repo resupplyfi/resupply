@@ -4,6 +4,8 @@ import { Setup } from "test/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 contract PairTest is PairTestBase {
     ResupplyPair pair;
@@ -74,7 +76,7 @@ contract PairTest is PairTestBase {
         borrow(pair, borrowAmount, 0);
     }
 
-    function test_Redemption() public {
+    function test_RedemptionPartial() public {
         uint256 collateralAmount = 150_000e18;
         uint256 borrowAmount = 100_000e18;
         uint256 redeemAmount = 10_000e18;
@@ -127,9 +129,116 @@ contract PairTest is PairTestBase {
         assertZeroBalanceRH();
     }
 
+    function test_RedemptionMax() public {
+        uint256 collateralAmount = 150_000e18;
+        uint256 borrowAmount = 100_000e18;
+
+        addCollateral(pair, convertToShares(address(collateral), collateralAmount));
+        borrow(pair, borrowAmount, 0);
+
+        (uint256 totalDebtBefore, ) = pair.totalBorrow();
+        uint256 redeemAmount = totalDebtBefore;
+        deal(address(stablecoin), address(this), redeemAmount);
+
+        uint256 underlyingBalBefore = underlying.balanceOf(address(this));
+        uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
+        uint256 otherFeesBefore = pair.claimableOtherFees();
+        uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
+        
+        // We expect this to revert because the total remaining debt is less than `minimumLeftoverAssets`
+        vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+        uint256 collateralFreed = redemptionHandler.redeemFromPair(
+            address(pair),  // pair
+            redeemAmount,   // amount
+            1e18,           // max fee
+            address(this),  // return to
+            true           // unwrap
+        );
+        uint256 minimumLeftoverAssets = pair.minimumLeftoverAssets();
+        redeemAmount = totalDebtBefore - minimumLeftoverAssets;
+        console.log("totalDebtBefore", totalDebtBefore);
+        console.log("redeemAmount", redeemAmount);
+        console.log("minimumLeftoverAssets", minimumLeftoverAssets);
+        collateralFreed = redemptionHandler.redeemFromPair(
+            address(pair),  // pair
+            redeemAmount,   // amount
+            1e18,           // max fee
+            address(this),  // return to
+            true           // unwrap
+        );
+        assertGt(collateralFreed, 0);
+        (,,uint256 exchangeRate) = pair.exchangeRateInfo();
+        uint256 underlyingBalAfter = underlying.balanceOf(address(this));
+        uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
+        assertGt(underlyingGain, 0);
+        assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
+        uint256 feesPaid = redeemAmount - underlyingGain;
+        assertGt(feesPaid, 0);
+        
+
+        (uint256 totalDebtAfter, ) = pair.totalBorrow();
+        uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
+        uint256 amountToStakers = pair.claimableOtherFees() - otherFeesBefore;
+        console.log("totalFeePct", totalFee);
+        console.log("redeemAmount", redeemAmount);
+        console.log("collateralFreed", collateralFreed);
+        console.log("debtWrittenOff", debtWrittenOff);
+        console.log("underlyingReturned", underlyingGain);
+        console.log("feesPaid (w/ rounding error)", feesPaid);
+        console.log("amountToStakers", amountToStakers);
+
+        assertZeroBalanceRH();
+    }
+
+    function test_RedemptionFeesClaimable() public {
+        uint256 collateralAmount = 150_000e18;
+        uint256 borrowAmount = 100_000e18;
+
+        addCollateral(pair, convertToShares(address(collateral), collateralAmount));
+        borrow(pair, borrowAmount, 0);
+
+        uint256 redeemAmount = 10_000e18;
+        deal(address(stablecoin), address(this), redeemAmount);
+
+        assertEq(pair.claimableOtherFees(), 0);
+        
+        redemptionHandler.redeemFromPair(
+            address(pair),  // pair
+            redeemAmount,   // amount
+            1e18,           // max fee
+            address(this),  // return to
+            true           // unwrap
+        );
+        uint256 claimableFees = pair.claimableOtherFees();
+        assertGt(claimableFees, 0);
+
+        vm.expectRevert(ResupplyPair.FeesAlreadyDistributed.selector);
+        (uint256 fees, uint256 otherFees) = pair.withdrawFees();
+        uint256 currentEpoch = pair.getEpoch();
+
+        skip(epochLength);
+        assertGt(pair.getEpoch(), currentEpoch);
+        
+        vm.prank(address(feeDepositController));
+        feeDeposit.distributeFees();
+        
+        
+        vm.expectEmit(true, false, false, false); // False to not check topics 2/3 or data
+        emit ResupplyPair.WithdrawFees(
+            registry.feeDeposit(), // recipient
+            pair.claimableFees(),   // fees
+            pair.claimableOtherFees() // otherFees
+        );
+        (fees, otherFees) = pair.withdrawFees();
+        assertEq(pair.claimableOtherFees(), 0);
+        assertGt(otherFees, 0);
+        assertZeroBalanceRH();
+    }
+
     function assertZeroBalanceRH() internal {
         assertEq(collateral.balanceOf(address(redemptionHandler)), 0);
         assertEq(underlying.balanceOf(address(redemptionHandler)), 0);
         assertEq(stablecoin.balanceOf(address(redemptionHandler)), 0);
     }
+
 }

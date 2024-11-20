@@ -677,7 +677,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (_assetsAvailable < _borrowAmount) {
             revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
         }
-
         //mint fees
         uint128 debtForMint = uint128((_borrowAmount * (LIQ_PRECISION + mintFee)) / LIQ_PRECISION);
 
@@ -966,7 +965,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
         if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverAssets ){
-            revert InsufficientAssetsForRedemption();
+            revert InsufficientDebtToRedeem(); // size of request exceeeds total pair debt
         }
 
         _totalBorrow.amount -= uint128(debtReduction);

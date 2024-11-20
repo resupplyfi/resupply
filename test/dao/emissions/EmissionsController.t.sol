@@ -10,7 +10,6 @@ import { MockReceiver } from "../../mocks/MockReceiver.sol";
 contract EmissionsControllerTest is Setup {
 
     uint256 public constant DUST = 100;
-    uint256 public epochLength;
     MockReceiver public mockReceiver1;
     MockReceiver public mockReceiver2;
     MockReceiver public mockReceiver3;
@@ -19,7 +18,6 @@ contract EmissionsControllerTest is Setup {
         super.setUp();
         vm.startPrank(address(core));
         govToken.setMinter(address(emissionsController));
-        epochLength = emissionsController.epochLength();
 
         mockReceiver1 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 1");
         mockReceiver2 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 2");
