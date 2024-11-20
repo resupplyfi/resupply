@@ -28,7 +28,7 @@ contract RedemptionHandler is CoreOwnable{
     }
 
     /// @notice Sets the base redemption fee.
-    /// @dev This fee is not the effective fee. The effective fee is calculated at time of redemption via ``getRedemptionFee``.
+    /// @dev This fee is not the effective fee. The effective fee is calculated at time of redemption via ``getRedemptionFeePct``.
     /// @param _fee The new base redemption fee, must be <= 1e18 (100%)
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
         require(_fee <= 1e18, "!fee");
@@ -53,8 +53,9 @@ contract RedemptionHandler is CoreOwnable{
         return redeemable > maxwithdraw ? maxwithdraw : redeemable;
     }
 
-    /// @notice Calculate the base fee for a redemption. Fee serves to discount the total redemption value.
-    function getRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
+    /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
+    /// TODO: add settable contract for upgradeable logic
+    function getRedemptionFeePct(address _pair, uint256 _amount) public view returns(uint256){
         return baseRedemptionFee;
     }
 
@@ -76,14 +77,14 @@ contract RedemptionHandler is CoreOwnable{
         IERC20(debtToken).safeTransferFrom(msg.sender, address(this), _amount);
 
         //get fee
-        uint256 fee = getRedemptionFee(_pair, _amount);
+        uint256 feePct = getRedemptionFeePct(_pair, _amount);
         //check against maxfee to avoid frontrun
-        require(fee <= _maxFeePct, "fee > maxFee");
+        require(feePct <= _maxFeePct, "fee > maxFee");
 
         (address _collateral, uint256 _returnedCollateral) = IResupplyPair(_pair).redeemCollateral(
             msg.sender,
             _amount,
-            fee,
+            feePct,
             address(this)
         );
 

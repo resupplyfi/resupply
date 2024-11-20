@@ -930,7 +930,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     event Redeemed(
         address indexed _caller,
         uint256 _amount,
-        uint256 _redemptionAmountInCollateralUnits,
+        uint256 _collateralFreed,
         uint256 _protocolFee,
         uint256 _debtReduction
     );
@@ -938,16 +938,16 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @notice Allows redemption of the debt tokens for collateral
     /// @dev Only callable by the registry's redeemer contract
     /// @param _amount The amount of debt tokens to redeem
-    /// @param _fee Total fee to charge on redemption; of which is split between protocol and borrowers
+    /// @param _totalFeePct Total fee to charge, expressed as a percentage of the stablecoin input; to be subdivided between protocol and borrowers.
     /// @param _receiver The address to receive the collateral tokens
     /// @return _collateralToken The address of the collateral token
-    /// @return _collateralReturned The amount of collateral tokens returned to receiver
+    /// @return _collateralFreed The amount of collateral tokens returned to receiver
     function redeemCollateral(
         address _caller,
         uint256 _amount,
-        uint256 _fee,
+        uint256 _totalFeePct,
         address _receiver
-    ) external nonReentrant returns(address _collateralToken, uint256 _collateralReturned){
+    ) external nonReentrant returns(address _collateralToken, uint256 _collateralFreed){
         //check sender. must go through the registry's redemptionHandler
         if(msg.sender != IResupplyRegistry(registry).redemptionHandler()) revert InvalidRedemptionHandler();
 
@@ -959,9 +959,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // add 0.5$ to protocol earned fees
         // return 99$ of collateral
         // burn $100 of stables
-        uint256 valueToRedeem = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
+        uint256 valueToRedeem = _amount * (EXCHANGE_PRECISION - _totalFeePct) / EXCHANGE_PRECISION;
         uint256 protocolFee = (_amount - valueToRedeem) * protocolRedemptionFee / EXCHANGE_PRECISION;
-        uint256 debtReduction = valueToRedeem - protocolFee; // protocol fee portion is not burned
+        uint256 debtReduction = _amount - protocolFee; // protocol fee portion is not burned
 
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
@@ -986,18 +986,18 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Update exchange rate
         uint256 _exchangeRate = _updateExchangeRate();
         //calc collateral units
-        _collateralReturned = ((valueToRedeem * _exchangeRate) / EXCHANGE_PRECISION);
+        _collateralFreed = ((valueToRedeem * _exchangeRate) / EXCHANGE_PRECISION);
         
-        _unstakeUnderlying(_collateralReturned);
+        _unstakeUnderlying(_collateralFreed);
         _collateralToken = address(collateral);
-        IERC20(_collateralToken).safeTransfer(_receiver, _collateralReturned);
+        IERC20(_collateralToken).safeTransfer(_receiver, _collateralFreed);
 
         //distribute write off tokens to adjust userCollateralbalances
-        redemptionWriteOff.mint(_collateralReturned);
+        redemptionWriteOff.mint(_collateralFreed);
 
         IResupplyRegistry(registry).burn(msg.sender, _amount);
 
-        emit Redeemed(_caller, _amount, _collateralReturned, protocolFee, debtReduction);
+        emit Redeemed(_caller, _amount, _collateralFreed, protocolFee, debtReduction);
     }
 
     // ============================================================================================

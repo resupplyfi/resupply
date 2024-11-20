@@ -95,7 +95,9 @@ contract PairTest is PairTestBase {
 
         uint256 balBefore = underlying.balanceOf(address(this));
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
-        redemptionHandler.redeemFromPair(
+        uint256 otherFeesBefore = pair.claimableOtherFees();
+        uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
+        uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
             1e18,           // max fee
@@ -107,14 +109,19 @@ contract PairTest is PairTestBase {
         assertGt(underlyingGain, 0);
         uint256 feesPaid = redeemAmount - underlyingGain;
         assertGt(feesPaid, 0);
-        console.log("redeemAmount", redeemAmount);
-        console.log("underlyingGain", underlyingGain);
-        console.log("feesPaid (w/ rounding error)", feesPaid);
+        
 
         (uint256 totalDebtAfter, ) = pair.totalBorrow();
         uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
-        uint256 amountToStakers = pair.claimableFees() + pair.claimableOtherFees();
+        uint256 amountToStakers = pair.claimableOtherFees() - otherFeesBefore;
+        console.log("totalFeePct", totalFee);
+        console.log("redeemAmount", redeemAmount);
+        console.log("collateralFreed", collateralFreed);
         console.log("debtWrittenOff", debtWrittenOff);
+        console.log("underlyingReturned", underlyingGain);
+        console.log("feesPaid (w/ rounding error)", feesPaid);
         console.log("amountToStakers", amountToStakers);
+
+        // Collat freed = 
     }
 }
