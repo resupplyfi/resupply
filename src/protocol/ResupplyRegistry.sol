@@ -181,7 +181,7 @@ contract ResupplyRegistry is CoreOwnable{
         require(pairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
 
         //ask minter to burn
-        IMintable(token).mint(_target, _amount);
+        IMintable(token).burn(_target, _amount);
     }
 
     function claimFees(address _pair) external{

@@ -995,7 +995,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //distribute write off tokens to adjust userCollateralbalances
         redemptionWriteOff.mint(_collateralFreed);
 
-        IResupplyRegistry(registry).burn(msg.sender, _amount);
+        IResupplyRegistry(registry).burn(_caller, _amount);
 
         emit Redeemed(_caller, _amount, _collateralFreed, protocolFee, debtReduction);
     }

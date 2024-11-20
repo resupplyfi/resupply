@@ -73,9 +73,6 @@ contract RedemptionHandler is CoreOwnable{
         address _receiver,
         bool _redeemToUnderlying
     ) external returns(uint256){
-        //pull redeeming tokens
-        IERC20(debtToken).safeTransferFrom(msg.sender, address(this), _amount);
-
         //get fee
         uint256 feePct = getRedemptionFeePct(_pair, _amount);
         //check against maxfee to avoid frontrun

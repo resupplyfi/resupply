@@ -93,7 +93,8 @@ contract PairTest is PairTestBase {
             false           // unwrap
         );
 
-        uint256 balBefore = underlying.balanceOf(address(this));
+        uint256 underlyingBalBefore = underlying.balanceOf(address(this));
+        uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
@@ -104,9 +105,10 @@ contract PairTest is PairTestBase {
             address(this),  // return to
             true           // unwrap
         );
-        uint256 balAfter = underlying.balanceOf(address(this));
-        uint256 underlyingGain = balAfter - balBefore;
+        uint256 underlyingBalAfter = underlying.balanceOf(address(this));
+        uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
         assertGt(underlyingGain, 0);
+        assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
         uint256 feesPaid = redeemAmount - underlyingGain;
         assertGt(feesPaid, 0);
         
@@ -122,6 +124,12 @@ contract PairTest is PairTestBase {
         console.log("feesPaid (w/ rounding error)", feesPaid);
         console.log("amountToStakers", amountToStakers);
 
-        // Collat freed = 
+        assertZeroBalanceRH();
+    }
+
+    function assertZeroBalanceRH() internal {
+        assertEq(collateral.balanceOf(address(redemptionHandler)), 0);
+        assertEq(underlying.balanceOf(address(redemptionHandler)), 0);
+        assertEq(stablecoin.balanceOf(address(redemptionHandler)), 0);
     }
 }
