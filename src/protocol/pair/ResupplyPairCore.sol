@@ -692,7 +692,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         totalBorrow = _totalBorrow;
         _userBorrowShares[msg.sender] += _sharesAdded;
 
-        // add platform fee
         uint256 otherFees = debtForMint - _borrowAmount;
         if (otherFees > 0) claimableOtherFees += otherFees;
 
@@ -932,14 +931,14 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         address indexed _redeemer,
         uint256 _amount,
         uint256 _redemptionAmountInCollateralUnits,
-        uint256 _platformFee,
+        uint256 _protocolFee,
         uint256 _debtReduction
     );
 
     /// @notice Allows redemption of the debt tokens for collateral
     /// @dev Only callable by the registry's redeemer contract
     /// @param _amount The amount of debt tokens to redeem
-    /// @param _fee The fee to charge on redemption, in EXCHANGE_PRECISION
+    /// @param _fee Total fee to charge on redemption; of which is split between protocol and borrowers
     /// @param _receiver The address to receive the collateral tokens
     /// @return _collateralToken The address of the collateral token
     /// @return _collateralReturned The amount of collateral tokens returned to receiver
@@ -981,7 +980,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Effects: write to state
         totalBorrow = _totalBorrow;
 
-        //// add platform fees using platformFee////
         claimableOtherFees += protocolFee; //increase claimable fees
 
         // Update exchange rate
