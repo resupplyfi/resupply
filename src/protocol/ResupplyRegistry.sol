@@ -47,7 +47,7 @@ contract ResupplyRegistry is CoreOwnable{
     address public circuitBreakerAddress;
     address public liquidationHandler;
     address public feeDeposit;
-    address public redeemer;
+    address public redemptionHandler;
     address public rewardHandler;
     address public insurancePool;
     address public staker;
@@ -92,11 +92,11 @@ contract ResupplyRegistry is CoreOwnable{
         feeDeposit = _newAddress;
     }
 
-    event SetRedeemer(address oldAddress, address newAddress);
+    event SetRedemptionHandler(address oldAddress, address newAddress);
 
-    function setRedeemer(address _newAddress) external onlyOwner{
-        emit SetRedeemer(redeemer, _newAddress);
-        redeemer = _newAddress;
+    function setRedemptionHandler(address _newAddress) external onlyOwner{
+        emit SetRedemptionHandler(redemptionHandler, _newAddress);
+        redemptionHandler = _newAddress;
     }
 
     event SetInsurancePool(address oldAddress, address newAddress);

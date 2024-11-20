@@ -49,7 +49,7 @@ abstract contract ResupplyPairConstants {
     error SetterRevoked();
     error InvalidReceiver();
     error InvalidLiquidator();
-    error InvalidRedeemer();
+    error InvalidRedemptionHandler();
     error InvalidParameter();
     error InsufficientAssetsForRedemption();
     error InsufficientBorrowAmount();

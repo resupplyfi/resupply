@@ -928,7 +928,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // Functions: Redemptions
     // ============================================================================================
     event Redeemed(
-        address indexed _redeemer,
+        address indexed _caller,
         uint256 _amount,
         uint256 _redemptionAmountInCollateralUnits,
         uint256 _protocolFee,
@@ -943,12 +943,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @return _collateralToken The address of the collateral token
     /// @return _collateralReturned The amount of collateral tokens returned to receiver
     function redeemCollateral(
+        address _caller,
         uint256 _amount,
         uint256 _fee,
         address _receiver
     ) external nonReentrant returns(address _collateralToken, uint256 _collateralReturned){
-        //check sender. must go through the registry's redeemer
-        if(msg.sender != IResupplyRegistry(registry).redeemer()) revert InvalidRedeemer();
+        //check sender. must go through the registry's redemptionHandler
+        if(msg.sender != IResupplyRegistry(registry).redemptionHandler()) revert InvalidRedemptionHandler();
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
@@ -996,7 +997,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         IResupplyRegistry(registry).burn(msg.sender, _amount);
 
-        emit Redeemed(_receiver, _amount, _collateralReturned, protocolFee, debtReduction);
+        emit Redeemed(_caller, _amount, _collateralReturned, protocolFee, debtReduction);
     }
 
     // ============================================================================================

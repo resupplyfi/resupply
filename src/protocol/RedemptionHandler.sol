@@ -80,7 +80,12 @@ contract RedemptionHandler is CoreOwnable{
         //check against maxfee to avoid frontrun
         require(fee <= _maxFeePct, "fee > maxFee");
 
-        (address _collateral, uint256 _returnedCollateral) = IResupplyPair(_pair).redeemCollateral(_amount, fee, address(this));
+        (address _collateral, uint256 _returnedCollateral) = IResupplyPair(_pair).redeemCollateral(
+            msg.sender,
+            _amount,
+            fee,
+            address(this)
+        );
 
         //withdraw to underlying
         if(_redeemToUnderlying){

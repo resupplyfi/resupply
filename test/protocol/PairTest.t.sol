@@ -94,6 +94,7 @@ contract PairTest is PairTestBase {
         );
 
         uint256 balBefore = underlying.balanceOf(address(this));
+        (uint256 totalDebtBefore, ) = pair.totalBorrow();
         redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
@@ -102,6 +103,18 @@ contract PairTest is PairTestBase {
             true           // unwrap
         );
         uint256 balAfter = underlying.balanceOf(address(this));
-        uint256 feesPaid = redeemAmount - (balAfter - balBefore);
+        uint256 underlyingGain = balAfter - balBefore;
+        assertGt(underlyingGain, 0);
+        uint256 feesPaid = redeemAmount - underlyingGain;
+        assertGt(feesPaid, 0);
+        console.log("redeemAmount", redeemAmount);
+        console.log("underlyingGain", underlyingGain);
+        console.log("feesPaid (w/ rounding error)", feesPaid);
+
+        (uint256 totalDebtAfter, ) = pair.totalBorrow();
+        uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
+        uint256 amountToStakers = pair.claimableFees() + pair.claimableOtherFees();
+        console.log("debtWrittenOff", debtWrittenOff);
+        console.log("amountToStakers", amountToStakers);
     }
 }

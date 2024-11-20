@@ -146,7 +146,7 @@ contract Setup is Test {
 
         vm.startPrank(address(core));
         registry.setLiquidationHandler(address(liquidationHandler));
-        registry.setRedeemer(address(redemptionHandler));
+        registry.setRedemptionHandler(address(redemptionHandler));
         registry.setInsurancePool(address(insurancePool));
         vm.stopPrank();
     }

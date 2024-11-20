@@ -138,7 +138,7 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         _registry.setLiquidationHandler(address(_liqHandler));
         _registry.setFeeDeposit(address(_feedeposit));
-        _registry.setRedeemer(address(_redemptionHandler));
+        _registry.setRedemptionHandler(address(_redemptionHandler));
         _registry.setInsurancePool(address(_insurancepool));
         _registry.setRewardHandler(address(_rewardHandler));
 

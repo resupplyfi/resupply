@@ -115,7 +115,7 @@ interface IResupplyPair {
     function minimumLeftoverAssets() external view returns (uint256);
     function minimumBorrowAmount() external view returns (uint256);
 
-    function redeemCollateral(uint256 _amount, uint256 _fee, address _redeemer) external returns(address _collateralToken, uint256 _collateralReturned);
+    function redeemCollateral(address _caller, uint256 _amount, uint256 _fee, address _receiver) external returns(address _collateralToken, uint256 _collateralReturned);
 
     function removeCollateral(uint256 _collateralAmount, address _receiver) external;
 
