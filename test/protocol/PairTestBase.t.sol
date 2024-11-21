@@ -28,6 +28,13 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         (, , _ratePerSec,, ) = _pair.currentRateInfo();
     }
 
+    function getCurrentLTV(ResupplyPair _pair, address _user) internal returns(uint256 _ltv){
+        uint256 _borrowerAmount = _pair.toBorrowAmount(_pair.userBorrowShares(_user), true, true);
+        (,,uint256 _exchangeRate) = _pair.exchangeRateInfo();
+        uint256 _collateralAmount = _pair.userCollateralBalance(_user);
+        _ltv = (((_borrowerAmount * _exchangeRate) / EXCHANGE_PRECISION) * LTV_PRECISION) / _collateralAmount;
+    }
+
     function getCollateralAmount(
         uint256 _borrowAmount,
         uint256 _exchangeRate,
