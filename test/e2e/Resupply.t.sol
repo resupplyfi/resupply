@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-import "lib/forge-std/src/console.sol";
+import { console } from "forge-std/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -46,16 +46,15 @@ contract ResupplyAccountingTest is Setup {
         addCollateralVaultFlow(pair1, user9, amount);
         amount /= 4;
         amount *= 3;
-        uint min = pair1.minimumBorrowAmount();
         uint _amount = 
             bound(
                 amount, 
-                min, 
+                pair1.minimumBorrowAmount(), 
                 pair1.totalDebtAvailable()
             );
         
     
-        borrowStablecoinFlow(pair1, user9, _amount + min, er);
+        borrowStablecoinFlow(pair1, user9, _amount, er);
         redeemStablecoinFlow(pair1, user8, _amount);
     }
 
@@ -294,8 +293,6 @@ contract ResupplyAccountingTest is Setup {
         uint256 collat = pair.userCollateralBalance(user);
         (,,uint256 exchangeRate) = pair.exchangeRateInfo();
         uint256 maxDebtToIssue = ((pair.maxLTV()) * collat * 1e18) / (er * 1e5);
-        console.log("xxx maxDebtToIssue",maxDebtToIssue);
-        console.log("xxx amountToBorrow",amountToBorrow);
         if (amountToBorrow > pair.totalDebtAvailable()) {
             vm.expectRevert(
                 abi.encodeWithSelector(
