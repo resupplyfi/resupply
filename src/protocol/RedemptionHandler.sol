@@ -19,7 +19,7 @@ contract RedemptionHandler is CoreOwnable{
     address public immutable debtToken;
 
     uint256 public baseRedemptionFee = 1e16; //1%
-
+    uint256 public constant PRECISION = 1e18;
     event SetBaseRedemptionFee(uint256 _fee);
 
     constructor(address _core, address _registry) CoreOwnable(_core){
@@ -39,18 +39,26 @@ contract RedemptionHandler is CoreOwnable{
     //get max redeemable
     //based on fee, true max redeemable will be slightly larger than this value
     //this is just a quick estimate
-    function getMaxRedeemable(address _pair) external view returns(uint256){
-        //get max redeemable of pair
+    function getMaxRedeemableCollateral(address _pair) public view returns(uint256){
+        (,,uint256 exchangeRate) = IResupplyPair(_pair).exchangeRateInfo();
+        if (exchangeRate == 0) return 0;
+        return getMaxRedeemableValue(_pair) * PRECISION / exchangeRate;
+    }
+
+    /// @notice Estimates the maximum amount of debtToken that can be used to redeem collateral
+    function getMaxRedeemableValue(address _pair) public view returns(uint256){
         (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
-        uint256 redeemable = IResupplyPair(_pair).minimumLeftoverAssets();
-        redeemable = _totalBorrow.amount - redeemable;
+        uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
+        if (_totalBorrow.amount < minLeftoverDebt) return 0;
+        return _totalBorrow.amount - minLeftoverDebt;
+    }
 
-        //get collateral max withdraw
+    function getMaxRedeemableUnderlying(address _pair) public view returns(uint256){
+        uint256 maxCollat = getMaxRedeemableCollateral(_pair);
         address vault = IResupplyPair(_pair).collateral();
-        uint256 maxwithdraw = IERC4626(vault).maxWithdraw(_pair);
+        uint256 maxWithdraw = IERC4626(vault).maxWithdraw(_pair);
 
-        //take lower of redeemable and maxwithdraw
-        return redeemable > maxwithdraw ? maxwithdraw : redeemable;
+        return maxWithdraw > maxCollat ? maxCollat : maxWithdraw;
     }
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.

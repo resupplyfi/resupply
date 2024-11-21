@@ -278,8 +278,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     event SetMinimumLeftover(uint256 min);
 
-    function setMinimumLeftoverAssets(uint256 _min) external onlyOwner{
-        minimumLeftoverAssets = _min;
+    function setMinimumLeftoverDebt(uint256 _min) external onlyOwner{
+        minimumLeftoverDebt = _min;
         emit SetMinimumLeftover(_min);
     }
 

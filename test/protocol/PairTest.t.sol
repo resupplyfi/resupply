@@ -132,33 +132,31 @@ contract PairTest is PairTestBase {
     function test_RedemptionMax() public {
         uint256 collateralAmount = 150_000e18;
         uint256 borrowAmount = 100_000e18;
-
+        uint256 redeemAmount = redemptionHandler.getMaxRedeemableValue(address(pair));
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
 
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
-        uint256 redeemAmount = totalDebtBefore;
-        deal(address(stablecoin), address(this), redeemAmount);
 
+        redeemAmount = redemptionHandler.getMaxRedeemableValue(address(pair));
+        deal(address(stablecoin), address(this), redeemAmount);
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
-        uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
+        uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
         
-        // We expect this to revert because the total remaining debt is less than `minimumLeftoverAssets`
+        // We expect this to revert because the total remaining debt is less than `minimumLeftoverDebt`
         vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
-            redeemAmount,   // amount
+            redeemAmount + uint256(500e18), // add some to force revert
             1e18,           // max fee
             address(this),  // return to
             true           // unwrap
         );
-        uint256 minimumLeftoverAssets = pair.minimumLeftoverAssets();
-        redeemAmount = totalDebtBefore - minimumLeftoverAssets;
+        
         console.log("totalDebtBefore", totalDebtBefore);
         console.log("redeemAmount", redeemAmount);
-        console.log("minimumLeftoverAssets", minimumLeftoverAssets);
         collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount

@@ -82,7 +82,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     uint256 public liquidationFee;
     /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
-    uint256 public minimumLeftoverAssets = 10000 * 1e18; //minimum amount of assets left over via redemptions
+    uint256 public minimumLeftoverDebt = 10000 * 1e18; //minimum amount of assets left over via redemptions
     uint256 public minimumBorrowAmount = 1000 * 1e18; //minimum amount of assets to borrow
     
 
@@ -964,7 +964,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
-        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverAssets ){
+        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverDebt ){
             revert InsufficientDebtToRedeem(); // size of request exceeeds total pair debt
         }
 
