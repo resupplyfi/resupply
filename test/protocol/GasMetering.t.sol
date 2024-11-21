@@ -27,6 +27,17 @@ contract GasMetering is Setup {
 
         // Seed some collateral
         pair.addCollateralVault(100_000e18, _THIS);
+
+        // Setup user1 position
+        deal(address(collateral), user1, 200_000e18);
+        deal(address(underlying), user1, 200_000e18);
+        vm.startPrank(user1);
+        collateral.approve(address(pair), type(uint256).max);
+        underlying.approve(address(pair), type(uint256).max);
+        stablecoin.approve(address(redemptionHandler), type(uint256).max);
+        pair.addCollateral(100_000e18, user1);
+        pair.borrow(90_000e18, 0, user1);
+        vm.stopPrank();
     }
 
     function test_AddCollateralVault() public {
@@ -43,5 +54,16 @@ contract GasMetering is Setup {
 
     function test_RemoveCollateral() public {
         pair.removeCollateral(10_000e18, user1);
+    }
+
+    function test_Redeem() public {
+        vm.startPrank(user1);
+        redemptionHandler.redeemFromPair(
+            address(pair), 
+            10_000e18, 
+            1e18, 
+            user1, 
+            true
+        );
     }
 }

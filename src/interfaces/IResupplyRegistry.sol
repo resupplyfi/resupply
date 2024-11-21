@@ -39,11 +39,11 @@ interface IResupplyRegistry {
     function burn( address target, uint256 amount) external;
     function liquidationHandler() external view returns(address);
     function feeDeposit() external view returns(address);
-    function redeemer() external view returns(address);
+    function redemptionHandler() external view returns(address);
     function rewardHandler() external view returns(address);
     function insurancePool() external view returns(address);
     function setRewardClaimer(address _newAddress) external;
-    function setRedeemer(address _newAddress) external;
+    function setRedemptionHandler(address _newAddress) external;
     function setFeeDeposit(address _newAddress) external;
     function setLiquidationHandler(address _newAddress) external;
     function setInsurancePool(address _newAddress) external;

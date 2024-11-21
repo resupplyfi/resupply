@@ -16,17 +16,20 @@ contract RedemptionHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
-    address public immutable redemptionToken;
+    address public immutable debtToken;
 
     uint256 public baseRedemptionFee = 1e16; //1%
-
+    uint256 public constant PRECISION = 1e18;
     event SetBaseRedemptionFee(uint256 _fee);
 
-    constructor(address _core, address _registry, address _redemptionToken) CoreOwnable(_core){
+    constructor(address _core, address _registry) CoreOwnable(_core){
         registry = _registry;
-        redemptionToken = _redemptionToken;
+        debtToken = IResupplyRegistry(_registry).token();
     }
 
+    /// @notice Sets the base redemption fee.
+    /// @dev This fee is not the effective fee. The effective fee is calculated at time of redemption via ``getRedemptionFeePct``.
+    /// @param _fee The new base redemption fee, must be <= 1e18 (100%)
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
         require(_fee <= 1e18, "!fee");
         baseRedemptionFee = _fee;
@@ -36,48 +39,66 @@ contract RedemptionHandler is CoreOwnable{
     //get max redeemable
     //based on fee, true max redeemable will be slightly larger than this value
     //this is just a quick estimate
-    function getMaxRedeemable(address _pair) external view returns(uint256){
-        //get max redeemable of pair
-        (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
-        uint256 redeemable = IResupplyPair(_pair).minimumLeftoverAssets();
-        redeemable = _totalBorrow.amount - redeemable;
-
-        //get collateral max withdraw
-        address vault = IResupplyPair(_pair).collateral();
-        uint256 maxwithdraw = IERC4626(vault).maxWithdraw(_pair);
-
-        //take lower of redeemable and maxwithdraw
-        return redeemable > maxwithdraw ? maxwithdraw : redeemable;
+    function getMaxRedeemableCollateral(address _pair) public view returns(uint256){
+        (,,uint256 exchangeRate) = IResupplyPair(_pair).exchangeRateInfo();
+        if (exchangeRate == 0) return 0;
+        return getMaxRedeemableValue(_pair) * PRECISION / exchangeRate;
     }
 
-    function getRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
+    /// @notice Estimates the maximum amount of debtToken that can be used to redeem collateral
+    function getMaxRedeemableValue(address _pair) public view returns(uint256){
+        (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
+        if (_totalBorrow.amount < minLeftoverDebt) return 0;
+        return _totalBorrow.amount - minLeftoverDebt;
+    }
+
+    function getMaxRedeemableUnderlying(address _pair) public view returns(uint256){
+        uint256 maxCollat = getMaxRedeemableCollateral(_pair);
+        address vault = IResupplyPair(_pair).collateral();
+        uint256 maxWithdraw = IERC4626(vault).maxWithdraw(_pair);
+
+        return maxWithdraw > maxCollat ? maxCollat : maxWithdraw;
+    }
+
+    /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
+    /// TODO: add settable contract for upgradeable logic
+    function getRedemptionFeePct(address _pair, uint256 _amount) public view returns(uint256){
         return baseRedemptionFee;
     }
 
-    //a basic redemption
-    //pull tokens and call redeem on the pair
-    function redeem (
+    /// @notice Redeem stablecoins for collateral from a pair
+    /// @param _pair The address of the pair to redeem from
+    /// @param _amount The amount of stablecoins to redeem
+    /// @param _maxFeePct The maximum fee pct (in 1e18) that the caller will accept
+    /// @param _receiver The address that will receive the withdrawn collateral
+    /// @param _redeemToUnderlying Whether to unwrap the collateral to the underlying asset
+    /// @return _ amount received of either collateral shares or underlying, depending on `_redeemToUnderlying`
+    function redeemFromPair (
         address _pair,
         uint256 _amount,
-        uint256 _maxFee,
-        address _returnTo
+        uint256 _maxFeePct,
+        address _receiver,
+        bool _redeemToUnderlying
     ) external returns(uint256){
-        //pull redeeming tokens
-        IERC20(redemptionToken).safeTransferFrom(msg.sender, address(this), _amount);
-
         //get fee
-        uint256 fee = getRedemptionFee(_pair, _amount);
+        uint256 feePct = getRedemptionFeePct(_pair, _amount);
         //check against maxfee to avoid frontrun
-        require(fee <= _maxFee,"over max fee");
+        require(feePct <= _maxFeePct, "fee > maxFee");
 
-        //redeem
-        IResupplyPair(_pair).redeem(_amount, fee, address(this));
+        (address _collateral, uint256 _returnedCollateral) = IResupplyPair(_pair).redeemCollateral(
+            msg.sender,
+            _amount,
+            feePct,
+            address(this)
+        );
 
-        //withdraw
-        address vault = IResupplyPair(_pair).collateral();
-        uint256 vbalance = IERC20(vault).balanceOf(address(this));
-        IERC4626(vault).redeem(vbalance, _returnTo, address(this));
-        return vbalance;
+        //withdraw to underlying
+        if(_redeemToUnderlying){
+            return IERC4626(_collateral).redeem(_returnedCollateral, _receiver, address(this));
+        }
+        IERC20(_collateral).safeTransfer(_receiver, _returnedCollateral);
+        return _returnedCollateral;
     }
 
 }

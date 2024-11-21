@@ -44,6 +44,7 @@ import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceive
 contract Setup is Test {
 
     // Deployer constants
+    uint256 public constant epochLength = 1 weeks;
     address public immutable _THIS;
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
     uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 5% with 1e5 precision
@@ -141,12 +142,12 @@ contract Setup is Test {
 
         oracle = new BasicVaultOracle("Basic Vault Oracle");
 
-        redemptionHandler = new RedemptionHandler(address(core),address(registry),address(stablecoin));
+        redemptionHandler = new RedemptionHandler(address(core),address(registry));
         liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
 
         vm.startPrank(address(core));
         registry.setLiquidationHandler(address(liquidationHandler));
-        registry.setRedeemer(address(redemptionHandler));
+        registry.setRedemptionHandler(address(redemptionHandler));
         registry.setInsurancePool(address(insurancePool));
         vm.stopPrank();
     }
@@ -234,7 +235,7 @@ contract Setup is Test {
         redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
-        core = new Core(tempGov, 1 weeks);
+        core = new Core(tempGov, epochLength);
         address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
         govToken = new GovToken(
             address(core), 

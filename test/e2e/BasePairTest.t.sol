@@ -272,8 +272,7 @@ contract BasePairTest is
 
         redemptionHandler = new RedemptionHandler(
             address(core),//core
-            address(registry),
-            address(stablecoin)
+            address(registry)
             );
 
         liquidationHandler = new LiquidationHandler(
@@ -305,7 +304,7 @@ contract BasePairTest is
         emissionReceiver.setApprovedClaimer(address(rewardHandler), true);
         registry.setLiquidationHandler(address(liquidationHandler));
         registry.setFeeDeposit(address(feeDeposit));
-        registry.setRedeemer(address(redemptionHandler));
+        registry.setRedemptionHandler(address(redemptionHandler));
         registry.setInsurancePool(address(insurancePool));
         registry.setRewardHandler(address(rewardHandler));
         vm.stopPrank();

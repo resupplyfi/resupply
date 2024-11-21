@@ -56,7 +56,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     address public immutable convexBooster;
     uint256 public convexPid;
     
-    error InvalidFeeTimestamp();
+    error FeesAlreadyDistributed();
     error IncorrectStakeBalance();
 
     /// @param _configData config data
@@ -278,8 +278,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     event SetMinimumLeftover(uint256 min);
 
-    function setMinimumLeftoverAssets(uint256 _min) external onlyOwner{
-        minimumLeftoverAssets = _min;
+    function setMinimumLeftoverDebt(uint256 _min) external onlyOwner{
+        minimumLeftoverDebt = _min;
         emit SetMinimumLeftover(_min);
     }
 
@@ -292,6 +292,9 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     event SetProtocolRedemptionFee(uint256 fee);
 
+    /// @notice Sets the redemption fee percentage for this specific pair
+    /// @dev The fee is 1e18 precision (1e16 = 1%) and taken from redemptions and sent to the protocol.
+    /// @param _fee The new redemption fee percentage. Must be less than or equal to 1e18 (100%)
     function setProtocolRedemptionFee(uint256 _fee) external onlyOwner{
         if(_fee > EXCHANGE_PRECISION) revert InvalidParameter();
 
@@ -315,14 +318,16 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
         //get deposit contract
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        uint256 depositEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
+        uint256 lastDistributedEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
         uint256 currentEpoch = getEpoch();
 
         //current epoch must be greater than last claimed epoch
         //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)
-        if(currentEpoch <= lastFeeEpoch || currentEpoch != depositEpoch){
-            revert InvalidFeeTimestamp();
+        if(currentEpoch <= lastFeeEpoch || currentEpoch != lastDistributedEpoch){
+            revert FeesAlreadyDistributed();
         }
+
+        lastFeeEpoch = currentEpoch;
 
         //get fees and clear
         _fees = claimableFees;

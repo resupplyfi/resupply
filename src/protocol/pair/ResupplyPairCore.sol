@@ -82,7 +82,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     uint256 public liquidationFee;
     /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
-    uint256 public minimumLeftoverAssets = 10000 * 1e18; //minimum amount of assets left over via redemptions
+    uint256 public minimumLeftoverDebt = 10000 * 1e18; //minimum amount of assets left over via redemptions
     uint256 public minimumBorrowAmount = 1000 * 1e18; //minimum amount of assets to borrow
     
 
@@ -131,8 +131,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     mapping(address => uint256) internal _userCollateralBalance; // amount of collateral each user is backed
     /// @notice Stores the balance of borrow shares for each user
     mapping(address => uint256) internal _userBorrowShares; // represents the shares held by individuals
-    //refactor amount for each reward epoch
-    uint256 constant public shareRefactor = 1e18;
 
     
 
@@ -242,7 +240,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             //need to calculate shares while keeping this as a view function
             for(;;){
                 //reduce shares by refactoring amount (will never be 0)
-                borrowShares /= shareRefactor;
+                borrowShares /= SHARE_REFACTOR_PRECISION;
                 userEpoch += 1;
                 if(userEpoch == globalEpoch){
                     break;
@@ -347,7 +345,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _userBorrowShares[_account] = _userBorrowShares[_account] / shareRefactor;
+        _userBorrowShares[_account] = _userBorrowShares[_account] / SHARE_REFACTOR_PRECISION;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -670,7 +668,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (_assetsAvailable < _borrowAmount) {
             revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
         }
-
         //mint fees
         uint128 debtForMint = uint128((_borrowAmount * (LIQ_PRECISION + mintFee)) / LIQ_PRECISION);
 
@@ -685,7 +682,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         totalBorrow = _totalBorrow;
         _userBorrowShares[msg.sender] += _sharesAdded;
 
-        // add platform fee
         uint256 otherFees = debtForMint - _borrowAmount;
         if (otherFees > 0) claimableOtherFees += otherFees;
 
@@ -922,16 +918,28 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // Functions: Redemptions
     // ============================================================================================
     event Redeemed(
-        address indexed _redeemer,
+        address indexed _caller,
         uint256 _amount,
-        uint256 _redemptionAmountInCollateralUnits,
-        uint256 _platformFee,
+        uint256 _collateralFreed,
+        uint256 _protocolFee,
         uint256 _debtReduction
     );
 
-    function redeem(uint256 _amount, uint256 _fee, address _receiver) external nonReentrant returns(uint256 _collateralReturned){
-        //check sender. must go through the registry's redeemer
-        if(msg.sender != IResupplyRegistry(registry).redeemer()) revert InvalidRedeemer();
+    /// @notice Allows redemption of the debt tokens for collateral
+    /// @dev Only callable by the registry's redeemer contract
+    /// @param _amount The amount of debt tokens to redeem
+    /// @param _totalFeePct Total fee to charge, expressed as a percentage of the stablecoin input; to be subdivided between protocol and borrowers.
+    /// @param _receiver The address to receive the collateral tokens
+    /// @return _collateralToken The address of the collateral token
+    /// @return _collateralFreed The amount of collateral tokens returned to receiver
+    function redeemCollateral(
+        address _caller,
+        uint256 _amount,
+        uint256 _totalFeePct,
+        address _receiver
+    ) external nonReentrant returns(address _collateralToken, uint256 _collateralFreed){
+        //check sender. must go through the registry's redemptionHandler
+        if(msg.sender != IResupplyRegistry(registry).redemptionHandler()) revert InvalidRedemptionHandler();
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
@@ -941,52 +949,45 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // add 0.5$ to protocol earned fees
         // return 99$ of collateral
         // burn $100 of stables
-        uint256 collateralValue = _amount * (EXCHANGE_PRECISION - _fee) / EXCHANGE_PRECISION;
-        uint256 platformFee = (_amount - collateralValue) * protocolRedemptionFee / EXCHANGE_PRECISION;
-        uint256 debtReduction = (_amount - collateralValue) - platformFee;
-
-        //// reduce total pool debt by debtReduction///
+        uint256 valueToRedeem = _amount * (EXCHANGE_PRECISION - _totalFeePct) / EXCHANGE_PRECISION;
+        uint256 protocolFee = (_amount - valueToRedeem) * protocolRedemptionFee / EXCHANGE_PRECISION;
+        uint256 debtReduction = _amount - protocolFee; // protocol fee portion is not burned
 
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
-        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverAssets ){
-            revert InsufficientAssetsForRedemption();
+        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverDebt ){
+            revert InsufficientDebtToRedeem(); // size of request exceeeds total pair debt
         }
 
-        // Effects: Bookkeeping
         _totalBorrow.amount -= uint128(debtReduction);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-        if(uint256(_totalBorrow.amount) * 1e18 < _totalBorrow.shares){
+        //cast to uint256 to reduce chance of overflow
+        if(uint256(_totalBorrow.amount) * SHARE_REFACTOR_PRECISION < _totalBorrow.shares){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalBorrow.shares /= uint128(shareRefactor);
+            _totalBorrow.shares /= uint128(SHARE_REFACTOR_PRECISION);
         }
 
         // Effects: write to state
         totalBorrow = _totalBorrow;
 
-        //// add platform fees using platformFee////
-        claimableOtherFees += platformFee; //increase claimable fees
-
-        ///// return collateral using collateralValue////
+        claimableOtherFees += protocolFee; //increase claimable fees
 
         // Update exchange rate
         uint256 _exchangeRate = _updateExchangeRate();
         //calc collateral units
-        _collateralReturned = ((collateralValue * _exchangeRate) / EXCHANGE_PRECISION);
-        //unstake
-        _unstakeUnderlying(_collateralReturned);
-        //send to receiver
-        collateral.safeTransfer(_receiver, _collateralReturned);
+        _collateralFreed = ((valueToRedeem * _exchangeRate) / EXCHANGE_PRECISION);
+        
+        _unstakeUnderlying(_collateralFreed);
+        _collateralToken = address(collateral);
+        IERC20(_collateralToken).safeTransfer(_receiver, _collateralFreed);
 
         //distribute write off tokens to adjust userCollateralbalances
-        redemptionWriteOff.mint(_collateralReturned);
+        redemptionWriteOff.mint(_collateralFreed);
 
-        ///// burn ////
-        // burn from msg.sender the total _amount
-        IResupplyRegistry(registry).burn(msg.sender, _amount);
+        IResupplyRegistry(registry).burn(_caller, _amount);
 
-        emit Redeemed(_receiver, _amount, _collateralReturned, platformFee, debtReduction);
+        emit Redeemed(_caller, _amount, _collateralFreed, protocolFee, debtReduction);
     }
 
     // ============================================================================================

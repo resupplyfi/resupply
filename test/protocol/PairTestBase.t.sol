@@ -39,7 +39,6 @@ contract PairTestBase is Setup, ResupplyPairConstants {
     function addCollateral(ResupplyPair _pair, uint256 amount) public {
         IERC20 collateral = _pair.collateral();
         deal(address(collateral), address(this), amount);
-        console.log("Adding collateral xxx", amount, collateral.balanceOf(address(this)));
         _pair.addCollateralVault(amount, address(this));
         // assertEq(_pair.userCollateralBalance(_THIS), amount);
     }

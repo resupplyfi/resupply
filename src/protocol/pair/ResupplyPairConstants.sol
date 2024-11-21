@@ -38,6 +38,7 @@ abstract contract ResupplyPairConstants {
     uint256 public constant LIQ_PRECISION = 1e5;
     uint256 public constant EXCHANGE_PRECISION = 1e18;
     uint256 public constant RATE_PRECISION = 1e18;
+    uint256 public constant SHARE_REFACTOR_PRECISION = 1e12;
 
     error Insolvent(uint256 _borrow, uint256 _collateral, uint256 _exchangeRate);
     error BorrowerSolvent();
@@ -48,9 +49,9 @@ abstract contract ResupplyPairConstants {
     error SetterRevoked();
     error InvalidReceiver();
     error InvalidLiquidator();
-    error InvalidRedeemer();
+    error InvalidRedemptionHandler();
     error InvalidParameter();
-    error InsufficientAssetsForRedemption();
+    error InsufficientDebtToRedeem();
     error InsufficientBorrowAmount();
     error OnlyProtocolOrOwner();
 }

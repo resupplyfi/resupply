@@ -13,7 +13,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract GovStakerStakingTest is Setup {
     MockToken rewardToken1;
     MockToken rewardToken2;
-    uint256 epochLength;
 
     function setUp() public override {
         // Deployments are made in Setup.sol
@@ -25,7 +24,6 @@ contract GovStakerStakingTest is Setup {
         deal(address(stakingToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
-        epochLength = staker.epochLength();
     }
 
     function test_InitialDeployment() public {
