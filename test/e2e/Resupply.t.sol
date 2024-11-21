@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 pragma solidity ^0.8.19;
 
-import { console } from "forge-std/console.sol";
+import "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -46,15 +46,16 @@ contract ResupplyAccountingTest is Setup {
         addCollateralVaultFlow(pair1, user9, amount);
         amount /= 4;
         amount *= 3;
+        uint min = pair1.minimumBorrowAmount();
         uint _amount = 
             bound(
                 amount, 
-                pair1.minimumBorrowAmount(), 
+                min, 
                 pair1.totalDebtAvailable()
             );
         
     
-        borrowStablecoinFlow(pair1, user9, _amount, er);
+        borrowStablecoinFlow(pair1, user9, _amount + min, er);
         redeemStablecoinFlow(pair1, user8, _amount);
     }
 
@@ -135,35 +136,40 @@ contract ResupplyAccountingTest is Setup {
         (uint totalBorrowAmount, ) = pair.totalBorrow();
 
         uint _fee = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
+        uint _fee = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
         
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
-        uint256 debtReduction = (amountToRedeem - collateralValue) - platformFee;
+        uint256 debtReduction = amountToRedeem - platformFee;
 
 
 
         if (
             totalBorrowAmount <= debtReduction ||
             totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
+            totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
         ) {
+            vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+            redemptionHandler.redeemFromPair(
             vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
             redemptionHandler.redeemFromPair(
                 address(pair), 
                 amountToRedeem, 
                 _fee, 
                 userToRedeem,
-                true
+                true // _redeemToUnderlying
             );
             vm.stopPrank();
             return;
         }
         
         redemptionHandler.redeemFromPair(
+        redemptionHandler.redeemFromPair(
             address(pair), 
             amountToRedeem, 
             _fee, 
             userToRedeem,
-            true
+            true // _redeemToUnderlying
         );
         vm.stopPrank();
 
@@ -286,8 +292,20 @@ contract ResupplyAccountingTest is Setup {
         uint256 er
     ) public {
         uint256 collat = pair.userCollateralBalance(user);
+        (,,uint256 exchangeRate) = pair.exchangeRateInfo();
         uint256 maxDebtToIssue = ((pair.maxLTV()) * collat * 1e18) / (er * 1e5);
-        if (amountToBorrow > maxDebtToIssue) {
+        console.log("xxx maxDebtToIssue",maxDebtToIssue);
+        console.log("xxx amountToBorrow",amountToBorrow);
+        if (amountToBorrow > pair.totalDebtAvailable()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    ResupplyPairConstants.InsufficientDebtAvailable.selector,
+                    pair.totalDebtAvailable(),
+                    amountToBorrow
+                )
+            );
+            pair1.borrow(amountToBorrow, 0, user);
+        } else if (amountToBorrow > maxDebtToIssue) {
             vm.expectRevert(
                 abi.encodeWithSelector(
                     ResupplyPairConstants.Insolvent.selector,
@@ -297,6 +315,9 @@ contract ResupplyAccountingTest is Setup {
                 )
             );
             vm.prank(user);
+            pair1.borrow(amountToBorrow, 0, user);
+        } else if (amountToBorrow < pair.minimumBorrowAmount()) {
+            vm.expectRevert(ResupplyPairConstants.InsufficientBorrowAmount.selector);
             pair1.borrow(amountToBorrow, 0, user);
         } else {
             vm.prank(user);
