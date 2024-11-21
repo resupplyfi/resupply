@@ -957,7 +957,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _totalBorrow.amount -= uint128(debtReduction);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-        if(_totalBorrow.amount * 1e18 < _totalBorrow.shares){
+        if(uint256(_totalBorrow.amount) * 1e18 < _totalBorrow.shares){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
             _totalBorrow.shares /= uint128(shareRefactor);
         }

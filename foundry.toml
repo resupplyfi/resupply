@@ -23,7 +23,7 @@ optimizer_runs = 1_000_000
 via_ir = false
 fs_permissions = [{ access = "read-write", path = "./"}]
 bytecode_hash = "none"
-ignored_error_codes = [1878, 2519, 5574,5667,2072,2018,3420]
+ignored_error_codes = [1878, 2519, 5574,5667,2072,2018,3420,3860]
 evm_version = "shanghai"
 
 [profile.src]
