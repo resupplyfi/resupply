@@ -135,21 +135,15 @@ contract ResupplyAccountingTest is Setup {
         (uint totalBorrowAmount, ) = pair.totalBorrow();
 
         uint _fee = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
-        uint _fee = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
         
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
         uint256 debtReduction = amountToRedeem - platformFee;
 
-
-
         if (
             totalBorrowAmount <= debtReduction ||
             totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
-            totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
         ) {
-            vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
-            redemptionHandler.redeemFromPair(
             vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
             redemptionHandler.redeemFromPair(
                 address(pair), 
@@ -162,7 +156,6 @@ contract ResupplyAccountingTest is Setup {
             return;
         }
         
-        redemptionHandler.redeemFromPair(
         redemptionHandler.redeemFromPair(
             address(pair), 
             amountToRedeem, 
