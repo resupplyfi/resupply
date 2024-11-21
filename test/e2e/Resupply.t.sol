@@ -122,7 +122,7 @@ contract ResupplyAccountingTest is Setup {
         uint256 amountToRedeem
     ) public {
         uint underlyingBalanceBefore = pair.underlying().balanceOf(userToRedeem);
-        IERC20 stablecoin = IERC20(redemptionHandler.redemptionToken());
+        IERC20 stablecoin = IERC20(redemptionHandler.debtToken());
 
         /// @notice if no available liquidity call will revert in collateralContractRedeem
         uint256 amountCanRedeem = pair.underlying().balanceOf(address(pair.collateral()));
@@ -134,7 +134,7 @@ contract ResupplyAccountingTest is Setup {
         stablecoin.approve(address(redemptionHandler), amountToRedeem);
         (uint totalBorrowAmount, ) = pair.totalBorrow();
 
-        uint _fee = redemptionHandler.getRedemptionFee(address(pair), amountToRedeem);
+        uint _fee = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
         
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
@@ -144,24 +144,26 @@ contract ResupplyAccountingTest is Setup {
 
         if (
             totalBorrowAmount <= debtReduction ||
-            totalBorrowAmount - debtReduction < pair.minimumLeftoverAssets()
+            totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
         ) {
-            vm.expectRevert(ResupplyPairConstants.InsufficientAssetsForRedemption.selector);
-            redemptionHandler.redeem(
+            vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+            redemptionHandler.redeemFromPair(
                 address(pair), 
                 amountToRedeem, 
                 _fee, 
-                userToRedeem
+                userToRedeem,
+                true
             );
             vm.stopPrank();
             return;
         }
         
-        redemptionHandler.redeem(
+        redemptionHandler.redeemFromPair(
             address(pair), 
             amountToRedeem, 
             _fee, 
-            userToRedeem
+            userToRedeem,
+            true
         );
         vm.stopPrank();
 
