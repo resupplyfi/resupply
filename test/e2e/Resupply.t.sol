@@ -138,9 +138,7 @@ contract ResupplyAccountingTest is Setup {
         
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
-        uint256 debtReduction = (amountToRedeem - collateralValue) - platformFee;
-
-
+        uint256 debtReduction = amountToRedeem - platformFee;
 
         if (
             totalBorrowAmount <= debtReduction ||
@@ -152,7 +150,7 @@ contract ResupplyAccountingTest is Setup {
                 amountToRedeem, 
                 _fee, 
                 userToRedeem,
-                true
+                true // _redeemToUnderlying
             );
             vm.stopPrank();
             return;
@@ -163,7 +161,7 @@ contract ResupplyAccountingTest is Setup {
             amountToRedeem, 
             _fee, 
             userToRedeem,
-            true
+            true // _redeemToUnderlying
         );
         vm.stopPrank();
 
@@ -287,7 +285,16 @@ contract ResupplyAccountingTest is Setup {
     ) public {
         uint256 collat = pair.userCollateralBalance(user);
         uint256 maxDebtToIssue = ((pair.maxLTV()) * collat * 1e18) / (er * 1e5);
-        if (amountToBorrow > maxDebtToIssue) {
+        if (amountToBorrow > pair.totalDebtAvailable()) {
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    ResupplyPairConstants.InsufficientDebtAvailable.selector,
+                    pair.totalDebtAvailable(),
+                    amountToBorrow
+                )
+            );
+            pair1.borrow(amountToBorrow, 0, user);
+        } else if (amountToBorrow > maxDebtToIssue) {
             vm.expectRevert(
                 abi.encodeWithSelector(
                     ResupplyPairConstants.Insolvent.selector,
@@ -297,6 +304,9 @@ contract ResupplyAccountingTest is Setup {
                 )
             );
             vm.prank(user);
+            pair1.borrow(amountToBorrow, 0, user);
+        } else if (amountToBorrow < pair.minimumBorrowAmount()) {
+            vm.expectRevert(ResupplyPairConstants.InsufficientBorrowAmount.selector);
             pair1.borrow(amountToBorrow, 0, user);
         } else {
             vm.prank(user);
