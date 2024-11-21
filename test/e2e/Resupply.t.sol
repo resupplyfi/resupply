@@ -284,7 +284,6 @@ contract ResupplyAccountingTest is Setup {
         uint256 er
     ) public {
         uint256 collat = pair.userCollateralBalance(user);
-        (,,uint256 exchangeRate) = pair.exchangeRateInfo();
         uint256 maxDebtToIssue = ((pair.maxLTV()) * collat * 1e18) / (er * 1e5);
         if (amountToBorrow > pair.totalDebtAvailable()) {
             vm.expectRevert(
