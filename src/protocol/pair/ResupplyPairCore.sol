@@ -222,15 +222,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
     }
 
-
-    // ============================================================================================
-    // Functions: Access Control
-    // ============================================================================================
-
-    function _isOwner() internal view returns(bool){
-        return msg.sender == owner();
-    }
-
     // ============================================================================================
     // Helpers
     // ============================================================================================
@@ -336,7 +327,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return _isOwner() || msg.sender == IResupplyRegistry(registry).rewardHandler();
+        return msg.sender == address(core) || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
     function _fetchIncentives() internal override{
@@ -971,7 +962,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _totalBorrow.amount -= uint128(debtReduction);
 
         //if after many redemptions the amount to shares ratio has deteriorated too far, then refactor
-        //cast to uint256 to reduce change of overflow
+        //cast to uint256 to reduce chance of overflow
         if(uint256(_totalBorrow.amount) * SHARE_REFACTOR_PRECISION < _totalBorrow.shares){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
             _totalBorrow.shares /= uint128(SHARE_REFACTOR_PRECISION);
