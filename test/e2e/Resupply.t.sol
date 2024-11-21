@@ -38,6 +38,29 @@ contract ResupplyAccountingTest is Setup {
     }
 
     // ############################################
+    // ############## Fuzz  Repay  ###############
+    // ############################################
+
+    function test_fuzz_repay(uint128 amount) public {
+        uint amount = 10_000e18 + uint(amount);
+        (, , uint er) = pair1.exchangeRateInfo();
+        addCollateralVaultFlow(pair1, user9, amount);
+        amount /= 4;
+        amount *= 3;
+        uint _amount = 
+            bound(
+                amount, 
+                pair1.minimumBorrowAmount(), 
+                pair1.totalDebtAvailable()
+            );
+        borrowStablecoinFlow(pair1, user9, _amount, er);
+        
+        amount = bound(_amount, 1000e18, _amount);
+
+        repayDebtFlow(pair1, user9, amount);
+    }
+
+    // ############################################
     // ############## Fuzz  Redeem  ###############
     // ############################################
 
@@ -328,4 +351,48 @@ contract ResupplyAccountingTest is Setup {
             });
         }
     }
+
+
+    function repayDebtFlow(
+        ResupplyPair pair,
+        address user,
+        uint256 amountToRepay
+    ) public {
+        uint256 sharesStart = pair1.userBorrowShares(user);
+        uint256 stableStart = stablecoin.balanceOf(user);
+        uint256 stableTsStart = stablecoin.totalSupply();
+
+        vm.startPrank(user);
+        stablecoin.approve(address(pair), amountToRepay);
+        uint sharesToRepay = pair.toBorrowShares(amountToRepay, false, true);
+        console.log(stablecoin.balanceOf(user));
+        pair.repay(
+            sharesToRepay,
+            user
+        );
+        vm.stopPrank();
+
+        uint256 sharesEnd = pair1.userBorrowShares(user);
+        uint256 stableEnd = stablecoin.balanceOf(user);
+        uint256 stableTsEnd = stablecoin.totalSupply();
+
+        assertEq({
+            left: sharesStart - sharesEnd,
+            right: sharesToRepay,
+            err: "// THEN: Shares not reduced by expected amount"
+        });
+
+        assertEq({
+            left: stableStart - stableEnd,
+            right: amountToRepay,
+            err: "// THEN: StableCoin not reduced by expected amount"
+        });
+
+        assertEq({
+            left: stableTsStart - stableTsEnd,
+            right: amountToRepay,
+            err: "// THEN: StableCoin TS not reduced by expected amount"
+        });
+    }
+
 }
