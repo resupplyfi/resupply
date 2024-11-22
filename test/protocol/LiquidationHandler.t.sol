@@ -3,11 +3,18 @@ import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { console } from "forge-std/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { MockOracle } from "test/mocks/MockOracle.sol";
 
 contract LiquidationManagerTest is PairTestBase {
 
+    MockOracle mockOracle;
+
     function setUp() public override {
         super.setUp();
+
+        mockOracle = new MockOracle("Mock Oracle", 1e18);
+
+        mockOracle.setPrice(1e18);
 
         collateral.approve(address(pair), type(uint256).max);
         underlying.approve(address(pair), type(uint256).max);

@@ -4,14 +4,12 @@ import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.s
 import { Setup } from "test/Setup.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { MockOracle } from "test/mocks/MockOracle.sol";
 
 contract PairTestBase is Setup, ResupplyPairConstants {
 
     ResupplyPair pair;
     IERC20 collateral;
     IERC20 underlying;
-    MockOracle mockOracle;
 
     function setUp() public virtual override {
         super.setUp();
@@ -22,8 +20,6 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         collateral = pair.collateral();
         underlying = pair.underlying();
         printPairInfo(pair);
-
-        mockOracle = new MockOracle("Mock Oracle", 1e18);
 
         collateral.approve(address(pair), type(uint256).max);
         underlying.approve(address(pair), type(uint256).max);
