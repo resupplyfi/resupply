@@ -271,6 +271,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
 
             //skip invalidated and non claimable rewards
             if(reward.reward_token == address(0) || reward.is_non_claimable){
+                unchecked{ i += 1; }
                 continue;
             }
     

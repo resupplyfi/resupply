@@ -357,8 +357,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         //remove index 0 as we dont need to report the write off tokens
         for (uint256 i = 1; i <= rewardCount; ) {
-            claimable[i].amount = earneddata[i-1].amount;
-            claimable[i].token = earneddata[i-1].token;
+            claimable[i-1].amount = earneddata[i].amount;
+            claimable[i-1].token = earneddata[i].token;
             unchecked{ i += 1; }
         }
     }

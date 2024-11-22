@@ -180,12 +180,12 @@ contract SimpleRewardStreamer is CoreOwnable{
         emit RewardRedirected(msg.sender, _to);
     }
 
-    function getReward() external{
+    function getReward() external updateReward(msg.sender){
         getReward(msg.sender);
     }
 
     //claim reward for given account (unguarded)
-    function getReward(address _account) public {
+    function getReward(address _account) public updateReward(_account){
         uint256 reward = earned(_account);
         if (reward > 0) {
             rewards[_account] = 0;
@@ -201,7 +201,7 @@ contract SimpleRewardStreamer is CoreOwnable{
     }
 
     //claim reward for given account and forward (guarded)
-    function getReward(address _account, address _forwardTo) external {
+    function getReward(address _account, address _forwardTo) external updateReward(_account){
         //in order to forward, must be called by the account itself
         require(msg.sender == _account, "!self");
 
