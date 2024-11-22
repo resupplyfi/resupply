@@ -63,7 +63,7 @@ contract PairTestFeeFlow is PairTestBase {
         borrow(pair, availableDebt, collateralAmount);
         console.log("\nborrowed\n");
         assertEq(pair.userCollateralBalance(_THIS), collateralAmount);
-        
+
 
         vm.warp(block.timestamp +7 days);
         pair.addInterest(false);
@@ -102,6 +102,169 @@ contract PairTestFeeFlow is PairTestBase {
         assertEq(earnedData[0].amount, stakingToken.balanceOf(address(this)));
     }
 
+    function test_insurancePoolFees() public {
+        assertEq(pair.userCollateralBalance(_THIS), 0);
+
+        deal(address(stakingToken), address(this), 1e18);
+        stakingToken.approve(address(staker), 1e18);
+        staker.stake(address(this), 1e18);
+        assertEq(staker.balanceOf(_THIS), 1e18);
+
+        deal(address(stablecoin), address(this), 1e18);
+        stablecoin.approve(address(insurancePool), 1e18);
+        insurancePool.deposit(1e18, address(this));
+        assertEq(insurancePool.balanceOf(_THIS), 1e18);
+
+        console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
+
+        vm.warp(block.timestamp + 7 days);
+        feeDepositController.distribute();
+        pair.withdrawFees();
+
+        uint256 maxltv = pair.maxLTV();
+        uint256 availableDebt = pair.totalDebtAvailable();
+        (,,uint256 exchangeRate) = pair.exchangeRateInfo();
+
+        uint256 collateralAmount = getCollateralAmount(availableDebt,exchangeRate,maxltv);
+        deal(address(collateral), address(this), collateralAmount);
+
+        // pair.addCollateralVault(amount, address(this));
+        borrow(pair, availableDebt, collateralAmount);
+        console.log("\nborrowed\n");
+        assertEq(pair.userCollateralBalance(_THIS), collateralAmount);
+        
+
+        vm.warp(block.timestamp +7 days);
+        pair.addInterest(false);
+
+       // printPairFees(pair);
+       // printDistributionInfo();
+        feeDepositController.distribute();
+        pair.withdrawFees();
+        console.log("\nclaimed fees\n");
+        //printPairFees(pair);
+        //printDistributionInfo();
+
+        console.log("\nwarp to next week now that these are queued\n");
+
+        vm.warp(block.timestamp +7 days);
+        pair.addInterest(false);
+
+        // printPairFees(pair);
+        // printDistributionInfo();
+        feeDepositController.distribute();
+        pair.withdrawFees();
+        console.log("\nclaimed fees\n");
+        printPairFees(pair);
+        printDistributionInfo();
+
+        vm.warp(block.timestamp +1 days);
+        console.log("\nwarp to check claimables\n");
+        console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
+        console.log("govToken on insurance: ", stakingToken.balanceOf(address(insurancePool)));
+        RewardDistributorMultiEpoch.EarnedData[] memory earnedData = insurancePool.earned(address(this));
+        uint256 rlength =  earnedData.length;
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
+        console.log("govToken on insurance: ", stakingToken.balanceOf(address(insurancePool)));
+
+        //check withdraw
+        console.log("govToken on this: ", stakingToken.balanceOf(address(this)));
+        insurancePool.exit();
+        console.log("govToken on this after exit: ", stakingToken.balanceOf(address(this)));
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        vm.warp(block.timestamp +1 days);
+        console.log("\nwarp to check claimables\n");
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+
+        vm.warp(block.timestamp +6 days);
+        feeDepositController.distribute();
+        pair.withdrawFees();
+        // insurancePool.getReward(address(this));
+
+        // vm.expectRevert("Reason: revert: !withdraw time");
+        insurancePool.redeem(insurancePool.balanceOf(address(this))/2, address(this), address(this));
+        console.log("\nredeemed half\n");
+        console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
+        
+        vm.warp(block.timestamp +1 days);
+        console.log("\nwarp to check claimables\n");
+        console.log("govToken on this: ", stakingToken.balanceOf(address(this)));
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        insurancePool.getReward(address(this));
+        console.log("govToken on this: ", stakingToken.balanceOf(address(this)));
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+
+        insurancePool.exit();
+        console.log("\nexit started\n");
+        vm.warp(block.timestamp +1 days);
+        console.log("\nwarp ahead, no new emissions should be claimable\n");
+        //expect revert
+        // insurancePool.redeem(insurancePool.balanceOf(address(this)), address(this), address(this));
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+
+        insurancePool.cancelExit();
+        console.log("\nexit canceled, new emissions can be claimed now but not ones during exit\n");
+
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        vm.warp(block.timestamp +1 days);
+        console.log("\nwarp to check claimables\n");
+
+        earnedData = insurancePool.earned(address(this));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        earnedData = insurancePool.earned(address(insurancePool));
+        for(uint256 i = 0; i < rlength; i++){
+            console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+        }
+        insurancePool.redeem(insurancePool.balanceOf(address(this)), address(this), address(this));
+    }
+
     function printDistributionInfo() internal{
         console.log("stables on feeDeposit: ", stablecoin.balanceOf(address(feeDeposit)));
         console.log("stables on gov staker: ", stablecoin.balanceOf(address(staker)));
@@ -123,9 +286,8 @@ contract PairTestFeeFlow is PairTestBase {
         console.log("emissions earned by pair: ", pairEmissionStream.earned(address(pair)));
         RewardDistributorMultiEpoch.EarnedData[] memory earnedData = pair.earned(address(this));
         uint256 rlength =  earnedData.length;
-        console.log("earned length: ", rlength);
         for(uint256 i = 0; i < rlength; i++){
-            console.log("earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
+            console.log("borrow rewards -> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
         }
         //earned should have claimed all emissions for the pair
        assertEq(pairEmissionStream.earned(address(pair)), 0);

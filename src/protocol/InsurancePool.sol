@@ -212,6 +212,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function cancelExit() external{
+        //canceling will remove claimable emissions
+        //but will redistribute those claimable back into the pool
+        //thus a portion will go back to msg.sender in accordance with its weight
         _clearWithdrawQueue(msg.sender);
     }
 
@@ -232,8 +235,11 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _checkWithdrawReady(address _account) internal{
-        require(withdrawQueue[msg.sender] <= block.timestamp, "!withdraw time");
-        require(block.timestamp <= withdrawQueue[msg.sender] + withdrawTimeLimit, "withdraw time over");
+        uint256 withdrawQueue = withdrawQueue[msg.sender];
+        if(withdrawQueue != 0){
+            require(withdrawQueue <= block.timestamp, "!withdraw time");
+            require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
+        }
     }
 
     function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
