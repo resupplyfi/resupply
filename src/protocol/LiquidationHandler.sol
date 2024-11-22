@@ -18,15 +18,15 @@ contract LiquidationHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
-    address public immutable insurancepool;
+    address public immutable insurancePool;
     mapping(address => uint256) public debtByCollateral;
 
     event CollateralProccessed(address indexed _collateral, uint256 _collateralAmount, uint256 _underlyingAmount, uint256 _debtAmount);
     event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
 
-    constructor(address _core, address _registry, address _insurancepool) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _insurancePool) CoreOwnable(_core){
         registry = _registry;
-        insurancepool = _insurancepool;
+        insurancePool = _insurancePool;
     }
 
     //allow protocol to migrate collateral left in this handler if an update is required
@@ -44,10 +44,10 @@ contract LiquidationHandler is CoreOwnable{
 
         //first need to make sure collateral is a valid reward before sending or else it wont get distributed
         //get reward slot
-        uint256 slot = IRewards(insurancepool).rewardMap(_collateral);
+        uint256 slot = IRewards(insurancePool).rewardMap(_collateral);
         require(slot > 0, "!non registered reward");
         //check if invalidated (slot minus one to adjust for slot starting from 1)
-        (address reward_token,,) = IRewards(insurancepool).rewards(slot-1);
+        (address reward_token,,) = IRewards(insurancePool).rewards(slot-1);
         require(reward_token == _collateral,"invalidated reward");
         //collateral is a valid reward token and can be sent
 
@@ -65,11 +65,11 @@ contract LiquidationHandler is CoreOwnable{
         emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
 
         //burn debt
-        IInsurancePool(insurancepool).burnAssets(debtByCollateral[_collateral]);
+        IInsurancePool(insurancePool).burnAssets(debtByCollateral[_collateral]);
         //clear debt
         debtByCollateral[_collateral] = 0;
         //send all collateral (and thus distribute)
-        IERC20(_collateral).safeTransfer(insurancepool, collateralBalance);
+        IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
     }
 
     function liquidate(
@@ -92,7 +92,7 @@ contract LiquidationHandler is CoreOwnable{
 
     //withdraw what is possible and send to insurance pool while
     //burning required debt
-    function processCollateral(address _collateral) public{
+    function processCollateral(address _collateral) public {
         require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
         //get underlying
@@ -108,15 +108,15 @@ contract LiquidationHandler is CoreOwnable{
         if(withdrawnAmount == 0) return;
 
         //debt to burn (clamp to debtByCollateral)
-        uint256 toburn = withdrawnAmount > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawnAmount;
-        IInsurancePool(insurancepool).burnAssets(toburn);
+        uint256 toBurn = withdrawnAmount > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawnAmount;
+        IInsurancePool(insurancePool).burnAssets(toBurn);
 
-        //update remaining debt (toburn should not be greater than debtByCollateral as its adjusted above)
-        debtByCollateral[_collateral] -= toburn;
+        //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
+        debtByCollateral[_collateral] -= toBurn;
 
         //send underlying to be distributed
-        IERC20(underlying).safeTransfer(insurancepool, withdrawnAmount);
+        IERC20(underlying).safeTransfer(insurancePool, withdrawnAmount);
 
-        emit CollateralProccessed(_collateral, redeemable, withdrawnAmount, toburn);
+        emit CollateralProccessed(_collateral, redeemable, withdrawnAmount, toBurn);
     }
 }

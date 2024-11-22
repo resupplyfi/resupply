@@ -239,9 +239,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             result.weightNo += vote.weightNo;
             proposal.results = result;
         }
-
-        // TODO: Should we implement any early pass conditions? E.g. if a proposal has support from 51% of total weight.
-
+        
         proposalData[id] = proposal;
         emit VoteCast(account, id, vote.weightYes, vote.weightNo);
     }
@@ -249,10 +247,11 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Cancels a pending proposal
         @param id Proposal ID
+        @dev Can cancel any time prior to execution
      */
     function cancelProposal(uint256 id) external onlyOwner {
-        // TODO: can we cancel while in voting period + execution delay?
         require(id < proposalData.length, "Invalid ID");
+        require(!proposalData[id].processed, "Proposal already processed");
         require(!_containsProposalCancelerPaylod(proposalPayloads[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
