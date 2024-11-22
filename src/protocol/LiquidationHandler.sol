@@ -21,7 +21,7 @@ contract LiquidationHandler is CoreOwnable{
     address public immutable insurancePool;
     mapping(address => uint256) public debtByCollateral;
 
-    event CollateralProccessed(address indexed _collateral, uint256 _collateralAmount, uint256 _underlyingAmount, uint256 _debtAmount);
+    event CollateralProccessed(address indexed _collateral, uint256 _debtBurned, uint256 _profit);
     event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
 
     constructor(address _core, address _registry, address _insurancePool) CoreOwnable(_core){
@@ -92,19 +92,23 @@ contract LiquidationHandler is CoreOwnable{
 
     //withdraw what is possible and send to insurance pool while
     //burning required debt
-    function processCollateral(address _collateral) public {
+    function processCollateral(address _collateral) public{
         require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
         //get underlying
         address underlying = IERC4626(_collateral).asset();
 
         //try to max redeem
-        uint256 redeemable = IERC4626(_collateral).maxRedeem(address(this));
-        if(redeemable == 0) return;
-        try IERC4626(_collateral).redeem(redeemable, address(this), address(this)){}catch{}
+        uint256 withdrawnAmount;
+        try IERC4626(_collateral).redeem(
+            IERC4626(_collateral).maxRedeem(address(this)), 
+            insurancePool, 
+            address(this)
+        ) returns (uint256 _withdrawnAmount){
+            withdrawnAmount = _withdrawnAmount;
+        } catch{}
 
         //check what was withdrawn
-        uint256 withdrawnAmount = IERC20(underlying).balanceOf(address(this));
         if(withdrawnAmount == 0) return;
 
         //debt to burn (clamp to debtByCollateral)
@@ -114,9 +118,6 @@ contract LiquidationHandler is CoreOwnable{
         //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
         debtByCollateral[_collateral] -= toBurn;
 
-        //send underlying to be distributed
-        IERC20(underlying).safeTransfer(insurancePool, withdrawnAmount);
-
-        emit CollateralProccessed(_collateral, redeemable, withdrawnAmount, toBurn);
+        emit CollateralProccessed(_collateral, toBurn, withdrawnAmount - toBurn);
     }
 }
