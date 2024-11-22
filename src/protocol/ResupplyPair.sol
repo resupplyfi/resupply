@@ -47,7 +47,6 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
-    uint256 private constant WEEK = 7 * 86400;
     uint256 public lastFeeEpoch;
     address public constant CRV = 0xD533a949740bb3306d119CC777fa900bA034cd52;
     address public constant CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;

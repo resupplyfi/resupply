@@ -25,6 +25,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     uint256 public withdrawTimeLimit = 1 days;
     mapping(address => uint256) withdrawQueue;
 
+    address public immutable emissionsReceiver;
+
     //events
     event Deposit(
         address indexed sender,
@@ -45,10 +47,10 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     event Cooldown(address indexed account, uint amount, uint end);
     event WithdrawTimers(uint256 withdrawTime, uint256 withdrawWindow);
 
-    constructor(address _core, address _depositToken, address[] memory _rewards, address _registry) CoreOwnable(_core){
+    constructor(address _core, address _depositToken, address[] memory _rewards, address _registry, address _emissionsReceiver) CoreOwnable(_core){
         depositToken = _depositToken;
         registry = _registry;
-
+        emissionsReceiver = _emissionsReceiver;
         //initialize rewards list with passed in reward tokens
         //NOTE: slot 0 should be emission based extra reward
         for(uint256 i = 0; i < _rewards.length;){

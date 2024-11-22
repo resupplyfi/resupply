@@ -6,6 +6,7 @@ import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
+import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
@@ -27,6 +28,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     address public immutable govStaker;
     address public immutable emissionToken;
     ISimpleReceiver public immutable debtEmissionsReceiver;
+    ISimpleReceiver public immutable insuranceEmissionReceiver;
 
     mapping(address => uint256) public pairTimestamp;
     mapping(address => uint256) public minimumWeights;
@@ -59,10 +61,12 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         insuranceEmissions = _insuranceEmissions;
         insuranceRevenue = _insuranceRevenue;
         debtEmissionsReceiver = ISimpleReceiver(_debtEmissionsReceiver);
-        
+        insuranceEmissionReceiver = ISimpleReceiver(IInsurancePool(insurancepool).emissionsReceiver());
+
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
         IERC20(_emissionToken).approve(pairEmissions, type(uint256).max);
+        IERC20(_emissionToken).approve(insuranceEmissions, type(uint256).max);
     }
 
     function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
@@ -164,6 +168,12 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
         //queue up any reward tokens currently on this handler
         IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
+
+        insuranceEmissionReceiver.allocateEmissions();
+        if(insuranceEmissionReceiver.claimableEmissions() > 0){
+            insuranceEmissionReceiver.claimEmissions(address(this));
+            IRewards(insuranceEmissions).queueNewRewards(IERC20(emissionToken).balanceOf(address(this)));
+        }
     }
 
     function queueStakingRewards() external{
@@ -172,7 +182,10 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
 
         //queue up any reward tokens currently on this handler
-        IGovStaker(govStaker).notifyRewardAmount(revenueToken, IERC20(revenueToken).balanceOf(address(this)));
+        uint256 revenueBalance = IERC20(revenueToken).balanceOf(address(this));
+        if(revenueBalance > 0){
+            IGovStaker(govStaker).notifyRewardAmount(revenueToken, revenueBalance);
+        }
 
         //since this should get called once per epoch, can do emission handling as well
         debtEmissionsReceiver.allocateEmissions();

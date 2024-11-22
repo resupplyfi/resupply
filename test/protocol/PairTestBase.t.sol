@@ -18,6 +18,14 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         console.log("underlying", address(_pair.underlying()));
     }
 
+    function printPairFees(ResupplyPair _pair) internal view{
+        console.log("interest fees: ", _pair.claimableFees());
+        console.log("other fees: ", _pair.claimableOtherFees());
+        console.log("last feedpoist claim epoch: ", feeDeposit.lastDistributedEpoch());
+        console.log("last pair claim epoch: ", _pair.lastFeeEpoch());
+        console.log("current epoch: ", feeDeposit.getEpoch());
+    }
+
     function getUtilization(ResupplyPair _pair) internal view returns (uint256 _utilization) {
         (uint256 _borrowAmount, ) = _pair.totalBorrow();
         uint256 _borrowLimit = _pair.borrowLimit();

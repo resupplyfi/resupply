@@ -86,6 +86,7 @@ contract Setup is Test {
     InsurancePool public insurancePool;
     SimpleReceiverFactory public receiverFactory;
     SimpleReceiver public debtReceiver;
+    SimpleReceiver public insuranceEmissionsReceiver;
     IERC20 public fraxToken;
     IERC20 public crvusdToken;
 
@@ -98,6 +99,7 @@ contract Setup is Test {
         deployDaoContracts();
         deployProtocolContracts();
         deployRewardsContracts();
+        setInitialEmissionReceivers();
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
         govToken.approve(address(staker), type(uint256).max);
@@ -157,15 +159,7 @@ contract Setup is Test {
         rewards[0] = address(govToken);
         rewards[1] = address(fraxToken);
         rewards[2] = address(crvusdToken);
-        insurancePool = new InsurancePool(
-            address(core), //core
-            address(stablecoin),
-            rewards,
-            address(registry)
-        );
 
-        //seed insurance pool
-        stablecoin.transfer(address(insurancePool),1e18);
 
         address simpleReceiverImplementation = address(new 
             SimpleReceiver(
@@ -180,7 +174,20 @@ contract Setup is Test {
 
         vm.prank(address(core));
         debtReceiver = SimpleReceiver(receiverFactory.deployNewReceiver("Debt Receiver", new address[](0)));
+        vm.prank(address(core));
+        insuranceEmissionsReceiver = SimpleReceiver(receiverFactory.deployNewReceiver("Insurance Receiver", new address[](0)));
         
+        insurancePool = new InsurancePool(
+            address(core), //core
+            address(stablecoin),
+            rewards,
+            address(registry),
+            address(insuranceEmissionsReceiver)
+        );
+
+        //seed insurance pool
+        stablecoin.transfer(address(insurancePool),1e18);
+
         ipStableStream = new SimpleRewardStreamer(address(stablecoin), 
             address(registry), 
             address(core), 
@@ -226,6 +233,31 @@ contract Setup is Test {
         vm.startPrank(address(core));
         registry.setFeeDeposit(address(feeDeposit));
         registry.setRewardHandler(address(rewardHandler));
+
+        //add stablecoin as a reward to gov staker
+        staker.addReward(address(stablecoin), address(rewardHandler), uint256(7 days));
+        debtReceiver.setApprovedClaimer(address(rewardHandler), true);
+        insuranceEmissionsReceiver.setApprovedClaimer(address(rewardHandler), true);
+        vm.stopPrank();
+    }
+
+    function setInitialEmissionReceivers() public{
+        vm.startPrank(address(core));
+        //add receivers
+        emissionsController.registerReceiver(address(debtReceiver));
+        emissionsController.registerReceiver(address(insuranceEmissionsReceiver));
+        uint256 debtReceiverId = emissionsController.receiverToId(address(debtReceiver));
+        uint256 insuranceReceiverId = emissionsController.receiverToId(address(insuranceEmissionsReceiver));
+        //todo other receivers (voting, etc)
+
+        //set weights
+        uint256[] memory receivers = new uint256[](2);
+        receivers[0] = debtReceiverId;
+        receivers[1] = insuranceReceiverId;
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = 8000;
+        weights[1] = 2000;
+        emissionsController.setReceiverWeights(receivers,weights);
         vm.stopPrank();
     }
 
@@ -264,6 +296,9 @@ contract Setup is Test {
             2e16,   // tail rate
             0       // Bootstrap epochs
         );
+
+        vm.prank(address(core));
+        govToken.setMinter(address(emissionsController));
 
         treasury = new Treasury(address(core));
         stablecoin = new Stablecoin(address(core));

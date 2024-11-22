@@ -23,8 +23,6 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
 
     uint256 public lastDistributedEpoch;
 
-    uint256 private constant WEEK = 7 * 86400;
-
     event FeesDistributed(address indexed _address, uint256 _amount);
     event ReceivedRevenue(address indexed _address, uint256 _fees, uint256 _otherFees);
     event SetOperator(address oldAddress, address newAddress);

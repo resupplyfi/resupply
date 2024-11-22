@@ -58,7 +58,9 @@ contract DeployTestEnvironment is TenderlyHelper {
         address(_core), //core
         address(_stable),
         rewards,
-        address(_registry));
+        address(_registry),
+        address(0) //todo emissions receiver
+        );
 
         _return[0].address_ = address(_insurancepool);
         _return[0].constructorParams = "";

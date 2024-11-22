@@ -69,7 +69,7 @@ contract FeeDepositController is CoreOwnable{
         //send rest to platform (via reward handler again)
         IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount);
         //process platform rewards
-        IRewardHandler(rewardHandler).queuePlatformRewards();
+        IRewardHandler(rewardHandler).queueStakingRewards();
     }
 
     /// @notice The ```setSplits``` function sets the fee distribution splits between insurance, treasury, and platform
