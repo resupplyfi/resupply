@@ -7,22 +7,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract PairTestFeeFlow is PairTestBase {
-    ResupplyPair pair;
-    IERC20 collateral;
-    IERC20 underlying;
-
     function setUp() public override {
         super.setUp();
-
-        deployDefaultLendingPairs();
-        address[] memory _pairs = registry.getAllPairAddresses();
-        pair = ResupplyPair(_pairs[0]); 
-        collateral = pair.collateral();
-        underlying = pair.underlying();
-        printPairInfo(pair);
-
-        collateral.approve(address(pair), type(uint256).max);
-        underlying.approve(address(pair), type(uint256).max);
     }
 
     /*
