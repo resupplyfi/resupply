@@ -56,6 +56,8 @@ contract SimpleReceiverFactoryTest is Setup {
             )
         );
         emissionsController.registerReceiver(address(receiver));
+        assertTrue(emissionsController.isRegisteredReceiver(address(receiver)));
+        
         uint256 amount = receiver.allocateEmissions();
         assertEq(amount, 0);
         skip(epochLength);
@@ -78,6 +80,7 @@ contract SimpleReceiverFactoryTest is Setup {
 
         vm.prank(address(core));
         emissionsController.registerReceiver(address(receiver));
+        assertTrue(emissionsController.isRegisteredReceiver(address(receiver)));
 
         skip(epochLength * (emissionsController.BOOTSTRAP_EPOCHS() + 1));
 
