@@ -17,6 +17,7 @@ contract ResupplyAccountingTest is Setup {
 
     address public user9 = address(0xDEADFED5);
     address public user8 = address(0xFA9904);
+    address public user7 = address(0xCC99);
 
     function setUp() public override {
         super.setUp();
@@ -36,6 +37,41 @@ contract ResupplyAccountingTest is Setup {
         addCollateralVaultFlow(pair1, user9, 20_000e18);
         borrowStablecoinFlow(pair1, user9, 15_000e18, er);
         redeemStablecoinFlow(pair1, user8, 2_000e18);
+    }
+
+    // ############################################
+    // ############ Fuzz  liquidate  ##############
+    // ############################################
+
+    function testCase() public {
+        test_fuzz_liquidate(79228162514264337593543950333);
+    }
+
+    function test_fuzz_liquidate(uint128 collateralAmount) public {
+        pair1.addInterest(false);
+        collateralAmount = uint96(bound(collateralAmount, 2_000e18, 5_000_000e18));
+        addCollateralFlow(
+            pair1,
+            user7,
+            collateralAmount,
+            Constants.Mainnet.FRAX_ERC20
+        );
+        uint256 collateral = pair1.userCollateralBalance(user7);
+        uint256 ltv = pair1.maxLTV();
+        (, , uint er) = pair1.exchangeRateInfo();
+        uint256 maxToBorrow = (ltv * collateral * (1e36 / er)) / (1e18 * 1e5);
+        console.log("maxToBorrow", maxToBorrow);
+        borrowStablecoinFlow(
+            pair1, 
+            user7, 
+            maxToBorrow,
+            er
+        );
+        test_liquidationFlow(
+            pair1,
+            user7,
+            er
+        );
     }
 
     // ############################################
@@ -393,6 +429,126 @@ contract ResupplyAccountingTest is Setup {
             left: stableTsStart - stableTsEnd,
             right: amountToRepay,
             err: "// THEN: StableCoin TS not reduced by expected amount"
+        });
+    }
+
+    function test_liquidationFlow() public {
+        (address oracle, ,) = pair1.exchangeRateInfo();
+        addCollateralFlow(
+            pair1,
+            user7,
+            10_000e18,
+            Constants.Mainnet.FRAX_ERC20
+        );
+        uint256 collateral = pair1.userCollateralBalance(user7);
+        uint256 ltv = pair1.maxLTV();
+        console.log("The ltv of the user is: ", ltv);
+
+        /// Borrow Max 
+
+        (, , uint er) = pair1.exchangeRateInfo();
+        uint256 maxToBorrow = (ltv * collateral * (1e36 / er)) / (1e18 * 1e5);
+        console.log(maxToBorrow);
+
+        borrowStablecoinFlow(
+            pair1, 
+            user7, 
+            maxToBorrow,
+            er
+        );
+        address collateralAddress = address(pair1.collateral());
+        vm.warp(block.timestamp + 30 days); // NOTICE: ensure pair ingests from oracle
+        // Make the account be liquidatable
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSignature("getPrices(address)",collateralAddress),
+            abi.encode(er)
+        );
+        pair1.addInterest(false);
+
+        // deal(address(stablecoin), user9, 5000e18);
+        deal(address(stablecoin), address(insurancePool), 50000e18, true);
+
+        console.log("TS", stablecoin.totalSupply());
+        console.log(pair1.underlying().balanceOf(address(insurancePool)));
+        // vm.startPrank(user9);
+        console.log("User collateral: ", pair1.userCollateralBalance(user7));
+        console.log("Collateral in contract: ", pair1.collateral().balanceOf(address(pair1)));
+        (uint totalBorrowAmount, uint shares) =  pair1.totalBorrow();
+        console.log("Totoal borrows: ", totalBorrowAmount, shares);
+
+        // // stablecoin.approve(address(pair1), 5000e18);
+        liquidationHandler.liquidate(
+            address(pair1),
+            user7
+        );
+
+        console.log(stablecoin.balanceOf(user9));
+
+        console.log("TS", stablecoin.totalSupply());
+        console.log(pair1.underlying().balanceOf(address(insurancePool)));
+        console.log("User collateral: ", pair1.userCollateralBalance(user7));
+        console.log("Collateral in contract: ", pair1.collateral().balanceOf(address(pair1)));
+        (totalBorrowAmount, shares) =  pair1.totalBorrow();
+        console.log("Totoal borrows: ", totalBorrowAmount, shares);
+        // console.log("The liquidation fee: ", pair1.liquidationFee());
+        // console.log("The totalAs")
+    }
+
+    function test_liquidationFlow(ResupplyPair pair, address toLiquidate, uint256 er) public {
+        (address oracle, ,) = pair1.exchangeRateInfo();
+        address collateralAddress = address(pair.collateral());
+        vm.warp(block.timestamp + 30 days); // NOTICE: ensure pair ingests from oracle
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSignature("getPrices(address)", collateralAddress),
+            abi.encode(er)
+        );
+        pair1.addInterest(false);
+        uint amountToLiquidate = pair.toBorrowAmount(pair.userBorrowShares(toLiquidate), true, true);
+        
+        deal(address(stablecoin), address(insurancePool), 10_000e18 + amountToLiquidate, true);
+
+        /// Values to derive state change from
+        uint stableTSBefore = stablecoin.totalSupply();
+        uint stableBalanceInsuranceBefore = stablecoin.balanceOf(address(insurancePool));
+        uint insuracePoolBalanceUnderlyingBefore = pair.underlying().balanceOf(address(insurancePool));
+        uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
+        uint collateralInPairBefore = pair1.collateral().balanceOf(address(pair));
+        (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
+        uint underlyingExpected = IERC4626(address(pair.collateral())).previewRedeem(userCollateralBalanceBefore);
+        console.log("totalBorrowAmountBefore: ", totalBorrowAmountBefore);
+        liquidationHandler.liquidate(
+            address(pair),
+            toLiquidate
+        );
+
+        (uint totalBorrowAmountAfter, ) =  pair.totalBorrow();
+        
+        assertEq({
+            left: stableTSBefore - stablecoin.totalSupply(),
+            right: amountToLiquidate,
+            err: "// THEN Stable TS not decremented by expected"
+        });
+        assertEq({
+            left: stableBalanceInsuranceBefore - stablecoin.balanceOf(address(insurancePool)) ,
+            right: amountToLiquidate,
+            err: "// THEN: insurance pool stable not decremented by expected"
+        });
+        assertEq({
+            left: pair1.underlying().balanceOf(address(insurancePool)) - insuracePoolBalanceUnderlyingBefore,
+            right: underlyingExpected,
+            err: "// THEN: insurance pool underlying balance increase not expected"
+        });
+        assertEq({
+            left: pair.userCollateralBalance(toLiquidate),
+            right: 0,
+            err: "// THEN: All collateral is not awarded"
+        });
+        assertEq({
+            left: totalBorrowAmountBefore - totalBorrowAmountAfter,
+            right: amountToLiquidate,
+            err: "// THEN: internal borrow amount not decremented by expected"
         });
     }
 
