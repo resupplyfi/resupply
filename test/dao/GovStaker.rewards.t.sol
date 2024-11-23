@@ -34,6 +34,7 @@ contract GovStakerRewardsTest is Setup {
 
     function setUp() public override {
         super.setUp();
+        staker = new GovStaker(address(core), address(govToken), 2);
         owner = address(core);
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
@@ -238,6 +239,7 @@ contract GovStakerRewardsTest is Setup {
     }
 
     function test_multipleRewards() public {
+        uint256 startLength = staker.rewardTokensLength();
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
         mintGovToken(user1, amount);
@@ -287,7 +289,7 @@ contract GovStakerRewardsTest is Setup {
 
         // check reward token length
         uint256 length = staker.rewardTokensLength();
-        assertEq(length, 2);
+        assertEq(length, 2 + startLength);
 
         // check how much rewards we have for the week
         uint256 firstWeekRewards = staker.getRewardForDuration(
@@ -346,6 +348,7 @@ contract GovStakerRewardsTest is Setup {
     }
 
     function test_extendRewards() public {
+        uint256 startLength = staker.rewardTokensLength();
         // mint a user some amount of underlying, have them deposit to vault token
         uint256 amount = 1_000e18;
         mintGovToken(user1, amount);
@@ -376,7 +379,7 @@ contract GovStakerRewardsTest is Setup {
 
         // check reward token length
         uint256 length = staker.rewardTokensLength();
-        assertEq(length, 2);
+        assertEq(length, 2 + startLength);
 
         // check how much rewards we have for the week
         uint256 firstWeekRewards = staker.getRewardForDuration(

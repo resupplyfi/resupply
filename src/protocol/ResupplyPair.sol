@@ -266,6 +266,10 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         mintFee = _newMintFee;
     }
 
+    function setBorrowLimit(uint256 _limit) external onlyOwner{
+        _setBorrowLimit(_limit);
+    }
+
     /// @notice The ```SetBorrowLimit``` event is emitted when the borrow limit is set
     /// @param limit The new borrow limit
     event SetBorrowLimit(uint256 limit);

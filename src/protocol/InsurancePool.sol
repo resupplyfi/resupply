@@ -154,7 +154,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     // ===============================================================================
 
     //burn underlying, liquidationHandler will send rewards in exchange
-    function burnAssets(uint256 _amount) external{
+    function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
 
         IMintable(depositToken).burn(address(this), _amount);

@@ -1,11 +1,11 @@
 pragma solidity ^0.8.22;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Setup } from "../../Setup.sol";
-import { SimpleReceiverFactory } from "../../../src/dao/emissions/receivers/SimpleReceiverFactory.sol";
-import { SimpleReceiver } from "../../../src/dao/emissions/receivers/SimpleReceiver.sol";
-import { GovToken } from "../../../src/dao/GovToken.sol";
-
+import { Setup } from "test/Setup.sol";
+import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceiverFactory.sol";
+import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
+import { GovToken } from "src/dao/GovToken.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 contract SimpleReceiverFactoryTest is Setup {
 
     address public simpleReceiverImplementation;
@@ -13,6 +13,17 @@ contract SimpleReceiverFactoryTest is Setup {
 
     function setUp() public override {
         super.setUp();
+        vm.startPrank(address(core));
+        emissionsController = new EmissionsController(
+            address(core), // core
+            address(govToken), // govtoken
+            getEmissionsSchedule(), // emissions
+            1, // epochs per
+            0, // tail rate
+            0 // bootstrap epochs
+        );
+        govToken.setMinter(address(emissionsController));
+        vm.stopPrank();
         simpleReceiverImplementation = address(new 
             SimpleReceiver(
                 address(core), 

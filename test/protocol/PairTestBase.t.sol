@@ -7,8 +7,23 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract PairTestBase is Setup, ResupplyPairConstants {
 
+    ResupplyPair pair;
+    IERC20 collateral;
+    IERC20 underlying;
+
     function setUp() public virtual override {
         super.setUp();
+
+        deployDefaultLendingPairs();
+        address[] memory _pairs = registry.getAllPairAddresses();
+        pair = ResupplyPair(_pairs[0]); 
+        collateral = pair.collateral();
+        underlying = pair.underlying();
+        printPairInfo(pair);
+
+        collateral.approve(address(pair), type(uint256).max);
+        underlying.approve(address(pair), type(uint256).max);
+        stablecoin.approve(address(redemptionHandler), type(uint256).max);
     }
 
     function printPairInfo(ResupplyPair _pair) public view {
@@ -55,13 +70,11 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         IERC20 collateral = _pair.collateral();
         deal(address(collateral), address(this), amount);
         _pair.addCollateralVault(amount, address(this));
-        // assertEq(_pair.userCollateralBalance(_THIS), amount);
     }
 
     function removeCollateral(ResupplyPair _pair, uint256 amount) public {
         uint256 startCollateralBalance = _pair.userCollateralBalance(_THIS);
         _pair.removeCollateralVault(amount, address(this));
-        // assertEq(_pair.userCollateralBalance(_THIS), startCollateralBalance - amount);
     }
 
     // collateralAmount is the amount of collateral to add for the borrow

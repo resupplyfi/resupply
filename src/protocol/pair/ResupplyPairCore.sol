@@ -82,8 +82,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     uint256 public liquidationFee;
     /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
-    uint256 public minimumLeftoverDebt = 10000 * 1e18; //minimum amount of assets left over via redemptions
-    uint256 public minimumBorrowAmount = 1000 * 1e18; //minimum amount of assets to borrow
+    uint256 public minimumLeftoverDebt = 10000 * PAIR_DECIMALS; //minimum amount of assets left over via redemptions
+    uint256 public minimumBorrowAmount = 1000 * PAIR_DECIMALS; //minimum amount of assets to borrow
     
 
     // Interest Rate Calculator Contract
@@ -181,7 +181,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
             currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastBlock = uint32(block.number - 1);
-            currentRateInfo.lastShares = IERC4626(_collateral).convertToShares(1e18);
+            currentRateInfo.lastShares = IERC4626(_collateral).convertToShares(PAIR_DECIMALS);
             currentRateInfo.lastPrice = IERC4626(_collateral).convertToAssets(currentRateInfo.lastShares);
 
             exchangeRateInfo.oracle = _oracle;
@@ -274,7 +274,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     function currentUtilization() public view returns (uint256) {
-        return totalBorrow.amount * 1e18 / borrowLimit;
+        return totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
     }
 
     /// @notice The ```_isSolvent``` function determines if a given borrower is solvent given an exchange rate

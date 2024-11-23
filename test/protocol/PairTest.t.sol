@@ -8,23 +8,8 @@ import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.s
 import { Vm } from "forge-std/Vm.sol";
 
 contract PairTest is PairTestBase {
-    ResupplyPair pair;
-    IERC20 collateral;
-    IERC20 underlying;
-
     function setUp() public override {
         super.setUp();
-
-        deployDefaultLendingPairs();
-        address[] memory _pairs = registry.getAllPairAddresses();
-        pair = ResupplyPair(_pairs[0]); 
-        collateral = pair.collateral();
-        underlying = pair.underlying();
-        printPairInfo(pair);
-
-        collateral.approve(address(pair), type(uint256).max);
-        underlying.approve(address(pair), type(uint256).max);
-        stablecoin.approve(address(redemptionHandler), type(uint256).max);
     }
 
     function test_AddCollateral() public {

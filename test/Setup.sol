@@ -107,6 +107,17 @@ contract Setup is Test {
         fraxToken = IERC20(address(Constants.Mainnet.FRAX_ERC20));
         crvusdToken = IERC20(address(Constants.Mainnet.CURVE_USD_ERC20));
 
+
+        // Setup registry
+        vm.startPrank(address(core));
+        registry.setRedemptionHandler(address(redemptionHandler));
+        registry.setLiquidationHandler(address(liquidationHandler));
+        registry.setInsurancePool(address(insurancePool));
+        registry.setFeeDeposit(address(feeDeposit));
+        registry.setRewardHandler(address(rewardHandler));
+        stablecoin.setOperator(address(registry), true);
+        vm.stopPrank();
+
         // label all the used addresses for traces
         vm.label(address(tempGov), "Temp Gov");
         vm.label(address(core), "Core");
@@ -131,9 +142,6 @@ contract Setup is Test {
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
-        stablecoin.setOperator(address(registry), true);
-        registry.setTreasury(address(treasury));
-        registry.setStaker(address(staker));
         vm.stopPrank();
 
         rateCalculator = new InterestRateCalculator(
@@ -145,13 +153,6 @@ contract Setup is Test {
         oracle = new BasicVaultOracle("Basic Vault Oracle");
 
         redemptionHandler = new RedemptionHandler(address(core),address(registry));
-        liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
-
-        vm.startPrank(address(core));
-        registry.setLiquidationHandler(address(liquidationHandler));
-        registry.setRedemptionHandler(address(redemptionHandler));
-        registry.setInsurancePool(address(insurancePool));
-        vm.stopPrank();
     }
 
     function deployRewardsContracts() public {
@@ -184,6 +185,7 @@ contract Setup is Test {
             address(registry),
             address(insuranceEmissionsReceiver)
         );
+        liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
 
         //seed insurance pool
         stablecoin.transfer(address(insurancePool),1e18);
@@ -207,7 +209,7 @@ contract Setup is Test {
             address(core), 
             address(0)
         );
-
+        
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(address(core), 
             address(registry), 
@@ -216,9 +218,8 @@ contract Setup is Test {
             500
         );
         //attach fee deposit controller to fee deposit
-        vm.startPrank(address(core));
+        vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
-        vm.stopPrank();
 
         rewardHandler = new RewardHandler(
             address(core),
@@ -231,9 +232,6 @@ contract Setup is Test {
         );
 
         vm.startPrank(address(core));
-        registry.setFeeDeposit(address(feeDeposit));
-        registry.setRewardHandler(address(rewardHandler));
-
         //add stablecoin as a reward to gov staker
         staker.addReward(address(stablecoin), address(rewardHandler), uint256(7 days));
         debtReceiver.setApprovedClaimer(address(rewardHandler), true);
@@ -307,6 +305,11 @@ contract Setup is Test {
         permaLocker2 = new PermaLocker(address(core), user2, address(staker), address(registry), "Convex");
         assertEq(permaLocker1.owner(), user1);
         assertEq(permaLocker2.owner(), user2);
+
+        vm.startPrank(address(core));
+        registry.setTreasury(address(treasury));
+        registry.setStaker(address(staker));
+        vm.stopPrank();
     }
 
     function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
