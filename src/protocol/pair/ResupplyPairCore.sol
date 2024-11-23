@@ -177,7 +177,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             underlying = IERC20(IERC4626(_collateral).asset());
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
-            debtToken.approve(registry, type(uint256).max);
 
             currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
