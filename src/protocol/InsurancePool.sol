@@ -14,7 +14,7 @@ import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     using SafeERC20 for IERC20;
 
-    address immutable public depositToken;
+    address immutable public asset;
     address immutable public registry;
     
     mapping(address => uint256) private _balances;
@@ -26,6 +26,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     mapping(address => uint256) public withdrawQueue;
 
     address public immutable emissionsReceiver;
+    uint256 public immutable MAX_WITHDRAW_DELAY;
 
     //events
     event Deposit(
@@ -47,10 +48,18 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     event Cooldown(address indexed account, uint amount, uint end);
     event WithdrawTimers(uint256 withdrawTime, uint256 withdrawWindow);
 
-    constructor(address _core, address _depositToken, address[] memory _rewards, address _registry, address _emissionsReceiver) CoreOwnable(_core){
-        depositToken = _depositToken;
+    constructor(
+        address _core, 
+        address _asset, 
+        address[] memory _rewards, 
+        address _registry, 
+        address _emissionsReceiver,
+        uint256 _maxWithdrawDelay
+    ) CoreOwnable(_core){
+        asset = _asset;
         registry = _registry;
         emissionsReceiver = _emissionsReceiver;
+        MAX_WITHDRAW_DELAY = _maxWithdrawDelay;
         //initialize rewards list with passed in reward tokens
         //NOTE: slot 0 should be emission based extra reward
         for(uint256 i = 0; i < _rewards.length;){
@@ -64,8 +73,13 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         _mint(address(this), 1e18);
     }
 
+    
+    /// @notice Sets the withdrawal timers for the insurance pool
+    /// @param _withdrawLength The length of time users must wait before withdrawing (max 14 days)
+    /// @param _withdrawWindow The window of time users have to withdraw after the wait period
+    /// @dev Can only be called by the owner
     function setWithdrawTimers(uint256 _withdrawLength, uint256 _withdrawWindow) external onlyOwner{
-        require(_withdrawLength <= 14 days, "too high");
+        require(_withdrawLength <= MAX_WITHDRAW_DELAY, "too high");
         withdrawTime = _withdrawLength;
         withdrawTimeLimit = _withdrawWindow;
         emit WithdrawTimers(_withdrawLength, _withdrawWindow);
@@ -134,7 +148,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _checkAddToken(address _address) internal view override returns(bool){
-        if(_address == depositToken) return false;
+        if(_address == asset) return false;
         return true;
     }
 
@@ -157,7 +171,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
 
-        IMintable(depositToken).burn(address(this), _amount);
+        IMintable(asset).burn(address(this), _amount);
 
         //if after many burns the amount to shares ratio has deteriorated too far, then refactor
         if(totalAssets() * shareRefactor < _totalSupply){
@@ -174,35 +188,44 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     // ===============================================================================
 
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
+<<<<<<< HEAD
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
+=======
+>>>>>>> fab8642 (chore: tests)
          if (_assets > 0) {
             shares = previewDeposit(_assets);
             if(shares > 0){
                 _mint(_receiver, shares);
-                IERC20(depositToken).safeTransferFrom(msg.sender, address(this), _assets);
+                IERC20(asset).safeTransferFrom(msg.sender, address(this), _assets);
                 emit Deposit(msg.sender, _receiver, _assets, shares);
             }
         }
     }
 
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
+<<<<<<< HEAD
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
+=======
+>>>>>>> fab8642 (chore: tests)
         if (_shares > 0) {
             assets = previewMint(_shares);
             if(assets > 0){
                 _mint(_receiver, _shares);
-                IERC20(depositToken).safeTransferFrom(msg.sender, address(this), assets);
+                IERC20(asset).safeTransferFrom(msg.sender, address(this), assets);
                 emit Deposit(msg.sender, _receiver, assets, _shares);
             }
         }
     }
 
     function exit() external{
+<<<<<<< HEAD
         //clear any previous withdraw queue and restart
         _clearWithdrawQueue(msg.sender);
         
+=======
+>>>>>>> fab8642 (chore: tests)
         //claim all rewards now because reward0 will be excluded during
         //the withdraw sequence
         //will error if already in withdraw process
@@ -255,7 +278,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
             assets = previewRedeem(_shares);
             require(assets != 0, "ZERO_ASSETS");
             _burn(msg.sender, _shares);
-            IERC20(depositToken).safeTransfer(_receiver, assets);
+            IERC20(asset).safeTransfer(_receiver, assets);
             emit Withdraw(msg.sender, _receiver, msg.sender, _shares, assets);
         }
     }
@@ -269,7 +292,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
             shares = previewWithdraw(_amount);
             _burn(msg.sender, shares);
-            IERC20(depositToken).safeTransfer(_receiver, _amount);
+            IERC20(asset).safeTransfer(_receiver, _amount);
             emit Withdraw(msg.sender, _receiver, msg.sender, shares, _amount);
         }
     }
@@ -291,13 +314,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
-    //erc4626
-    function asset() external view returns(address){
-        return depositToken;
-    }
-
     function totalAssets() public view returns(uint256 assets){
-        assets = IERC20(depositToken).balanceOf(address(this));
+        assets = IERC20(asset).balanceOf(address(this));
     }
 
     function convertToShares(uint256 _assets) public view returns (uint256 shares){

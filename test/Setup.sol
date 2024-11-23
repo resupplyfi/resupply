@@ -183,7 +183,8 @@ contract Setup is Test {
             address(stablecoin),
             rewards,
             address(registry),
-            address(insuranceEmissionsReceiver)
+            address(insuranceEmissionsReceiver),
+            14 days
         );
         liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
 
