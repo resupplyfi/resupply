@@ -5,6 +5,7 @@ import { Setup } from "../../Setup.sol";
 import { SimpleReceiverFactory } from "../../../src/dao/emissions/receivers/SimpleReceiverFactory.sol";
 import { SimpleReceiver } from "../../../src/dao/emissions/receivers/SimpleReceiver.sol";
 import { GovToken } from "../../../src/dao/GovToken.sol";
+import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
 
 contract SimpleReceiverFactoryTest is Setup {
 
@@ -13,6 +14,16 @@ contract SimpleReceiverFactoryTest is Setup {
 
     function setUp() public override {
         super.setUp();
+        emissionsController = new EmissionsController(
+            address(core), // core
+            address(govToken), // govtoken
+            getEmissionsSchedule(), // emissions
+            1, // epochs per
+            0, // tail rate
+            0 // bootstrap epochs
+        );
+        vm.prank(address(core));
+        govToken.setMinter(address(emissionsController));
         simpleReceiverImplementation = address(new 
             SimpleReceiver(
                 address(core), 
@@ -25,8 +36,6 @@ contract SimpleReceiverFactoryTest is Setup {
             address(emissionsController), 
             simpleReceiverImplementation
         );
-        vm.prank(address(core));
-        govToken.setMinter(address(emissionsController));
     }
 
     function test_ReceiverLookupByAddress() public {
