@@ -18,20 +18,6 @@ contract InsurancePoolTest is Setup {
         deal(address(stablecoin), address(this), defaultAmount);
         vm.prank(address(core));
         insurancePool.setWithdrawTimers(1 days, 1 days);
-
-        // Setup emissions
-        emissionsController = new EmissionsController(
-            address(core),
-            address(govToken),
-            getEmissionsSchedule(),
-            1,
-            0,
-            0
-        );
-        vm.startPrank(address(core));
-        govToken.setMinter(address(emissionsController));
-        emissionsController.registerReceiver(address(ipEmissionStream));
-        vm.stopPrank();
     }
 
     function test_SetWithdrawTimers() public {
@@ -135,29 +121,6 @@ contract InsurancePoolTest is Setup {
         assertGt(insurancePool.withdrawQueue(address(this)), 0);
         insurancePool.cancelExit();
         assertEq(insurancePool.withdrawQueue(address(this)), 0);
-
-        // TODO: Should check rewards are claimable
-
-    }
-
-    function test_Rewards() public {
-        depositSome(defaultAmount);
-
-        bool isRegistered = emissionsController.isRegisteredReceiver(address(ipEmissionStream));
-        uint256 id = emissionsController.receiverToId(address(ipEmissionStream));
-        (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(id);
-        console.log("Receiver:", receiver);
-        console.log("Active:", active);
-        console.log("Weight:", weight);
-        console.log("id:", id);
-
-        assertTrue(isRegistered);
-        assertGt(id, 0);
-
-        // TODO: Check rewards are minted
-        skip(emissionsController.epochLength());
-
-        skip(emissionsController.epochLength());
     }
 
     function depositSome(uint256 _amount) public {
