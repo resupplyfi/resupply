@@ -27,7 +27,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     mapping(address receiver => Allocated allocated) public allocated;
 
     modifier validReceiver(address _receiver) {
-        if (receiverToId[_receiver] == 0) require(idToReceiver[0].receiver == _receiver, "Invalid receiver");
+        require(isRegisteredReceiver(_receiver), "Invalid receiver");
         _;
     }
 
@@ -249,6 +249,13 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             365 days /
             PRECISION
         );
+    }
+
+    function isRegisteredReceiver(address _receiver) public view returns (bool) {
+        if (_receiver == address(0)) return false;
+        uint256 id = receiverToId[_receiver];
+        if (id == 0) return idToReceiver[0].receiver == _receiver;
+        return id != 0;
     }
 
     /**

@@ -45,8 +45,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     );
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
-    event Cooldown(address indexed account, uint amount, uint end);
-    event WithdrawTimers(uint256 withdrawTime, uint256 withdrawWindow);
+    event Cooldown(address indexed account, uint256 amount, uint256 end);
+    event WithdrawTimersUpdated(uint256 withdrawTime, uint256 withdrawWindow);
 
     constructor(address _core, address _asset, address[] memory _rewards, address _registry, address _emissionsReceiver) CoreOwnable(_core){
         asset = _asset;
@@ -69,7 +69,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         require(_withdrawLength <= MAX_WITHDRAW_DELAY, "too high");
         withdrawTime = _withdrawLength;
         withdrawTimeLimit = _withdrawWindow;
-        emit WithdrawTimers(_withdrawLength, _withdrawWindow);
+        emit WithdrawTimersUpdated(_withdrawLength, _withdrawWindow);
     }
 
     function totalSupply() public view returns (uint256) {
