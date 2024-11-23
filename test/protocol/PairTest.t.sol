@@ -10,6 +10,7 @@ import { Vm } from "forge-std/Vm.sol";
 contract PairTest is PairTestBase {
     function setUp() public override {
         super.setUp();
+        stablecoin.approve(address(redemptionHandler), type(uint256).max);
     }
 
     function test_AddCollateral() public {
@@ -137,7 +138,7 @@ contract PairTest is PairTestBase {
             redeemAmount + uint256(500e18), // add some to force revert
             1e18,           // max fee
             address(this),  // return to
-            true           // unwrap
+            true            // unwrap
         );
         
         console.log("totalDebtBefore", totalDebtBefore);

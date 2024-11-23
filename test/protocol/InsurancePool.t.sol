@@ -23,9 +23,10 @@ contract InsurancePoolTest is Setup {
 
         insurancePool.exit();
 
+        uint256 balance = insurancePool.balanceOf(address(this));
         vm.expectRevert("!withdraw time");
         insurancePool.redeem(
-            insurancePool.balanceOf(address(this)), 
+            balance, 
             address(this), 
             address(this)
         );
@@ -41,12 +42,21 @@ contract InsurancePoolTest is Setup {
 
         skip(1 days);
 
+        insurancePool.exit();
+        skip(
+            insurancePool.withdrawTime() + 
+            insurancePool.withdrawTimeLimit() +
+            1
+        );
+
+        balance = insurancePool.balanceOf(address(this));
         vm.expectRevert("withdraw time over");
         insurancePool.redeem(
-            insurancePool.balanceOf(address(this)) / 2, 
+            balance, // Remainder
             address(this), 
             address(this)
         );
+        assertGt(insurancePool.balanceOf(address(this)), 0);
     }
 
     function test_DepositAndMint() public {

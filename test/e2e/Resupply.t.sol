@@ -24,6 +24,7 @@ contract ResupplyAccountingTest is Setup {
         address[] memory _pairs = registry.getAllPairAddresses();
         pair1 = ResupplyPair(_pairs[0]); 
         pair2 = ResupplyPair(_pairs[1]);
+        stablecoin.approve(address(redemptionHandler), type(uint256).max);
     }
 
     // ############################################

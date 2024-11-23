@@ -3,10 +3,8 @@ pragma solidity >=0.8.19;
 
 interface IResupplyPair {
     struct CurrentRateInfo {
-        uint32 lastBlock;
         uint64 lastTimestamp;
         uint64 ratePerSec;
-        uint256 lastPrice;
         uint256 lastShares;
     }
     struct VaultAccount {

@@ -147,13 +147,6 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
 
-    // ============================================================================================
-
-
-    // ===============================================================================
-    //  Insurance pool methods
-    // ===============================================================================
-
     //burn underlying, liquidationHandler will send rewards in exchange
     function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
@@ -166,13 +159,6 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
             _totalSupply /= shareRefactor;
         }
     }
-
-    // ===============================================================================
-
-
-    // ===============================================================================
-    //  deposit/withdraw
-    // ===============================================================================
 
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
         //checkpoint rewards before balance change

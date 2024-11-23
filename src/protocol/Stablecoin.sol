@@ -35,11 +35,10 @@ contract Stablecoin is ERC20, CoreOwnable {
     }
 
     function burn(address _from, uint256 _amount) external {
-        //allow msg sender to burn from themselves
-        if(msg.sender != _from){
-            require(operators[msg.sender] || msg.sender == owner(), "!authorized");
+        // Allow msg.sender to burn from themselves
+        if (msg.sender != _from) {
+            _spendAllowance(_from, msg.sender, _amount);
         }
         _burn(_from, _amount);
     }
-
 }
