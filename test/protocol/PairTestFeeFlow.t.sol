@@ -188,7 +188,6 @@ contract PairTestFeeFlow is PairTestBase {
         pair.withdrawFees();
         // insurancePool.getReward(address(this));
 
-        // vm.expectRevert("Reason: revert: !withdraw time");
         insurancePool.redeem(insurancePool.balanceOf(address(this))/2, address(this), address(this));
         console.log("\nredeemed half\n");
         console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
@@ -216,7 +215,10 @@ contract PairTestFeeFlow is PairTestBase {
         vm.warp(block.timestamp +1 days);
         console.log("\nwarp ahead, no new emissions should be claimable\n");
         //expect revert
-        // insurancePool.redeem(insurancePool.balanceOf(address(this)), address(this), address(this));
+        uint256 redeembalance = insurancePool.balanceOf(address(this));
+        vm.expectRevert("!withdraw time");
+        insurancePool.redeem(redeembalance, address(this), address(this));
+
         earnedData = insurancePool.earned(address(this));
         for(uint256 i = 0; i < rlength; i++){
             console.log("insurance rewards this-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
@@ -226,8 +228,10 @@ contract PairTestFeeFlow is PairTestBase {
             console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
         }
 
+        console.log("withdraw queue: ", insurancePool.withdrawQueue(address(this)));
         insurancePool.cancelExit();
         console.log("\nexit canceled, new emissions can be claimed now but not ones during exit\n");
+        console.log("withdraw queue: ", insurancePool.withdrawQueue(address(this)));
 
         earnedData = insurancePool.earned(address(this));
         for(uint256 i = 0; i < rlength; i++){
@@ -248,7 +252,20 @@ contract PairTestFeeFlow is PairTestBase {
         for(uint256 i = 0; i < rlength; i++){
             console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
         }
-        insurancePool.redeem(insurancePool.balanceOf(address(this)), address(this), address(this));
+
+        console.log("withdraw queue: ", insurancePool.withdrawQueue(address(this)));
+        console.log("final withdraw");
+        vm.expectRevert("!withdraw time");
+        insurancePool.redeem(redeembalance, address(this), address(this));
+
+        insurancePool.exit();
+        vm.warp(block.timestamp +10 days);
+        vm.expectRevert("withdraw time over");
+        insurancePool.redeem(redeembalance, address(this), address(this));
+
+        insurancePool.exit();
+        vm.warp(block.timestamp +8 days);
+        insurancePool.redeem(redeembalance, address(this), address(this));
     }
 
     function printDistributionInfo() internal{

@@ -23,7 +23,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     uint256 public withdrawTime = 7 days;
     uint256 public withdrawTimeLimit = 1 days;
-    mapping(address => uint256) withdrawQueue;
+    mapping(address => uint256) public withdrawQueue;
 
     address public immutable emissionsReceiver;
 
@@ -174,7 +174,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     // ===============================================================================
 
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
-
+        //checkpoint rewards before balance change
+        _checkpoint(_receiver);
          if (_assets > 0) {
             shares = previewDeposit(_assets);
             if(shares > 0){
@@ -186,7 +187,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
-
+        //checkpoint rewards before balance change
+        _checkpoint(_receiver);
         if (_shares > 0) {
             assets = previewMint(_shares);
             if(assets > 0){
@@ -198,6 +200,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function exit() external{
+        //clear any previous withdraw queue and restart
+        _clearWithdrawQueue(msg.sender);
         
         //claim all rewards now because reward0 will be excluded during
         //the withdraw sequence
@@ -220,6 +224,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     function _clearWithdrawQueue(address _account) internal{
         if(withdrawQueue[msg.sender] != 0){
+            //checkpoint rewards
             _checkpoint(_account);
             //get reward 0 info
             RewardType storage reward = rewards[0];
@@ -236,16 +241,15 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     function _checkWithdrawReady(address _account) internal{
         uint256 withdrawQueue = withdrawQueue[msg.sender];
-        if(withdrawQueue != 0){
-            require(withdrawQueue <= block.timestamp, "!withdraw time");
-            require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
-        }
+        require(withdrawQueue > 0 && block.timestamp >= withdrawQueue, "!withdraw time");
+        require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
     }
 
     function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_shares > 0) {
+            //clear queue will also checkpoint rewards
             _clearWithdrawQueue(msg.sender);
             
             assets = previewRedeem(_shares);
@@ -260,7 +264,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_amount > 0) {
+            //clear queue will also checkpoint rewards
             _clearWithdrawQueue(msg.sender);
+
             shares = previewWithdraw(_amount);
             _burn(msg.sender, shares);
             IERC20(depositToken).safeTransfer(_receiver, _amount);
