@@ -48,7 +48,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
     }
 
     function ratePerSec(ResupplyPair _pair) internal view returns (uint64 _ratePerSec) {
-        (, , _ratePerSec,, ) = _pair.currentRateInfo();
+        (,_ratePerSec,) = _pair.currentRateInfo();
     }
 
     function getCurrentLTV(ResupplyPair _pair, address _user) internal returns(uint256 _ltv){

@@ -67,16 +67,15 @@ contract InterestRateCalculator is IRateCalculator {
     function getNewRate(
         address _vault,
         uint256 _deltaTime,
-        uint256 _previousShares,
-        uint256 _previousPrice
-    ) external view returns (uint64 _newRatePerSec, uint256 _newPrice, uint256 _newShares) {
+        uint256 _previousShares
+    ) external view returns (uint64 _newRatePerSec, uint128 _newShares) {
         //update how many shares 1e18 of assets are
-        _newShares = IERC4626(_vault).convertToShares(1e18);
+        _newShares = uint128(IERC4626(_vault).convertToShares(1e18));
         //get new price of previous shares
-        _newPrice = IERC4626(_vault).convertToAssets(_previousShares);
+        uint256 _newPrice = IERC4626(_vault).convertToAssets(_previousShares);
 
         //get difference of same share count to see asset growth
-        uint256 difference = _newPrice > _previousPrice ? _newPrice - _previousPrice : 0;
+        uint256 difference = _newPrice > 1e18 ? _newPrice - 1e18 : 0;
 
         //difference over time (note: delta time is guaranteed to be non-zero)
         //since old price and new price are calculated from the same amount of shares

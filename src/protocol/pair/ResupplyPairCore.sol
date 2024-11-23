@@ -103,11 +103,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     CurrentRateInfo public currentRateInfo;
 
     struct CurrentRateInfo {
-        uint32 lastBlock;
         uint64 lastTimestamp;
         uint64 ratePerSec;
-        uint256 lastPrice;
-        uint256 lastShares;
+        uint128 lastShares;
     }
 
     /// @notice Stores information about the current exchange rate. Collateral:Asset ratio
@@ -180,10 +178,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             underlying.approve(_collateral, type(uint256).max);
 
             currentRateInfo.lastTimestamp = uint64(0);
-            currentRateInfo.lastBlock = uint32(block.number - 1);
-            currentRateInfo.lastShares = IERC4626(_collateral).convertToShares(PAIR_DECIMALS);
-            currentRateInfo.lastPrice = IERC4626(_collateral).convertToAssets(currentRateInfo.lastShares);
-
+            currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
+            
             exchangeRateInfo.oracle = _oracle;
 
             rateCalculator = IRateCalculator(_rateCalculator);
@@ -387,17 +383,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @notice The ```UpdateRate``` event is emitted when the interest rate is updated
     /// @param oldRatePerSec The old interest rate (per second)
     /// @param oldShares previous used shares
-    /// @param oldPrice  previous used price
     /// @param newRatePerSec The new interest rate (per second)
     /// @param newShares new shares
-    /// @param newPrice new price
     event UpdateRate(
         uint256 oldRatePerSec,
-        uint256 oldShares,
-        uint256 oldPrice,
+        uint128 oldShares,
         uint256 newRatePerSec,
-        uint256 newShares,
-        uint256 newPrice
+        uint128 newShares
     );
 
     /// @notice The ```addInterest``` function is a public implementation of _addInterest and allows 3rd parties to trigger interest accrual
@@ -447,7 +439,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             _interestEarned = _results.interestEarned;
 
             _newCurrentRateInfo.ratePerSec = _results.newRate;
-            _newCurrentRateInfo.lastPrice = _results.newPrice;
             _newCurrentRateInfo.lastShares = _results.newShares;
 
             _claimableFees = claimableFees + uint128(_interestEarned);
@@ -461,8 +452,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     struct InterestCalculationResults {
         bool isInterestUpdated;
         uint64 newRate;
-        uint256 newPrice;
-        uint256 newShares;
+        uint128 newShares;
         uint256 interestEarned;
         VaultAccount totalBorrow;
     }
@@ -474,7 +464,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         CurrentRateInfo memory _currentRateInfo
     ) internal view returns (InterestCalculationResults memory _results) {
         // Short circuit if interest already calculated this block
-        if (_currentRateInfo.lastTimestamp + 1 hours < block.timestamp) {
+        if (_currentRateInfo.lastTimestamp < block.timestamp) {
             // Indicate that interest is updated and calculated
             _results.isInterestUpdated = true;
 
@@ -485,11 +475,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             uint256 _deltaTime = block.timestamp - _currentRateInfo.lastTimestamp;
 
             // Request new interest rate and full utilization rate from the rate calculator
-            (_results.newRate, _results.newPrice, _results.newShares) = IRateCalculator(rateCalculator).getNewRate(
+            (_results.newRate, _results.newShares) = IRateCalculator(rateCalculator).getNewRate(
                 address(collateral),
                 _deltaTime,
-                _currentRateInfo.lastShares,
-                _currentRateInfo.lastPrice
+                _currentRateInfo.lastShares
             );
 
             // Calculate interest accrued
@@ -538,19 +527,15 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             emit UpdateRate(
                 _currentRateInfo.ratePerSec,
                 _currentRateInfo.lastShares,
-                _currentRateInfo.lastPrice,
                 _results.newRate,
-                _results.newShares,
-                _results.newPrice
+                _results.newShares
             );
             emit AddInterest(_interestEarned, _results.newRate);
 
             // overwrite original values
             _currentRateInfo.ratePerSec = _results.newRate;
             _currentRateInfo.lastShares = _results.newShares;
-            _currentRateInfo.lastPrice = _results.newPrice;
             _currentRateInfo.lastTimestamp = uint64(block.timestamp);
-            _currentRateInfo.lastBlock = uint32(block.number);
 
             // Effects: write to state
             currentRateInfo = _currentRateInfo;
