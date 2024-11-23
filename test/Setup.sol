@@ -179,12 +179,11 @@ contract Setup is Test {
         insuranceEmissionsReceiver = SimpleReceiver(receiverFactory.deployNewReceiver("Insurance Receiver", new address[](0)));
         
         insurancePool = new InsurancePool(
-            address(core), //core
-            address(stablecoin),
-            rewards,
-            address(registry),
-            address(insuranceEmissionsReceiver),
-            14 days
+                address(core), //core
+                address(stablecoin),
+                rewards,
+                address(registry),
+                address(insuranceEmissionsReceiver)
         );
         liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
 

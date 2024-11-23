@@ -26,6 +26,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     mapping(address => uint256) public withdrawQueue;
 
     address public immutable emissionsReceiver;
+    uint256 public constant MAX_WITHDRAW_DELAY = 14 days;
 
     //events
     event Deposit(
@@ -65,7 +66,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function setWithdrawTimers(uint256 _withdrawLength, uint256 _withdrawWindow) external onlyOwner{
-        require(_withdrawLength <= 14 days, "too high");
+        require(_withdrawLength <= MAX_WITHDRAW_DELAY, "too high");
         withdrawTime = _withdrawLength;
         withdrawTimeLimit = _withdrawWindow;
         emit WithdrawTimers(_withdrawLength, _withdrawWindow);
