@@ -63,7 +63,7 @@ contract ResupplyAccountingTest is Setup {
             maxToBorrow,
             er
         );
-        test_liquidationFlow(
+        liquidationFlow(
             pair1,
             user7,
             er
@@ -428,7 +428,7 @@ contract ResupplyAccountingTest is Setup {
         });
     }
 
-    function test_liquidationFlow(ResupplyPair pair, address toLiquidate, uint256 er) public {
+    function liquidationFlow(ResupplyPair pair, address toLiquidate, uint256 er) public {
         (address oracle, ,) = pair1.exchangeRateInfo();
         address collateralAddress = address(pair.collateral());
         vm.warp(block.timestamp + 30 days); // NOTICE: ensure pair ingests from oracle
