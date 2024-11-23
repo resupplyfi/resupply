@@ -9,6 +9,8 @@ import "../interfaces/ICore.sol";
  */
 contract EpochTracker {
     uint256 public immutable startTime;
+    
+    /// @notice Length of an epoch, in seconds
     uint256 public immutable epochLength;
 
     constructor(address _core) {

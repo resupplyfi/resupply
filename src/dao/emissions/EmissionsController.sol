@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: MIT @review can we make this something more copy-left?
-
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
@@ -7,19 +6,18 @@ import { EpochTracker } from "../../dependencies/EpochTracker.sol";
 import { IGovToken } from "../../interfaces/IGovToken.sol";
 import { IReceiver } from "../../interfaces/IReceiver.sol";
 
-// @review recommend choosing between activating/deactivating vs enabling/disabling receivers and not using both terminologies
-
 contract EmissionsController is CoreOwnable, EpochTracker {
 
     /// @notice Address of the governance token that will be minted as emissions
     IGovToken immutable public govToken;
     
     /// @notice Current epoch emission rate, represented as a percentage with 18 decimals (1e18 = 100%)
+    /// @dev Percentage corresponds to % of total token supply to inflate by yearly
     uint256 public emissionsRate;
     
     /// @notice Array of emission rates, each representing a percentage with 18 decimals (1e18 = 100%)
     /// @dev Note 
-    uint256[] internal emissionsSchedule; // @review could we make this internal instead? I don't think it needs to be private unless we plan to inherit
+    uint256[] internal emissionsSchedule;
     
     /// @notice Number of epochs between emission rate changes
     uint256 public epochsPer;
@@ -45,8 +43,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     /// @notice Look up emissions in a given epoch number.
     mapping(uint256 epoch => uint256 emissions) public emissionsPerEpoch;
     
-    /// @notice Look up of a receiver's corresponding Receiver struct using the receiver's ID.
-    mapping(uint256 id => Receiver) public idToReceiver;
+    /// @notice Look up of a receiver's corresponding ReceiverInfo struct using the receiver's ID.
+    mapping(uint256 id => ReceiverInfo) public idToReceiver;
     
     /// @notice Look up a receiver's ID number using its address.
     mapping(address receiver => uint256 id) public receiverToId;
@@ -62,7 +60,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     uint256 internal constant BPS = 10_000;
 
     modifier validReceiver(address _receiver) {
-        if (receiverToId[_receiver] == 0) { // @notes check if a receiver has an ID assigned or not. needs an ID to be able to call fetchEmissions()
+        if (receiverToId[_receiver] == 0) {
             require(idToReceiver[0].receiver == _receiver, "Invalid receiver");
         }
         _;
@@ -70,20 +68,20 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
     event EmissionsAllocated(address indexed receiver, uint256 indexed epoch, bool indexed unallocated, uint256 amount);
     event EmissionsRateUpdated(uint256 indexed epoch, uint256 rate);
-    event ReceiverDisabled(uint256 indexed id);
-    event ReceiverEnabled(uint256 indexed id);
+    event ReceiverDeactivated(uint256 indexed id);
+    event ReceiverActivated(uint256 indexed id);
     event ReceiverAdded(uint256 indexed id, address indexed receiver);
     event ReceiverWeightsSet(uint256[] receiverIds, uint256[] weights);
     event UnallocatedRecovered(address indexed recipient, uint256 amount);
 
-    struct Receiver {
+    struct ReceiverInfo {
         bool active;
         address receiver;
         uint24 weight;
     }
 
     struct Allocated {
-        uint56 lastAllocEpoch; // @notes
+        uint56 lastAllocEpoch;
         uint200 amount;
     }
 
@@ -107,16 +105,17 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     ) CoreOwnable(_core) EpochTracker(_core) {
         govToken = IGovToken(_govToken);
         
-         // @review copied these up from the setEmissionsSchedule function
         require(_emissionsSchedule.length > 0 && _epochsPer > 0, "Must be >0");
-        require(_emissionsSchedule[0] > _tailRate, "Final rate not greater than tail rate");
+        require(_emissionsSchedule[0] >= _tailRate, "Final rate less than tail rate");
 
         tailRate = _tailRate;
         epochsPer = _epochsPer;
         emissionsRate = _emissionsSchedule[_emissionsSchedule.length - 1];
         emissionsSchedule = _emissionsSchedule;
         emissionsSchedule.pop();
-        BOOTSTRAP_EPOCHS = _bootstrapEpochs; // @review should we require the first epoch to count as a bootstrap epoch? so this must be >=1?
+        BOOTSTRAP_EPOCHS = _bootstrapEpochs;
+        
+        // if we have any bootstrap epochs, 
         if (_bootstrapEpochs > 0) {
             lastMintEpoch = _bootstrapEpochs;
             lastEmissionsUpdate = _bootstrapEpochs;
@@ -134,17 +133,13 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
         address[] memory receivers = new address[](_receiverIds.length);
         
-        // @review don't need to set to zero, and can do ++i to save gas
         for (uint256 i; i < _receiverIds.length; ++i) {
-            // @review I think this (deleted) check might not really matter since we sum up to 100% anyway below?
-            Receiver memory receiver = idToReceiver[_receiverIds[i]];
+            ReceiverInfo memory receiver = idToReceiver[_receiverIds[i]];
             require(receiver.receiver != address(0), "Invalid receiver");
             if (_newWeights[i] > 0) {
                 require(receiver.active, "Receiver not active");
             }
             
-            // @review same thing as above, no need to set to zero and do ++j. actually, do we need to set this to zero?
-            // confirm that we didn't set weights for the same receiver twice in the array
             for (uint256 j; j < receivers.length; ++j) {
                 require(receivers[j] != receiver.receiver, "Duplicate receiver id");
             }
@@ -170,23 +165,20 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      */
     function registerReceiver(address _receiver) external onlyOwner {
         require(_receiver != address(0), "Invalid receiver");
-        // @review I think we should just be pulling the nextReceiverId up here, not incrementing it. increment at the end
-        uint256 _id = nextReceiverId;
-        // @review I think we should always do this check, thus I removed the if statement
+        uint256 _id = nextReceiverId++;
         require(idToReceiver[receiverToId[_receiver]].receiver != _receiver, "Receiver already added.");
-        idToReceiver[_id] = Receiver({
+        idToReceiver[_id] = ReceiverInfo({
             active: true,
             receiver: _receiver,
             weight: _id == 0 ? 10_000 : 0 // first receiver gets 100%
         });
         allocated[_receiver] = Allocated({
-            lastAllocEpoch: _id == 0 ? 0 : uint56(getEpoch()), // @review @question should this line up with the bootstrap ending? probably, because otherwise this won't be updated again until then?
+            lastAllocEpoch: BOOTSTRAP_EPOCHS > uint56(getEpoch()) ? BOOTSTRAP_EPOCHS : uint56(getEpoch()),
             amount: 0
         });
         receiverToId[_receiver] = _id;
         require(IReceiver(_receiver).getReceiverId() == _id, "bad interface"); // Require receiver to have this interface.
         emit ReceiverAdded(_id, _receiver);
-        nextReceiverId += 1;
     }
 
     /**
@@ -196,12 +188,12 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      * @param _id The ID of the receiver to deactivate
      */
     function deactivateReceiver(uint256 _id) external onlyOwner {
-        Receiver memory receiver = idToReceiver[_id];
+        ReceiverInfo memory receiver = idToReceiver[_id];
         require(receiver.receiver != address(0), "Receiver not found");
         require(receiver.active, "Receiver not active");
         _fetchEmissions(receiver.receiver);
         idToReceiver[_id].active = false;
-        emit ReceiverDisabled(_id);
+        emit ReceiverDeactivated(_id);
     }
 
     /**
@@ -210,12 +202,12 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      * @param _id The ID of the receiver to activate
      */
     function activateReceiver(uint256 _id) external onlyOwner {
-        Receiver memory receiver = idToReceiver[_id];
+        ReceiverInfo memory receiver = idToReceiver[_id];
         require(receiver.receiver != address(0), "Receiver not found");
         require(!receiver.active, "Receiver active");
         _fetchEmissions(receiver.receiver);
         idToReceiver[_id].active = true;
-        emit ReceiverEnabled(_id);
+        emit ReceiverActivated(_id);
     }
 
     function transferFromAllocation(address _recipient, uint256 _amount) external returns (uint256) {
@@ -226,7 +218,6 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         return _amount;
     }
     
-    // @notes this is the entry point for anything calling for emissions (must be a receiver)
     function fetchEmissions() external validReceiver(msg.sender) returns (uint256 minted) {
         minted = _fetchEmissions(msg.sender);
     }
@@ -235,9 +226,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     function _fetchEmissions(address _receiver) internal returns (uint256 totalMinted) {
         uint256 epoch = getEpoch();
         
-        // @review I think this should be a hard < and not less than or equal to, otherwise we won't mint emissions during first non-bootstrap epoch
         // during bootstrap period, we have no emissions
-        if (epoch < BOOTSTRAP_EPOCHS) {
+        if (epoch <= BOOTSTRAP_EPOCHS) {
             return 0;
         }
         
@@ -248,10 +238,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         if (_allocated.lastAllocEpoch >= epoch) {
             return 0;
         }
-        // @notes during the first epoch, the first receiver should die in the check above (so no minted emissions)
-        // this also ensures that during their creation epoch, no receivers can receiver emissions
         
-        Receiver memory receiver = idToReceiver[receiverToId[_receiver]];
+        ReceiverInfo memory receiver = idToReceiver[receiverToId[_receiver]];
         uint256 amount;
         while (_allocated.lastAllocEpoch < epoch) {
             _allocated.lastAllocEpoch++;
@@ -278,32 +266,26 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         // store in memory for gas savings
         uint256 _lastMintEpoch = lastMintEpoch;
         
-        // @review should this be a hard less than? because otherwise we won't mint during our first epoch outside of the bootstrap period
-        // don't need to mint if we're caught up already
+        // don't need to mint if we're caught up already or during bootstrap
         if (epoch <= _lastMintEpoch) {
             return;
         }
-        // @review ^is there a situation where epoch might be less than _lastMintEpoch?? time travel?
-        // I think this would only be true during a bootstrap period?
         
         while (_lastMintEpoch < epoch) {
-            // @review should this be less than or equal to? I guess not since we start in epoch 0
-            // @review realistically not sure if this will be true ever based on the check above comparing epoch to lastMintEpoch?
-            if (++_lastMintEpoch < BOOTSTRAP_EPOCHS) {
-                continue;
-            }
             uint256 mintable = _calcEmissionsForEpoch(_lastMintEpoch);
+            
             if (mintable > 0) {
                 govToken.mint(address(this), mintable);
             }
+            
             emissionsPerEpoch[_lastMintEpoch] = mintable;
+            
             if (nextReceiverId == 0) {
                 unallocated += mintable;
             }
         }
         lastMintEpoch = epoch;
     }
-
 
     function _calcEmissionsForEpoch(uint256 _epoch) internal returns (uint256) {
         uint256 _emissionsRate = emissionsRate;
@@ -318,7 +300,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
                 emit EmissionsRateUpdated(_epoch, _emissionsRate);
             }
             else if (_emissionsRate != tailRate) {
-                _emissionsRate = tailRate; // @review could this maybe be an earlier check to save gas at tail rate? maybe not worth it tho...
+                _emissionsRate = tailRate;
                 emissionsRate = _emissionsRate;
                 emit EmissionsRateUpdated(_epoch, _emissionsRate);
             }
@@ -342,8 +324,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      * @dev All updates take effect in the epoch following the epoch in which the call is made.
      */
     function setEmissionsSchedule(uint256[] memory _rates, uint256 _epochsPer, uint256 _tailRate) external onlyOwner {
-        require(_rates.length > 0 && _epochsPer > 0, "Must be >0"); /// @review do we want to require tail rate be >0 as well? or is this the way to kill emissions if we wanted?
-        require(_rates[0] > _tailRate, "Final rate not greater than tail rate");
+        require(_rates.length > 0 && _epochsPer > 0, "Must be >0");
+        require(_rates[0] >= _tailRate, "Final rate less than tail rate");
         for (uint256 i = 0; i < _rates.length; i++) {
             if (i == _rates.length - 1) break; // prevent index out of bounds
             require(_rates[i] <= _rates[i + 1], "Rates must decay"); // lower index must be <= than higher index
