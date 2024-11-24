@@ -35,8 +35,10 @@ contract EmissionsControllerTest is Setup {
     }
 
     function test_DefaultEmissionsSchedule() public {
+        assertFalse(emissionsController.isRegisteredReceiver(address(mockReceiver1)));
         vm.prank(address(core));
         emissionsController.registerReceiver(address(mockReceiver1)); // Defaults to 100% weight
+        assertTrue(emissionsController.isRegisteredReceiver(address(mockReceiver1)));
 
         for (uint256 i = 0; i < 10; i++) {
             uint256 expected = getExpectedEmissions(
