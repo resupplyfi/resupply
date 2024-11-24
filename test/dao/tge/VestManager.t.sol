@@ -6,7 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";
 import { MockToken } from "../../mocks/MockToken.sol";
 
-contract VestManagerTest is Setup {
+contract VestManagerHarness is Setup {
 
     // Max amount of redeemable PRISMA/yPRISMA/cvxPRISMA
     uint256 maxRedeemable = 150_000_000e18;

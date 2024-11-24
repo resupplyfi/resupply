@@ -132,7 +132,7 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         );
         bytes memory bytecode;
         if (_isTestNet) {
-            bytecode = abi.encodePacked(vm.getCode("VestManagerTEST.sol:VestManagerTEST"), constructorArgs);
+            bytecode = abi.encodePacked(vm.getCode("VestManagerHarness.sol:VestManagerHarness"), constructorArgs);
         }
         else{
             bytecode = abi.encodePacked(vm.getCode("VestManager.sol:VestManager"), constructorArgs);
