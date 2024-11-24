@@ -19,6 +19,8 @@ contract Core {
     address public voter;
 
     uint256 public immutable startTime;
+    
+    /// @notice Length of an epoch, in seconds
     uint256 public immutable epochLength;
     bool private paused;
 
