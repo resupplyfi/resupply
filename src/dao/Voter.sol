@@ -12,8 +12,8 @@ interface IERC20 {
     function decimals() external view returns (uint256);
 }
 /**
-    @title Relend DAO Voting
-    @author Relend.fi (code inspired by Prisma Finance)
+    @title Resupply DAO Voting
+    @author Resupply Finance (code inspired by Prisma Finance)
     @notice Primary ownership contract for all protocol contracts. Allows executing
             arbitrary function calls only after a required percentage of stakers
             have signalled in favor of performing the action.
