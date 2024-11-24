@@ -6,7 +6,7 @@ import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 
 /**
     @title Core
-    @author Relend.fi (code inspired by Prisma Finance)
+    @author Resupply Finance (code inspired by Prisma Finance)
     @notice Single source of truth for system-wide values and contract ownership.
 
             Ownership of this contract should be the DAO via `Voting`.
@@ -19,6 +19,8 @@ contract Core {
     address public voter;
 
     uint256 public immutable startTime;
+    
+    /// @notice Length of an epoch, in seconds
     uint256 public immutable epochLength;
     bool private paused;
 

@@ -214,7 +214,7 @@ contract EmissionsControllerTest is Setup {
         uint256 tailRate = 0;
 
         // Schedule cannot be empty
-        vm.expectRevert("Schedule length not > 0");
+        vm.expectRevert("Must be >0");
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
 
         rates = new uint256[](2);
@@ -222,7 +222,7 @@ contract EmissionsControllerTest is Setup {
         rates[1] = 99;
 
         // Epochs per must be greater than 0
-        vm.expectRevert("Invalid epochs per");
+        vm.expectRevert("Must be >0");
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
         epochsPer = 1;
 
@@ -230,11 +230,17 @@ contract EmissionsControllerTest is Setup {
         vm.expectRevert("Rates must decay");
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
 
-        // Final rate must be greater than tail rate
+        // Final rate can't be less than tail rate
+        rates[0] = 99;
+        rates[1] = 101;
+        tailRate = 100;
+        vm.expectRevert("Final rate less than tail rate");
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+
+        // Final rate may be equal to tail rate
         rates[0] = 100;
         rates[1] = 101;
         tailRate = 100;
-        vm.expectRevert("Final rate not greater than tail rate");
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
 
         vm.stopPrank();

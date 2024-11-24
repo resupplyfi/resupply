@@ -96,7 +96,6 @@ interface IGovStaker {
     function getRewardForDuration(address rewardsToken) external view returns (uint256);
     function owner() external view returns (address);
     function guardian() external view returns (address);
-    function RELEND_CORE() external view returns (address);
     function getEpoch() external view returns (uint);
     function epochLength() external view returns (uint);
     function startTime() external view returns (uint);

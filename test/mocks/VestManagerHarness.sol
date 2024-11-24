@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import { VestManager } from "./VestManager.sol";
+import { VestManager } from "src/dao/tge/VestManager.sol";
 
-contract VestManagerTEST is VestManager {
-
+// @dev This contract wraps the VestManger, giving ability to update values during testing
+contract VestManagerHarness is VestManager {
     constructor(
         address _core,
         address _token,

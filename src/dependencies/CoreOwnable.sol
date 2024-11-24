@@ -4,7 +4,7 @@ import {ICore} from "../interfaces/ICore.sol";
 
 /**
     @title Core Ownable
-    @author Prisma Finance (with edits by Relend.fi)
+    @author Prisma Finance (with edits by Resupply Finance)
     @notice Contracts inheriting `CoreOwnable` have the same owner as `Core`.
             The ownership cannot be independently modified or renounced.
  */
