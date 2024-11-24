@@ -17,6 +17,7 @@ contract ResupplyAccountingTest is Setup {
 
     address public user9 = address(0xDEADFED5);
     address public user8 = address(0xFA9904);
+    address public user7 = address(0xCC99);
 
     function setUp() public override {
         super.setUp();
@@ -24,6 +25,7 @@ contract ResupplyAccountingTest is Setup {
         address[] memory _pairs = registry.getAllPairAddresses();
         pair1 = ResupplyPair(_pairs[0]); 
         pair2 = ResupplyPair(_pairs[1]);
+        stablecoin.approve(address(redemptionHandler), type(uint256).max);
     }
 
     // ############################################
@@ -35,6 +37,37 @@ contract ResupplyAccountingTest is Setup {
         addCollateralVaultFlow(pair1, user9, 20_000e18);
         borrowStablecoinFlow(pair1, user9, 15_000e18, er);
         redeemStablecoinFlow(pair1, user8, 2_000e18);
+    }
+
+    // ############################################
+    // ############ Fuzz  liquidate  ##############
+    // ############################################
+
+    function test_fuzz_liquidate(uint128 collateralAmount) public {
+        pair1.addInterest(false);
+        /// @notice Bound
+        collateralAmount = uint96(bound(collateralAmount, 2_000e18, 5_000_000e18));
+        addCollateralFlow(
+            pair1,
+            user7,
+            collateralAmount,
+            Constants.Mainnet.FRAX_ERC20
+        );
+        uint256 collateral = pair1.userCollateralBalance(user7);
+        uint256 ltv = pair1.maxLTV();
+        (, , uint er) = pair1.exchangeRateInfo();
+        uint256 maxToBorrow = (ltv * collateral * (1e36 / er)) / (1e18 * 1e5);
+        borrowStablecoinFlow(
+            pair1, 
+            user7, 
+            maxToBorrow,
+            er
+        );
+        liquidationFlow(
+            pair1,
+            user7,
+            er
+        );
     }
 
     // ############################################
@@ -224,17 +257,17 @@ contract ResupplyAccountingTest is Setup {
     ) public {
         IERC20 collateral = pair.collateral();
         uint256 collateralBefore = collateral.balanceOf(user);
-        uint256 userCollateralBalanceBefore = pair1.userCollateralBalance(user);
+        uint256 userCollateralBalanceBefore = pair.userCollateralBalance(user);
         
         vm.startPrank(user);
-        pair1.removeCollateralVault(
+        pair.removeCollateralVault(
             amountToRemove,
             user
         );
         vm.stopPrank();
 
         assertEq({
-            left: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
+            left: userCollateralBalanceBefore - pair.userCollateralBalance(user),
             right: amountToRemove,
             err: "// THEN: ResupplyPair collateral balance decremented incorrectly"
         });
@@ -280,7 +313,7 @@ contract ResupplyAccountingTest is Setup {
         uint256 userCollateralBalanceBefore = pair.userCollateralBalance(user);
 
         vm.startPrank(user);
-        pair1.removeCollateral(
+        pair.removeCollateral(
             amountToRemove,
             user
         );
@@ -289,7 +322,7 @@ contract ResupplyAccountingTest is Setup {
         uint256 underlyingToReceive = IERC4626(address(pair.collateral())).previewRedeem(amountToRemove);
 
         assertEq({
-            left: userCollateralBalanceBefore - pair1.userCollateralBalance(user),
+            left: userCollateralBalanceBefore - pair.userCollateralBalance(user),
             right: amountToRemove,
             err: "// THEN: ResupplyPair collateral balance decremented incorrectly"
         });
@@ -316,7 +349,7 @@ contract ResupplyAccountingTest is Setup {
                     amountToBorrow
                 )
             );
-            pair1.borrow(amountToBorrow, 0, user);
+            pair.borrow(amountToBorrow, 0, user);
         } else if (amountToBorrow > maxDebtToIssue) {
             vm.expectRevert(
                 abi.encodeWithSelector(
@@ -327,13 +360,13 @@ contract ResupplyAccountingTest is Setup {
                 )
             );
             vm.prank(user);
-            pair1.borrow(amountToBorrow, 0, user);
+            pair.borrow(amountToBorrow, 0, user);
         } else if (amountToBorrow < pair.minimumBorrowAmount()) {
             vm.expectRevert(ResupplyPairConstants.InsufficientBorrowAmount.selector);
-            pair1.borrow(amountToBorrow, 0, user);
+            pair.borrow(amountToBorrow, 0, user);
         } else {
             vm.prank(user);
-            pair1.borrow(amountToBorrow, 0, user);
+            pair.borrow(amountToBorrow, 0, user);
             console.log(stablecoin.balanceOf(user));
 
             assertEq({
@@ -358,7 +391,7 @@ contract ResupplyAccountingTest is Setup {
         address user,
         uint256 amountToRepay
     ) public {
-        uint256 sharesStart = pair1.userBorrowShares(user);
+        uint256 sharesStart = pair.userBorrowShares(user);
         uint256 stableStart = stablecoin.balanceOf(user);
         uint256 stableTsStart = stablecoin.totalSupply();
 
@@ -372,7 +405,7 @@ contract ResupplyAccountingTest is Setup {
         );
         vm.stopPrank();
 
-        uint256 sharesEnd = pair1.userBorrowShares(user);
+        uint256 sharesEnd = pair.userBorrowShares(user);
         uint256 stableEnd = stablecoin.balanceOf(user);
         uint256 stableTsEnd = stablecoin.totalSupply();
 
@@ -392,6 +425,62 @@ contract ResupplyAccountingTest is Setup {
             left: stableTsStart - stableTsEnd,
             right: amountToRepay,
             err: "// THEN: StableCoin TS not reduced by expected amount"
+        });
+    }
+
+    function liquidationFlow(ResupplyPair pair, address toLiquidate, uint256 er) public {
+        (address oracle, ,) = pair.exchangeRateInfo();
+        address collateralAddress = address(pair.collateral());
+        vm.warp(block.timestamp + 30 days); // NOTICE: ensure pair ingests from oracle
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSignature("getPrices(address)", collateralAddress),
+            abi.encode(er)
+        );
+        pair.addInterest(false);
+        uint amountToLiquidate = pair.toBorrowAmount(pair.userBorrowShares(toLiquidate), true, true);
+        
+        deal(address(stablecoin), address(insurancePool), 10_000e18 + amountToLiquidate, true);
+
+        /// Values to derive state change from
+        uint stableTSBefore = stablecoin.totalSupply();
+        uint stableBalanceInsuranceBefore = stablecoin.balanceOf(address(insurancePool));
+        uint insuracePoolBalanceUnderlyingBefore = pair.underlying().balanceOf(address(insurancePool));
+        uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
+        uint collateralInPairBefore = pair.collateral().balanceOf(address(pair));
+        (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
+        uint underlyingExpected = IERC4626(address(pair.collateral())).previewRedeem(userCollateralBalanceBefore);
+        liquidationHandler.liquidate(
+            address(pair),
+            toLiquidate
+        );
+
+        (uint totalBorrowAmountAfter, ) =  pair.totalBorrow();
+        
+        assertEq({
+            left: stableTSBefore - stablecoin.totalSupply(),
+            right: amountToLiquidate,
+            err: "// THEN Stable TS not decremented by expected"
+        });
+        assertEq({
+            left: stableBalanceInsuranceBefore - stablecoin.balanceOf(address(insurancePool)) ,
+            right: amountToLiquidate,
+            err: "// THEN: insurance pool stable not decremented by expected"
+        });
+        assertEq({
+            left: pair.underlying().balanceOf(address(insurancePool)) - insuracePoolBalanceUnderlyingBefore,
+            right: underlyingExpected,
+            err: "// THEN: insurance pool underlying balance increase not expected"
+        });
+        assertEq({
+            left: pair.userCollateralBalance(toLiquidate),
+            right: 0,
+            err: "// THEN: All collateral is not awarded"
+        });
+        assertEq({
+            left: totalBorrowAmountBefore - totalBorrowAmountAfter,
+            right: amountToLiquidate,
+            err: "// THEN: internal borrow amount not decremented by expected"
         });
     }
 

@@ -108,7 +108,6 @@ contract LiquidationHandler is CoreOwnable{
             withdrawnAmount = _withdrawnAmount;
         } catch{}
 
-        //check what was withdrawn
         if(withdrawnAmount == 0) return;
 
         //debt to burn (clamp to debtByCollateral)

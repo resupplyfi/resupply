@@ -7,6 +7,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
+import { IMintable } from "../interfaces/IMintable.sol";
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
@@ -47,7 +48,7 @@ contract RedemptionHandler is CoreOwnable{
 
     /// @notice Estimates the maximum amount of debtToken that can be used to redeem collateral
     function getMaxRedeemableValue(address _pair) public view returns(uint256){
-        (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        (,,,IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
         uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
         if (_totalBorrow.amount < minLeftoverDebt) return 0;
         return _totalBorrow.amount - minLeftoverDebt;
@@ -92,6 +93,8 @@ contract RedemptionHandler is CoreOwnable{
             feePct,
             address(this)
         );
+
+        IMintable(debtToken).burn(msg.sender, _amount);
 
         //withdraw to underlying
         if(_redeemToUnderlying){

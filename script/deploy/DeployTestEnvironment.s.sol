@@ -55,11 +55,11 @@ contract DeployTestEnvironment is TenderlyHelper {
         rewards[2] = address(Constants.Mainnet.CURVE_USD_ERC20);
 
         InsurancePool _insurancepool = new InsurancePool(
-        address(_core), //core
-        address(_stable),
-        rewards,
-        address(_registry),
-        address(0) //todo emissions receiver
+            address(_core), //core
+            address(_stable),
+            rewards,
+            address(_registry),
+            address(0) //todo emissions receiver
         );
 
         _return[0].address_ = address(_insurancepool);

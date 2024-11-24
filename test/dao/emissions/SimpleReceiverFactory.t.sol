@@ -6,6 +6,7 @@ import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceive
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { GovToken } from "src/dao/GovToken.sol";
 import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+
 contract SimpleReceiverFactoryTest is Setup {
 
     address public simpleReceiverImplementation;

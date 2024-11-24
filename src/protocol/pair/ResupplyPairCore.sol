@@ -41,6 +41,7 @@ import { RewardDistributorMultiEpoch } from "../RewardDistributorMultiEpoch.sol"
 import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
+import { IMintable } from "../../interfaces/IMintable.sol";
 
 /// @title ResupplyPairCore
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -190,7 +191,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             liquidationFee = _liquidationFee;
             mintFee = _mintFee;
             protocolRedemptionFee = _protocolRedemptionFee;
-
 
             // set maxLTV
             maxLTV = _maxLTV;
@@ -875,7 +875,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // burn from non-zero address.  zero address is only supplied during liquidations
         // for liqudations the handler will do the burning
         if (_payer != address(0)) {
-            IResupplyRegistry(registry).burn(_payer, _amountToRepay);
+            IMintable(address(debtToken)).burn(_payer, _amountToRepay);
         }
         emit Repay(_payer, _borrower, _amountToRepay, _shares);
     }
@@ -969,8 +969,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         //distribute write off tokens to adjust userCollateralbalances
         redemptionWriteOff.mint(_collateralFreed);
-
-        IResupplyRegistry(registry).burn(_caller, _amount);
 
         emit Redeemed(_caller, _amount, _collateralFreed, protocolFee, debtReduction);
     }
