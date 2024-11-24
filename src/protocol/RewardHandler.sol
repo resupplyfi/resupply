@@ -107,7 +107,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         }
     }
 
-    /// @notice Claims Relend emissions and external protocol rewards for a given pair
+    /// @notice Claims emissions and external protocol rewards for a given pair
     /// @param _pair The address of the pair to claim rewards for
     function claimRewards(address _pair) external{
         //claim convex staking
