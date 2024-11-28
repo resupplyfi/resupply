@@ -16,8 +16,11 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
         address swappool;
         int32 tokenInIndex;
         int32 tokenOutIndex;
-        bool isDeposit;
+        uint32 swaptype;
     }
+    uint32 public constant TYPE_SWAP = 0;
+    uint32 public constant TYPE_DEPOSIT = 1;
+    uint32 public constant TYPE_WITHDRAW = 2;
 
     mapping(address => mapping(address => SwapInfo)) public swapPools;//token in -> token out -> info
     
@@ -54,9 +57,12 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
             //if final swap, send back to msg.sender
             address returnAddress = i == path.length - 2 ? to : address(this);
 
-            if(swapinfo.isDeposit){
+            if(swapinfo.swaptype == TYPE_DEPOSIT){
                 //if set as a deposit, use 4626 interface
                 IERC4626(swapinfo.swappool).deposit(balanceIn, returnAddress);
+            }else if(swapinfo.swaptype == TYPE_WITHDRAW){
+                //if set as a withdraw, use 4626 interface redeem
+                IERC4626(swapinfo.swappool).redeem(balanceIn, returnAddress, address(this));
             }else{
                 //swap with curve pool
                 //note: the resupply pair will check final slippage
