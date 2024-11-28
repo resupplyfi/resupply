@@ -1137,16 +1137,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
 
         // Interactions
+        //TODO: could probably just send directly to the swapper
         _debtToken.approve(_swapperAddress, _borrowAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
             _borrowAmount,
             _amountCollateralOutMin,
             _path,
-            address(this),
-            block.timestamp
+            address(this)
         );
         uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
 
@@ -1235,12 +1236,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
             _collateralToSwap,
             _amountOutMin,
             _path,
-            address(this),
-            block.timestamp
+            address(this)
         );
         uint256 _finalBalance = _debtToken.balanceOf(address(this));
 
