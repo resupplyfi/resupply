@@ -219,6 +219,35 @@ contract PairTest is PairTestBase {
         assertZeroBalanceRH();
     }
 
+    function test_Pause() public {
+        assertGt(pair.borrowLimit(), 0);
+        assertEq(pair.paused(), false);
+        uint256 initialBorrowLimit = pair.borrowLimit();
+
+        vm.expectRevert("!core");
+        pair.pause();
+        assertEq(pair.paused(), false);
+
+        vm.startPrank(address(core));
+
+        pair.pause();
+        assertTrue(pair.paused());
+        assertEq(pair.borrowLimit(), 0);
+
+        vm.expectRevert("paused");
+        pair.setBorrowLimit(100e18);
+
+        vm.stopPrank();
+
+        vm.expectRevert("!core");
+        pair.unpause();
+
+        vm.startPrank(address(core));
+        pair.unpause();
+        assertEq(pair.borrowLimit(), initialBorrowLimit);
+        assertEq(pair.paused(), false);
+    }
+
     function assertZeroBalanceRH() internal {
         assertEq(collateral.balanceOf(address(redemptionHandler)), 0);
         assertEq(underlying.balanceOf(address(redemptionHandler)), 0);
