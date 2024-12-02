@@ -99,24 +99,31 @@ contract LiquidationHandler is CoreOwnable{
         address underlying = IERC4626(_collateral).asset();
 
         //try to max redeem
-        uint256 withdrawnAmount;
-        try IERC4626(_collateral).redeem(
-            IERC4626(_collateral).maxRedeem(address(this)), 
-            insurancePool, 
-            address(this)
-        ) returns (uint256 _withdrawnAmount){
-            withdrawnAmount = _withdrawnAmount;
-        } catch{}
-
-        if(withdrawnAmount == 0) return;
-
+        uint256 redeemable = IERC4626(_collateral).maxRedeem(address(this));
+        if(redeemable == 0) return;
         //debt to burn (clamp to debtByCollateral)
-        uint256 toBurn = withdrawnAmount > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawnAmount;
-        IInsurancePool(insurancePool).burnAssets(toBurn);
+        uint256 toBurn = redeemable > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : redeemable;
+        //get max burnable
+        uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
 
-        //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
-        debtByCollateral[_collateral] -= toBurn;
+        if(toBurn <= maxBurnable){
+            uint256 withdrawnAmount;
+            try IERC4626(_collateral).redeem(
+                redeemable, 
+                insurancePool, 
+                address(this)
+            ) returns (uint256 _withdrawnAmount){
+                withdrawnAmount = _withdrawnAmount;
+            } catch{}
 
-        emit CollateralProccessed(_collateral, toBurn, withdrawnAmount - toBurn);
+            if(withdrawnAmount == 0) return;
+        
+            IInsurancePool(insurancePool).burnAssets(toBurn);
+
+            //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
+            debtByCollateral[_collateral] -= toBurn;
+
+            emit CollateralProccessed(_collateral, toBurn, withdrawnAmount - toBurn);
+        }
     }
 }
