@@ -1137,8 +1137,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
 
         // Interactions
-        //TODO: could probably just send directly to the swapper
-        _debtToken.approve(_swapperAddress, _borrowAmount);
+        //send directly to the swapper
+        _debtToken.safeTransfer(_swapperAddress, _borrowAmount);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
@@ -1231,8 +1231,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
 
-        // Interactions
-        _collateral.approve(_swapperAddress, _collateralToSwap);
+        // send directly to swapper
+        _collateral.safeTransfer(_swapperAddress, _collateralToSwap);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));

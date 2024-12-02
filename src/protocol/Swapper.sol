@@ -48,9 +48,6 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
         address to
     ) external returns (uint256 amountOut){
 
-        //todo: could save an approval if pair just sends directly to this swapper
-        IERC20(path[0]).safeTransferFrom(msg.sender, address(this), amountIn);
-
         for(uint256 i=0; i < path.length-1;){
             SwapInfo memory swapinfo = swapPools[path[i]][path[i+1]];
             uint256 balanceIn = IERC20(path[i]).balanceOf(address(this));
