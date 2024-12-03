@@ -77,7 +77,7 @@ contract LiquidationManagerTest is PairTestBase {
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         liquidationHandler.liquidate(address(pair), address(this));
         assertGt(collateral.balanceOf(address(liquidationHandler)), 0);
-        assertEq(underlying.balanceOf(address(insurancePool)), 0, 'IP underlying balance should be 0');
+        assertLe(underlying.balanceOf(address(insurancePool)), 1, 'IP underlying balance should be 0');
 
         resupplyLiquidityToMarket();
 

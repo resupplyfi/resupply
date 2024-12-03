@@ -11,6 +11,7 @@ contract PairTest is PairTestBase {
     function setUp() public override {
         super.setUp();
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
+        stablecoin.approve(address(pair), type(uint256).max);
     }
 
     function test_AddCollateral() public {
@@ -20,8 +21,103 @@ contract PairTest is PairTestBase {
         deal(address(collateral), address(this), amount);
 
         pair.addCollateralVault(amount, address(this));
-
+        
         assertEq(pair.userCollateralBalance(_THIS), amount);
+    }
+
+    function test_DebtShareRounding() public {
+        vm.startPrank(address(core));
+        pair.setMinimumLeftoverDebt(0);
+        pair.setMinimumBorrowAmount(0);
+        vm.stopPrank();
+        uint256 minBorrow = 1; // This is global minimum borrow amount
+        uint256 collatAmount = 1e18;
+        deal(address(collateral), address(this), collatAmount);
+
+        borrow(
+            pair, 
+            minBorrow,      // borrow amount
+            collatAmount    // collateral amount
+        );
+        printPairState('user A borrow');
+        uint256 collateralFreed = redemptionHandler.redeemFromPair(
+            address(pair),  // pair
+            minBorrow - 1,   // amount in terms of stablecoins (leave 1 wei)
+            1e18,           // max fee
+            address(this),  // return to
+            true           // unwrap
+        );
+        for (uint256 i = 0; i < 10; i++) {
+            skip(1);
+            pair.addInterest(false);
+        }
+        // User B 
+        vm.startPrank(user1);
+        uint256 collateralAmount = 200e18;
+        uint256 userBorrowAmount = 1;
+        deal(address(collateral), user1, collateralAmount);
+        deal(address(stablecoin), user1, collateralAmount);
+        deal(address(stablecoin), address(this), 10000e18);
+        collateral.approve(address(pair), type(uint256).max);
+        stablecoin.approve(address(pair), type(uint256).max);
+        pair.borrow(userBorrowAmount, collateralAmount, user1);
+        
+        printPairState('user B borrow');
+        for (uint256 i = 0; i < 10; i++) {
+            skip(1);
+            (uint256 interestEarned, , , ) = pair.previewAddInterest();
+            console.log("interestEarned", interestEarned);
+            // Check if interestEarned is odd, triggering a rounding error
+            if(interestEarned % 2 == 1) {
+                pair.borrow(1, 0, user1);
+                break;
+            }
+            
+        }
+        vm.stopPrank();
+
+        pair.addInterest(false);
+        printPairState('after 1 wei donation');
+        skip(1);
+
+        // Repay from both users
+        repay(address(this), 0);
+        printPairState('after user A closes');
+        // repay(user1, 1);
+        (uint256 totalDebt, ) = pair.totalBorrow();
+        // collateralFreed = redemptionHandler.redeemFromPair(
+        //     address(pair),  // pair
+        //     totalDebt - 1,   // amount in terms of stablecoins (leave 1 wei)
+        //     1e18,           // max fee
+        //     address(this),  // return to
+        //     true           // unwrap
+        // );
+        // printPairState('after user B is redeemed - 1 wei');
+        // repay(user1, pair.userBorrowShares(user1)-1);
+        // printPairState('after user B repays 1 wei');
+        pair.borrow(1000, 0, address(this));
+        printPairState('after user A borrows 1 wei');
+        repay(address(this), 0);
+        printPairState('after user A repays 1 wei');
+
+    }
+
+    function repay(address _user, uint256 _offset) public {
+        uint256 toRepay = pair.userBorrowShares(_user) - _offset;
+        vm.prank(_user);
+        pair.repay(toRepay, _user);
+    }
+
+    function printPairState(string memory banner) public view {
+        console.log("--------------",banner,"------------------");
+        console.log("pair", address(pair));
+        (uint256 amount, uint256 shares) = pair.totalBorrow();
+        console.log("total debt       ", amount);
+        console.log("total debt shares", shares);
+        console.log("user A debt shares", pair.userBorrowShares(address(this)));
+        console.log("user B debt shares", pair.userBorrowShares(user1));  
+        // console.log("user A borrow amount", pair.userBorrowAmount(address(this)));
+        // console.log("user B borrow amount", pair.userBorrowAmount(user1));
     }
 
     function test_AddCollateralUnderlying() public {
