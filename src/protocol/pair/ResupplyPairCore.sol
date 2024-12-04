@@ -1133,12 +1133,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
 
         // Debit borrowers account
-        // setting recipient to address(this) so that swapping can occur from this contract (debt still goes to msg.sender)
-        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
-
-        // Interactions
-        //send directly to the swapper
-        _debtToken.safeTransfer(_swapperAddress, _borrowAmount);
+        // setting recipient to _swapperAddress allows us to skip a transfer (debt still goes to msg.sender)
+        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), _swapperAddress);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
