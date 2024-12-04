@@ -98,18 +98,17 @@ contract LiquidationHandler is CoreOwnable{
         //get underlying
         address underlying = IERC4626(_collateral).asset();
 
-        //try to max redeem
-        uint256 redeemable = IERC4626(_collateral).maxRedeem(address(this));
-        if(redeemable == 0) return;
+        //get max withdraw
+        uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
         //debt to burn (clamp to debtByCollateral)
-        uint256 toBurn = redeemable > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : redeemable;
+        uint256 toBurn = withdrawable > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawable;
         //get max burnable
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
 
         if(toBurn <= maxBurnable){
             uint256 withdrawnAmount;
             try IERC4626(_collateral).redeem(
-                redeemable, 
+                IERC4626(_collateral).maxRedeem(address(this)), 
                 insurancePool, 
                 address(this)
             ) returns (uint256 _withdrawnAmount){
