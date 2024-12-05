@@ -139,6 +139,37 @@ contract VoterTest is Setup {
         assertEq(pair.value(), 5);
     }
 
+    
+
+    function test_ProposalMeetsQuorumAndFails() public {
+        uint256 proposalId = createNewProposal();
+
+        // Set votes to 50% yes, 50% no
+        // Should fail because it does not have the majority of the votes
+        uint256 weightYes = MAX_PCT / 2;
+        uint256 weightNo = MAX_PCT / 2;
+
+        vm.prank(user1);
+        voter.voteForProposal(user1, proposalId, weightYes, weightNo);
+        
+        assertTrue(voter.quorumReached(proposalId));
+        assertFalse(voter.canExecute(proposalId));
+        skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+        assertFalse(voter.canExecute(proposalId));
+        vm.expectRevert("Proposal cannot be executed");
+        voter.executeProposal(proposalId);
+
+        (
+            uint256 _epoch,
+            uint256 _createdAt,
+            ,
+            uint256 _weightYes,
+            uint256 _weightNo,
+            bool _processed,
+            bool _executable,
+        ) = voter.getProposalData(proposalId);
+    }
+
     function test_SetVoter() public {
         vm.prank(address(core));
         core.setVoter(address(user2));
@@ -219,5 +250,13 @@ contract VoterTest is Setup {
         vm.expectRevert("Invalid value");
         voter.setPassingPct(MAX_PCT+1);
         vm.stopPrank();
+    }
+
+    function createNewProposal() internal returns (uint256) {
+        vm.prank(user1);
+        return voter.createNewProposal(
+            user1,
+            buildProposalData(5)
+        );
     }
 }

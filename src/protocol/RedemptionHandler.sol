@@ -50,6 +50,11 @@ contract RedemptionHandler is CoreOwnable{
         return getMaxRedeemableValue(_pair) * PRECISION / exchangeRate;
     }
 
+    function getRedemptionFeeWithDecay(address _pair, uint256 _debtRepaid) public view returns(uint256){
+        if (address(redemptionFeeCalculator) == address(0)) return baseRedemptionFee;
+        return redemptionFeeCalculator.getRedemptionFeeWithDecay(_pair, _debtRepaid);
+    }
+
     /// @notice Estimates the maximum amount of debtToken that can be used to redeem collateral
     function getMaxRedeemableValue(address _pair) public view returns(uint256){
         (,,,IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
@@ -72,11 +77,6 @@ contract RedemptionHandler is CoreOwnable{
         IRedemptionFeeCalculator calculator = redemptionFeeCalculator;
         if (address(calculator) == address(0)) return baseRedemptionFee;
         return calculator.updateRedemptionFee(_pair, _amount);
-    }
-    
-    function previewRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
-        if (address(redemptionFeeCalculator) == address(0)) return baseRedemptionFee;
-        return redemptionFeeCalculator.previewRedemptionFee(_pair, _amount);
     }
 
     function setRedemptionFeeCalculator(address _calculator) external onlyOwner {

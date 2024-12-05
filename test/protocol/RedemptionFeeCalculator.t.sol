@@ -17,7 +17,7 @@ contract PairTest is PairTestBase {
         addCollateral(pair, 100_000_000e18);
         collateral.approve(address(pair), type(uint256).max);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
-        redemptionFeeCalculator = new RedemptionFeeCalculator(address(redemptionHandler));
+        redemptionFeeCalculator = new RedemptionFeeCalculator(address(core), address(redemptionHandler));
         vm.startPrank(address(core));
         pair.setBorrowLimit(type(uint128).max);
         redemptionHandler.setRedemptionFeeCalculator(address(redemptionFeeCalculator));
@@ -34,7 +34,7 @@ contract PairTest is PairTestBase {
                 0                   // no collateral
             );
 
-            uint256 fee = redemptionFeeCalculator.previewRedemptionFee(
+            uint256 fee = redemptionFeeCalculator.getRedemptionFeeWithDecay(
                 address(pair), 
                 redemptionAmount
             );

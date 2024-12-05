@@ -1,133 +1,131 @@
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
+import { ResupplyMath } from "src/dependencies/ResupplyMath.sol";
+import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 
 //@notice used to track usage of redeeming a pair
-contract RedemptionFeeCalculator {
+contract RedemptionFeeCalculator is CoreOwnable {
+    uint256 public constant DECIMAL_PRECISION = 1e18;
     IRedemptionHandler public immutable redemptionHandler;
-    mapping(address => RedemptionRateInfo) public pairRateInfo;
-    uint256 public minuteDecayFactor = 1e18;
-
+    mapping(address => RedemptionRateInfo) public pairInfo;
     uint256 public constant SECONDS_IN_ONE_MINUTE = 60;
 
     struct RedemptionRateInfo {
-        uint64 timestamp;
-        uint192 usage;
+        uint256 minuteDecayFactor;
+        uint256 baseRate;
+        uint64 lastFeeOperationTime;
+        uint256 redemptionFeeFloor;
+        uint256 maxRedemptionFee;
     }
 
-    constructor(address _redemptionHandler){
+    event BaseRateUpdated(uint256 newBaseRate);
+    event LastFeeOpTimeUpdated(uint256 newLastFeeOpTime);
+
+    constructor(address _core, address _redemptionHandler) CoreOwnable(_core) {
         redemptionHandler = IRedemptionHandler(_redemptionHandler);
+        // Create default settings
+        pairInfo[address(0)] = RedemptionRateInfo({
+            minuteDecayFactor: 999037758833783000, // (half-life of 12 hours)
+            baseRate: 0,
+            lastFeeOperationTime: 0,
+            redemptionFeeFloor: DECIMAL_PRECISION / 1000 * 5,   //  (0.5%)
+            maxRedemptionFee: DECIMAL_PRECISION                 //  (100%)
+        });
     }
-    
 
-    /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
-    /// TODO: add settable contract for upgradeable logic
-    function previewRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
-        (uint256 fee, ) = _getRedemptionFee(_pair, _amount);
-        return fee;
-    }
-
-    function updateRedemptionFee(address _pair, uint256 _amount) external returns(uint256){
+    function updateRedemptionFee(address _pair, uint256 _debtRepaid) external returns(uint256){
         require(msg.sender == address(redemptionHandler), "!redemptionHandler");
-        (uint256 fee, RedemptionRateInfo memory rateInfo) = _getRedemptionFee(_pair, _amount);
-        pairRateInfo[_pair] = rateInfo;
+        uint256 fee = _getRedemptionFee(_pair, _debtRepaid);
         return fee;
     }
 
-    function _getRedemptionFee(address _pair, uint256 _amount) internal view returns(uint256, RedemptionRateInfo memory rateInfo){
+    function _getRedemptionFee(address _pair, uint256 _amount) internal returns(uint256){
         (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        RedemptionRateInfo memory _rateInfo = pairInfo[_pair];
+        if(_rateInfo.minuteDecayFactor == 0) _rateInfo = pairInfo[address(0)]; // default settings stored at 0x0 address
+            
+        _updateBaseRateFromRedemption(_pair, _rateInfo, _amount, _totalBorrow.amount);
 
-        if (_totalBorrow.amount == 0) return (redemptionHandler.baseRedemptionFee(), rateInfo);
-        
-        uint256 weightOfRedeem = _amount * 1e18 / _totalBorrow.amount;
+        if (_totalBorrow.amount == 0) return redemptionHandler.baseRedemptionFee();
 
-        rateInfo = pairRateInfo[_pair];
-
-        if(rateInfo.timestamp != 0){
-            uint256 usageDecayRate = 1e17 / uint256(7 days); //10% per week
-            uint256 timeElapsed = block.timestamp - rateInfo.timestamp;
-            uint256 decay = timeElapsed * usageDecayRate;
-            uint192 decayFactor = uint192(decay >= 1e18 ? 0 : 1e18 - decay);
-
-            rateInfo.usage = rateInfo.usage * decayFactor / 1e18;
-            rateInfo.timestamp = uint64(block.timestamp);
-        }
-
-        // 
-        uint256 halfway = rateInfo.usage + (weightOfRedeem/2);
-        
-        rateInfo.usage += uint192(weightOfRedeem);
-        rateInfo.timestamp = uint64(block.timestamp);
-
-        uint256 maxusage = 1e17;
-        uint256 discount = maxusage > halfway ? maxusage - halfway : 0;
-        discount = (discount * 1e18 / maxusage); //discount is now a 1e18 precision % 
-        discount = (2e15 * discount / 1e18);// reduce 2e18 by % above
-        return (redemptionHandler.baseRedemptionFee() - discount, rateInfo);
+        return _calcRedemptionFee(_pair, getRedemptionRate(_pair), _amount);
     }
 
-    function _xgetRedemptionFee(address _pair, uint256 _amount) internal view returns(uint256, RedemptionRateInfo memory rateInfo){
-        (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+    function _calcDecayedBaseRate(address _pair) internal view returns (uint256) {
+        uint256 minutesPassed = (block.timestamp - pairInfo[_pair].lastFeeOperationTime) / SECONDS_IN_ONE_MINUTE;
+        uint256 decayFactor = ResupplyMath._decPow(pairInfo[_pair].minuteDecayFactor, minutesPassed);
 
-        _updateBaseRateFromRedemption(_amount, _totalBorrow.amount);
-
-        if (_totalBorrow.amount == 0) return (redemptionHandler.baseRedemptionFee(), rateInfo);
-        
-        uint256 elapsedTime = (block.timestamp - rateInfo.timestamp);
-        uint256 decayFactor = PrismaMath._decPow(minuteDecayFactor, elapsedTime);
-
-        return (baseRate * decayFactor) / DECIMAL_PRECISION;
+        return (pairInfo[_pair].baseRate * decayFactor) / DECIMAL_PRECISION;
     }
-
 
     function _updateBaseRateFromRedemption(
-        uint256 _redemptionAmount,
+        address _pair,
+        RedemptionRateInfo memory _rateInfo,
+        uint256 _redemptionValue,
         uint256 _totalDebtSupply
     ) internal returns (uint256) {
-        uint256 decayedBaseRate = _calcDecayedBaseRate();
+        uint256 decayedBaseRate = _calcDecayedBaseRate(_pair);
 
-        uint256 redeemedDebtFraction = (_redemptionAmount) / _totalDebtSupply;
+        uint256 redeemedDebtFraction = (_redemptionValue) / _totalDebtSupply;
 
-        uint256 newBaseRate = decayedBaseRate + (redeemedDebtFraction / BETA);
-        newBaseRate = PrismaMath._min(newBaseRate, DECIMAL_PRECISION); // cap baseRate at a maximum of 100%
+        uint256 newBaseRate = decayedBaseRate + (redeemedDebtFraction / 2);
+        newBaseRate = ResupplyMath._min(newBaseRate, DECIMAL_PRECISION); // cap baseRate at a maximum of 100%
 
         // Update the baseRate state variable
-        baseRate = newBaseRate;
+        _rateInfo.baseRate = newBaseRate;
         emit BaseRateUpdated(newBaseRate);
 
-        _updateLastFeeOpTime();
+        _updateLastFeeOpTime(_pair, _rateInfo.lastFeeOperationTime);
 
         return newBaseRate;
     }
 
-    function getRedemptionRate() public view returns (uint256) {
-        return _calcRedemptionRate(baseRate);
+    function getRedemptionRate(address _pair) public view returns (uint256) {
+        return _calcRedemptionRate(_pair, pairInfo[_pair].baseRate);
     }
 
-    function getRedemptionRateWithDecay() public view returns (uint256) {
-        return _calcRedemptionRate(_calcDecayedBaseRate());
+    function getRedemptionRateWithDecay(address _pair) public view returns (uint256) {
+        return _calcRedemptionRate(_pair, _calcDecayedBaseRate(_pair));
     }
 
-    function _calcRedemptionRate(uint256 _baseRate) internal view returns (uint256) {
+    function _calcRedemptionRate(address _pair, uint256 _baseRate) internal view returns (uint256) {
         return
-            PrismaMath._min(
-                redemptionFeeFloor + _baseRate,
-                maxRedemptionFee // cap at a maximum of 100%
+            ResupplyMath._min(
+                pairInfo[_pair].redemptionFeeFloor + _baseRate,
+                pairInfo[_pair].maxRedemptionFee // cap at a maximum of 100%
             );
     }
 
-    function getRedemptionFeeWithDecay(uint256 _collateralDrawn) external view returns (uint256) {
-        return _calcRedemptionFee(getRedemptionRateWithDecay(), _collateralDrawn);
+    function getRedemptionFeeWithDecay(address _pair, uint256 _debtRepaid) external view returns (uint256) {
+        return _calcRedemptionFee(_pair, getRedemptionRateWithDecay(_pair), _debtRepaid);
     }
 
-    function _calcRedemptionFee(uint256 _redemptionRate, uint256 _collateralDrawn) internal pure returns (uint256) {
-        uint256 redemptionFee = (_redemptionRate * _collateralDrawn) / DECIMAL_PRECISION;
-        require(redemptionFee < _collateralDrawn, "Fee exceeds returned collateral");
+    function _calcRedemptionFee(address _pair, uint256 _redemptionRate, uint256 _debtRepaid) internal pure returns (uint256) {
+        uint256 redemptionFee = (_redemptionRate * _debtRepaid) / DECIMAL_PRECISION;
+        require(redemptionFee < _debtRepaid, "Fee exceeds total debt repaid");
         return redemptionFee;
     }
 
-    function _calcDecayedBaseRate() internal view returns (uint256) {
-        uint256 elapsedTime = (block.timestamp - lastFeeOperationTime) / SECONDS_IN_ONE_MINUTE;
-        uint256 decayAmount = (baseRate * minuteDecayFactor * elapsedTime) / DECIMAL_PRECISION;
-        return decayAmount >= baseRate ? 0 : baseRate - decayAmount;
+    function _updateLastFeeOpTime(address _pair, uint256 _lastFeeOperationTime) internal {
+        uint256 timePassed = block.timestamp - _lastFeeOperationTime;
+
+        if (timePassed >= SECONDS_IN_ONE_MINUTE) {  
+            pairInfo[_pair].lastFeeOperationTime = uint64(block.timestamp);
+            emit LastFeeOpTimeUpdated(block.timestamp);
+        }
+    }
+
+    function setDefaultSettings(
+        uint256 _minuteDecayFactor, 
+        uint256 _redemptionFeeFloor, 
+        uint256 _maxRedemptionFee
+    ) external onlyOwner {
+        pairInfo[address(0)] = RedemptionRateInfo({
+            minuteDecayFactor: _minuteDecayFactor,
+            baseRate: 0,
+            lastFeeOperationTime: 0,
+            redemptionFeeFloor: _redemptionFeeFloor,
+            maxRedemptionFee: _maxRedemptionFee
+        });
     }
 }

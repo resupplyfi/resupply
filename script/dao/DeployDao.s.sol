@@ -11,6 +11,7 @@ import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
 import "../../lib/forge-std/src/console.sol";
 
 contract DeployDao is TenderlyHelper, CreateXDeployer {
+    uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
     address public dev = address(0xc4ad);
     address tempGov = address(987);
@@ -110,6 +111,7 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         bytes memory constructorArgs = abi.encode(
             address(core), 
             _vestManagerAddress, // Next Nonce
+            GOV_TOKEN_INITIAL_SUPPLY,
             "Resupply", 
             "RSUP"
         );
