@@ -67,4 +67,9 @@ bracket_spacing = true
 int_types = "long"
 number_underscore = "thousands"
 
+[invariant]
+runs = 10
+depth = 20
+fail_on_revert = true
+
 # See more config options https://github.com/gakonst/foundry/tree/master/config
