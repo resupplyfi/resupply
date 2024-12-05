@@ -69,15 +69,15 @@ contract VestManager is VestManagerBase {
         bytes32[3] memory _merkleRoots,
         address[3] memory _nonUserTargets,
         uint256[7] memory _vestDurations,
-        uint256[8] memory _allocPercentages
+        uint256[7] memory _allocPercentages
     ) external onlyOwner {
         require(!initParamsSet, "params already set");
         initParamsSet = true;
 
-        uint256 totalPctAllocated = _allocPercentages[_allocPercentages.length - 1];
+        uint256 totalPctAllocated;
         uint256 airdropIndex;
         // Set durations and allocations for each allocation type
-        for (uint256 i = 0; i < uint256(type(AllocationType).max) + 1; i++) {
+        for (uint256 i = 0; i <= uint256(type(AllocationType).max); i++) {
             AllocationType allocType = AllocationType(i);
             require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
             durationByType[allocType] = uint32(_vestDurations[i]);

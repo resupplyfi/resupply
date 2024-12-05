@@ -8,6 +8,8 @@ import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
+import { IRedemptionFeeCalculator } from "../interfaces/IRedemptionFeeCalculator.sol";
+
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
@@ -16,12 +18,14 @@ import { IMintable } from "../interfaces/IMintable.sol";
 contract RedemptionHandler is CoreOwnable{
     using SafeERC20 for IERC20;
 
+    uint256 public constant PRECISION = 1e18;
+    uint256 public baseRedemptionFee = 1e16; //1%
     address public immutable registry;
     address public immutable debtToken;
+    IRedemptionFeeCalculator public redemptionFeeCalculator;
 
-    uint256 public baseRedemptionFee = 1e16; //1%
-    uint256 public constant PRECISION = 1e18;
-    event SetBaseRedemptionFee(uint256 _fee);
+    event SetRedemptionFeeCalculator(address indexed calculator);
+    event SetBaseRedemptionFee(uint256 fee);
 
     constructor(address _core, address _registry) CoreOwnable(_core){
         registry = _registry;
@@ -64,8 +68,20 @@ contract RedemptionHandler is CoreOwnable{
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
     /// TODO: add settable contract for upgradeable logic
-    function getRedemptionFeePct(address _pair, uint256 _amount) public view returns(uint256){
-        return baseRedemptionFee;
+    function _updateRedemptionFee(address _pair, uint256 _amount) internal returns(uint256){
+        IRedemptionFeeCalculator calculator = redemptionFeeCalculator;
+        if (address(calculator) == address(0)) return baseRedemptionFee;
+        return calculator.updateRedemptionFee(_pair, _amount);
+    }
+    
+    function previewRedemptionFee(address _pair, uint256 _amount) public view returns(uint256){
+        if (address(redemptionFeeCalculator) == address(0)) return baseRedemptionFee;
+        return redemptionFeeCalculator.previewRedemptionFee(_pair, _amount);
+    }
+
+    function setRedemptionFeeCalculator(address _calculator) external onlyOwner {
+        redemptionFeeCalculator = IRedemptionFeeCalculator(_calculator);
+        emit SetRedemptionFeeCalculator(_calculator);
     }
 
     /// @notice Redeem stablecoins for collateral from a pair
@@ -83,7 +99,7 @@ contract RedemptionHandler is CoreOwnable{
         bool _redeemToUnderlying
     ) external returns(uint256){
         //get fee
-        uint256 feePct = getRedemptionFeePct(_pair, _amount);
+        uint256 feePct = _updateRedemptionFee(_pair, _amount);
         //check against maxfee to avoid frontrun
         require(feePct <= _maxFeePct, "fee > maxFee");
 

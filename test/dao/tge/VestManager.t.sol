@@ -42,14 +42,13 @@ contract VestManagerHarness is Setup {
                 uint256(365 days)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(1200),  // TREASURY
-                uint256(2000),  // PERMA_LOCKER1 - Convex
-                uint256(1000),  // PERMA_LOCKER2 - Yearn
-                uint256(1500),  // REDEMPTIONS
-                uint256(100),   // AIRDROP_TEAM
-                uint256(200),   // AIRDROP_VICTIMS
-                uint256(0),     // AIRDROP_LOCK_PENALTY
-                uint256(4000)   // Emissions, first 5 years
+                uint256(2000),  // TREASURY
+                uint256(3333),  // PERMA_LOCKER1 - Convex
+                uint256(1667),  // PERMA_LOCKER2 - Yearn
+                uint256(2500),  // REDEMPTIONS
+                uint256(167),   // AIRDROP_TEAM
+                uint256(333),   // AIRDROP_VICTIMS
+                uint256(0)     // AIRDROP_LOCK_PENALTY
             ]
         );
     }
@@ -316,14 +315,13 @@ contract VestManagerHarness is Setup {
                 uint256(365 days)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(1200),  // TREASURY
-                uint256(2000),  // PERMA_LOCKER1 - Convex
-                uint256(1000),  // PERMA_LOCKER2 - Yearn
-                uint256(1500),  // REDEMPTIONS
-                uint256(100),   // AIRDROP_TEAM
-                uint256(200),   // AIRDROP_VICTIMS
-                uint256(0),     // AIRDROP_LOCK_PENALTY
-                uint256(4000)   // Emissions, first 5 years
+                uint256(2000),  // TREASURY
+                uint256(3333),  // PERMA_LOCKER1 - Convex
+                uint256(1667),  // PERMA_LOCKER2 - Yearn
+                uint256(2500),  // REDEMPTIONS
+                uint256(167),   // AIRDROP_TEAM
+                uint256(333),   // AIRDROP_VICTIMS
+                uint256(0)     // AIRDROP_LOCK_PENALTY
             ]
         );
     }

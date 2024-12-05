@@ -54,6 +54,7 @@ contract Setup is Test {
     uint64 internal constant FIFTY_BPS = 158_247_046;
     uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
     uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
+    uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 6_000_000e18;
 
     Core public core;
     GovStaker public staker;
@@ -270,6 +271,7 @@ contract Setup is Test {
         govToken = new GovToken(
             address(core), 
             vestManagerAddress,
+            GOV_TOKEN_INITIAL_SUPPLY,
             "Resupply", 
             "RSUP"
         );
