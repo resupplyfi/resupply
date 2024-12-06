@@ -224,6 +224,10 @@ contract VestManagerHarness is Setup {
         }
     }
 
+    function test_CreateVest() public {
+        
+    }
+
     function test_Redemption() public {
         vm.expectRevert("invalid token");
         vestManager.redeem(address(govToken), address(this), 1e18);
@@ -299,6 +303,7 @@ contract VestManagerHarness is Setup {
     function getAllocationTypeName(VestManager.AllocationType allocationType) internal pure returns (string memory) {
         if (allocationType == VestManager.AllocationType.TREASURY) return "TREASURY";
         if (allocationType == VestManager.AllocationType.PERMA_LOCK) return "PERMA_LOCK";
+        if (allocationType == VestManager.AllocationType.LICENSING) return "LICENSING";
         if (allocationType == VestManager.AllocationType.REDEMPTIONS) return "REDEMPTIONS";
         if (allocationType == VestManager.AllocationType.AIRDROP_TEAM) return "AIRDROP_TEAM";
         if (allocationType == VestManager.AllocationType.AIRDROP_VICTIMS) return "AIRDROP_VICTIMS";

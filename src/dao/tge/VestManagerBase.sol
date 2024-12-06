@@ -30,6 +30,15 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         VEST_GLOBAL_START_TIME = block.timestamp;
     }
 
+    function _createDeadlinedVest(
+        address _account,
+        uint32 _duration,
+        uint112 _amount
+    ) internal returns (uint256) {
+        require(block.timestamp < deadline, "deadline passed");
+        return _createVest(_account, _duration, _amount);
+    }
+
     /// @notice Creates or adds to a vesting instance for an account
     /// @param _account The address to create the vest for
     /// @param _duration The duration of the vesting period in seconds
@@ -41,7 +50,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         uint32 _duration,
         uint112 _amount
     ) internal returns (uint256) {
-        require(block.timestamp < deadline, "deadline passed");
         require(_account != address(0), "zero address");
         require(_amount > 0, "Amount must be greater than zero");
 

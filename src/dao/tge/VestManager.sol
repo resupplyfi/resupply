@@ -35,9 +35,9 @@ contract VestManager is VestManagerBase {
         AIRDROP_LOCK_PENALTY
     }
 
-    event VestCreated(address indexed account, address indexed recipient, uint256 vestId, uint256 amount);
     event TokenRedeemed(address indexed token, address indexed redeemer, address indexed recipient, uint256 amount);
     event MerkleRootSet(AllocationType indexed allocationType, bytes32 root);
+    event AirdropClaimed(AllocationType indexed allocationType, address indexed account, address indexed recipient, uint256 amount);
     event InitializationParamsSet();
 
     constructor(
@@ -151,13 +151,13 @@ contract VestManager is VestManagerBase {
             node
         ), "invalid proof");
 
-        uint256 vestId = _createVest(
+        _createVest(
             _recipient,
             uint32(durationByType[_type]),
             uint112(_amount)
         );
         hasClaimed[_account][_type] = true;
-        emit VestCreated(_account, _recipient, vestId, _amount);
+        emit AirdropClaimed(_type, _account, _recipient, _amount);
     }
 
     /**
@@ -207,7 +207,7 @@ contract VestManager is VestManagerBase {
         token.transferFrom(_funder, address(this), _amount);
         _createVest(
             _recipient,
-            uint32(_duration),
+            uint32(block.timestamp - VEST_GLOBAL_START_TIME) + uint32(_duration), // must be relative to global start time
             uint112(_amount)
         );
     }
