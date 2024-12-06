@@ -39,7 +39,7 @@ contract VestManager is VestManagerBase {
     event TokenRedeemed(address indexed token, address indexed redeemer, address indexed recipient, uint256 amount);
     event MerkleRootSet(AllocationType indexed allocationType, bytes32 root);
     event InitializationParamsSet();
-    event Test(AllocationType indexed allocationType, uint256 allocation);
+
     constructor(
         address _core,
         address _token,
@@ -85,8 +85,7 @@ contract VestManager is VestManagerBase {
             totalPctAllocated += _allocPercentages[i];
             uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / BPS;
             allocationByType[allocType] = allocation;
-            emit Test(allocType, allocation);
-            // Create vest for non-user targets
+            
             if (i < _nonUserTargets.length) { 
                 _createVest(
                     _nonUserTargets[i], 
@@ -95,7 +94,6 @@ contract VestManager is VestManagerBase {
                 );
                 continue;
             }
-
             if (
                 allocType == AllocationType.AIRDROP_TEAM ||
                 allocType == AllocationType.AIRDROP_VICTIMS ||
