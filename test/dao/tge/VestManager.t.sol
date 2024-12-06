@@ -28,23 +28,26 @@ contract VestManagerHarness is Setup {
                 bytes32(0) // We set this one later
             ],
             [   // _nonUserTargets
-                address(treasury), 
                 address(permaLocker1), // Convex
-                address(permaLocker2)  // Yearn
+                address(permaLocker2),  // Yearn
+                FRAX_VEST_TARGET,
+                address(treasury)
             ],
             [   // _durations
-                uint256(365 days),  // TREASURY
-                uint256(365 days),  // PERMA_LOCKER1
-                uint256(365 days),  // PERMA_LOCKER2
-                uint256(365 days),  // REDEMPTIONS
-                uint256(365 days),  // AIRDROP_TEAM
-                uint256(365 days),  // AIRDROP_VICTIMS
-                uint256(365 days)   // AIRDROP_LOCK_PENALTY
+                uint256(5 * 365 days),  // CONVEX
+                uint256(5 * 365 days),  // YEARN
+                uint256(1 * 365 days),  // Frax
+                uint256(5 * 365 days),  // TREASURY
+                uint256(5 * 365 days),  // REDEMPTIONS
+                uint256(1 * 365 days),  // AIRDROP_TEAM
+                uint256(2 * 365 days),  // AIRDROP_VICTIMS
+                uint256(5 * 365 days)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(2000),  // TREASURY
-                uint256(3333),  // PERMA_LOCKER1 - Convex
-                uint256(1667),  // PERMA_LOCKER2 - Yearn
+                uint256(3333),  // Convex
+                uint256(1667),  // Yearn
+                uint256(83),    // Frax
+                uint256(1917),  // TREASURY
                 uint256(2500),  // REDEMPTIONS
                 uint256(167),   // AIRDROP_TEAM
                 uint256(333),   // AIRDROP_VICTIMS
@@ -78,8 +81,7 @@ contract VestManagerHarness is Setup {
             }
             if (
                 allocationType == VestManager.AllocationType.TREASURY ||
-                allocationType == VestManager.AllocationType.PERMA_LOCKER1 ||
-                allocationType == VestManager.AllocationType.PERMA_LOCKER2
+                allocationType == VestManager.AllocationType.PERMA_LOCK
             ) {
                 (uint256 _duration, uint256 _amount, uint256 _claimed) = vestManager.userVests(targets[i], 0);
                 assertGt(_duration, 0);
@@ -108,6 +110,21 @@ contract VestManagerHarness is Setup {
         assertNotEq(address(vestManager), address(0));
         (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleMerkleClaimData();
         
+        assertNotEq(
+            vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_TEAM), 
+            bytes32(0),
+            "AIRDROP_TEAM root not set"
+        );
+        assertNotEq(
+            vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_VICTIMS), 
+            bytes32(0),
+            "AIRDROP_VICTIMS root not set"
+        );
+        assertEq(
+            vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_LOCK_PENALTY), 
+            bytes32(0),
+            "AIRDROP_LOCK_PENALTY root unexpectedly set on init"
+        );
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
             vestManager.merkleClaim(
@@ -281,8 +298,7 @@ contract VestManagerHarness is Setup {
 
     function getAllocationTypeName(VestManager.AllocationType allocationType) internal pure returns (string memory) {
         if (allocationType == VestManager.AllocationType.TREASURY) return "TREASURY";
-        if (allocationType == VestManager.AllocationType.PERMA_LOCKER1) return "PERMA_LOCKER1";
-        if (allocationType == VestManager.AllocationType.PERMA_LOCKER2) return "PERMA_LOCKER2";
+        if (allocationType == VestManager.AllocationType.PERMA_LOCK) return "PERMA_LOCK";
         if (allocationType == VestManager.AllocationType.REDEMPTIONS) return "REDEMPTIONS";
         if (allocationType == VestManager.AllocationType.AIRDROP_TEAM) return "AIRDROP_TEAM";
         if (allocationType == VestManager.AllocationType.AIRDROP_VICTIMS) return "AIRDROP_VICTIMS";
@@ -301,23 +317,26 @@ contract VestManagerHarness is Setup {
                 bytes32(0) // We set this one later
             ],
             [   // _nonUserTargets
-                address(treasury), 
                 address(permaLocker1), // Convex
-                address(permaLocker2)  // Yearn
+                address(permaLocker2),  // Yearn
+                FRAX_VEST_TARGET,
+                address(treasury)
             ],
             [   // _durations
-                uint256(365 days),  // TREASURY
-                uint256(365 days),  // PERMA_LOCKER1
-                uint256(365 days),  // PERMA_LOCKER2
-                uint256(365 days),  // REDEMPTIONS
-                uint256(365 days),  // AIRDROP_TEAM
-                uint256(365 days),  // AIRDROP_VICTIMS
-                uint256(365 days)   // AIRDROP_LOCK_PENALTY
+                uint256(5 * 365 days),  // TREASURY
+                uint256(5 * 365 days),  // PERMA_LOCKER1
+                uint256(5 * 365 days),  // PERMA_LOCKER2
+                uint256(1 * 365 days),  // Frax
+                uint256(3 * 365 days),  // REDEMPTIONS
+                uint256(1 * 365 days),  // AIRDROP_TEAM
+                uint256(2 * 365 days),  // AIRDROP_VICTIMS
+                uint256(5 * 365 days)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(2000),  // TREASURY
-                uint256(3333),  // PERMA_LOCKER1 - Convex
-                uint256(1667),  // PERMA_LOCKER2 - Yearn
+                uint256(1917),  // TREASURY
+                uint256(3333),  // Convex
+                uint256(1667),  // Yearn
+                uint256(83),    // Frax
                 uint256(2500),  // REDEMPTIONS
                 uint256(167),   // AIRDROP_TEAM
                 uint256(333),   // AIRDROP_VICTIMS

@@ -26,9 +26,9 @@ contract VestManager is VestManagerBase {
     mapping(address account => mapping(AllocationType => bool hasClaimed)) public hasClaimed; // used for airdrops only
 
     enum AllocationType {
+        PERMA_LOCK,
+        LICENSING,
         TREASURY,
-        PERMA_LOCKER1,
-        PERMA_LOCKER2,
         REDEMPTIONS,
         AIRDROP_TEAM,
         AIRDROP_VICTIMS,
@@ -37,8 +37,9 @@ contract VestManager is VestManagerBase {
 
     event VestCreated(address indexed account, address indexed recipient, uint256 vestId, uint256 amount);
     event TokenRedeemed(address indexed token, address indexed redeemer, address indexed recipient, uint256 amount);
+    event MerkleRootSet(AllocationType indexed allocationType, bytes32 root);
     event InitializationParamsSet();
-
+    event Test(AllocationType indexed allocationType, uint256 allocation);
     constructor(
         address _core,
         address _token,
@@ -67,9 +68,9 @@ contract VestManager is VestManagerBase {
     function setInitializationParams(
         uint256 _maxRedeemable,
         bytes32[3] memory _merkleRoots,
-        address[3] memory _nonUserTargets,
-        uint256[7] memory _vestDurations,
-        uint256[7] memory _allocPercentages
+        address[4] memory _nonUserTargets,
+        uint256[8] memory _vestDurations,
+        uint256[8] memory _allocPercentages
     ) external onlyOwner {
         require(!initParamsSet, "params already set");
         initParamsSet = true;
@@ -77,28 +78,32 @@ contract VestManager is VestManagerBase {
         uint256 totalPctAllocated;
         uint256 airdropIndex;
         // Set durations and allocations for each allocation type
-        for (uint256 i = 0; i <= uint256(type(AllocationType).max); i++) {
-            AllocationType allocType = AllocationType(i);
+        for (uint256 i = 0; i < _allocPercentages.length; i++) {
+            AllocationType allocType = i == 0 ? AllocationType(i) : AllocationType(i-1); // First two are same type
             require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
             durationByType[allocType] = uint32(_vestDurations[i]);
             totalPctAllocated += _allocPercentages[i];
             uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / BPS;
-            allocationByType[AllocationType(i)] = allocation;
+            allocationByType[allocType] = allocation;
+            emit Test(allocType, allocation);
             // Create vest for non-user targets
             if (i < _nonUserTargets.length) { 
                 _createVest(
                     _nonUserTargets[i], 
-                    uint32(block.timestamp), 
+                    uint32(_vestDurations[i]), 
                     uint112(allocation)
                 );
+                continue;
             }
-            // Set merkle roots for airdrop allocations
+
             if (
-                allocType == AllocationType.AIRDROP_TEAM || 
-                allocType == AllocationType.AIRDROP_LOCK_PENALTY || 
-                allocType == AllocationType.AIRDROP_VICTIMS
+                allocType == AllocationType.AIRDROP_TEAM ||
+                allocType == AllocationType.AIRDROP_VICTIMS ||
+                allocType == AllocationType.AIRDROP_LOCK_PENALTY
             ) {
-                merkleRootByType[allocType] = _merkleRoots[airdropIndex++];
+                // Set merkle roots for airdrop allocations
+                merkleRootByType[allocType] = _merkleRoots[airdropIndex];
+                emit MerkleRootSet(allocType, _merkleRoots[airdropIndex++]);
             }
         }
 
@@ -119,6 +124,7 @@ contract VestManager is VestManagerBase {
     function setLockPenaltyMerkleRoot(bytes32 _root) external onlyOwner {
         require(merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] == bytes32(0), "root already set");
         merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] = _root;
+        emit MerkleRootSet(AllocationType.AIRDROP_LOCK_PENALTY, _root);
     }
 
     function merkleClaim(

@@ -55,6 +55,7 @@ contract Setup is Test {
     uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
     uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
+    address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
 
     Core public core;
     GovStaker public staker;
