@@ -25,7 +25,7 @@ contract StakeHandler is BaseHandler {
     function cooldownMax() external {
         (GovStaker.AccountData memory acctData, ) = govStaker.checkpointAccount(address(this));
         if (acctData.realizedStake == 0) return;
-        govStaker.cooldown(address(this), type(uint256).max);
+        govStaker.cooldown(address(this), type(uint120).max);
     }
 
     function cooldownExact(uint256 amount) external {

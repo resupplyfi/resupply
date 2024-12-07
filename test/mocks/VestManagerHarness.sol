@@ -9,9 +9,8 @@ contract VestManagerHarness is VestManager {
         address _core,
         address _token,
         address _burnAddress,
-        address[3] memory _redemptionTokens, // PRISMA, yPRISMA, cvxPRISMA
-        uint256 _timeUntilDeadline
-    ) VestManager(_core, _token, _burnAddress, _redemptionTokens, _timeUntilDeadline) {}
+        address[3] memory _redemptionTokens // PRISMA, yPRISMA, cvxPRISMA
+    ) VestManager(_core, _token, _burnAddress, _redemptionTokens) {}
 
     /**
         @notice TEST FUNCTION only to set merkle root

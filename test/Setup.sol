@@ -282,8 +282,7 @@ contract Setup is Test {
             address(core), 
             address(govToken),
             BURN_ADDRESS,   // Burn address
-            redemptionTokens,  // Redemption tokens
-            365 days           // Time until deadline
+            redemptionTokens  // Redemption tokens
         );
         assertEq(address(vestManager), vestManagerAddress);
         

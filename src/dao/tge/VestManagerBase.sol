@@ -6,7 +6,6 @@ import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
 contract VestManagerBase is CoreOwnable, DelegatedOps {
-    uint256 public immutable deadline;
     uint256 public immutable VEST_GLOBAL_START_TIME;
     
     uint256 public totalClaimed;
@@ -24,19 +23,9 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     event VestCreated(address indexed account, uint256 indexed duration, uint256 amount);
     event Claimed(address indexed account, uint256 amount);
 
-    constructor(address _core, address _token, uint256 _timeUntilDeadline) CoreOwnable(_core) {
+    constructor(address _core, address _token) CoreOwnable(_core) {
         token = IERC20(_token);
-        deadline = block.timestamp + _timeUntilDeadline;
         VEST_GLOBAL_START_TIME = block.timestamp;
-    }
-
-    function _createDeadlinedVest(
-        address _account,
-        uint32 _duration,
-        uint112 _amount
-    ) internal returns (uint256) {
-        require(block.timestamp < deadline, "deadline passed");
-        return _createVest(_account, _duration, _amount);
     }
 
     /// @notice Creates or adds to a vesting instance for an account
@@ -44,7 +33,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     /// @param _duration The duration of the vesting period in seconds
     /// @param _amount The amount of tokens to vest
     /// @return The total number of vesting instances for the account
-    /// @dev Can only be called by the vest manager contract before the deadline
     function _createVest(
         address _account,
         uint32 _duration,
@@ -174,11 +162,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         } else {
             return (vest.amount * (block.timestamp - VEST_GLOBAL_START_TIME)) / vest.duration;
         }
-    }
-
-    function sweepUnclaimed() external onlyOwner {
-        require(block.timestamp >= deadline, "!deadline");
-        token.transfer(address(core), getUnallocatedBalance());
     }
 
     function getUnallocatedBalance() public view returns (uint256) {

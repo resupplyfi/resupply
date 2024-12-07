@@ -173,8 +173,9 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         uint256 accountWeight = staker.getAccountWeightAt(account, epoch);
         require(accountWeight >= minCreateProposalWeight(), "Not enough weight to propose");
 
-        uint256 totalWeight = staker.getTotalWeightAt(epoch) / 10 ** TOKEN_DECIMALS;
-        uint40 quorumWeight = uint40((totalWeight * passingPct) / MAX_PCT);
+        uint256 totalWeight = staker.getTotalWeightAt(epoch);
+        // Intentional loss of dust precision to allow packing proposal data to into a single storage slot
+        uint40 quorumWeight = uint40((totalWeight * passingPct) / MAX_PCT / 10 ** TOKEN_DECIMALS);
         require(quorumWeight > 0, "Too little stake weight");
         uint256 proposalId = proposalData.length;
         proposalData.push(
@@ -226,13 +227,13 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         require(proposal.createdAt + VOTING_PERIOD > block.timestamp, "Voting period has closed");
 
         // Reduce the account weight by the token decimals to help storage efficiency.
-        uint256 accountWeight = staker.getAccountWeightAt(account, proposal.epoch) / 10 ** TOKEN_DECIMALS;
-        require(accountWeight > 0, "Account weight is zero");
+        uint256 accountWeight = staker.getAccountWeightAt(account, proposal.epoch);
 
-        vote.weightYes = uint40(accountWeight * pctYes / MAX_PCT);
-        vote.weightNo = uint40(accountWeight * pctNo / MAX_PCT);
+        // Intentional loss of dust precision to allow packing proposal data to into a single storage slot
+        vote.weightYes = uint40(accountWeight * pctYes / MAX_PCT / 10 ** TOKEN_DECIMALS);
+        vote.weightNo = uint40(accountWeight * pctNo / MAX_PCT / 10 ** TOKEN_DECIMALS);
         accountVoteWeights[account][id] = vote;
-
+        require(vote.weightYes + vote.weightNo > 0, "Account weight is zero");
         {
             Vote memory result = proposal.results;
             result.weightYes += vote.weightYes;
