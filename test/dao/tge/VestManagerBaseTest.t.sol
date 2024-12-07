@@ -14,8 +14,9 @@ contract VestManagerBaseTest is Setup {
     }
 
     function printAggregatedData(address _account) public {
-        (uint256 claimable, uint256 locked, uint256 claimed, uint256 vested) = vestManager.getAggregatedAccountData(_account);
+        (uint256 totalAmount, uint256 claimable, uint256 locked, uint256 claimed, uint256 vested) = vestManager.getAggregatedAccountData(_account);
         console.log("----- Aggregated data -----");
+        console.log("totalAmount", totalAmount);
         console.log("claimable", claimable);
         console.log("locked", locked);
         console.log("claimed", claimed);

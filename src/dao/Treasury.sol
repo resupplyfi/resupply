@@ -41,4 +41,20 @@ contract Treasury is CoreOwnable {
     function setTokenApproval(address _token, address _spender, uint256 _amount) external onlyOwner {
         IERC20(_token).safeApprove(_spender, _amount);
     }
+
+
+    function execute(address target, bytes calldata data) external returns (bool, bytes memory) {
+        return _execute(target, data);
+    }
+
+    function safeExecute(address target, bytes calldata data) external returns (bytes memory) {
+        (bool success, bytes memory result) = _execute(target, data);
+        require(success, "CallFailed");
+        return result;
+    }
+
+    function _execute(address target, bytes calldata data) internal onlyOwner returns (bool success, bytes memory result) {
+        require(target != address(0), "Invalid target address");
+        (success, result) = target.call(data);
+    }
 }
