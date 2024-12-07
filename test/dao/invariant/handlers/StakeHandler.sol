@@ -18,7 +18,12 @@ contract StakeHandler is BaseHandler {
     uint constant MIN_STAKE_AMOUNT = 1;
     
     function stake(uint256 amount) external {
-        amount = bound(amount, MIN_STAKE_AMOUNT, govToken.balanceOf(address(this)));
+        uint256 balance = govToken.balanceOf(address(this));
+        amount = bound(
+            amount,
+            balance >= MIN_STAKE_AMOUNT ? MIN_STAKE_AMOUNT : 0,
+            balance
+        );
         govStaker.stake(address(this), amount);
     }
 
