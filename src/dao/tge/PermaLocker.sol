@@ -64,7 +64,6 @@ contract PermaLocker is Ownable2Step {
     }
 
     function _execute(address target, bytes calldata data) internal onlyOwnerOrOperator noUnstaking returns (bool success, bytes memory result) {
-        require(target != address(0), "Invalid target address");
         (success, result) = target.call(data);
     }
 

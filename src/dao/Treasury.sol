@@ -54,7 +54,6 @@ contract Treasury is CoreOwnable {
     }
 
     function _execute(address target, bytes calldata data) internal onlyOwner returns (bool success, bytes memory result) {
-        require(target != address(0), "Invalid target address");
         (success, result) = target.call(data);
     }
 }
