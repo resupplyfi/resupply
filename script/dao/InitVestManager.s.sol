@@ -33,14 +33,14 @@ contract InitVestManager is TenderlyHelper {
                 uint256(365 days * 5)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(3333),  // Convex
-                uint256(1667),  // Yearn
-                uint256(83),    // Frax
-                uint256(1917),  // TREASURY
-                uint256(2500),  // REDEMPTIONS
-                uint256(167),   // AIRDROP_TEAM
-                uint256(333),   // AIRDROP_VICTIMS
-                uint256(0)     // AIRDROP_LOCK_PENALTY
+                uint256(333333333333333333),  // 33.33% Convex
+                uint256(166666666666666667),  // 16.67% Yearn
+                uint256(8333333333333333),    // 8.33% Frax
+                uint256(191666666666666667),  // 19.17% TREASURY
+                uint256(250000000000000000),  // 25.00% REDEMPTIONS
+                uint256(16666666666666667),   // 16.67% AIRDROP_TEAM
+                uint256(33333333333333333),   // 33.33% AIRDROP_VICTIMS
+                uint256(0)     // 0%   AIRDROP_LOCK_PENALTY
             ]
         );
 

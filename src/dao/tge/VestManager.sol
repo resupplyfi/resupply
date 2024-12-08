@@ -11,7 +11,7 @@ interface IGovToken is IERC20 {
 }
 
 contract VestManager is VestManagerBase {
-    uint256 constant BPS = 10000;
+    uint256 constant PRECISION = 1e18;
     address immutable public prisma;
     address immutable public yprisma;
     address immutable public cvxprisma;
@@ -82,7 +82,7 @@ contract VestManager is VestManagerBase {
             require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
             durationByType[allocType] = uint32(_vestDurations[i]);
             totalPctAllocated += _allocPercentages[i];
-            uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / BPS;
+            uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / PRECISION;
             allocationByType[allocType] = allocation;
             
             if (i < _nonUserTargets.length) { 
@@ -109,7 +109,7 @@ contract VestManager is VestManagerBase {
             allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable
         );
         require(redemptionRatio != 0, "ratio is 0");
-        require(totalPctAllocated == BPS, "Total not 100%");
+        require(totalPctAllocated == PRECISION, "Total not 100%");
         emit InitializationParamsSet();
     }
 
@@ -117,11 +117,13 @@ contract VestManager is VestManagerBase {
         @notice Set the merkle root for the lock penalty airdrop
         @dev This root must be set later after lock penalty data is finalized
         @param _root Merkle root for the lock penalty airdrop
+        @param _allocation Allocation for the lock penalty airdrop
     */
-    function setLockPenaltyMerkleRoot(bytes32 _root) external onlyOwner {
+    function setLockPenaltyMerkleRoot(bytes32 _root, uint256 _allocation) external onlyOwner {
         require(merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] == bytes32(0), "root already set");
         merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] = _root;
         emit MerkleRootSet(AllocationType.AIRDROP_LOCK_PENALTY, _root);
+        allocationByType[AllocationType.AIRDROP_LOCK_PENALTY] = _allocation;
     }
 
     function merkleClaim(
