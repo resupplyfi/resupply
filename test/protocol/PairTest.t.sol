@@ -86,7 +86,7 @@ contract PairTest is PairTestBase {
         uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
         uint256 otherFeesBefore = pair.claimableOtherFees();
-        uint256 totalFee = redemptionHandler.getRedemptionFeeWithDecay(address(pair), redeemAmount);
+        uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
@@ -129,7 +129,7 @@ contract PairTest is PairTestBase {
         deal(address(stablecoin), address(this), redeemAmount);
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
         uint256 otherFeesBefore = pair.claimableOtherFees();
-        uint256 totalFee = redemptionHandler.getRedemptionFeeWithDecay(address(pair), redeemAmount);
+        uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
         uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
         
         // We expect this to revert because the total remaining debt is less than `minimumLeftoverDebt`

@@ -190,7 +190,7 @@ contract ResupplyAccountingTest is Setup {
         stablecoin.approve(address(redemptionHandler), amountToRedeem);
         (uint totalBorrowAmount, ) = pair.totalBorrow();
 
-        uint _fee = redemptionHandler.getRedemptionFeeWithDecay(address(pair), amountToRedeem);
+        uint _fee = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
         
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
