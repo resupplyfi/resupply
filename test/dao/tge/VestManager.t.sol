@@ -69,66 +69,59 @@ contract VestManagerHarness is Setup {
         assertEq(vestManager.numAccountVests(address(permaLocker2)), 1);
         assertEq(vestManager.numAccountVests(FRAX_VEST_TARGET), 1);
 
-        (uint256 total, uint256 claimable, uint256 locked, uint256 claimed, uint256 vested, uint256 timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        (uint256 total, uint256 claimable, uint256 claimed, uint256 timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
         assertEq(claimable, 0, 'claimable not 0');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, 0, 'vested not > 0');
         assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years');
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
         assertEq(claimable, 0, 'claimable not 0');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, 0, 'vested not > 0');
         assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years');
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
         assertEq(claimable, 0, 'claimable not 0');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, 0, 'vested not > 0');
         assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years'); 
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
         assertEq(claimable, 0, 'claimable not 0');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, 0, 'vested not > 0');
         assertEq(timeRemaining, 1 * 365 days, 'timeRemaining not 1 year');
 
         skip(365 days);
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
         assertEq(claimable, total / 5, 'claimable not total / 5');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, claimable, 'vested not > 0');
         assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
         assertEq(claimable, total / 5, 'claimable not total / 5');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, claimable, 'vested not > 0');
         assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
         assertEq(claimable, total / 5, 'claimable not total / 5');
-        assertGt(locked, 0, 'locked not > 0');
+        assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, claimable, 'vested not > 0');
         assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
 
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
         assertEq(claimable, total, 'claimable not total');
-        assertEq(locked, 0, 'locked not > 0');
         assertEq(claimed, 0, 'claimed not 0');
-        assertEq(vested, claimable, 'vested not > 0');
         assertEq(timeRemaining, 0, 'timeRemaining not 0');
 
         uint256 claimedActual = vestManager.claim(address(treasury));
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        uint256 locked = total - claimed - claimable;
+        uint256 vested = total - locked;
         assertEq(claimedActual, total / 5, 'Actual claimed not total / 5');
         assertEq(claimable, 0, 'claimable not 0');
         assertEq(locked, total * 4 / 5, 'locked not total * 4 / 5');
@@ -137,12 +130,11 @@ contract VestManagerHarness is Setup {
         assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
 
         claimedActual = vestManager.claim(FRAX_VEST_TARGET);
-        (total, claimable, locked, claimed, vested, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
         assertEq(claimedActual, total, 'Actual claimed not total');
         assertEq(claimable, 0, 'claimable not 0');
-        assertEq(locked, 0, 'locked not total');
         assertEq(claimed, total, 'claimed not total');
-        assertEq(vested, total, 'vested not total');
+        assertEq(claimed + claimable, total, 'vested not total');
         assertEq(timeRemaining, 0, 'timeRemaining not 0');
 
         skip(365 days);
@@ -357,15 +349,13 @@ contract VestManagerHarness is Setup {
             (
                 uint256 _total,
                 uint256 _claimable,
-                uint256 _locked,
                 uint256 _claimed,
-                uint256 _vested,
                 uint256 _timeRemaining
             ) = vestManager.getSingleVestData(address(this), 0);
 
             // Check that the amount is correct
             totalUserGain += amount * redemptionRatio / 1e18;
-            assertEq(totalUserGain, _locked + _vested);
+            assertEq(totalUserGain, _total);
             assertEq(vestManager.numAccountVests(address(this)), 1);
         }
 
