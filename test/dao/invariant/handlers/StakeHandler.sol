@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.22 <0.9.0;
 
+import { Test } from "lib/forge-std/src/Test.sol";
 import { BaseHandler } from "./BaseHandler.sol";
 import { GovStaker } from "src/dao/staking/GovStaker.sol";
 import { GovToken } from "src/dao/GovToken.sol";
 
-contract StakeHandler is BaseHandler {
+contract StakeHandler is BaseHandler, Test {
     GovStaker internal govStaker;
     GovToken internal govToken;
 
@@ -18,12 +19,8 @@ contract StakeHandler is BaseHandler {
     uint constant MIN_STAKE_AMOUNT = 1;
     
     function stake(uint256 amount) external {
-        uint256 balance = govToken.balanceOf(address(this));
-        amount = bound(
-            amount,
-            balance >= MIN_STAKE_AMOUNT ? MIN_STAKE_AMOUNT : 0,
-            balance
-        );
+        amount = bound(amount, MIN_STAKE_AMOUNT, type(uint104).max);
+        deal(address(govToken), address(this), amount);
         govStaker.stake(address(this), amount);
     }
 

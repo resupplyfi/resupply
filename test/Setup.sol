@@ -288,6 +288,9 @@ contract Setup is Test {
         
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
         stakingToken = govToken;
+
+        vm.prank(address(core));
+        core.setVoter(address(voter));
         
         emissionsController = new EmissionsController(
             address(core), 

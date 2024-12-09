@@ -36,4 +36,19 @@ contract Stake_Invariant_Test is Setup {
             "Invariant violated: balance is not sum of pending and realized"
         );
     }
+
+    function invariant_WeightIsLessThanOrEqualToRealizedStake() external {
+        (GovStaker.AccountData memory acctData, ) = staker.checkpointAccount(address(stakeHandler));
+        uint256 weight = staker.getAccountWeight(address(stakeHandler));
+        assertLe(weight, acctData.realizedStake, "Invariant violated: weight is greater than realized stake");
+        assertLe(weight, staker.balanceOf(address(stakeHandler)), "Invariant violated: weight is greater than balance");
+    }
+
+    function invariant_AmountIsSumOfUnstakableAndCooldownAmount() external {
+        uint256 weight = staker.getAccountWeight(address(stakeHandler));
+        uint256 balance = staker.balanceOf(address(stakeHandler));
+        (, uint152 amount) = staker.cooldowns(address(stakeHandler));
+        balance += uint256(amount);
+        assertGe(balance, weight, "Invariant violated: weight is greater than balance + cooldown amount");
+    }
 }
