@@ -22,9 +22,9 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     uint256 public immutable TOKEN_DECIMALS;
     uint256 public constant VOTING_PERIOD = 1 weeks;
-    uint256 public constant EXECUTION_DELAY = 1 days;
+    uint256 public constant EXECUTION_DELAY = 1 days; // Required time-lock for executing proposals
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
-    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
+    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days; // User level cooldown
     uint256 public constant MAX_PCT = 10000;
 
     IGovStaker public immutable staker;
@@ -43,7 +43,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     // percent of total weight required to create a new proposal
     uint256 public minCreateProposalPct;
     // percent of total weight that must vote for a proposal before it can be executed
-    uint256 public passingPct;
+    uint256 public quorumPct;
 
     event ProposalCreated(
         address indexed account,
@@ -61,7 +61,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         uint256 weightNo
     );
     event ProposalCreationMinPctSet(uint256 weight);
-    event ProposalPassingPctSet(uint256 pct);
+    event ProposalQuorumPctSet(uint256 pct);
     event OperatorExecuted(address indexed caller, address indexed target, bytes data);
 
     struct Proposal {
@@ -87,17 +87,17 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param _core Address of the core contract
         @param _staker Address of the staker contract
         @param _minCreateProposalPct Percent (in BPS) of total weight required to create a proposal
-        @param _passingPct Percent (in BPS) of total weight that must vote for a proposal before it can be executed
+        @param _quorumPct Percent (in BPS) of total weight that must vote for a proposal before it can be executed
     */
     constructor(
         address _core,
         IGovStaker _staker,
         uint256 _minCreateProposalPct,
-        uint256 _passingPct
+        uint256 _quorumPct
     ) CoreOwnable(_core) EpochTracker(_core) {
         staker = _staker;
         minCreateProposalPct = _minCreateProposalPct;
-        passingPct = _passingPct;
+        quorumPct = _quorumPct;
         TOKEN_DECIMALS = IERC20(_staker.stakeToken()).decimals();
     }
 
@@ -175,7 +175,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
         uint256 totalWeight = staker.getTotalWeightAt(epoch);
         // Intentional loss of dust precision to allow packing proposal data to into a single storage slot
-        uint40 quorumWeight = uint40((totalWeight * passingPct) / MAX_PCT / 10 ** TOKEN_DECIMALS);
+        uint40 quorumWeight = uint40((totalWeight * quorumPct) / MAX_PCT / 10 ** TOKEN_DECIMALS);
         require(quorumWeight > 0, "Too little stake weight");
         uint256 proposalId = proposalData.length;
         proposalData.push(
@@ -353,14 +353,15 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Set the required % of the total weight that must vote
                 for a proposal prior to being able to execute it
+        @dev New value is only applicable to new proposals
         @dev Only callable via a passing proposal that includes a call
              to this contract and function within it's payload
      */
-    function setPassingPct(uint256 pct) external onlyOwner returns (bool) {
+    function setQuorumPct(uint256 pct) external onlyOwner returns (bool) {
         require(pct > 0, "Too low");
         require(pct <= MAX_PCT, "Invalid value");
-        passingPct = pct;
-        emit ProposalPassingPctSet(pct);
+        quorumPct = pct;
+        emit ProposalQuorumPctSet(pct);
         return true;
     }
 }

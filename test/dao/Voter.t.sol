@@ -38,7 +38,7 @@ contract VoterTest is Setup {
         uint256 proposalId = 69; // Set to a non-zero number to start with
         uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
 
-        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.passingPct() / 10_000);
+        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.quorumPct() / 10_000);
         vm.expectEmit(true, true, false, true);
         emit Voter.ProposalCreated(
             user1, 
@@ -237,18 +237,18 @@ contract VoterTest is Setup {
         vm.stopPrank();
     }
 
-    function test_setPassingPct() public {
+    function test_setQuorumPct() public {
         vm.expectRevert("!core");
-        voter.setPassingPct(5000);
+        voter.setQuorumPct(5000);
 
         vm.startPrank(address(core));
-        voter.setPassingPct(5000);
+        voter.setQuorumPct(5000);
 
         vm.expectRevert("Too low");
-        voter.setPassingPct(0);
+        voter.setQuorumPct(0);
 
         vm.expectRevert("Invalid value");
-        voter.setPassingPct(MAX_PCT+1);
+        voter.setQuorumPct(MAX_PCT+1);
         vm.stopPrank();
     }
 
