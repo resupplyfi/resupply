@@ -128,7 +128,6 @@ contract VestManagerHarness is Setup {
                 proofs[i],
                 i
             );
-            vm.stopPrank();
             vm.expectRevert("root not set");
             vestManager.merkleClaim(
                 users[i],
@@ -169,9 +168,9 @@ contract VestManagerHarness is Setup {
         
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
-            vm.expectRevert("invalid proof");
             uint256 wrongIndex = i + 1;
             if (wrongIndex >= proofs[i].length) wrongIndex = i - 1;
+            vm.expectRevert("invalid proof");
             vestManager.merkleClaim(
                 users[i],
                 users[i],
@@ -195,7 +194,7 @@ contract VestManagerHarness is Setup {
             );
 
             address wrongUser;
-            vm.expectRevert("invalid proof");
+            vm.expectRevert("!CallerOrDelegated");
             vestManager.merkleClaim(
                 wrongUser,
                 users[i],
@@ -244,6 +243,25 @@ contract VestManagerHarness is Setup {
             vestManager.claim(address(this));
             vm.stopPrank();
         }
+    }
+
+    function test_CannotStealMerkleClaim() public {
+        assertEq(vestManager.numAccountVests(address(this)), 0, "User should not have vests");
+
+        (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleMerkleClaimData();
+        assertNotEq(users[0], address(this));
+        
+        vm.expectRevert("!CallerOrDelegated");
+        vestManager.merkleClaim(
+            users[0],
+            address(this), // recipient set to caller
+            amounts[0],
+            VestManager.AllocationType.AIRDROP_TEAM,
+            proofs[0],
+            0 // index
+        );
+
+        assertEq(vestManager.numAccountVests(address(this)), 0, "User should not have vests");
     }
 
     function getSampleMerkleClaimData() public pure returns (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) {

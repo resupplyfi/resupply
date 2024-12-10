@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 import { VestManagerBase } from "./VestManagerBase.sol";
+import { DelegatedOps } from "../../dependencies/DelegatedOps.sol";
 
 interface IGovToken is IERC20 {
     function INITIAL_SUPPLY() external view returns (uint256);
@@ -128,7 +129,7 @@ contract VestManager is VestManagerBase {
         AllocationType _type,
         bytes32[] calldata _proof,
         uint256 _index
-    ) external {
+    ) external callerOrDelegated(_account) {
         require(
             _type == AllocationType.AIRDROP_TEAM || 
             _type == AllocationType.AIRDROP_LOCK_PENALTY || 
