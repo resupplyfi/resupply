@@ -11,6 +11,11 @@ import { IGovStakerEscrow } from "../../src/interfaces/IGovStakerEscrow.sol";
 import "../../lib/forge-std/src/console.sol";
 
 contract DeployDao is TenderlyHelper, CreateXDeployer {
+    // VestManager.sol
+    address public constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;  
+    uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18; // TGE supply
+    address internal constant BURN_ADDRESS = address(0xdead); // Where Prisma tokens go
+
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
     address public dev = address(0xc4ad);
     address tempGov = address(987);
