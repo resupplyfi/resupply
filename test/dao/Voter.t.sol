@@ -191,6 +191,19 @@ contract VoterTest is Setup {
         return voter.createNewProposal(user1, payload);
     }
 
+    function createSimpleProposal() public returns (uint256) {
+        Voter.Action[] memory payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
+            target: address(pair),
+            data: abi.encodeWithSelector(
+                pair.setValue.selector, 
+                5
+            )
+        });
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload);
+    }
+
     function test_setMinCreateProposalPct() public {
         vm.expectRevert("!core");
         voter.setMinCreateProposalPct(5000);
@@ -219,5 +232,16 @@ contract VoterTest is Setup {
         vm.expectRevert("Invalid value");
         voter.setPassingPct(MAX_PCT+1);
         vm.stopPrank();
+    }
+
+    function test_CannotReplayProposal() public {
+        uint256 propId = createSimpleProposal();
+        vm.prank(user1);
+        voter.voteForProposal(user1, propId);
+        skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+        
+        assertEq(voter.canExecute(propId), true);
+        voter.executeProposal(propId);
+        assertEq(voter.canExecute(propId), false);
     }
 }
