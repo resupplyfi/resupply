@@ -7,9 +7,6 @@ import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
 contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable VEST_GLOBAL_START_TIME;
-    
-    uint256 public totalClaimed;
-    uint256 public totalAllocated;
     IERC20 public token;
 
     mapping(address => Vest[]) public userVests;
@@ -94,7 +91,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         }
     
         if (_claimed > 0) {
-            totalClaimed += _claimed;
             token.transfer(recipient, _claimed);
             emit Claimed(_account, _claimed);
         }
