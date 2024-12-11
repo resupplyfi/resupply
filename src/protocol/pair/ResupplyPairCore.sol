@@ -928,6 +928,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
+        // accrue interest if necessary
+        _addInterest();
+
         //redemption fees
         //assuming 1% redemption fee(0.5% to protocol, 0.5% to borrowers) and a redemption of $100
         // reduce totalBorrow.amount by 99.5$
