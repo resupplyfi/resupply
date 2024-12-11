@@ -299,7 +299,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
         Proposal memory proposal = proposalData[id];
         require(_canExecute(proposal), "Proposal cannot be executed");
-
+        proposalData[id].processed = true;
+        
         Action[] storage payload = proposalPayloads[id];
         uint256 payloadLength = payload.length;
 
