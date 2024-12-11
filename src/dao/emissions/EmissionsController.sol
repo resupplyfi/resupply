@@ -208,7 +208,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
     function transferFromAllocation(address _recipient, uint256 _amount) external returns (uint256) {
         if (_amount > 0) {
-            allocated[msg.sender].amount -= uint200(_amount);
+            allocated[msg.sender].amount -= _safeCastToUint200(_amount);
             govToken.transfer(_recipient, _amount);
         }
         return _amount;
@@ -347,5 +347,10 @@ contract EmissionsController is CoreOwnable, EpochTracker {
 
     function getScheduleLength() external view returns (uint256) {
         return emissionsSchedule.length;
+    }
+
+    function _safeCastToUint200(uint256 _amount) internal pure returns (uint200) {
+        require(_amount < type(uint200).max, "safecast-overflow");
+        return uint200(_amount);
     }
 }
