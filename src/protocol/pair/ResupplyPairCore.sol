@@ -1029,12 +1029,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
             // We first optimistically calculate the amount of collateral to give the liquidator based on the higher clean liquidation fee
             // This fee only applies if the liquidator does a full liquidation
-            uint256 _optimisticCollateralForLiquidator = (_liquidationAmountInCollateralUnits *
+            _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
                 (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
             // Because interest accrues every block, _liquidationAmountInCollateralUnits from a few lines up is an ever increasing value
             // This means that leftoverCollateral can occasionally go negative by a few hundred wei (cleanLiqFee premium covers this for liquidator)
-            _leftoverCollateral = (_userCollateralBalance.toInt256() - _optimisticCollateralForLiquidator.toInt256());
+            _leftoverCollateral = (_userCollateralBalance.toInt256() - _collateralForLiquidator.toInt256());
 
             // If cleanLiquidation fee results in no leftover collateral, give liquidator all the collateral
             // This will only be true when there liquidator is cleaning out the position
