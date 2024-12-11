@@ -484,11 +484,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // Calculate interest accrued
             _results.interestEarned = (_deltaTime * _results.totalBorrow.amount * _results.newRate) / RATE_PRECISION;
 
-            // Accrue interest (if any) and fees iff no overflow
+            // Accrue interest (if any) and fees if no overflow
             if (
                 _results.interestEarned > 0 &&
-                _results.interestEarned + _results.totalBorrow.amount <= type(uint128).max &&
-                _results.interestEarned + borrowLimit <= type(uint128).max
+                _results.interestEarned + _results.totalBorrow.amount <= type(uint128).max
             ) {
                 // Increment totalBorrow by interestEarned
                 _results.totalBorrow.amount += uint128(_results.interestEarned);
