@@ -176,6 +176,13 @@ contract VoterTest is Setup {
         voter.cancelProposal(propId);
     }
 
+    function test_CannotCancelProposalWithCancelerPayloadAndTargetIsZeroAddress() public {
+        uint256 propId = createProposalDataWithCancelerAndTargetIsZeroAddress();
+        vm.prank(address(core));
+        vm.expectRevert("Contains canceler payload");
+        voter.cancelProposal(propId);
+    }
+
     function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {
         Voter.Action[] memory payload = new Voter.Action[](1);
         payload[0] = Voter.Action({
@@ -193,6 +200,23 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(voter), 
+                ICore.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload);
+    }
+
+    function createProposalDataWithCancelerAndTargetIsZeroAddress() public returns (uint256) {
+        Voter.Action[] memory payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(0),
+                address(0), 
                 ICore.cancelProposal.selector, 
                 true,
                 address(0)

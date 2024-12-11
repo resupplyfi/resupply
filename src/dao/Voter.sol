@@ -279,7 +279,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                     slicedData[j] = data[j + 4];
                 }
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
-                if (target == address(this) && permissionSelector == ICore.cancelProposal.selector) {
+                if ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector) {
                     require(payloadLength == 1, "Payload with canceler must be single action");
                     return true;
                 }
@@ -300,7 +300,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         Proposal memory proposal = proposalData[id];
         require(_canExecute(proposal), "Proposal cannot be executed");
         proposalData[id].processed = true;
-        
+
         Action[] storage payload = proposalPayloads[id];
         uint256 payloadLength = payload.length;
 
