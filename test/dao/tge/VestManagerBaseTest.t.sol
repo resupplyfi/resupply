@@ -157,21 +157,6 @@ contract VestManagerBaseTest is Setup {
         vm.stopPrank();
     }
 
-    function test_sweepUnclaimed() public {
-        vm.startPrank(address(core));
-
-        vm.expectRevert("!deadline");
-        vestManager.sweepUnclaimed();
-
-        vm.warp(vestManager.deadline());
-        uint256 balance = govToken.balanceOf(address(vestManager));
-        
-        vestManager.sweepUnclaimed();
-        assertEq(govToken.balanceOf(address(vestManager)), 0);
-        assertEq(govToken.balanceOf(address(core)), balance);
-        vm.stopPrank();
-    }
-
     function printAggregatedData(address _account) public {
         (uint256 claimable, uint256 locked, uint256 claimed, uint256 vested) = vestManager.getAggregatedAccountData(_account);
         console.log("----- Aggregated data -----");

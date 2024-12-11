@@ -10,7 +10,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable VEST_GLOBAL_START_TIME;
     
     uint256 public totalClaimed;
-    uint256 public totalAllocated;
     IERC20 public token;
 
     mapping(address => Vest[]) public userVests;
@@ -51,7 +50,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         for (uint256 i = 0; i < length; i++) {
             if (userVests[_account][i].duration == _duration) {
                 userVests[_account][i].amount += _amount;
-                totalAllocated += _amount;
                 return length;
             }
         }
@@ -62,8 +60,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
             _amount,
             0 // claimed
         ));
-
-        totalAllocated += _amount;
         emit VestCreated(_account, _duration, _amount);
         return numAccountVests(_account);
     }
@@ -166,14 +162,5 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         } else {
             return (vest.amount * (block.timestamp - VEST_GLOBAL_START_TIME)) / vest.duration;
         }
-    }
-
-    function sweepUnclaimed() external onlyOwner {
-        require(block.timestamp >= deadline, "!deadline");
-        token.transfer(address(core), getUnallocatedBalance());
-    }
-
-    function getUnallocatedBalance() public view returns (uint256) {
-        return token.balanceOf(address(this)) - totalAllocated;
     }
 }
