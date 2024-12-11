@@ -146,7 +146,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.amount;
 
-        if(block.timestamp < userCooldown.end || cooldownEpochs == 0) revert InvalidCooldown();
+        if(block.timestamp < userCooldown.end && cooldownEpochs != 0) revert InvalidCooldown();
 
         delete cooldowns[_account];
 
