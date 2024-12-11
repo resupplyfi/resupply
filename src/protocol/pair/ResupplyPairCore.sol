@@ -266,7 +266,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
         uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
-        return borrowable < mintable ? borrowable : mintable;
+        borrowable = borrowable < mintable ? borrowable : mintable;
+        return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
     function currentUtilization() public view returns (uint256) {
@@ -653,20 +654,20 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
         }
         //mint fees
-        uint128 debtForMint = uint128((_borrowAmount * (LIQ_PRECISION + mintFee)) / LIQ_PRECISION);
+        uint256 debtForMint = (_borrowAmount * (LIQ_PRECISION + mintFee) / LIQ_PRECISION);
 
         // Calculate the number of shares to add based on the amount to borrow
         _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
-        _totalBorrow.amount += debtForMint;
+        _totalBorrow.amount += debtForMint.toUint128();
         _totalBorrow.shares += uint128(_sharesAdded);
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
         _userBorrowShares[msg.sender] += _sharesAdded;
 
-        uint256 otherFees = debtForMint - _borrowAmount;
+        uint256 otherFees = debtForMint > _borrowAmount ? debtForMint - _borrowAmount : 0;
         if (otherFees > 0) claimableOtherFees += otherFees;
 
         // Interactions
