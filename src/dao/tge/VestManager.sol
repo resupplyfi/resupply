@@ -128,7 +128,7 @@ contract VestManager is VestManagerBase {
         AllocationType _type,
         bytes32[] calldata _proof,
         uint256 _index
-    ) external {
+    ) external callerOrDelegated(_account) {
         require(
             _type == AllocationType.AIRDROP_TEAM || 
             _type == AllocationType.AIRDROP_LOCK_PENALTY || 

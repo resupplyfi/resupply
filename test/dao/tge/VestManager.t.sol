@@ -128,7 +128,6 @@ contract VestManagerHarness is Setup {
                 proofs[i],
                 i
             );
-            vm.stopPrank();
             vm.expectRevert("root not set");
             vestManager.merkleClaim(
                 users[i],
@@ -195,7 +194,7 @@ contract VestManagerHarness is Setup {
             );
 
             address wrongUser;
-            vm.expectRevert("invalid proof");
+            vm.expectRevert("!CallerOrDelegated");
             vestManager.merkleClaim(
                 wrongUser,
                 users[i],
