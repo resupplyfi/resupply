@@ -1020,7 +1020,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Prevent stack-too-deep
         int256 _leftoverCollateral;
-        // uint256 _feesAmount;
         {
             // Checks & Calculations
             // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
