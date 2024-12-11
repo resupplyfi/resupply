@@ -28,30 +28,135 @@ contract VestManagerHarness is Setup {
                 bytes32(0) // We set this one later
             ],
             [   // _nonUserTargets
-                address(treasury), 
                 address(permaLocker1), // Convex
-                address(permaLocker2)  // Yearn
+                address(permaLocker2),  // Yearn
+                FRAX_VEST_TARGET,
+                address(treasury)
             ],
             [   // _durations
-                uint256(365 days),  // TREASURY
-                uint256(365 days),  // PERMA_LOCKER1
-                uint256(365 days),  // PERMA_LOCKER2
-                uint256(365 days),  // REDEMPTIONS
-                uint256(365 days),  // AIRDROP_TEAM
-                uint256(365 days),  // AIRDROP_VICTIMS
-                uint256(365 days)   // AIRDROP_LOCK_PENALTY
+                uint256(5 * 365 days),  // CONVEX
+                uint256(5 * 365 days),  // YEARN
+                uint256(1 * 365 days),  // Frax
+                uint256(5 * 365 days),  // TREASURY
+                uint256(5 * 365 days),  // REDEMPTIONS
+                uint256(1 * 365 days),  // AIRDROP_TEAM
+                uint256(2 * 365 days),  // AIRDROP_VICTIMS
+                uint256(5 * 365 days)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(1200),  // TREASURY
-                uint256(2000),  // PERMA_LOCKER1 - Convex
-                uint256(1000),  // PERMA_LOCKER2 - Yearn
-                uint256(1500),  // REDEMPTIONS
-                uint256(100),   // AIRDROP_TEAM
-                uint256(200),   // AIRDROP_VICTIMS
-                uint256(0),     // AIRDROP_LOCK_PENALTY
-                uint256(4000)   // Emissions, first 5 years
+                uint256(333333333333333333),  // 33.33% Convex
+                uint256(166666666666666667),  // 16.67% Yearn
+                uint256(8333333333333333),    // 8.33% Frax
+                uint256(191666666666666667),  // 19.17% TREASURY
+                uint256(250000000000000000),  // 25.00% REDEMPTIONS
+                uint256(16666666666666667),   // 16.67% AIRDROP_TEAM
+                uint256(33333333333333333),   // 33.33% AIRDROP_VICTIMS
+                uint256(0)     // 0%   AIRDROP_LOCK_PENALTY
             ]
         );
+    }
+
+    function test_VestDurations() public {
+        assertEq(vestManager.durationByType(VestManager.AllocationType.TREASURY), 5 * 365 days, 'TREASURY not 5 years');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.PERMA_LOCK), 5 * 365 days, 'PERMA_LOCK not 5 years');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.LICENSING), 1 * 365 days, 'LICENSING not 1 years');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.REDEMPTIONS), 5 * 365 days, 'REDEMPTIONS not 5 years');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.AIRDROP_TEAM), 1 * 365 days, 'AIRDROP_TEAM not 1 year');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.AIRDROP_VICTIMS), 2 * 365 days, 'AIRDROP_VICTIMS not 2 years');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.AIRDROP_LOCK_PENALTY), 5 * 365 days, 'AIRDROP_LOCK_PENALTY not 5 years');
+
+        assertEq(vestManager.numAccountVests(address(permaLocker1)), 1);
+        assertEq(vestManager.numAccountVests(address(permaLocker2)), 1);
+        assertEq(vestManager.numAccountVests(FRAX_VEST_TARGET), 1);
+
+        (uint256 total, uint256 claimable, uint256 claimed, uint256 timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        assertEq(claimable, 0, 'claimable not 0');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years');
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
+        assertEq(claimable, 0, 'claimable not 0');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years');
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
+        assertEq(claimable, 0, 'claimable not 0');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years'); 
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
+        assertEq(claimable, 0, 'claimable not 0');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 1 * 365 days, 'timeRemaining not 1 year');
+
+        skip(365 days);
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        assertEq(claimable, total / 5, 'claimable not total / 5');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
+        assertEq(claimable, total / 5, 'claimable not total / 5');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
+        assertEq(claimable, total / 5, 'claimable not total / 5');
+        assertGt(total, 0, 'total not > 0');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
+
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
+        assertEq(claimable, total, 'claimable not total');
+        assertEq(claimed, 0, 'claimed not 0');
+        assertEq(timeRemaining, 0, 'timeRemaining not 0');
+
+        uint256 claimedActual = vestManager.claim(address(treasury));
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
+        uint256 locked = total - claimed - claimable;
+        uint256 vested = total - locked;
+        assertEq(claimedActual, total / 5, 'Actual claimed not total / 5');
+        assertEq(claimable, 0, 'claimable not 0');
+        assertEq(locked, total * 4 / 5, 'locked not total * 4 / 5');
+        assertEq(claimed, total / 5, 'claimed not total / 5');
+        assertEq(vested, claimed, 'vested not == claimed');
+        assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
+
+        claimedActual = vestManager.claim(FRAX_VEST_TARGET);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(FRAX_VEST_TARGET, 0);
+        assertEq(claimedActual, total, 'Actual claimed not total');
+        assertEq(claimable, 0, 'claimable not 0');
+        assertEq(claimed, total, 'claimed not total');
+        assertEq(claimed + claimable, total, 'vested not total');
+        assertEq(timeRemaining, 0, 'timeRemaining not 0');
+
+        skip(365 days);
+        claimedActual = vestManager.claim(FRAX_VEST_TARGET);
+        assertEq(claimedActual, 0, 'should be nothing more to claim');
+    }
+
+    function test_ClaimSettings() public {
+        vm.prank(address(treasury));
+        vestManager.claim(address(treasury));
+
+        vm.prank(address(treasury));
+        vestManager.setClaimSettings(true, address(this));
+
+        vm.expectRevert("!authorized");
+        vestManager.claim(address(treasury));
+
+        skip(1 days);
+        uint256 balanceBefore = govToken.balanceOf(address(this));
+        vm.prank(address(treasury));
+        vestManager.claim(address(treasury));
+        assertGt(govToken.balanceOf(address(this)), balanceBefore);
     }
 
 
@@ -64,10 +169,8 @@ contract VestManagerHarness is Setup {
         for (uint256 i = 0; i < uint256(type(VestManager.AllocationType).max); i++) {
             VestManager.AllocationType allocationType = VestManager.AllocationType(i);
             uint256 duration = vestManager.durationByType(allocationType);
-            uint256 allocation = vestManager.allocationByType(allocationType);
             bytes32 merkleRoot = vestManager.merkleRootByType(allocationType);
             assertGt(duration, 0);
-            assertGt(allocation, 0);
             if (
                 allocationType == VestManager.AllocationType.AIRDROP_VICTIMS ||
                 allocationType == VestManager.AllocationType.AIRDROP_TEAM
@@ -79,8 +182,7 @@ contract VestManagerHarness is Setup {
             }
             if (
                 allocationType == VestManager.AllocationType.TREASURY ||
-                allocationType == VestManager.AllocationType.PERMA_LOCKER1 ||
-                allocationType == VestManager.AllocationType.PERMA_LOCKER2
+                allocationType == VestManager.AllocationType.PERMA_LOCK
             ) {
                 (uint256 _duration, uint256 _amount, uint256 _claimed) = vestManager.userVests(targets[i], 0);
                 assertGt(_duration, 0);
@@ -109,6 +211,21 @@ contract VestManagerHarness is Setup {
         assertNotEq(address(vestManager), address(0));
         (address[] memory users, uint256[] memory amounts, bytes32[][] memory proofs) = getSampleMerkleClaimData();
         
+        assertNotEq(
+            vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_TEAM), 
+            bytes32(0),
+            "AIRDROP_TEAM root not set"
+        );
+        assertNotEq(
+            vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_VICTIMS), 
+            bytes32(0),
+            "AIRDROP_VICTIMS root not set"
+        );
+        assertEq(
+            vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_LOCK_PENALTY), 
+            bytes32(0),
+            "AIRDROP_LOCK_PENALTY root unexpectedly set on init"
+        );
         for (uint256 i = 0; i < proofs.length; i++) {
             vm.startPrank(users[i]);
             vestManager.merkleClaim(
@@ -142,9 +259,9 @@ contract VestManagerHarness is Setup {
 
         bytes32 sampleRoot = vestManager.merkleRootByType(VestManager.AllocationType.AIRDROP_TEAM);
         vm.startPrank(address(core));
-        vestManager.setLockPenaltyMerkleRoot(sampleRoot);
+        vestManager.setLockPenaltyMerkleRoot(sampleRoot, 1e18);
         vm.expectRevert("root already set");
-        vestManager.setLockPenaltyMerkleRoot(sampleRoot);
+        vestManager.setLockPenaltyMerkleRoot(sampleRoot, 1e18);
         vm.stopPrank();
         
         // Now we make sure users can claims from the final root
@@ -207,6 +324,10 @@ contract VestManagerHarness is Setup {
         }
     }
 
+    function test_CreateVest() public {
+
+    }
+
     function test_Redemption() public {
         vm.expectRevert("invalid token");
         vestManager.redeem(address(govToken), address(this), 1e18);
@@ -225,15 +346,15 @@ contract VestManagerHarness is Setup {
             vestManager.redeem(tokens[i], address(this), amount);
             // Get data for the vest that was just created
             (
+                uint256 _total,
                 uint256 _claimable,
-                uint256 _locked,
                 uint256 _claimed,
-                uint256 _vested
+                uint256 _timeRemaining
             ) = vestManager.getSingleVestData(address(this), 0);
 
             // Check that the amount is correct
             totalUserGain += amount * redemptionRatio / 1e18;
-            assertEq(totalUserGain, _locked + _vested);
+            assertEq(totalUserGain, _total);
             assertEq(vestManager.numAccountVests(address(this)), 1);
         }
 
@@ -281,8 +402,8 @@ contract VestManagerHarness is Setup {
 
     function getAllocationTypeName(VestManager.AllocationType allocationType) internal pure returns (string memory) {
         if (allocationType == VestManager.AllocationType.TREASURY) return "TREASURY";
-        if (allocationType == VestManager.AllocationType.PERMA_LOCKER1) return "PERMA_LOCKER1";
-        if (allocationType == VestManager.AllocationType.PERMA_LOCKER2) return "PERMA_LOCKER2";
+        if (allocationType == VestManager.AllocationType.PERMA_LOCK) return "PERMA_LOCK";
+        if (allocationType == VestManager.AllocationType.LICENSING) return "LICENSING";
         if (allocationType == VestManager.AllocationType.REDEMPTIONS) return "REDEMPTIONS";
         if (allocationType == VestManager.AllocationType.AIRDROP_TEAM) return "AIRDROP_TEAM";
         if (allocationType == VestManager.AllocationType.AIRDROP_VICTIMS) return "AIRDROP_VICTIMS";
@@ -301,28 +422,30 @@ contract VestManagerHarness is Setup {
                 bytes32(0) // We set this one later
             ],
             [   // _nonUserTargets
-                address(treasury), 
                 address(permaLocker1), // Convex
-                address(permaLocker2)  // Yearn
+                address(permaLocker2),  // Yearn
+                FRAX_VEST_TARGET,
+                address(treasury)
             ],
             [   // _durations
-                uint256(365 days),  // TREASURY
-                uint256(365 days),  // PERMA_LOCKER1
-                uint256(365 days),  // PERMA_LOCKER2
-                uint256(365 days),  // REDEMPTIONS
-                uint256(365 days),  // AIRDROP_TEAM
-                uint256(365 days),  // AIRDROP_VICTIMS
-                uint256(365 days)   // AIRDROP_LOCK_PENALTY
+                uint256(5 * 365 days),  // TREASURY
+                uint256(5 * 365 days),  // PERMA_LOCKER1
+                uint256(5 * 365 days),  // PERMA_LOCKER2
+                uint256(1 * 365 days),  // Frax
+                uint256(3 * 365 days),  // REDEMPTIONS
+                uint256(1 * 365 days),  // AIRDROP_TEAM
+                uint256(2 * 365 days),  // AIRDROP_VICTIMS
+                uint256(5 * 365 days)   // AIRDROP_LOCK_PENALTY
             ],
             [ // _allocPercentages
-                uint256(1200),  // TREASURY
-                uint256(2000),  // PERMA_LOCKER1 - Convex
-                uint256(1000),  // PERMA_LOCKER2 - Yearn
-                uint256(1500),  // REDEMPTIONS
-                uint256(100),   // AIRDROP_TEAM
-                uint256(200),   // AIRDROP_VICTIMS
-                uint256(0),     // AIRDROP_LOCK_PENALTY
-                uint256(4000)   // Emissions, first 5 years
+                uint256(333333333333333333),  // 33.33% Convex
+                uint256(166666666666666667),  // 16.67% Yearn
+                uint256(8333333333333333),    // 8.33% Frax
+                uint256(191666666666666667),  // 19.17% TREASURY
+                uint256(250000000000000000),  // 25.00% REDEMPTIONS
+                uint256(16666666666666667),   // 16.67% AIRDROP_TEAM
+                uint256(33333333333333333),   // 33.33% AIRDROP_VICTIMS
+                uint256(0)     // 0%   AIRDROP_LOCK_PENALTY
             ]
         );
     }

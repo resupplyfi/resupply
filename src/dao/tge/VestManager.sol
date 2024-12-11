@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
@@ -11,7 +12,7 @@ interface IGovToken is IERC20 {
 }
 
 contract VestManager is VestManagerBase {
-    uint256 constant BPS = 10000;
+    uint256 constant PRECISION = 1e18;
     address immutable public prisma;
     address immutable public yprisma;
     address immutable public cvxprisma;
@@ -26,26 +27,26 @@ contract VestManager is VestManagerBase {
     mapping(address account => mapping(AllocationType => bool hasClaimed)) public hasClaimed; // used for airdrops only
 
     enum AllocationType {
+        PERMA_LOCK,
+        LICENSING,
         TREASURY,
-        PERMA_LOCKER1,
-        PERMA_LOCKER2,
         REDEMPTIONS,
         AIRDROP_TEAM,
         AIRDROP_VICTIMS,
         AIRDROP_LOCK_PENALTY
     }
 
-    event VestCreated(address indexed account, address indexed recipient, uint256 vestId, uint256 amount);
     event TokenRedeemed(address indexed token, address indexed redeemer, address indexed recipient, uint256 amount);
+    event MerkleRootSet(AllocationType indexed allocationType, bytes32 root);
+    event AirdropClaimed(AllocationType indexed allocationType, address indexed account, address indexed recipient, uint256 amount);
     event InitializationParamsSet();
 
     constructor(
         address _core,
         address _token,
         address _burnAddress,
-        address[3] memory _redemptionTokens, // PRISMA, yPRISMA, cvxPRISMA
-        uint256 _timeUntilDeadline
-    ) VestManagerBase(_core, _token, _timeUntilDeadline) {
+        address[3] memory _redemptionTokens // PRISMA, yPRISMA, cvxPRISMA
+    ) VestManagerBase(_core, _token) {
         INITIAL_SUPPLY = IGovToken(_token).INITIAL_SUPPLY();
         require(IERC20(_token).balanceOf(address(this)) == INITIAL_SUPPLY, "invalid initial supply");
         BURN_ADDRESS = _burnAddress;
@@ -67,38 +68,40 @@ contract VestManager is VestManagerBase {
     function setInitializationParams(
         uint256 _maxRedeemable,
         bytes32[3] memory _merkleRoots,
-        address[3] memory _nonUserTargets,
-        uint256[7] memory _vestDurations,
+        address[4] memory _nonUserTargets,
+        uint256[8] memory _vestDurations,
         uint256[8] memory _allocPercentages
     ) external onlyOwner {
         require(!initParamsSet, "params already set");
         initParamsSet = true;
 
-        uint256 totalPctAllocated = _allocPercentages[_allocPercentages.length - 1];
+        uint256 totalPctAllocated;
         uint256 airdropIndex;
         // Set durations and allocations for each allocation type
-        for (uint256 i = 0; i < uint256(type(AllocationType).max) + 1; i++) {
-            AllocationType allocType = AllocationType(i);
+        for (uint256 i = 0; i < _allocPercentages.length; i++) {
+            AllocationType allocType = i == 0 ? AllocationType(i) : AllocationType(i-1); // First two are same type
             require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
             durationByType[allocType] = uint32(_vestDurations[i]);
             totalPctAllocated += _allocPercentages[i];
-            uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / BPS;
-            allocationByType[AllocationType(i)] = allocation;
-            // Create vest for non-user targets
+            uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / PRECISION;
+            allocationByType[allocType] = allocation;
+            
             if (i < _nonUserTargets.length) { 
                 _createVest(
                     _nonUserTargets[i], 
                     uint32(_vestDurations[i]), 
                     uint112(allocation)
                 );
+                continue;
             }
-            // Set merkle roots for airdrop allocations
             if (
-                allocType == AllocationType.AIRDROP_TEAM || 
-                allocType == AllocationType.AIRDROP_LOCK_PENALTY || 
-                allocType == AllocationType.AIRDROP_VICTIMS
+                allocType == AllocationType.AIRDROP_TEAM ||
+                allocType == AllocationType.AIRDROP_VICTIMS ||
+                allocType == AllocationType.AIRDROP_LOCK_PENALTY
             ) {
-                merkleRootByType[allocType] = _merkleRoots[airdropIndex++];
+                // Set merkle roots for airdrop allocations
+                merkleRootByType[allocType] = _merkleRoots[airdropIndex];
+                emit MerkleRootSet(allocType, _merkleRoots[airdropIndex++]);
             }
         }
 
@@ -107,7 +110,7 @@ contract VestManager is VestManagerBase {
             allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable
         );
         require(redemptionRatio != 0, "ratio is 0");
-        require(totalPctAllocated == BPS, "Total not 100%");
+        require(totalPctAllocated == PRECISION, "Total not 100%");
         emit InitializationParamsSet();
     }
 
@@ -115,10 +118,13 @@ contract VestManager is VestManagerBase {
         @notice Set the merkle root for the lock penalty airdrop
         @dev This root must be set later after lock penalty data is finalized
         @param _root Merkle root for the lock penalty airdrop
+        @param _allocation Allocation for the lock penalty airdrop
     */
-    function setLockPenaltyMerkleRoot(bytes32 _root) external onlyOwner {
+    function setLockPenaltyMerkleRoot(bytes32 _root, uint256 _allocation) external onlyOwner {
         require(merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] == bytes32(0), "root already set");
         merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] = _root;
+        emit MerkleRootSet(AllocationType.AIRDROP_LOCK_PENALTY, _root);
+        allocationByType[AllocationType.AIRDROP_LOCK_PENALTY] = _allocation;
     }
 
     function merkleClaim(
@@ -147,13 +153,13 @@ contract VestManager is VestManagerBase {
             node
         ), "invalid proof");
 
-        uint256 vestId = _createVest(
+        _createVest(
             _recipient,
             uint32(durationByType[_type]),
             uint112(_amount)
         );
         hasClaimed[_account][_type] = true;
-        emit VestCreated(_account, _recipient, vestId, _amount);
+        emit AirdropClaimed(_type, _account, _recipient, _amount);
     }
 
     /**
