@@ -51,16 +51,11 @@ contract LiquidationHandler is CoreOwnable{
         require(reward_token == _collateral,"invalidated reward");
         //collateral is a valid reward token and can be sent
 
-        //get balance
-        uint256 collateralBalance = IERC20(_collateral).balanceOf(address(this));
-        if(collateralBalance == 0){
-            //return gracefully if no balance
-            return;
-        }
-
         //first try redeeming as much of the underlying as possible
         processCollateral(_collateral);
 
+        //get balance
+        uint256 collateralBalance = IERC20(_collateral).balanceOf(address(this));
         
         emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
 
@@ -68,8 +63,11 @@ contract LiquidationHandler is CoreOwnable{
         IInsurancePool(insurancePool).burnAssets(debtByCollateral[_collateral]);
         //clear debt
         debtByCollateral[_collateral] = 0;
-        //send all collateral (and thus distribute)
-        IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
+
+        if(collateralBalance > 0){
+            //send all collateral (and thus distribute)
+            IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
+        }
     }
 
     function liquidate(

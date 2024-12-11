@@ -266,7 +266,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
         uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
-        return borrowable < mintable ? borrowable : mintable;
+        borrowable = borrowable < mintable ? borrowable : mintable;
+        return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
     function currentUtilization() public view returns (uint256) {
@@ -484,11 +485,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // Calculate interest accrued
             _results.interestEarned = (_deltaTime * _results.totalBorrow.amount * _results.newRate) / RATE_PRECISION;
 
-            // Accrue interest (if any) and fees iff no overflow
+            // Accrue interest (if any) and fees if no overflow
             if (
                 _results.interestEarned > 0 &&
-                _results.interestEarned + _results.totalBorrow.amount <= type(uint128).max &&
-                _results.interestEarned + borrowLimit <= type(uint128).max
+                _results.interestEarned + _results.totalBorrow.amount <= type(uint128).max
             ) {
                 // Increment totalBorrow by interestEarned
                 _results.totalBorrow.amount += uint128(_results.interestEarned);
@@ -654,20 +654,20 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
         }
         //mint fees
-        uint128 debtForMint = uint128((_borrowAmount * (LIQ_PRECISION + mintFee)) / LIQ_PRECISION);
+        uint256 debtForMint = (_borrowAmount * (LIQ_PRECISION + mintFee) / LIQ_PRECISION);
 
         // Calculate the number of shares to add based on the amount to borrow
         _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
-        _totalBorrow.amount += debtForMint;
+        _totalBorrow.amount += debtForMint.toUint128();
         _totalBorrow.shares += uint128(_sharesAdded);
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
         _userBorrowShares[msg.sender] += _sharesAdded;
 
-        uint256 otherFees = debtForMint - _borrowAmount;
+        uint256 otherFees = debtForMint > _borrowAmount ? debtForMint - _borrowAmount : 0;
         if (otherFees > 0) claimableOtherFees += otherFees;
 
         // Interactions
@@ -928,6 +928,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
+        // accrue interest if necessary
+        _addInterest();
+
         //redemption fees
         //assuming 1% redemption fee(0.5% to protocol, 0.5% to borrowers) and a redemption of $100
         // reduce totalBorrow.amount by 99.5$
@@ -1017,7 +1020,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Prevent stack-too-deep
         int256 _leftoverCollateral;
-        // uint256 _feesAmount;
         {
             // Checks & Calculations
             // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
@@ -1026,12 +1028,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
             // We first optimistically calculate the amount of collateral to give the liquidator based on the higher clean liquidation fee
             // This fee only applies if the liquidator does a full liquidation
-            uint256 _optimisticCollateralForLiquidator = (_liquidationAmountInCollateralUnits *
+            _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
                 (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
             // Because interest accrues every block, _liquidationAmountInCollateralUnits from a few lines up is an ever increasing value
             // This means that leftoverCollateral can occasionally go negative by a few hundred wei (cleanLiqFee premium covers this for liquidator)
-            _leftoverCollateral = (_userCollateralBalance.toInt256() - _optimisticCollateralForLiquidator.toInt256());
+            _leftoverCollateral = (_userCollateralBalance.toInt256() - _collateralForLiquidator.toInt256());
 
             // If cleanLiquidation fee results in no leftover collateral, give liquidator all the collateral
             // This will only be true when there liquidator is cleaning out the position

@@ -275,6 +275,9 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     event SetBorrowLimit(uint256 limit);
 
     function _setBorrowLimit(uint256 _limit) internal {
+        if(_limit > type(uint128).max){
+            revert InvalidParameter();
+        }
         borrowLimit = _limit;
         emit SetBorrowLimit(_limit);
     }
