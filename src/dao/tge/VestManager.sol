@@ -182,29 +182,4 @@ contract VestManager is VestManagerBase {
         );
         emit TokenRedeemed(_token, msg.sender, _recipient, _amount);
     }
-
-    /**
-     * @notice Creates a new vesting schedule funded by an external address
-     * @param _funder Address providing the tokens for the vest
-     * @param _recipient Address that will receive the vested tokens
-     * @param _duration Duration of the vesting period in seconds
-     * @param _amount Amount of tokens to vest
-     * @dev Only callable by owner. Transfers tokens from funder to this contract.
-     */
-    function createVest(
-        address _funder,
-        address _recipient,
-        uint256 _duration,
-        uint256 _amount
-    ) external onlyOwner {
-        require(_funder != address(this), "invalid funder");
-        require(_amount < type(uint112).max, "invalid amount");
-        require(_duration < type(uint32).max, "invalid duration");
-        token.transferFrom(_funder, address(this), _amount);
-        _createVest(
-            _recipient,
-            uint32(_duration),
-            uint112(_amount)
-        );
-    }
 }
