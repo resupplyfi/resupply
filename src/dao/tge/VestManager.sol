@@ -88,7 +88,7 @@ contract VestManager is VestManagerBase {
             if (i < _nonUserTargets.length) { 
                 _createVest(
                     _nonUserTargets[i], 
-                    uint32(block.timestamp), 
+                    uint32(_vestDurations[i]), 
                     uint112(allocation)
                 );
             }
