@@ -282,6 +282,16 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         emit SetBorrowLimit(_limit);
     }
 
+    event SetMinimumRedemption(uint256 min);
+
+    function setMinimumRedemption(uint256 _min) external onlyOwner{
+        if(_min < 100 * PAIR_DECIMALS ){
+            revert InvalidParameter();
+        }
+        minimumRedemption = _min;
+        emit SetMinimumRedemption(_min);
+    }
+
     event SetMinimumLeftover(uint256 min);
 
     function setMinimumLeftoverDebt(uint256 _min) external onlyOwner{

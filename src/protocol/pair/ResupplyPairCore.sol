@@ -83,6 +83,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     uint256 public liquidationFee;
     /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
+    uint256 public minimumRedemption = 100 * PAIR_DECIMALS; //minimum amount of debt to redeem
     uint256 public minimumLeftoverDebt = 10000 * PAIR_DECIMALS; //minimum amount of assets left over via redemptions
     uint256 public minimumBorrowAmount = 1000 * PAIR_DECIMALS; //minimum amount of assets to borrow
     
@@ -614,8 +615,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //sync rewards first
         _checkpoint(_account);
 
-        //get token count
-        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account];
+        //get token count (divide by LTV_PRECISION as precision is padded)
+        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account] / LTV_PRECISION;
         //reset claimables
         claimable_reward[address(redemptionWriteOff)][_account] = 0;
 
@@ -928,6 +929,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
+        if(_amount < minimumRedemption){
+          revert MinimumRedemption();
+        }
+
         // accrue interest if necessary
         _addInterest();
 
@@ -971,7 +976,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         IERC20(_collateralToken).safeTransfer(_receiver, _collateralFreed);
 
         //distribute write off tokens to adjust userCollateralbalances
-        redemptionWriteOff.mint(_collateralFreed);
+        //padded with LTV_PRECISION for extra precision
+        redemptionWriteOff.mint(_collateralFreed * LTV_PRECISION);
 
         emit Redeemed(_caller, _amount, _collateralFreed, protocolFee, debtReduction);
     }
