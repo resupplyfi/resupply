@@ -106,7 +106,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /**
      * @notice Initiate cooldown and claim any outstanding rewards.
      */
-    function exit(address _account) external callerOrDelegated(_account) returns (uint) {
+    function exit(address _account) external nonReentrant callerOrDelegated(_account) returns (uint) {
         (AccountData memory acctData, ) = _checkpointAccount(_account, getEpoch());
         _cooldown(_account, acctData.realizedStake); // triggers updateReward
         _getRewardFor(_account);
@@ -146,7 +146,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.amount;
 
-        if(block.timestamp < userCooldown.end || cooldownEpochs == 0) revert InvalidCooldown();
+        if(block.timestamp < userCooldown.end && cooldownEpochs != 0) revert InvalidCooldown();
 
         delete cooldowns[_account];
 
