@@ -52,6 +52,7 @@ contract ResupplyRegistry is CoreOwnable{
     address public insurancePool;
     address public staker;
     address public treasury;
+    address public l2manager;
 
     constructor(address _core, address _token, address _govToken) CoreOwnable(_core){
         token = _token;
@@ -77,6 +78,13 @@ contract ResupplyRegistry is CoreOwnable{
     // ============================================================================================
     // Functions: External Methods
     // ============================================================================================
+
+    event SetL2Manager(address oldAddress, address newAddress);
+
+    function setL2Manager(address _newAddress) external onlyOwner{
+        emit SetL2Manager(l2manager, _newAddress);
+        l2manager = _newAddress;
+    }
 
     event SetLiquidationHandler(address oldAddress, address newAddress);
 

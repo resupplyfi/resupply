@@ -37,7 +37,7 @@ import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../interfaces/ISwapper.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
+import { IConvexStakingL2 } from "../interfaces/IConvexStakingL2.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
 /// @title ResupplyPair
 /// @author Drake Evans (Frax Finance) https://github.com/drakeevans
@@ -378,20 +378,20 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function _updateConvexPool(uint256 _pid) internal{
         if(convexPid != _pid){
             //get previous staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,address rewards,,) = IConvexStakingL2(convexBooster).poolInfo(convexPid);
             //get balance
-            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
+            uint256 stakedBalance = IConvexStakingL2(rewards).balanceOf(address(this));
             
             if(stakedBalance > 0){
                 //withdraw
-                IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
+                IConvexStakingL2(rewards).withdraw(stakedBalance,false);
                 if(collateral.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
             }
 
             //stake in new pool
-            IConvexStaking(convexBooster).deposit(_pid, stakedBalance, true);
+            IConvexStakingL2(convexBooster).deposit(_pid, stakedBalance);
 
             //update pid
             convexPid = _pid;
@@ -400,23 +400,23 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     function _stakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
-            IConvexStaking(convexBooster).deposit(convexPid, _amount, true);
+            IConvexStakingL2(convexBooster).deposit(convexPid, _amount);
         }
     }
 
     function _unstakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount, false);
+            (,,address rewards,,) = IConvexStakingL2(convexBooster).poolInfo(convexPid);
+            IConvexStakingL2(rewards).withdraw(_amount, false);
         }
     }
 
     function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
         if(convexPid != 0){
             //get staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,address rewards,,) = IConvexStakingL2(convexBooster).poolInfo(convexPid);
             //get balance
-            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
+            _totalCollateralBalance = IConvexStakingL2(rewards).balanceOf(address(this));
         }else{
             _totalCollateralBalance = collateral.balanceOf(address(this));   
         }
