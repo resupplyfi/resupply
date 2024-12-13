@@ -118,13 +118,13 @@ contract PairTest is PairTestBase {
     function test_RedemptionMax() public {
         uint256 collateralAmount = 150_000e18;
         uint256 borrowAmount = 100_000e18;
-        uint256 redeemAmount = redemptionHandler.getMaxRedeemableValue(address(pair));
+        uint256 redeemAmount = redemptionHandler.getMaxRedeemableDebt(address(pair));
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
 
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
 
-        redeemAmount = redemptionHandler.getMaxRedeemableValue(address(pair));
+        redeemAmount = redemptionHandler.getMaxRedeemableDebt(address(pair));
         deal(address(stablecoin), address(this), redeemAmount);
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
         uint256 otherFeesBefore = pair.claimableOtherFees();

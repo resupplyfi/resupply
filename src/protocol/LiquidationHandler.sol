@@ -59,14 +59,18 @@ contract LiquidationHandler is CoreOwnable{
         
         emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
 
-        //burn debt
-        IInsurancePool(insurancePool).burnAssets(debtByCollateral[_collateral]);
-        //clear debt
-        debtByCollateral[_collateral] = 0;
+        uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
+        //check that it is indeed burnable..
+        if(debtByCollateral[_collateral] <= maxBurnable){
+            //burn debt
+            IInsurancePool(insurancePool).burnAssets(debtByCollateral[_collateral]);
+            //clear debt
+            debtByCollateral[_collateral] = 0;
 
-        if(collateralBalance > 0){
-            //send all collateral (and thus distribute)
-            IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
+            if(collateralBalance > 0){
+                //send all collateral (and thus distribute)
+                IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
+            }
         }
     }
 
@@ -96,25 +100,31 @@ contract LiquidationHandler is CoreOwnable{
         //get underlying
         address underlying = IERC4626(_collateral).asset();
 
-        //try to max redeem
-        uint256 withdrawnAmount;
-        try IERC4626(_collateral).redeem(
-            IERC4626(_collateral).maxRedeem(address(this)), 
-            insurancePool, 
-            address(this)
-        ) returns (uint256 _withdrawnAmount){
-            withdrawnAmount = _withdrawnAmount;
-        } catch{}
-
-        if(withdrawnAmount == 0) return;
-
+        //get max withdraw
+        uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
         //debt to burn (clamp to debtByCollateral)
-        uint256 toBurn = withdrawnAmount > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawnAmount;
-        IInsurancePool(insurancePool).burnAssets(toBurn);
+        uint256 toBurn = withdrawable > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawable;
+        //get max burnable
+        uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
 
-        //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
-        debtByCollateral[_collateral] -= toBurn;
+        if(toBurn <= maxBurnable){
+            uint256 withdrawnAmount;
+            try IERC4626(_collateral).redeem(
+                IERC4626(_collateral).maxRedeem(address(this)), 
+                insurancePool, 
+                address(this)
+            ) returns (uint256 _withdrawnAmount){
+                withdrawnAmount = _withdrawnAmount;
+            } catch{}
 
-        emit CollateralProccessed(_collateral, toBurn, withdrawnAmount - toBurn);
+            if(withdrawnAmount == 0) return;
+        
+            IInsurancePool(insurancePool).burnAssets(toBurn);
+
+            //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
+            debtByCollateral[_collateral] -= toBurn;
+
+            emit CollateralProccessed(_collateral, toBurn, withdrawnAmount - toBurn);
+        }
     }
 }
