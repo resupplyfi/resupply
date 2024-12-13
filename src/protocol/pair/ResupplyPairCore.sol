@@ -680,13 +680,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
     /// @notice The ```borrow``` function allows a user to open/increase a borrow position
     /// @dev Borrower must call ```ERC20.approve``` on the Collateral Token contract if applicable
-    /// @param _borrowAmount The amount of Asset Token to borrow
-    /// @param _collateralAmount The amount of Collateral Token to transfer to Pair
+    /// @param _borrowAmount The amount to borrow
+    /// @param _underlyingAmount The amount of underlying tokens to transfer to Pair
     /// @param _receiver The address which will receive the Asset Tokens
     /// @return _shares The number of borrow Shares the msg.sender will be debited
     function borrow(
         uint256 _borrowAmount,
-        uint256 _collateralAmount,
+        uint256 _underlyingAmount,
         address _receiver
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _shares) {
         if (_receiver == address(0)) revert InvalidReceiver();
@@ -698,8 +698,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _updateExchangeRate();
 
         // Only add collateral if necessary
-        if (_collateralAmount > 0) {
-            _addCollateral(msg.sender, _collateralAmount, msg.sender);
+        if (_underlyingAmount > 0) {
+            //pull underlying and deposit in vault
+            underlying.safeTransferFrom(msg.sender, address(this), _underlyingAmount);
+            uint256 collateralShares = IERC4626(address(collateral)).deposit(_underlyingAmount, address(this));
+            //add collateral to msg.sender
+            _addCollateral(address(this), collateralShares, msg.sender);
         }
 
         // Effects: Call internal borrow function
