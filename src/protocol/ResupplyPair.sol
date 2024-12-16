@@ -134,7 +134,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             uint256 _totalCollateral
         )
     {
-        (, , uint256 _claimableFees, VaultAccount memory _totalBorrow) = previewAddInterest();
+        VaultAccount memory _totalBorrow;
+        (, , _claimableFees, _totalBorrow) = previewAddInterest();
         _totalBorrowAmount = _totalBorrow.amount;
         _totalBorrowShares = _totalBorrow.shares;
         _totalCollateral = totalCollateral();
