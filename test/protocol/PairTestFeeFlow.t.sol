@@ -45,14 +45,24 @@ contract PairTestFeeFlow is PairTestBase {
         uint256 collateralAmount = getCollateralAmount(availableDebt,exchangeRate,maxltv);
         deal(address(collateral), address(this), collateralAmount);
 
-        // pair.addCollateralVault(amount, address(this));
-        borrow(pair, availableDebt, collateralAmount);
+        pair.addCollateralVault(collateralAmount, address(this));
+        borrow(pair, availableDebt, 0);
         console.log("\nborrowed\n");
         assertEq(pair.userCollateralBalance(_THIS), collateralAmount);
 
 
         vm.warp(block.timestamp +7 days);
         pair.addInterest(false);
+
+        (uint256 userborrowshares, uint256 usercollateral) = pair.getUserSnapshot(address(this));
+        (uint256 claimblefees, uint128 totalBorrowAmount, uint128 totalborrowShares, uint256 totalCollateral) = pair.getPairAccounting();
+
+        console.log("userborrowshares: ", userborrowshares);
+        console.log("usercollateral: ", usercollateral);
+        console.log("claimblefees: ", claimblefees);
+        console.log("totalBorrowAmount: ", totalBorrowAmount);
+        console.log("totalborrowShares: ", totalborrowShares);
+        console.log("totalCollateral: ", totalCollateral);
 
         printPairFees(pair);
         printDistributionInfo();
@@ -96,8 +106,8 @@ contract PairTestFeeFlow is PairTestBase {
         staker.stake(address(this), 1e18);
         assertEq(staker.balanceOf(_THIS), 1e18);
 
-        deal(address(stablecoin), address(this), 1e18);
-        stablecoin.approve(address(insurancePool), 1e18);
+        deal(address(stablecoin), address(this), 2e18);
+        stablecoin.approve(address(insurancePool), 9999e18);
         insurancePool.deposit(1e18, address(this));
         assertEq(insurancePool.balanceOf(_THIS), 1e18);
 
@@ -114,8 +124,8 @@ contract PairTestFeeFlow is PairTestBase {
         uint256 collateralAmount = getCollateralAmount(availableDebt,exchangeRate,maxltv);
         deal(address(collateral), address(this), collateralAmount);
 
-        // pair.addCollateralVault(amount, address(this));
-        borrow(pair, availableDebt, collateralAmount);
+        pair.addCollateralVault(collateralAmount, address(this));
+        borrow(pair, availableDebt, 0);
         console.log("\nborrowed\n");
         assertEq(pair.userCollateralBalance(_THIS), collateralAmount);
         
@@ -218,6 +228,9 @@ contract PairTestFeeFlow is PairTestBase {
         uint256 redeembalance = insurancePool.balanceOf(address(this));
         vm.expectRevert("!withdraw time");
         insurancePool.redeem(redeembalance, address(this), address(this));
+        //expect revert
+        vm.expectRevert("withdraw queued");
+        insurancePool.deposit(1e18, address(this));
 
         earnedData = insurancePool.earned(address(this));
         for(uint256 i = 0; i < rlength; i++){

@@ -176,6 +176,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
+        //can not deposit if in withdraw queue, call cancel first
+        require(withdrawQueue[_receiver] == 0,"withdraw queued");
+
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
          if (_assets > 0) {
@@ -189,6 +192,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
+        //can not deposit if in withdraw queue, call cancel first
+        require(withdrawQueue[_receiver] == 0,"withdraw queued");
+        
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
         if (_shares > 0) {
