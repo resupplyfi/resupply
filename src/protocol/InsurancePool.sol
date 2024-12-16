@@ -164,7 +164,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     //burn underlying, liquidationHandler will send rewards in exchange
     function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
-        require(_amount >= maxBurnableAssets(), "!minimumAssets");
+        require(_amount <= maxBurnableAssets(), "!minimumAssets");
 
         IMintable(asset).burn(address(this), _amount);
 
@@ -194,7 +194,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
-        
+
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
         if (_shares > 0) {
