@@ -27,8 +27,7 @@ contract LiquidationManagerTest is PairTestBase {
         stablecoin.approve(address(liquidationHandler), type(uint256).max);
         stablecoin.approve(address(insurancePool), type(uint256).max);
 
-        deal(address(stablecoin), address(this), 10_000e18);
-        depositToInsurancePool(10_000e18);
+        depositToInsurancePool(1_000_000e18);
     }
 
     
@@ -57,8 +56,7 @@ contract LiquidationManagerTest is PairTestBase {
 
     function test_LiquidateSolventBorrowerFails() public {
         uint256 amount = 1000e18;
-        deal(address(collateral), address(this), amount);
-        borrow(pair, amount, amount); 
+        borrow(pair, amount, calculateMinUnderlyingNeededForBorrow(amount)); 
 
         vm.expectRevert(ResupplyPairConstants.BorrowerSolvent.selector);
         liquidationHandler.liquidate(address(pair), address(this));
@@ -76,7 +74,7 @@ contract LiquidationManagerTest is PairTestBase {
 
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         liquidationHandler.liquidate(address(pair), address(this));
-        assertGt(collateral.balanceOf(address(liquidationHandler)), 0);
+        assertGt(collateral.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler collateral balance should be greater than 0');
         assertEq(underlying.balanceOf(address(insurancePool)), 0, 'IP underlying balance should be 0');
 
         resupplyLiquidityToMarket();
@@ -85,7 +83,7 @@ contract LiquidationManagerTest is PairTestBase {
         
         // We should be able to process collateral now
         liquidationHandler.processCollateral(address(collateral));
-        assertEq(collateral.balanceOf(address(liquidationHandler)), 0);
+        assertEq(collateral.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler collateral balance should be 0');
         assertGt(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'IP underlying balance should increase');
     }
 
@@ -126,8 +124,8 @@ contract LiquidationManagerTest is PairTestBase {
 
         liquidationHandler.distributeCollateralAndClearDebt(address(collateral));
 
-        assertEq(collateral.balanceOf(address(liquidationHandler)), 0);
-        assertEq(underlying.balanceOf(address(liquidationHandler)), 0);
+        assertEq(collateral.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler collateral balance should be 0');
+        assertEq(underlying.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler underlying balance should be 0');
         assertLt(stablecoin.balanceOf(address(insurancePool)), ipStableBalance, 'stablecoin balance should decrease');
         assertEq(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'underlying balance should not change');
         assertEq(insurancePool.totalSupply(), ipTotalSupply, 'total supply should not change');
@@ -149,26 +147,20 @@ contract LiquidationManagerTest is PairTestBase {
     }
 
     function depositToInsurancePool(uint256 _amount) public {
+        deal(address(stablecoin), address(this), _amount);
         insurancePool.deposit(_amount, address(this));
     }
 
     function buildLiquidatablePosition() public {
-        uint256 amount = 1000e18;
-        uint256 maxBorrow = (
-            convertToAssets(address(collateral), amount) *
-            pair.maxLTV() /
-            ResupplyPairConstants.LTV_PRECISION
-        );
-        deal(address(collateral), address(this), amount);
-        borrow(pair, maxBorrow - 1e18, amount); // borrow while adding collateral
+        uint256 borrowAmount = pair.minimumBorrowAmount();
+        borrow(pair, borrowAmount, calculateMinUnderlyingNeededForBorrow(borrowAmount)); // borrow while adding collateral
         setOraclePrice(1e17);
     }
 
     function withdrawLiquidityFromMarket() public {
-        deal(address(collateral), user1, collateral.totalSupply() * 2);
+        deal(address(collateral), user1, collateral.totalSupply() * 10000);
         IERC4626 _collateral = IERC4626(address(collateral));
         uint256 toRedeem = _collateral.maxRedeem(user1);
-
         vm.startPrank(user1);
         _collateral.redeem(toRedeem, user1, user1);
         vm.stopPrank();

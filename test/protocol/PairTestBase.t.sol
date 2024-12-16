@@ -78,8 +78,9 @@ contract PairTestBase is Setup, ResupplyPairConstants {
     }
 
     // collateralAmount is the amount of collateral to add for the borrow
-    function borrow(ResupplyPair _pair, uint256 amount, uint256 collateralAmount) public {
-        _pair.borrow(amount, collateralAmount, address(this));
+    function borrow(ResupplyPair _pair, uint256 borrowAmount, uint256 underlyingAmount) public {
+        if (underlyingAmount > underlying.balanceOf(address(this))) deal(address(underlying), address(this), underlyingAmount);
+        _pair.borrow(borrowAmount, underlyingAmount, address(this));
     }
 
     function convertToShares(address token, uint256 amount) public view returns (uint256) {
@@ -88,5 +89,9 @@ contract PairTestBase is Setup, ResupplyPairConstants {
 
     function convertToAssets(address token, uint256 shares) public view returns (uint256) {
         return IERC4626(token).convertToAssets(shares);
+    }
+
+    function calculateMinUnderlyingNeededForBorrow(uint256 borrowAmount) public view returns (uint256) {
+        return borrowAmount * ResupplyPairConstants.LTV_PRECISION / pair.maxLTV();
     }
 }
