@@ -648,20 +648,21 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             revert InsufficientBorrowAmount();
         }
 
-        // Check available capital
-        uint256 _assetsAvailable = totalDebtAvailable();
-        if (_assetsAvailable < _borrowAmount) {
-            revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
-        }
         //mint fees
         uint256 debtForMint = (_borrowAmount * (LIQ_PRECISION + mintFee) / LIQ_PRECISION);
 
+        // Check available capital
+        uint256 _assetsAvailable = totalDebtAvailable();
+        if (_assetsAvailable < debtForMint) {
+            revert InsufficientDebtAvailable(_assetsAvailable, debtForMint);
+        }
+        
         // Calculate the number of shares to add based on the amount to borrow
         _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
         _totalBorrow.amount += debtForMint.toUint128();
-        _totalBorrow.shares += uint128(_sharesAdded);
+        _totalBorrow.shares += _sharesAdded.toUint128();
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
@@ -671,10 +672,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (otherFees > 0) claimableOtherFees += otherFees;
 
         // Interactions
-        // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
-        // if (_receiver != address(this)) {
-            IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
-        // }
+        IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
+        
         emit Borrow(msg.sender, _receiver, _borrowAmount, _sharesAdded, otherFees);
     }
 
