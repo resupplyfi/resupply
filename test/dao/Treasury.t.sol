@@ -3,6 +3,7 @@ pragma solidity ^0.8.22;
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 import { Setup } from "../Setup.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract TreasuryTest is Setup {
 
@@ -14,7 +15,12 @@ contract TreasuryTest is Setup {
 
     function test_SetTokenApproval() public {
         vm.prank(address(user1));
-        vm.expectRevert("ERC20: insufficient allowance");
+        vm.expectRevert(abi.encodeWithSelector(
+            IERC20Errors.ERC20InsufficientAllowance.selector,
+            user1,
+            0,
+            1
+        ));
         govToken.transferFrom(address(treasury), address(user1), 1);
 
         vm.prank(address(core));
