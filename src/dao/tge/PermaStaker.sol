@@ -30,10 +30,9 @@ contract PermaStaker is Ownable2Step {
         address _registry, 
         address _vestManager,
         string memory _name
-    ) {
+    ) Ownable(_owner) {
         core = _core;
         name = _name;
-        _transferOwnership(_owner);
         registry = IResupplyRegistry(_registry);
         require(address(_getStaker()) != address(0), "Staker not set");
         IGovStaker _staker = _getStaker();
