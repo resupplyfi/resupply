@@ -37,8 +37,8 @@ contract PermaStaker is Ownable2Step {
         registry = IResupplyRegistry(_registry);
         require(address(_getStaker()) != address(0), "Staker not set");
         IGovStaker _staker = _getStaker();
-        _staker.startIrreversibleStakeForAccount();
-        _staker.commitIrreversibleStakeForAccount();
+        _staker.startIrreversibleStakeForAccount(address(this));
+        _staker.commitIrreversibleStakeForAccount(address(this));
         address token = _staker.stakeToken();
         vestManager = IVestManager(_vestManager);
         vestManager.setClaimSettings(true, address(this));

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.22;
 
-import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
+import { MultiRewardsDistributor } from 'src/dao/staking/MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { EpochTracker } from '../../dependencies/EpochTracker.sol';
-import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
-import { GovStakerEscrow } from './GovStakerEscrow.sol';
-import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
-import { IGovStaker } from "../../interfaces/IGovStaker.sol";
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { DelegatedOps } from 'src/dependencies/DelegatedOps.sol';
+import { GovStakerEscrow } from 'src/dao/staking/GovStakerEscrow.sol';
+import { IResupplyRegistry } from 'src/interfaces/IResupplyRegistry.sol';
+import { IGovStaker } from 'src/interfaces/IGovStaker.sol';
 
-contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
+contract MockStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;
 
     uint24 public constant MAX_COOLDOWN_DURATION = 90 days;
@@ -389,26 +389,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     /* ========== PERMA STAKER FUNCTIONS ========== */
 
-    /**
-     * @notice Step 1 of 2 for becoming a permanent staker, indicating their intent to irreversibly disable unstaking
-     * @dev Once confirmed via confirmPermaStaker(), the account will never be able to unstake their tokens
-     */
-    function startIrreversibleStakeForAccount(address _account) external callerOrDelegated(_account) {
-        pendingPermaStaker[_account] = true;
-        emit PendingPermaStaker(_account);
-    }
-
-    /**
-     * @notice Step 2 of 2 for confirming the caller as a permanent staker, preventing them from ever unstaking
-     * @dev Must first call irreversiblyDisableUnstaking() to be eligible
-     * @dev Once confirmed, this action cannot be undone - the account will never be able to unstake
-     */
-    function commitIrreversibleStakeForAccount(address _account) external callerOrDelegated(_account) {
-        require(pendingPermaStaker[_account], "pending perma staker");
-        pendingPermaStaker[_account] = false;
-        accountData[_account].isPermaStaker = true;
-        emit PermaStakerSet(_account);
-    }
 
     /**
      * @notice Migrates a perma staker's stake to a new staking contract

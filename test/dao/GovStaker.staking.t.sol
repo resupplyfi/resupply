@@ -261,11 +261,9 @@ contract GovStakerStakingTest is Setup {
         vm.stopPrank();
     }
 
-    // must be able to recover any tokens in cooldown
-    // must be able to recover any tokens in escrow
+
     // must be able to migrate to a new staker
     // cannot initiate a cooldown
-    // can initiate a withdraw
     // Vest claims must be staked
 
     function test_ConfirmPermaStaker() public {
@@ -273,9 +271,9 @@ contract GovStakerStakingTest is Setup {
         assertEq(staker.balanceOf(address(this)), 100 * 10 ** 18, "Balance should be 100");
         // make perma staker
         assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
-        staker.startIrreversibleStakeForAccount();
+        staker.startIrreversibleStakeForAccount(address(this));
         assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
-        staker.commitIrreversibleStakeForAccount();
+        staker.commitIrreversibleStakeForAccount(address(this));
         assertEq(staker.isPermaStaker(address(this)), true, "Account should be a perma staker");
 
         vm.expectRevert("perma staker account");
@@ -286,8 +284,30 @@ contract GovStakerStakingTest is Setup {
         assertEq(unstakedAmount, unstakableAmount, "Unstaked amount should be equal to unstakable amount");
     }
 
+    function test_ShouldBeAbleToRecoverTokensWhenPermaStakingDuringPreexistingCooldown() public {
+        uint amount = 100 * 10 ** 18;
+        staker.stake(address(this), amount);
+        skip(warmupWait());
+        staker.cooldown(address(this), amount); // cooldown before
+
+        staker.startIrreversibleStakeForAccount(address(this));
+        staker.commitIrreversibleStakeForAccount(address(this));
+
+        skip(cooldownWait());
+
+        uint unstakableAmount = staker.getUnstakableAmount(address(this));
+        assertEq(unstakableAmount, amount, "Unstakable amount should be equal to staked amount");
+        uint unstakedAmount = staker.unstake(address(this), address(this));
+        assertEq(unstakedAmount, amount, "Unstaked amount should be equal to unstakable amount");
+        assertEq(staker.balanceOf(address(this)), 0, "Balance should be 0");
+    }
+
     function warmupWait() internal view returns (uint) {
         return epochLength;
+    }
+
+    function cooldownWait() internal view returns (uint) {
+        return epochLength * staker.cooldownEpochs();
     }
 
     function getEpoch() public view returns (uint) {

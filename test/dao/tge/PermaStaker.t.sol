@@ -5,6 +5,7 @@ import { Setup } from "../../Setup.sol";
 import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
 import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
+import { MockStaker } from "../../mocks/MockStaker.sol";
 
 contract PermaStakerTest is Setup {
 
@@ -145,6 +146,7 @@ contract PermaStakerTest is Setup {
         assertGt(amount, 0);
 
         GovStaker newStaker = new GovStaker(address(core), address(registry), address(govToken), 2);
+        vm.label(address(newStaker), 'NewStaker');
         vm.prank(address(permaStaker1));
         newStaker.setDelegateApproval(address(staker), true); // Must give approval for migration
 
@@ -156,12 +158,30 @@ contract PermaStakerTest is Setup {
         skip(staker.epochLength());
         staker.checkpointAccount(address(permaStaker1));
         (uint112 realizedStake, uint112 pendingStake,,) = staker.accountData(address(permaStaker1));
+        assertEq(newStaker.isPermaStaker(address(permaStaker1)), false, 'should not yet beperma staker');
+
         vm.prank(address(permaStaker1));
         uint256 amount2 = staker.migrateStake();
         assertEq(amount2, amount + startAmount, 'mismatching amounts migrated vs claimed');
         assertGt(amount2, 0, 'migrated amount not > 0');
         assertEq(staker.balanceOf(address(permaStaker1)), 0, 'old staker balance not 0');
         assertEq(newStaker.balanceOf(address(permaStaker1)), amount + startAmount, 'new staker balance not equal to claimed amount');
+        assertEq(newStaker.isPermaStaker(address(permaStaker1)), true, 'perma staker not set');
+
+        MockStaker newStaker2 = new MockStaker(address(core), address(registry), address(govToken), 2);
+        vm.label(address(newStaker2), 'NewStaker2');
+        vm.prank(address(core));
+        registry.setStaker(address(newStaker2));
+        vm.prank(address(core));
+        newStaker.setCooldownEpochs(0);
+
+        skip(staker.epochLength());
+        
+        vm.startPrank(address(permaStaker1));
+        newStaker2.setDelegateApproval(address(newStaker), true); // Must give approval for migration
+        newStaker.migrateStake();
+        assertEq(newStaker2.balanceOf(address(permaStaker1)), amount + startAmount, 'new staker balance not equal to claimed amount');
+        vm.stopPrank();
     }
 
     function setupVest() public {
