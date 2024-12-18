@@ -15,6 +15,7 @@ interface IGovToken is IERC20 {
     function owner() external view returns (address);
     function core() external view returns (address);
     function initializationEpoch() external view returns (uint256);
+    function globalSupply() external view returns (uint256);
 
     // Functions
     function mint(address _to, uint256 _amount) external;
