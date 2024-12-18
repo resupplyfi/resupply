@@ -27,7 +27,9 @@ contract RegistryTest is Setup {
     function test_GetAddress() public {
         vm.startPrank(address(core));
         registry.setAddress("test", address(this));
-        vm.expectRevert("Protected key");
+        vm.expectRevert(
+            abi.encodeWithSelector(ResupplyRegistry.ProtectedKey.selector, "STAKER")
+        );
         registry.setAddress("STAKER", address(staker));
         registry.setAddress("STABLECOIN2", address(stablecoin));
         registry.setAddress("REDEMPTION_HANDLER2", address(redemptionHandler));
@@ -56,7 +58,9 @@ contract RegistryTest is Setup {
         string[] memory protectedKeys = registry.getProtectedKeys();
         require(protectedKeys.length > 0, "No protected keys found");
         for (uint i = 0; i < protectedKeys.length; i++) {
-            vm.expectRevert("Protected key");
+            vm.expectRevert(
+                abi.encodeWithSelector(ResupplyRegistry.ProtectedKey.selector, protectedKeys[i])
+            );
             registry.setAddress(protectedKeys[i], address(this));
         }
         vm.stopPrank();

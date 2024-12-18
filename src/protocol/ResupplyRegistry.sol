@@ -161,7 +161,9 @@ contract ResupplyRegistry is CoreOwnable{
         // Check if key is protected
         string[] memory protectedKeys = getProtectedKeys();
         for (uint256 i = 0; i < protectedKeys.length; i++) {
-            require(keyHash != keccak256(bytes(protectedKeys[i])), "Protected key");
+            if (keyHash == keccak256(bytes(protectedKeys[i]))) {
+                revert ProtectedKey(key);
+            }
         }
         _setAddress(addr, key, keyHash);
     }
