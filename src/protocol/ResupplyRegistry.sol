@@ -145,7 +145,6 @@ contract ResupplyRegistry is CoreOwnable{
         emit AddPair(_pairAddress);
     }
 
-
     /// @notice The ```setDefaultSwappers``` function is used to set default list of approved swappers
     /// @param _swappers The list of swappers to set as default allowed
     function setDefaultSwappers(address[] memory _swappers) external onlyOwner{
@@ -175,15 +174,12 @@ contract ResupplyRegistry is CoreOwnable{
     function _setAddress(address addr, string memory key, bytes32 keyHash) internal {
         require(bytes(key).length > 0, "Key cannot be empty");
         require(addr != address(0), "Address cannot be zero");
-
         if (!keyExists[key]) {
             hashToKey[keyHash] = key;
             keys.push(key);
             keyExists[key] = true;
         }
-
         keyToAddress[key] = addr;
-
         emit EntryUpdated(key, addr);
     }
 
@@ -219,34 +215,29 @@ contract ResupplyRegistry is CoreOwnable{
     // Functions: Operations
     // ============================================================================================
 
-    function withdrawTo(address _asset, uint256 _amount, address _to) external onlyOwner{
+    function withdrawTo(address _asset, uint256 _amount, address _to) external onlyOwner {
         IERC20(_asset).safeTransfer(_to, _amount);
         emit WithdrawTo(_to, _amount);
     }
 
-    function mint(address _receiver, uint256 _amount) external{
-        //ensure caller is a registered pair
+    function mint(address _receiver, uint256 _amount) external {
         require(pairsByName[IERC20Metadata(msg.sender).name()] == msg.sender, "!regPair");
-
-        //ask minter to mint
         IMintable(token).mint(_receiver, _amount);
     }
 
-    function claimFees(address _pair) external{
+    function claimFees(address _pair) external {
         IResupplyPair(_pair).withdrawFees();
     }
 
-    function claimRewards(address _pair) external{
-        //tell rewardHandler to process rewards
+    function claimRewards(address _pair) external {
         IRewardHandler(rewardHandler).claimRewards(_pair);
     }
 
-    function claimInsuranceRewards() external{
-        //tell rewardHandler to process rewards for insurance pool
+    function claimInsuranceRewards() external {
         IRewardHandler(rewardHandler).claimInsuranceRewards();
     }
 
-    function getMaxMintable(address _pair) external view returns(uint256){
+    function getMaxMintable(address _pair) external view returns(uint256) {
         return type(uint256).max;
     }
 
