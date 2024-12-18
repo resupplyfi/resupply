@@ -56,4 +56,20 @@ contract TreasuryTest is Setup {
         assertEq(token.globalSupply(), startSupply);
         assertGt(token.globalSupply(), token.totalSupply());
     }
+
+    function test_GlobalSupplyIncreasesByMints() public {
+        // this harness implements a public `burn` function, to mimic the OFT
+        // we want to ensure that, unlike `totalSupply`, the `globalSupply` is not reduced by burns
+        uint256 amount = 1_000_000e18;
+        
+        vm.prank(address(core));
+        govToken.setMinter(address(this));
+        
+        uint256 startGlobalSupply = govToken.globalSupply();
+        govToken.mint(address(this), amount);
+        
+        assertEq(govToken.globalSupply(), startGlobalSupply + amount);
+        assertEq(govToken.globalSupply(), govToken.totalSupply());
+        assertGt(govToken.globalSupply(), startGlobalSupply);
+    }
 }
