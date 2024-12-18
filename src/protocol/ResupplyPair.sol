@@ -267,7 +267,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         mintFee = _newMintFee;
     }
 
-    function setBorrowLimit(uint256 _limit) external onlyOwner{
+    function setBorrowLimit(uint256 _limit) external onlyOwner {
+        require(!paused, "paused");
         _setBorrowLimit(_limit);
     }
 
@@ -426,14 +427,23 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     // ============================================================================================
 
     uint256 previousBorrowLimit;
+    bool public paused;
+    event Paused();
+
     /// @notice The ```pause``` function is called to pause all contract functionality
-    function pause() external onlyOwner{
+    function pause() external onlyOwner {
+        paused = true;
         previousBorrowLimit = borrowLimit;
         _setBorrowLimit(0);
+        emit Paused();
     }
 
+    event Unpaused();
+
     /// @notice The ```unpause``` function is called to unpause all contract functionality
-    function unpause() external onlyOwner{
+    function unpause() external onlyOwner {
+        paused = false;
         _setBorrowLimit(previousBorrowLimit);
+        emit Unpaused();
     }
 }
