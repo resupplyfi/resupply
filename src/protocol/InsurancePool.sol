@@ -14,15 +14,13 @@ import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     using SafeERC20 for IERC20;
 
+    uint256 public constant SHARE_REFACTOR_PRECISION = 1e12;
     address immutable public asset;
     address immutable public registry;
     
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
-    uint256 constant public shareRefactor = 1e18;
-
     uint256 public minimumHeldAssets = 10_000 * 1e18;
-
     uint256 public withdrawTime = 7 days;
     uint256 public withdrawTimeLimit = 1 days;
     mapping(address => uint256) public withdrawQueue;
@@ -140,7 +138,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _balances[_account] = _balances[_account] / shareRefactor;
+        _balances[_account] = _balances[_account] / SHARE_REFACTOR_PRECISION;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -169,9 +167,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         IMintable(asset).burn(address(this), _amount);
 
         //if after many burns the amount to shares ratio has deteriorated too far, then refactor
-        if(totalAssets() * shareRefactor < _totalSupply){
+        if(totalAssets() * SHARE_REFACTOR_PRECISION < _totalSupply){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalSupply /= shareRefactor;
+            _totalSupply /= SHARE_REFACTOR_PRECISION;
         }
     }
 
