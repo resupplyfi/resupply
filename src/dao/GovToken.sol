@@ -24,7 +24,7 @@ contract GovToken is ERC20, CoreOwnable {
     ) ERC20(_name, _symbol) CoreOwnable(_core) {
         INITIAL_SUPPLY = _initialSupply;
         _mint(_vesting, _initialSupply);
-        globalSupply = _initialSupply;
+        globalSupply += _initialSupply;
     }
 
     function mint(address _to, uint256 _amount) external onlyMinter {
