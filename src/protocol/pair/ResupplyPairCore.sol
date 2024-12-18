@@ -670,11 +670,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 otherFees = debtForMint > _borrowAmount ? debtForMint - _borrowAmount : 0;
         if (otherFees > 0) claimableOtherFees += otherFees;
 
-        // Interactions
-        // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
-        // if (_receiver != address(this)) {
-            IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
-        // }
+        IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
         emit Borrow(msg.sender, _receiver, _borrowAmount, _sharesAdded, otherFees);
     }
 
@@ -888,8 +884,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @dev Caller must first invoke ```ERC20.approve()``` for the Asset Token contract
     /// @param _shares The number of Borrow Shares which will be repaid by the call
     /// @param _borrower The account for which the debt will be reduced
-    /// @return _amountToRepay The amount of Asset Tokens which were transferred in order to repay the Borrow Shares
-    function repay(uint256 _shares, address _borrower) external nonReentrant returns (uint256 _amountToRepay) {
+    /// @return _amountRepaid The amount of Asset Tokens which were transferred in order to repay the Borrow Shares
+    function repay(uint256 _shares, address _borrower) external nonReentrant returns (uint256 _amountRepaid) {
         if (_borrower == address(0)) revert InvalidReceiver();
 
         // Accrue interest if necessary
@@ -897,10 +893,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Calculate amount to repay based on shares
         VaultAccount memory _totalBorrow = totalBorrow;
-        _amountToRepay = _totalBorrow.toAmount(_shares, true);
+        _amountRepaid = _totalBorrow.toAmount(_shares, true);
 
         // Execute repayment effects
-        _repay(_totalBorrow, _amountToRepay.toUint128(), _shares.toUint128(), msg.sender, _borrower);
+        _repay(_totalBorrow, _amountRepaid.toUint128(), _shares.toUint128(), msg.sender, _borrower);
     }
 
     // ============================================================================================
@@ -948,7 +944,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //check if theres enough debt to write off
         VaultAccount memory _totalBorrow = totalBorrow;
         if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minimumLeftoverDebt ){
-            revert InsufficientDebtToRedeem(); // size of request exceeeds total pair debt
+            revert InsufficientDebtToRedeem(); // size of request exceeds total pair debt
         }
 
         _totalBorrow.amount -= uint128(debtReduction);
