@@ -3,6 +3,7 @@ import { CoreOwnable } from "../../src/dependencies/CoreOwnable.sol";
 
 contract GovToken is ERC20, CoreOwnable {
     uint256 public immutable INITIAL_SUPPLY;
+    uint256 public globalSupply;
     bool public minterFinalized;
     address public minter;
 
@@ -23,10 +24,12 @@ contract GovToken is ERC20, CoreOwnable {
     ) ERC20(_name, _symbol) CoreOwnable(_core) {
         INITIAL_SUPPLY = _initialSupply;
         _mint(_vesting, _initialSupply);
+        globalSupply += _initialSupply;
     }
 
     function mint(address _to, uint256 _amount) external onlyMinter {
         _mint(_to, _amount);
+        globalSupply += _amount;
     }
 
     function setMinter(address _minter) external onlyOwner {

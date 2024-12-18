@@ -292,7 +292,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         }
 
         return (
-            govToken.totalSupply() * 
+            govToken.globalSupply() * 
             _emissionsRate * 
             epochLength /
             365 days /
