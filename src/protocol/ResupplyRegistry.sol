@@ -33,23 +33,9 @@ import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 contract ResupplyRegistry is CoreOwnable{
     using SafeERC20 for IERC20;
 
-    mapping(string => address) private keyToAddress;
-
-    string[] private keys;
-
-    mapping(string => bool) public keyExists; // to prevent duplicates
-    mapping(bytes32 => string) public hashToKey;
-
     address public immutable token;
     address public immutable govToken;
-    /// @notice List of the addresses of all deployed Pairs
-    address[] public registeredPairs;
 
-    /// @notice name => deployed address
-    mapping(string => address) public pairsByName;
-
-    // Default swappers
-    address[] public defaultSwappers;
     // protocol contracts
     address public liquidationHandler;
     address public feeDeposit;
@@ -58,6 +44,15 @@ contract ResupplyRegistry is CoreOwnable{
     address public insurancePool;
     address public staker;
     address public treasury;
+
+    address[] public registeredPairs;
+    address[] public defaultSwappers;
+    string[] private keys; // Registry keys
+
+    mapping(string => address) public pairsByName;
+    mapping(string => address) private keyToAddress;
+    mapping(string => bool) public keyExists; // to prevent duplicate keys
+    mapping(bytes32 => string) public hashToKey;
 
     constructor(address _core, address _token, address _govToken) CoreOwnable(_core){
         token = _token;
