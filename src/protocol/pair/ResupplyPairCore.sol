@@ -660,9 +660,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Calculate the number of shares to add based on the amount to borrow
         _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
+        //combine current shares and new shares
+        uint256 newTotalShares = _totalBorrow.shares + _sharesAdded;
+
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
         _totalBorrow.amount += debtForMint.toUint128();
-        _totalBorrow.shares += _sharesAdded.toUint128();
+        _totalBorrow.shares = newTotalShares.toUint128();
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
