@@ -259,8 +259,15 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
     /// @notice The ```totalDebtAvailable``` function returns the total balance of debt tokens in the contract
     /// @return The balance of debt tokens held by contract
-    function totalDebtAvailable(
-    ) public view returns (uint256) {
+    function totalDebtAvailable() external view returns (uint256) {
+        (,,, VaultAccount memory _totalBorrow) = previewAddInterest();
+        
+        return _totalDebtAvailable(_totalBorrow);
+    }
+
+    /// @notice The ```_totalDebtAvailable``` function returns the total balance of debt tokens in the contract
+    /// @return The balance of debt tokens held by contract
+    function _totalDebtAvailable(VaultAccount memory _totalBorrow) internal view returns (uint256) {
         //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
         //be a limited amount of stables that have been bridged and available
         uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
@@ -652,7 +659,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 debtForMint = (_borrowAmount * (LIQ_PRECISION + mintFee) / LIQ_PRECISION);
 
         // Check available capital
-        uint256 _assetsAvailable = totalDebtAvailable();
+        uint256 _assetsAvailable = _totalDebtAvailable(_totalBorrow);
         if (_assetsAvailable < debtForMint) {
             revert InsufficientDebtAvailable(_assetsAvailable, debtForMint);
         }
