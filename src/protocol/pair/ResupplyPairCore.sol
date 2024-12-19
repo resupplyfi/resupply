@@ -277,7 +277,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
-    function currentUtilization() public view returns (uint256) {
+    function currentUtilization() external view returns (uint256) {
+        if(borrowLimit == 0){
+            return PAIR_DECIMALS;
+        }
         return totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
     }
 
