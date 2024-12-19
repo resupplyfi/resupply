@@ -175,6 +175,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
                 revert InvalidParameter();
             }
             underlying = IERC20(IERC4626(_collateral).asset());
+            if(IERC20Metadata(address(underlying)).decimals() != 18){
+                revert InvalidParameter();
+            }
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
 
