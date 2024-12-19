@@ -370,7 +370,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
     }
 
-    function _checkAddToken(address _address) internal view override returns(bool){
+    function _checkAddToken(address _address) internal view virtual override returns(bool){
+        if(_address == address(collateral)) return false;
         return true;
     }
 
