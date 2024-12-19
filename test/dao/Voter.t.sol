@@ -38,7 +38,7 @@ contract VoterTest is Setup {
         uint256 proposalId = 69; // Set to a non-zero number to start with
         uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
 
-        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.quorumPct() / 10_000);
+        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) * voter.quorumPct() / 10_000 / 10 ** voter.TOKEN_DECIMALS());
         vm.expectEmit(true, true, false, true);
         emit Voter.ProposalCreated(
             user1, 
