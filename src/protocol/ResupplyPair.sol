@@ -221,7 +221,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setRateCalculator``` function sets the rate contract address
     /// @param _newRateCalculator The new rate contract address
-    function setRateCalculator(address _newRateCalculator) external onlyOwner{
+    function setRateCalculator(address _newRateCalculator, bool _updateInterest) external onlyOwner{
+        //should add interest before changing rate calculator
+        //however if there is an intrinsic problem with the current rate calculate, need to be able
+        //to update without calling addInterest
+        if(_updateInterest){
+            _addInterest();
+        }
         emit SetRateCalculator(address(rateCalculator), _newRateCalculator);
         rateCalculator = IRateCalculator(_newRateCalculator);
     }
