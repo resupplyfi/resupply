@@ -1155,20 +1155,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
 
         // Debit borrowers account
-        // setting recipient to address(this) so that swapping can occur from this contract (debt still goes to msg.sender)
-        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
-
-        // Interactions
-        _debtToken.approve(_swapperAddress, _borrowAmount);
+        // setting recipient to _swapperAddress allows us to skip a transfer (debt still goes to msg.sender)
+        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), _swapperAddress);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
             _borrowAmount,
             _amountCollateralOutMin,
             _path,
-            address(this),
-            block.timestamp
+            address(this)
         );
         uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
 
@@ -1252,17 +1249,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
 
-        // Interactions
-        _collateral.approve(_swapperAddress, _collateralToSwap);
+        // send directly to swapper
+        _collateral.safeTransfer(_swapperAddress, _collateralToSwap);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
             _collateralToSwap,
             _amountOutMin,
             _path,
-            address(this),
-            block.timestamp
+            address(this)
         );
         uint256 _finalBalance = _debtToken.balanceOf(address(this));
 
