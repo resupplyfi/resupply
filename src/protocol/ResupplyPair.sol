@@ -357,9 +357,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @dev
     /// @param _swapper The swapper address
     /// @param _approval The approval
-    function setSwapper(address _swapper, bool _approval) external onlyOwner{
-        swappers[_swapper] = _approval;
-        emit SetSwapper(_swapper, _approval);
+    function setSwapper(address _swapper, bool _approval) external{
+        if(msg.sender == owner() || msg.sender == registry){
+            swappers[_swapper] = _approval;
+            emit SetSwapper(_swapper, _approval);
+        }else{
+            revert OnlyProtocolOrOwner();
+        }
     }
 
     /// @notice The ```SetConvexPool``` event fires when convex pool id is updated
