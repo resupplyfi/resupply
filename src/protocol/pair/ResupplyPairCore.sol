@@ -138,9 +138,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // ============================================================================================
 
     /// @notice The ```constructor``` function is called on deployment
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
-    /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
-    /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _borrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _immutables abi.encode(address _registry)
+    /// @param _customConfigData abi.encode(address _name, address _govToken, address _underlyingStaking, uint256 _stakingId)
     constructor(
         address _core,
         bytes memory _configData,
@@ -781,6 +781,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _sender The account from which funds are transferred
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _receiver The address to which Collateral Tokens will be transferred
+    /// @param _receiver The address of the account in which collateral is being removed
     event RemoveCollateral(
         address indexed _sender,
         uint256 _collateralAmount,

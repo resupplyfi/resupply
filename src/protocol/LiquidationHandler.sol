@@ -97,9 +97,6 @@ contract LiquidationHandler is CoreOwnable{
     function processCollateral(address _collateral) public{
         require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
-        //get underlying
-        address underlying = IERC4626(_collateral).asset();
-
         //get max withdraw
         uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
         //debt to burn (clamp to debtByCollateral)

@@ -68,6 +68,10 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         _mint(address(this), 1e18);
     }
 
+
+    /// @notice set unlock length and withdraw window
+    /// @param _withdrawLength time to unlock
+    /// @param _withdrawWindow time to withdraw after unlock
     function setWithdrawTimers(uint256 _withdrawLength, uint256 _withdrawWindow) external onlyOwner{
         require(_withdrawLength <= MAX_WITHDRAW_DELAY, "too high");
         withdrawTime = _withdrawLength;
@@ -75,6 +79,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         emit WithdrawTimersUpdated(_withdrawLength, _withdrawWindow);
     }
 
+    /// @notice set a minimum amount of assets that must be kept from being burned
+    /// @param _minimum the amount of assets to protect from burn
     function setMinimumHeldAssets(uint256 _minimum) external onlyOwner{
         require(_minimum >= 1e18, "too low");
         minimumHeldAssets = _minimum;
@@ -85,7 +91,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         return _totalSupply;
     }
 
-    //note, note a view as need to checkpoint
+    /// @notice balance of a given account
+    /// @param account the user account
+    /// @dev not a view function
     function balanceOf(address account) public returns (uint256) {
         _checkpoint(account);
         return _balances[account];
@@ -161,7 +169,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         return totalAssets() > minimumHeldAssets ? totalAssets() - minimumHeldAssets : 0;
     }
 
-    //burn underlying, liquidationHandler will send rewards in exchange
+    /// @notice burn underlying, liquidationHandler will send rewards in exchange
+    /// @param _amount the amount to burn
     function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
         require(_amount <= maxBurnableAssets(), "!minimumAssets");
@@ -175,6 +184,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice deposit assets into the insurance pool
+    /// @param _assets the amount of tokens to deposit
+    /// @param _receiver the receiving address
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
@@ -191,6 +203,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice mint shares
+    /// @param _shares the amount of shares to mint
+    /// @param _receiver the receving address
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
@@ -207,6 +222,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice start unlock timing for msg.sender
     function exit() external{
         //clear any previous withdraw queue and restart
         _clearWithdrawQueue(msg.sender);
@@ -223,6 +239,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         emit Cooldown(msg.sender, balanceOf(msg.sender), exitTime);
     }
 
+    /// @notice cancel exit timer for msg.sender
     function cancelExit() external{
         //canceling will remove claimable emissions
         //but will redistribute those claimable back into the pool
@@ -253,7 +270,10 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
     }
 
-    function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
+    /// @notice burn shares and withdraw underlying assets
+    /// @param _shares number of shares to redeem
+    /// @param _receiver address to send underlying to
+    function redeem(uint256 _shares, address _receiver, address /*_owner*/) public nonReentrant returns (uint256 assets){
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_shares > 0) {
@@ -268,7 +288,10 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
-    function withdraw(uint256 _amount, address _receiver, address _owner) public nonReentrant returns(uint256 shares){
+    /// @notice withdraw underlying assets
+    /// @param _amount amount of underlying assets to withdraw
+    /// @param _receiver the receiving address
+    function withdraw(uint256 _amount, address _receiver, address /*_owner*/) public nonReentrant returns(uint256 shares){
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_amount > 0) {
@@ -282,16 +305,24 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice get rewards for the given account
+    /// @param _account the account to claim rewards for
     function getReward(address _account) public override{
         require(withdrawQueue[_account] == 0, "claim while queued");
         super.getReward(_account);
     }
 
+    /// @notice get rewards for the given account
+    /// @param _account the account to claim rewards for
+    /// @param _forwardTo the address to send claimed rewards to
     function getReward(address _account, address _forwardTo) public override{
         require(withdrawQueue[_account] == 0, "claim while queued");
         super.getReward(_account,_forwardTo);
     }
 
+    /// @notice check what rewards are claimable
+    /// @param _account the account to query
+    /// @dev not a view function
     function earned(address _account) public override returns(EarnedData[] memory claimable) {
         claimable = super.earned(_account);
         if(withdrawQueue[_account] > 0){
