@@ -27,7 +27,7 @@ pragma solidity ^0.8.19;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairConstants } from "./ResupplyPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
@@ -175,6 +175,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
                 revert InvalidParameter();
             }
             underlying = IERC20(IERC4626(_collateral).asset());
+            if(IERC20Metadata(address(underlying)).decimals() != 18){
+                revert InvalidParameter();
+            }
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
 
@@ -259,17 +262,28 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
     /// @notice The ```totalDebtAvailable``` function returns the total balance of debt tokens in the contract
     /// @return The balance of debt tokens held by contract
-    function totalDebtAvailable(
-    ) public view returns (uint256) {
+    function totalDebtAvailable() external view returns (uint256) {
+        (,,, VaultAccount memory _totalBorrow) = previewAddInterest();
+        
+        return _totalDebtAvailable(_totalBorrow);
+    }
+
+    /// @notice The ```_totalDebtAvailable``` function returns the total balance of debt tokens in the contract
+    /// @return The balance of debt tokens held by contract
+    function _totalDebtAvailable(VaultAccount memory _totalBorrow) internal view returns (uint256) {
         //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
         //be a limited amount of stables that have been bridged and available
         uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
         uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
-        return borrowable < mintable ? borrowable : mintable;
+        borrowable = borrowable < mintable ? borrowable : mintable;
+        return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
-    function currentUtilization() public view returns (uint256) {
+    function currentUtilization() external view returns (uint256) {
+        if(borrowLimit == 0){
+            return PAIR_DECIMALS;
+        }
         return totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
     }
 
@@ -359,7 +373,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
     }
 
-    function _checkAddToken(address _address) internal view override returns(bool){
+    function _checkAddToken(address _address) internal view virtual override returns(bool){
+        if(_address == address(collateral)) return false;
         return true;
     }
 
@@ -484,11 +499,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // Calculate interest accrued
             _results.interestEarned = (_deltaTime * _results.totalBorrow.amount * _results.newRate) / RATE_PRECISION;
 
-            // Accrue interest (if any) and fees iff no overflow
+            // Accrue interest (if any) and fees if no overflow
             if (
                 _results.interestEarned > 0 &&
-                _results.interestEarned + _results.totalBorrow.amount <= type(uint128).max &&
-                _results.interestEarned + borrowLimit <= type(uint128).max
+                _results.interestEarned + _results.totalBorrow.amount <= type(uint128).max
             ) {
                 // Increment totalBorrow by interestEarned
                 _results.totalBorrow.amount += uint128(_results.interestEarned);
@@ -648,45 +662,47 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             revert InsufficientBorrowAmount();
         }
 
-        // Check available capital
-        uint256 _assetsAvailable = totalDebtAvailable();
-        if (_assetsAvailable < _borrowAmount) {
-            revert InsufficientDebtAvailable(_assetsAvailable, _borrowAmount);
-        }
         //mint fees
-        uint128 debtForMint = uint128((_borrowAmount * (LIQ_PRECISION + mintFee)) / LIQ_PRECISION);
+        uint256 debtForMint = (_borrowAmount * (LIQ_PRECISION + mintFee) / LIQ_PRECISION);
 
+        // Check available capital
+        uint256 _assetsAvailable = _totalDebtAvailable(_totalBorrow);
+        if (_assetsAvailable < debtForMint) {
+            revert InsufficientDebtAvailable(_assetsAvailable, debtForMint);
+        }
+        
         // Calculate the number of shares to add based on the amount to borrow
         _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
+        //combine current shares and new shares
+        uint256 newTotalShares = _totalBorrow.shares + _sharesAdded;
+
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
-        _totalBorrow.amount += debtForMint;
-        _totalBorrow.shares += uint128(_sharesAdded);
+        _totalBorrow.amount += debtForMint.toUint128();
+        _totalBorrow.shares = newTotalShares.toUint128();
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
         _userBorrowShares[msg.sender] += _sharesAdded;
 
-        uint256 otherFees = debtForMint - _borrowAmount;
+        uint256 otherFees = debtForMint > _borrowAmount ? debtForMint - _borrowAmount : 0;
         if (otherFees > 0) claimableOtherFees += otherFees;
 
         // Interactions
-        // unlike fraxlend, we mint on the fly so there are no available tokens to cheat the gas cost of a transfer
-        // if (_receiver != address(this)) {
-            IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
-        // }
+        IResupplyRegistry(registry).mint(_receiver, _borrowAmount);
+        
         emit Borrow(msg.sender, _receiver, _borrowAmount, _sharesAdded, otherFees);
     }
 
     /// @notice The ```borrow``` function allows a user to open/increase a borrow position
     /// @dev Borrower must call ```ERC20.approve``` on the Collateral Token contract if applicable
-    /// @param _borrowAmount The amount of Asset Token to borrow
-    /// @param _collateralAmount The amount of Collateral Token to transfer to Pair
+    /// @param _borrowAmount The amount to borrow
+    /// @param _underlyingAmount The amount of underlying tokens to transfer to Pair
     /// @param _receiver The address which will receive the Asset Tokens
     /// @return _shares The number of borrow Shares the msg.sender will be debited
     function borrow(
         uint256 _borrowAmount,
-        uint256 _collateralAmount,
+        uint256 _underlyingAmount,
         address _receiver
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _shares) {
         if (_receiver == address(0)) revert InvalidReceiver();
@@ -698,8 +714,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _updateExchangeRate();
 
         // Only add collateral if necessary
-        if (_collateralAmount > 0) {
-            _addCollateral(msg.sender, _collateralAmount, msg.sender);
+        if (_underlyingAmount > 0) {
+            //pull underlying and deposit in vault
+            underlying.safeTransferFrom(msg.sender, address(this), _underlyingAmount);
+            uint256 collateralShares = IERC4626(address(collateral)).deposit(_underlyingAmount, address(this));
+            //add collateral to msg.sender
+            _addCollateral(address(this), collateralShares, msg.sender);
         }
 
         // Effects: Call internal borrow function
@@ -928,6 +948,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
+        // accrue interest if necessary
+        _addInterest();
+
         //redemption fees
         //assuming 1% redemption fee(0.5% to protocol, 0.5% to borrowers) and a redemption of $100
         // reduce totalBorrow.amount by 99.5$
@@ -1017,7 +1040,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Prevent stack-too-deep
         int256 _leftoverCollateral;
-        // uint256 _feesAmount;
         {
             // Checks & Calculations
             // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
@@ -1026,12 +1048,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
             // We first optimistically calculate the amount of collateral to give the liquidator based on the higher clean liquidation fee
             // This fee only applies if the liquidator does a full liquidation
-            uint256 _optimisticCollateralForLiquidator = (_liquidationAmountInCollateralUnits *
+            _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
                 (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
             // Because interest accrues every block, _liquidationAmountInCollateralUnits from a few lines up is an ever increasing value
             // This means that leftoverCollateral can occasionally go negative by a few hundred wei (cleanLiqFee premium covers this for liquidator)
-            _leftoverCollateral = (_userCollateralBalance.toInt256() - _optimisticCollateralForLiquidator.toInt256());
+            _leftoverCollateral = (_userCollateralBalance.toInt256() - _collateralForLiquidator.toInt256());
 
             // If cleanLiquidation fee results in no leftover collateral, give liquidator all the collateral
             // This will only be true when there liquidator is cleaning out the position

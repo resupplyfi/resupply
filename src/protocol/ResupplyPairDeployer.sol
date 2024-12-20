@@ -128,6 +128,8 @@ contract ResupplyPairDeployer is CoreOwnable {
         if (_creationCode.length > 13_000) {
             bytes memory _secondHalf = BytesLib.slice(_creationCode, 13_000, _creationCode.length - 13_000);
             contractAddress2 = SSTORE2.write(_secondHalf);
+        }else{
+            contractAddress2 = address(0);
         }
     }
 
@@ -146,7 +148,10 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _customConfigData
     ) private returns (address _pairAddress) {
         // Get creation code
-        bytes memory _creationCode = BytesLib.concat(SSTORE2.read(contractAddress1), SSTORE2.read(contractAddress2));
+        bytes memory _creationCode = SSTORE2.read(contractAddress1);
+        if (contractAddress2 != address(0)) {
+            _creationCode = BytesLib.concat(_creationCode, SSTORE2.read(contractAddress2));
+        }
 
         // Get bytecode
         bytes memory bytecode = abi.encodePacked(

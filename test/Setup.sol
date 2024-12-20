@@ -54,6 +54,9 @@ contract Setup is Test {
     uint64 internal constant FIFTY_BPS = 158_247_046;
     uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
     uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
+    uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
+    address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
+    address internal constant BURN_ADDRESS = address(0xdead);
 
     Core public core;
     GovStaker public staker;
@@ -270,6 +273,7 @@ contract Setup is Test {
         govToken = new GovToken(
             address(core), 
             vestManagerAddress,
+            GOV_TOKEN_INITIAL_SUPPLY,
             "Resupply", 
             "RSUP"
         );
@@ -277,14 +281,16 @@ contract Setup is Test {
         vestManager = new VestManager(
             address(core), 
             address(govToken),
-            address(0xdead),   // Burn address
-            redemptionTokens,  // Redemption tokens
-            365 days           // Time until deadline
+            BURN_ADDRESS,   // Burn address
+            redemptionTokens  // Redemption tokens
         );
         assertEq(address(vestManager), vestManagerAddress);
         
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
         stakingToken = govToken;
+
+        vm.prank(address(core));
+        core.setVoter(address(voter));
         
         emissionsController = new EmissionsController(
             address(core), 

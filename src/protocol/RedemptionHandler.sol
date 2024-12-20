@@ -37,29 +37,12 @@ contract RedemptionHandler is CoreOwnable{
         emit SetBaseRedemptionFee(_fee);
     }
 
-    //get max redeemable
-    //based on fee, true max redeemable will be slightly larger than this value
-    //this is just a quick estimate
-    function getMaxRedeemableCollateral(address _pair) public view returns(uint256){
-        (,,uint256 exchangeRate) = IResupplyPair(_pair).exchangeRateInfo();
-        if (exchangeRate == 0) return 0;
-        return getMaxRedeemableValue(_pair) * PRECISION / exchangeRate;
-    }
-
     /// @notice Estimates the maximum amount of debtToken that can be used to redeem collateral
-    function getMaxRedeemableValue(address _pair) public view returns(uint256){
+    function getMaxRedeemableDebt(address _pair) public view returns(uint256){
         (,,,IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
         uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
         if (_totalBorrow.amount < minLeftoverDebt) return 0;
         return _totalBorrow.amount - minLeftoverDebt;
-    }
-
-    function getMaxRedeemableUnderlying(address _pair) public view returns(uint256){
-        uint256 maxCollat = getMaxRedeemableCollateral(_pair);
-        address vault = IResupplyPair(_pair).collateral();
-        uint256 maxWithdraw = IERC4626(vault).maxWithdraw(_pair);
-
-        return maxWithdraw > maxCollat ? maxCollat : maxWithdraw;
     }
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.

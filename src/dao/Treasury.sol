@@ -39,6 +39,6 @@ contract Treasury is CoreOwnable {
     }
 
     function setTokenApproval(address _token, address _spender, uint256 _amount) external onlyOwner {
-        IERC20(_token).safeApprove(_spender, _amount);
+        IERC20(_token).forceApprove(_spender, _amount);
     }
 }

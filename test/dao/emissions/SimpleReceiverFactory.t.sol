@@ -6,6 +6,7 @@ import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceive
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { GovToken } from "src/dao/GovToken.sol";
 import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+import { Errors } from "@openzeppelin/contracts/utils/Errors.sol";
 
 contract SimpleReceiverFactoryTest is Setup {
 
@@ -55,7 +56,7 @@ contract SimpleReceiverFactoryTest is Setup {
         address receiver = simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0));
         
         address receiver2;
-        vm.expectRevert("ERC1167: create2 failed");
+        vm.expectRevert(Errors.FailedDeployment.selector);
         receiver2 = simpleReceiverFactory.deployNewReceiver("Test Receiver", new address[](0));
         
         address simpleReceiverImplementation2 = address(new 

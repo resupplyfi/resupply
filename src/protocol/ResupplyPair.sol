@@ -27,7 +27,7 @@ pragma solidity ^0.8.19;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairConstants } from "./pair/ResupplyPairConstants.sol";
 import { ResupplyPairCore } from "./pair/ResupplyPairCore.sol";
@@ -134,7 +134,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             uint256 _totalCollateral
         )
     {
-        (, , uint256 _claimableFees, VaultAccount memory _totalBorrow) = previewAddInterest();
+        VaultAccount memory _totalBorrow;
+        (, , _claimableFees, _totalBorrow) = previewAddInterest();
         _totalBorrowAmount = _totalBorrow.amount;
         _totalBorrowShares = _totalBorrow.shares;
         _totalCollateral = totalCollateral();
@@ -275,6 +276,9 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     event SetBorrowLimit(uint256 limit);
 
     function _setBorrowLimit(uint256 _limit) internal {
+        if(_limit > type(uint128).max){
+            revert InvalidParameter();
+        }
         borrowLimit = _limit;
         emit SetBorrowLimit(_limit);
     }

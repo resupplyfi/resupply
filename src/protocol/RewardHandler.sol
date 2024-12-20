@@ -149,12 +149,12 @@ contract RewardHandler is CoreOwnable, EpochTracker {
             //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
             rate = _amount / (block.timestamp - lastTimestamp);
 
-            //if minimum set check if rate is below
-            if(minimumWeights[_pair] != 0 && rate < minimumWeights[_pair]){
-                rate = minimumWeights[_pair];
-            }else if(rate < baseMinimumWeight){
-                //if rate below the global base minimum then clamp
-                rate = baseMinimumWeight;
+            //clamp rate floor to a minimum value
+            //use custom pair setting if set, otherwise compare against baseMinimumWeight
+            uint256 minWeight = minimumWeights[_pair];
+            minWeight = minWeight == 0 ? baseMinimumWeight : minWeight;
+            if(rate < minWeight){
+                rate = minWeight;
             }
         }
         

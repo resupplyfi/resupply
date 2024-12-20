@@ -6,4 +6,5 @@ interface IInsurancePool{
     function exit() external;
     function cancelExit() external;
     function emissionsReceiver() external view returns(address);
+    function maxBurnableAssets() external view returns(uint256);
 }

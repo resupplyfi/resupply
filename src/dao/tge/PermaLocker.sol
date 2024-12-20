@@ -42,7 +42,7 @@ contract PermaLocker is Ownable2Step {
         }
     }
 
-    constructor(address _core, address _owner, address _staker, address _registry, string memory _name) {
+    constructor(address _core, address _owner, address _staker, address _registry, string memory _name) Ownable(_owner) {
         core = _core;
         registry = IResupplyRegistry(_registry);
         staker = IGovStaker(_staker);
@@ -50,7 +50,6 @@ contract PermaLocker is Ownable2Step {
         govToken.approve(address(staker), type(uint256).max);
         registry = IResupplyRegistry(_registry);
         name = _name;
-        _transferOwnership(_owner);
     }
 
     function execute(address target, bytes calldata data) external returns (bool, bytes memory) {

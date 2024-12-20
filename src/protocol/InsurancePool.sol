@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
@@ -20,6 +20,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
     uint256 constant public shareRefactor = 1e18;
+
+    uint256 public minimumHeldAssets = 10_000 * 1e18;
 
     uint256 public withdrawTime = 7 days;
     uint256 public withdrawTimeLimit = 1 days;
@@ -47,6 +49,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event Cooldown(address indexed account, uint256 amount, uint256 end);
     event WithdrawTimersUpdated(uint256 withdrawTime, uint256 withdrawWindow);
+    event MinimumHeldAssetsUpdated(uint256 minimumAssets);
 
     constructor(address _core, address _asset, address[] memory _rewards, address _registry, address _emissionsReceiver) CoreOwnable(_core){
         asset = _asset;
@@ -72,11 +75,19 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         emit WithdrawTimersUpdated(_withdrawLength, _withdrawWindow);
     }
 
+    function setMinimumHeldAssets(uint256 _minimum) external onlyOwner{
+        require(_minimum >= 1e18, "too low");
+        minimumHeldAssets = _minimum;
+        emit MinimumHeldAssetsUpdated(_minimum);
+    }
+
     function totalSupply() public view returns (uint256) {
         return _totalSupply;
     }
 
-    function balanceOf(address account) public view returns (uint256) {
+    //note, note a view as need to checkpoint
+    function balanceOf(address account) public returns (uint256) {
+        _checkpoint(account);
         return _balances[account];
     }
 
@@ -146,10 +157,14 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         return type(uint256).max;
     }
 
+    function maxBurnableAssets() public view returns(uint256){
+        return totalAssets() > minimumHeldAssets ? totalAssets() - minimumHeldAssets : 0;
+    }
 
     //burn underlying, liquidationHandler will send rewards in exchange
     function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
+        require(_amount <= maxBurnableAssets(), "!minimumAssets");
 
         IMintable(asset).burn(address(this), _amount);
 
@@ -161,6 +176,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
+        //can not deposit if in withdraw queue, call cancel first
+        require(withdrawQueue[_receiver] == 0,"withdraw queued");
+
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
          if (_assets > 0) {
@@ -174,6 +192,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
+        //can not deposit if in withdraw queue, call cancel first
+        require(withdrawQueue[_receiver] == 0,"withdraw queued");
+
         //checkpoint rewards before balance change
         _checkpoint(_receiver);
         if (_shares > 0) {
@@ -332,13 +353,13 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function previewMint(uint256 _shares) public view returns (uint256){
         return convertToAssetsRoundUp(_shares); //round up
     }
-    function maxWithdraw(address _owner) external view returns (uint256){
+    function maxWithdraw(address _owner) external returns (uint256){
         return convertToAssets(balanceOf(_owner));
     }
     function previewWithdraw(uint256 _amount) public view returns (uint256){
         return convertToSharesRoundUp(_amount); //round up
     }
-    function maxRedeem(address _owner) external view returns (uint256){
+    function maxRedeem(address _owner) external returns (uint256){
         return balanceOf(_owner);
     }
     function previewRedeem(uint256 _shares) public view returns (uint256){

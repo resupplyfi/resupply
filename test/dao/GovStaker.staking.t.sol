@@ -30,6 +30,15 @@ contract GovStakerStakingTest is Setup {
         assertEq(address(staker.stakeToken()), address(stakingToken), "Stake token should be set correctly");
     }
 
+    function test_UnstakeWithZeroCooldownEpochs() public {
+        uint amountToStake = 10_000e18;
+        stakeSomeAndWait(address(this), amountToStake);
+        vm.prank(address(core));
+        staker.setCooldownEpochs(0);
+
+        staker.unstake(address(this), address(this));
+    }
+
     function test_Stake() public {
         uint amountToStake = 100 * 10 ** 18;
         vm.prank(user1);
@@ -187,6 +196,9 @@ contract GovStakerStakingTest is Setup {
 
 
     function stakeSomeAndWait(address user, uint amountToStake) internal {
+        vm.prank(user);
+        stakingToken.approve(address(staker), amountToStake);
+        deal(address(stakingToken), user, amountToStake);
         vm.prank(user);
         staker.stake(user, amountToStake);
         skip(warmupWait());

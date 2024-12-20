@@ -83,6 +83,17 @@ contract VoterTest is Setup {
         assertEq(voter.canExecute(proposalId), false);
     }
 
+    function test_CannotReplayProposal() public {
+        uint256 propId = createSimpleProposal();
+        vm.prank(user1);
+        voter.voteForProposal(user1, propId);
+        skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+
+        assertEq(voter.canExecute(propId), true);
+        voter.executeProposal(propId);
+        assertEq(voter.canExecute(propId), false);
+    }
+
     function test_voteForProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
         uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
@@ -165,6 +176,13 @@ contract VoterTest is Setup {
         voter.cancelProposal(propId);
     }
 
+    function test_CannotCancelProposalWithCancelerPayloadAndTargetIsZeroAddress() public {
+        uint256 propId = createProposalDataWithCancelerAndTargetIsZeroAddress();
+        vm.prank(address(core));
+        vm.expectRevert("Contains canceler payload");
+        voter.cancelProposal(propId);
+    }
+
     function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {
         Voter.Action[] memory payload = new Voter.Action[](1);
         payload[0] = Voter.Action({
@@ -182,6 +200,23 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(voter), 
+                ICore.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload);
+    }
+
+    function createProposalDataWithCancelerAndTargetIsZeroAddress() public returns (uint256) {
+        Voter.Action[] memory payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(0),
+                address(0), 
                 ICore.cancelProposal.selector, 
                 true,
                 address(0)
@@ -219,5 +254,18 @@ contract VoterTest is Setup {
         vm.expectRevert("Invalid value");
         voter.setPassingPct(MAX_PCT+1);
         vm.stopPrank();
+    }
+
+    function createSimpleProposal() public returns (uint256) {
+        Voter.Action[] memory payload = new Voter.Action[](1);
+        payload[0] = Voter.Action({
+            target: address(pair),
+            data: abi.encodeWithSelector(
+                pair.setValue.selector, 
+                5
+            )
+        });
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload);
     }
 }
