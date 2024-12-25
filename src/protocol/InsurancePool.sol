@@ -248,7 +248,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _clearWithdrawQueue(address _account) internal{
-        if(withdrawQueue[msg.sender] != 0){
+        if(withdrawQueue[_account] != 0){
             //checkpoint rewards
             _checkpoint(_account);
             //get reward 0 info
@@ -260,12 +260,12 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
             //redistribute back to pool
             reward.reward_remaining -= reward0;
 
-            withdrawQueue[msg.sender] = 0; //flag as not waiting for withdraw
+            withdrawQueue[_account] = 0; //flag as not waiting for withdraw
         }
     }
 
     function _checkWithdrawReady(address _account) internal{
-        uint256 withdrawQueue = withdrawQueue[msg.sender];
+        uint256 withdrawQueue = withdrawQueue[_account];
         require(withdrawQueue > 0 && block.timestamp >= withdrawQueue, "!withdraw time");
         require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
     }
