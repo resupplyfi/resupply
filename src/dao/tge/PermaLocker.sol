@@ -13,7 +13,6 @@ contract PermaLocker is Ownable2Step {
     bool public unstakingAllowed;
     string public name;
     IGovStaker public staker;
-    IGovStaker public oldStaker;
     IERC20 public govToken;
     address public operator;
     

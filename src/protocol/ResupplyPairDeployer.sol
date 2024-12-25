@@ -54,9 +54,6 @@ contract ResupplyPairDeployer is CoreOwnable {
     address public immutable govToken;
     mapping(address => bool) public operators;
 
-    // Default swappers
-    address[] public defaultSwappers;
-
     /// @notice Emits when a new pair is deployed
     /// @notice The ```LogDeploy``` event is emitted when a new Pair is deployed
     /// @param address_ The address of the pair

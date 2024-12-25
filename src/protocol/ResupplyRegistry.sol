@@ -44,7 +44,6 @@ contract ResupplyRegistry is CoreOwnable{
     // Default swappers
     address[] public defaultSwappers;
     // protocol contracts
-    address public circuitBreakerAddress;
     address public liquidationHandler;
     address public feeDeposit;
     address public redemptionHandler;
@@ -199,6 +198,5 @@ contract ResupplyRegistry is CoreOwnable{
     // ============================================================================================
 
     error NameMustBeUnique();
-    error CircuitBreakerOnly();
     event WithdrawTo(address indexed user, uint256 amount);
 }
