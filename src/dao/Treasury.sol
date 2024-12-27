@@ -13,8 +13,6 @@ contract Treasury is CoreOwnable {
     event RetrieveETH (uint amount);
     event FailedETHSend(bytes returnedData);
 
-    receive() external payable {}
-
     constructor(address _core) CoreOwnable(_core) {}
 
     //Retrieve full balance of token in contract
@@ -42,17 +40,24 @@ contract Treasury is CoreOwnable {
         IERC20(_token).forceApprove(_spender, _amount);
     }
 
-    function execute(address target, bytes calldata data) external returns (bool, bytes memory) {
-        return _execute(target, data);
+    function execute(address target, bytes calldata data, uint256 value) external returns (bool, bytes memory) {
+        return _execute(target, data, value);
     }
 
-    function safeExecute(address target, bytes calldata data) external returns (bytes memory) {
-        (bool success, bytes memory result) = _execute(target, data);
+    function safeExecute(address target, bytes calldata data, uint256 value) external returns (bytes memory) {
+        (bool success, bytes memory result) = _execute(target, data, value);
         require(success, "CallFailed");
         return result;
     }
 
-    function _execute(address target, bytes calldata data) internal onlyOwner returns (bool success, bytes memory result) {
-        (success, result) = target.call(data);
+    function _execute(
+        address target,
+        bytes calldata data,
+        uint256 value
+    ) internal onlyOwner returns (bool success, bytes memory result) {
+        require(address(this).balance >= value, "InsufficientBalance");
+        (success, result) = target.call{value: value}(data);
     }
+
+    receive() external payable {}
 }

@@ -90,5 +90,15 @@ contract TreasuryTest is Setup {
         assertEq(treasuryPostBalance, 0);
     }
 
+    function test_SafeExecute() public {
+        deal(address(treasury), 100 * 10 ** 18);
+        deal(address(this), 10 ** 18);
+
+        vm.prank(address(core));
+        treasury.safeExecute(address(user1), "", 1e18);
+
+        console2.log(address(user1).balance);
+        console2.log(address(treasury).balance);
+    }
     
 }
