@@ -727,10 +727,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```AddCollateral``` event is emitted when a borrower adds collateral to their position
-    /// @param sender The source of funds for the new collateral
     /// @param borrower The borrower account for which the collateral should be credited
     /// @param collateralAmount The amount of Collateral Token to be transferred
-    event AddCollateral(address indexed sender, address indexed borrower, uint256 collateralAmount);
+    event AddCollateral(address indexed borrower, uint256 collateralAmount);
 
     /// @notice The ```_addCollateral``` function is an internal implementation for adding collateral to a borrowers position
     /// @param _sender The source of funds for the new collateral
@@ -750,7 +749,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //stake underlying
         _stakeUnderlying(_collateralAmount);
 
-        emit AddCollateral(_sender, _borrower, _collateralAmount);
+        emit AddCollateral(_borrower, _collateralAmount);
     }
 
     /// @notice The ```addCollateral``` function allows the caller to add Collateral Token to a borrowers position
@@ -778,12 +777,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```RemoveCollateral``` event is emitted when collateral is removed from a borrower's position
-    /// @param _sender The account from which funds are transferred
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _receiver The address to which Collateral Tokens will be transferred
     /// @param _receiver The address of the account in which collateral is being removed
     event RemoveCollateral(
-        address indexed _sender,
         uint256 _collateralAmount,
         address indexed _receiver,
         address indexed _borrower
@@ -798,8 +795,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Effects: write to state
         // NOTE: Following line will revert on underflow if _collateralAmount > userCollateralBalance
         _userCollateralBalance[_borrower] -= _collateralAmount;
-        // NOTE: Following line will revert on underflow if totalCollateral < _collateralAmount
-        // totalCollateral -= _collateralAmount;
 
         //unstake underlying
         //NOTE: following will revert on underflow if total collateral < _collateralAmount
@@ -809,7 +804,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (_receiver != address(this)) {
             collateral.safeTransfer(_receiver, _collateralAmount);
         }
-        emit RemoveCollateral(msg.sender, _collateralAmount, _receiver, _borrower);
+        emit RemoveCollateral(_collateralAmount, _receiver, _borrower);
     }
 
     /// @notice The ```removeCollateralVault``` function is used to remove collateral from msg.sender's borrow position

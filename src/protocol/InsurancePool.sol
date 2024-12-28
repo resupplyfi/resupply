@@ -42,8 +42,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         address indexed sender,
         address indexed receiver,
         address indexed owner,
-        uint256 assets,
-        uint256 share
+        uint256 shares,
+        uint256 assets
     );
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -273,7 +273,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice burn shares and withdraw underlying assets
     /// @param _shares number of shares to redeem
     /// @param _receiver address to send underlying to
-    function redeem(uint256 _shares, address _receiver, address /*_owner*/) public nonReentrant returns (uint256 assets){
+    function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
+        require(msg.sender == _owner);
+
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_shares > 0) {
@@ -291,7 +293,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice withdraw underlying assets
     /// @param _amount amount of underlying assets to withdraw
     /// @param _receiver the receiving address
-    function withdraw(uint256 _amount, address _receiver, address /*_owner*/) public nonReentrant returns(uint256 shares){
+    function withdraw(uint256 _amount, address _receiver, address _owner) public nonReentrant returns(uint256 shares){
+        require(msg.sender == _owner);
+
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_amount > 0) {

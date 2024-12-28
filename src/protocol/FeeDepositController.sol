@@ -28,6 +28,8 @@ contract FeeDepositController is CoreOwnable{
         uint80 platform;
     }
 
+    event SplitsSet(uint80 insurance, uint80 treasury, uint80 platform);
+
     constructor(
         address _core,
         address _registry, 
@@ -45,6 +47,7 @@ contract FeeDepositController is CoreOwnable{
         splits.insurance = uint80(_insuranceSplit);
         splits.treasury = uint80(_treasurySplit);
         splits.platform = uint80(BPS - splits.insurance - splits.treasury);
+        emit SplitsSet(splits.insurance, splits.treasury, splits.platform);
     }
 
     function distribute() external{
@@ -81,6 +84,7 @@ contract FeeDepositController is CoreOwnable{
         splits.insurance = uint80(_insuranceSplit);
         splits.treasury = uint80(_treasurySplit);
         splits.platform = uint80(_platformSplit);
+        emit SplitsSet(splits.insurance, splits.treasury, splits.platform);
     }
 
     
