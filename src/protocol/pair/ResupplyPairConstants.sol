@@ -52,6 +52,7 @@ abstract contract ResupplyPairConstants {
     error InvalidRedemptionHandler();
     error InvalidParameter();
     error InsufficientDebtToRedeem();
+    error MinimumRedemption();
     error InsufficientBorrowAmount();
     error OnlyProtocolOrOwner();
 }
