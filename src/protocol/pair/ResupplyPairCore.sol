@@ -375,6 +375,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
     function _checkAddToken(address _address) internal view virtual override returns(bool){
         if(_address == address(collateral)) return false;
+        if(_address == address(debtToken)) return false;
         return true;
     }
 
@@ -1269,9 +1270,18 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         
         uint256 _sharesToRepay = _totalBorrow.toShares(_amountOut, false);
 
+        // clamp to user balance
+        _sharesToRepay = _sharesToRepay > _userBorrowShares[msg.sender] ? _userBorrowShares[msg.sender] : _sharesToRepay;
+
         // Effects: write to state
         // Note: setting _payer to address(this) means no actual transfer will occur.  Contract already has funds
         _repay(_totalBorrow, _amountOut.toUint128(), _sharesToRepay.toUint128(), address(this), msg.sender);
+
+        uint256 leftover = debtToken.balanceOf(address(this));
+
+        if(leftover > 0){
+            debtToken.transfer(msg.sender, leftover);
+        }
 
         emit RepayWithCollateral(msg.sender, _swapperAddress, _collateralToSwap, _amountOut, _sharesToRepay);
     }
