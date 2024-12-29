@@ -321,7 +321,8 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             if (i == _rates.length - 1) break; // prevent index out of bounds
             require(_rates[i] <= _rates[i + 1], "Rates must decay"); // lower index must be <= than higher index
         }
-        _mintEmissions(getEpoch()); // before updating, mint current epoch emissions at old rate
+        // before updating, and only if receiver(s) are registered, mint current epoch emissions at old rate
+        if (nextReceiverId > 0) _mintEmissions(getEpoch());
         emissionsSchedule = _rates;
         epochsPer = _epochsPer;
         tailRate = _tailRate;
