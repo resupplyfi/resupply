@@ -265,7 +265,6 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             uint256 mintable = _calcEmissionsForEpoch(++_lastMintEpoch);
             if (mintable > 0) govToken.mint(address(this), mintable);
             emissionsPerEpoch[_lastMintEpoch] = mintable;
-            if (nextReceiverId == 0) unallocated += mintable;
         }
         lastMintEpoch = epoch;
     }
