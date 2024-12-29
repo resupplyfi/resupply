@@ -182,7 +182,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
 
-            currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
             
             exchangeRateInfo.oracle = _oracle;
@@ -295,7 +294,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function _isSolvent(address _borrower, uint256 _exchangeRate) internal returns (bool) {
         if (maxLTV == 0) return true;
         //must look at borrow shares of current epoch so user helper function
-        uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares(_borrower), true);
+        //user borrow shares should be synced before _isSolvent is called
+        uint256 _borrowerAmount = totalBorrow.toAmount(_userBorrowShares[_borrower], true);
         if (_borrowerAmount == 0) return true;
         
         //anything that calls _isSolvent will call _syncUserRedemptions beforehand
@@ -326,7 +326,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (!_isSolvent(_borrower, exchangeRateInfo.exchangeRate)) {
             revert Insolvent(
-                totalBorrow.toAmount(userBorrowShares(_borrower), true),
+                totalBorrow.toAmount(_userBorrowShares[_borrower], true),
                 _userCollateralBalance[_borrower], //_issolvent sync'd so take base _userCollateral
                 exchangeRateInfo.exchangeRate
             );
