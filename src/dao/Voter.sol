@@ -163,7 +163,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
 
-        _containsProposalCancelerPaylod(payload); // Enforce payloads with canceler must be single action
+        _containsProposalCancelerPayload(payload); // Enforce payloads with canceler must be single action
 
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
@@ -252,14 +252,14 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
-        require(!_containsProposalCancelerPaylod(proposalPayloads[id]), "Contains canceler payload");
+        require(!_containsProposalCancelerPayload(proposalPayloads[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
 
     // @dev: inspects a payload to check if any actions contain a proposal canceler
     //       requires any proposal modifying cancel permissions to be the only action in the payload
-    function _containsProposalCancelerPaylod(Action[] memory payload) internal view returns (bool) {
+    function _containsProposalCancelerPayload(Action[] memory payload) internal view returns (bool) {
         uint256 payloadLength = payload.length;
 
         for (uint256 i = 0; i < payloadLength; i++) {
