@@ -7,6 +7,7 @@ import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
+import { BytesLib } from "../libraries/BytesLib.sol";
 
 interface IERC20 {
     function decimals() external view returns (uint256);
@@ -260,23 +261,16 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     //       requires any proposal modifying cancel permissions to be the only action in the payload
     function _containsProposalCancelerPayload(Action[] memory payload) internal view returns (bool) {
         uint256 payloadLength = payload.length;
-
         for (uint256 i = 0; i < payloadLength; i++) {
             Action memory action = payload[i];
             bytes memory data = action.data;
             bytes4 selector;
-
-            // Use inline assembly to extract the selector
             assembly {
                 selector := mload(add(data, 32))
             }
-
             if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
-                bytes memory slicedData = new bytes(data.length - 4); // create new byte array that excludes the selector
-                // copy the data to slicedData byte by byte, excluding the selector
-                for (uint256 j = 0; j < slicedData.length; j++) {
-                    slicedData[j] = data[j + 4];
-                }
+                // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
+                bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
                 if ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector) {
                     require(payloadLength == 1, "Payload with canceler must be single action");
