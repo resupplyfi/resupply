@@ -71,6 +71,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     event ReceiverAdded(uint256 indexed id, address indexed receiver);
     event ReceiverWeightsSet(uint256[] receiverIds, uint256[] weights);
     event UnallocatedRecovered(address indexed recipient, uint256 amount);
+    event EmissionsScheduleSet(uint256[] rates, uint256 epochsPer, uint256 tailRate);
 
     struct ReceiverInfo{
         bool active;
@@ -323,6 +324,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         emissionsSchedule = _rates;
         epochsPer = _epochsPer;
         tailRate = _tailRate;
+        emit EmissionsScheduleSet(_rates, _epochsPer, _tailRate);
     }
 
     /**
