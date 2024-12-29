@@ -211,7 +211,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param pctNo Percent of account's total weight to vote against
      */
     function voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) external callerOrDelegated(account) {
-        require(pctYes <= MAX_PCT && pctNo <= MAX_PCT, "Pct must not exceed MAX_PCT");
         require(pctYes + pctNo == MAX_PCT, "Sum of pcts must equal MAX_PCT");
         _voteForProposal(account, id, pctYes, pctNo);
     }
