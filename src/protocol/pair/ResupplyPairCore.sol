@@ -1258,11 +1258,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             _path,
             address(this)
         );
-        uint256 _finalBalance = _debtToken.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping
-        _amountOut = _finalBalance - _initialBalance;
+        _amountOut = _debtToken.balanceOf(address(this)) - _initialBalance;
         if (_amountOut < _amountOutMin) {
             revert SlippageTooHigh(_amountOutMin, _amountOut);
         }
@@ -1270,16 +1269,24 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         
         uint256 _sharesToRepay = _totalBorrow.toShares(_amountOut, false);
 
-        // clamp to user balance
-        _sharesToRepay = _sharesToRepay > _userBorrowShares[msg.sender] ? _userBorrowShares[msg.sender] : _sharesToRepay;
+        //check if over user borrow shares or will revert
+        if(_sharesToRepay > _userBorrowShares[msg.sender]){
+            //clamp
+            _sharesToRepay = _userBorrowShares[msg.sender];
+
+            //readjust token amount since shares changed
+            _amountOut = _totalBorrow.toAmount(_sharesToRepay, true);
+        }
+        
 
         // Effects: write to state
         // Note: setting _payer to address(this) means no actual transfer will occur.  Contract already has funds
         _repay(_totalBorrow, _amountOut.toUint128(), _sharesToRepay.toUint128(), address(this), msg.sender);
 
-        uint256 leftover = debtToken.balanceOf(address(this));
-
+        //check for leftover stables that didnt go toward repaying debt
+        uint256 leftover = debtToken.balanceOf(address(this)) - _initialBalance;
         if(leftover > 0){
+            //send change back to user
             debtToken.transfer(msg.sender, leftover);
         }
 
