@@ -137,8 +137,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
                 require(receivers[j] != receiver.receiver, "Duplicate receiver id");
             }
             receivers[i] = receiver.receiver;
-
-            IReceiver(receiver.receiver).allocateEmissions(); // allocate according to old weight
+            _fetchEmissions(receiver.receiver); // allocate according to old weight
             if (_newWeights[i] > receiver.weight) {
                 totalWeight += (_newWeights[i] - receiver.weight);
             } else {
