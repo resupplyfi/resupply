@@ -108,11 +108,10 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         return proposalData.length;
     }
 
+    // @dev: Reverts in epoch 0 as proposals are not permitted
     function minCreateProposalWeight() public view returns (uint256) {
         uint256 epoch = getEpoch();
-        if (epoch == 0) return 0;
         epoch -= 1;
-
         uint256 totalWeight = staker.getTotalWeightAt(epoch);
         return (totalWeight * minCreateProposalPct) / MAX_PCT;
     }
