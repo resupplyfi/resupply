@@ -315,8 +315,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     function setEmissionsSchedule(uint256[] memory _rates, uint256 _epochsPer, uint256 _tailRate) external onlyOwner {
         require(_rates.length > 0 && _epochsPer > 0, "Must be >0");
         require(_rates[0] >= _tailRate, "Final rate less than tail rate");
-        for (uint256 i = 0; i < _rates.length; i++) {
-            if (i == _rates.length - 1) break; // prevent index out of bounds
+        for (uint256 i = 0; i < _rates.length - 1; i++) {
             require(_rates[i] <= _rates[i + 1], "Rates must decay"); // lower index must be <= than higher index
         }
         // before updating, and only if receiver(s) are registered, mint current epoch emissions at old rate
