@@ -22,13 +22,11 @@ contract Core {
     
     /// @notice Length of an epoch, in seconds
     uint256 public immutable epochLength;
-    bool private paused;
 
     // permission for callers to execute arbitrary calls via this contract's `execute` function
     mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) public operatorPermissions;
 
     event VoterSet(address indexed newVoter);
-    event ProtocolPaused(bool indexed paused);
     event OperatorExecuted(address indexed caller, address indexed target, bytes data);
     event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);
 
@@ -95,25 +93,5 @@ contract Core {
     function setVoter(address newVoter) external onlyCore {
         voter = newVoter;
         emit VoterSet(newVoter);
-    }
-
-    /**
-     * @notice Sets the global pause state of the protocol
-     *         Pausing is used to mitigate risks in exceptional circumstances.
-     */
-    function pauseProtocol() public onlyCore {
-        require(!paused, "Already Paused");
-        paused = true;
-        emit ProtocolPaused(true);
-    }
-
-    function unpauseProtocol() public onlyCore {
-        require(paused, "Already Unpaused");
-        paused = false;
-        emit ProtocolPaused(false);
-    }
-
-    function isProtocolPaused() external view returns (bool) {
-        return paused;
     }
 }
