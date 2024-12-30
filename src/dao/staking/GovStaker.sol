@@ -432,9 +432,9 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
         IERC20(_stakeToken).approve(address(staker), amount);
         staker.stake(msg.sender, amount);
-        staker.onMigrate(msg.sender);
+        staker.onPermaStakeMigrate(msg.sender);
         return amount;
     }
 
-    function onMigrate(address _account) external virtual {}
+    function onPermaStakeMigrate(address _account) external virtual {}
 }

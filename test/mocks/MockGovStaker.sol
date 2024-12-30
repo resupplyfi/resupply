@@ -6,7 +6,7 @@ contract MockGovStaker is GovStaker {
         previousStaker = _previousStaker;
     }
 
-    function onMigrate(address account) external override {
+    function onPermaStakeMigrate(address account) external override {
         require(msg.sender == previousStaker, "!migrate");
         accountData[account].isPermaStaker = true;
     }
