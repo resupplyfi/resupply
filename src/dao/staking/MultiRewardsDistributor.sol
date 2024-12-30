@@ -44,7 +44,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     event RewardTokenAdded(address indexed rewardsToken, address indexed rewardsDistributor, uint256 rewardsDuration);
     event RewardsDurationUpdated(address indexed rewardsToken, uint256 duration);
     event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
-
+    event RewardsDistributorSet(address indexed rewardsToken, address indexed rewardsDistributor);
 
     /* ========== MODIFIERS ========== */
 
@@ -168,6 +168,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     function setRewardsDistributor(address _rewardsToken, address _rewardsDistributor) external onlyOwner {
         if (_rewardsToken == address(0) || _rewardsDistributor == address(0)) revert ZeroAddress();
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
+        emit RewardsDistributorSet(_rewardsToken, _rewardsDistributor);
     }
 
     /**
