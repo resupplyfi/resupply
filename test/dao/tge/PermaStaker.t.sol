@@ -5,7 +5,7 @@ import { Setup } from "../../Setup.sol";
 import { IGovStaker } from "../../../src/interfaces/IGovStaker.sol";
 import { GovStaker } from "../../../src/dao/staking/GovStaker.sol";
 import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
-import { MockStaker } from "../../mocks/MockStaker.sol";
+import { MockGovStaker } from "../../mocks/MockGovStaker.sol";
 
 contract PermaStakerTest is Setup {
 
@@ -145,7 +145,7 @@ contract PermaStakerTest is Setup {
         uint256 amount = permaStaker1.claimAndStake();
         assertGt(amount, 0);
 
-        GovStaker newStaker = new GovStaker(address(core), address(registry), address(govToken), 2);
+        MockGovStaker newStaker = new MockGovStaker(address(core), address(registry), address(govToken), 2, address(staker));
         vm.label(address(newStaker), 'NewStaker');
         vm.prank(address(permaStaker1));
         newStaker.setDelegateApproval(address(staker), true); // Must give approval for migration
@@ -168,7 +168,7 @@ contract PermaStakerTest is Setup {
         assertEq(newStaker.balanceOf(address(permaStaker1)), amount + startAmount, 'new staker balance not equal to claimed amount');
         assertEq(newStaker.isPermaStaker(address(permaStaker1)), true, 'perma staker not set');
 
-        MockStaker newStaker2 = new MockStaker(address(core), address(registry), address(govToken), 2);
+        MockGovStaker newStaker2 = new MockGovStaker(address(core), address(registry), address(govToken), 2, address(newStaker));
         vm.label(address(newStaker2), 'NewStaker2');
         vm.prank(address(core));
         registry.setStaker(address(newStaker2));

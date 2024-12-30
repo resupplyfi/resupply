@@ -394,6 +394,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
      * @dev Once confirmed via confirmPermaStaker(), the account will never be able to unstake their tokens
      */
     function startIrreversibleStakeForAccount(address _account) external callerOrDelegated(_account) {
+        require(!accountData[_account].isPermaStaker, "already perma staker account");
         pendingPermaStaker[_account] = true;
         emit PendingPermaStaker(_account);
     }
@@ -431,8 +432,9 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
         IERC20(_stakeToken).approve(address(staker), amount);
         staker.stake(msg.sender, amount);
-        try staker.startIrreversibleStakeForAccount(msg.sender) {} catch (bytes memory) {}
-        try staker.commitIrreversibleStakeForAccount(msg.sender) {} catch (bytes memory) {}
+        staker.onMigrate(msg.sender);
         return amount;
     }
+
+    function onMigrate(address _account) external virtual {}
 }
