@@ -22,8 +22,8 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
     address public emissionsController;
     address public vestManager;
     address public treasury;
-    address public permaLocker1;
-    address public permaLocker2;
+    address public permaStaker1;
+    address public permaStaker2;
     address public guardianOperator;
     address public guardianAuthHook;
     bytes32 salt; // Use same empty salt for all contracts
@@ -50,7 +50,7 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         voter = deployVoter();
         emissionsController = deployEmissionsController();
         treasury = deployTreasury();
-        (permaLocker1, permaLocker2) = deployPermaLockers();
+        (permaStaker1, permaStaker2) = deployPermaStakers();
         guardianOperator = deployGuardianOperator();
         guardianAuthHook = deployGuardianAuthHook();
     }
@@ -177,29 +177,29 @@ contract DeployDao is TenderlyHelper, CreateXDeployer {
         return treasury;
     }
 
-    function deployPermaLockers() public doBroadcast returns (address, address) {
-        address permaLocker1Owner = address(1); // TODO: Change this to convex user
-        address permaLocker2Owner = address(2); // TODO: Change this to yearn user
+    function deployPermaStakers() public doBroadcast returns (address, address) {
+        address permaStaker1Owner = address(1); // TODO: Change this to convex user
+        address permaStaker2Owner = address(2); // TODO: Change this to yearn user
         address registry = address(0);          // TODO: Change this to ResupplyRegistry
         bytes memory constructorArgs = abi.encode(
             address(core), 
-            permaLocker1Owner, 
+            permaStaker1Owner, 
             address(staker), 
             registry,
             "Convex"
         );
-        bytes memory bytecode = abi.encodePacked(vm.getCode("PermaLocker.sol:PermaLocker"), constructorArgs);
-        permaLocker1 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaLocker - Convex");
+        bytes memory bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
+        permaStaker1 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaStaker - Convex");
         constructorArgs = abi.encode(
             address(core), 
-            permaLocker2Owner, 
+            permaStaker2Owner, 
             address(staker),
             registry, 
             "Yearn"
         );
-        bytecode = abi.encodePacked(vm.getCode("PermaLocker.sol:PermaLocker"), constructorArgs);
-        permaLocker2 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaLocker - Yearn");
-        return (permaLocker1, permaLocker2);
+        bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
+        permaStaker2 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaStaker - Yearn");
+        return (permaStaker1, permaStaker2);
     }
 
     function deployGuardianOperator() public doBroadcast returns (address) {
