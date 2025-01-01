@@ -89,7 +89,8 @@ interface IVestManager {
     function claim(address _account) external returns (uint256 _claimed);
 
     function setClaimSettings(
-        bool _blockPermissionlessClaims,
-        address _recipient
+        address _recipient,
+        address _callback,
+        bool _blockPermissionlessClaims
     ) external;
 }

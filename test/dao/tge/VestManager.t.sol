@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";
 import { MockToken } from "../../mocks/MockToken.sol";
 import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
+import { VestClaimCallback } from "../../../src/dao/tge/VestClaimCallback.sol";
 
 contract VestManagerHarness is Setup {
 
@@ -126,7 +127,7 @@ contract VestManagerHarness is Setup {
         vestManager.claim(address(treasury));
 
         vm.prank(address(treasury));
-        vestManager.setClaimSettings(true, address(this));
+        vestManager.setClaimSettings(address(this), address(0), true);
 
         vm.expectRevert("!authorized");
         vestManager.claim(address(treasury));
@@ -405,5 +406,44 @@ contract VestManagerHarness is Setup {
             params.durations,
             params.allocPercentages
         );
+    }
+
+    function test_ClaimCallback() public {
+        assertEq(staker.balanceOf(address(this)), 0);
+        address vestClaimCallback = address(new VestClaimCallback(address(core), address(staker), address(vestManager)));
+        createVest(1_000_000e18);
+        vestManager.setClaimSettings(address(this), vestClaimCallback, true);
+        staker.setDelegateApproval(vestClaimCallback, true);
+
+        skip(1 weeks);
+        vestManager.claim(address(this));
+
+        assertGt(staker.balanceOf(address(this)), 0);
+    }
+
+    function test_ClaimCallbackReverts() public {
+        assertEq(staker.balanceOf(address(this)), 0);
+        createVest(1_000_000e18);
+        vestManager.setClaimSettings(address(this), address(this), true);
+
+        skip(1 weeks);
+        
+        vm.expectRevert();
+        vestManager.claim(address(this));
+    }
+
+    function createVest(uint256 amount) public {
+        address prisma = address(vestManager.prisma());
+        deal(prisma, address(this), amount);
+        IERC20(prisma).approve(address(vestManager), amount);
+        vestManager.redeem(prisma, address(this), amount);
+        // Get data for the vest that was just created
+        (
+            uint256 _total,
+            uint256 _claimable,
+            uint256 _claimed,
+            uint256 _timeRemaining
+        ) = vestManager.getSingleVestData(address(this), 0);
+        assertGe(vestManager.numAccountVests(address(this)), 1);
     }
 }

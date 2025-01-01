@@ -283,8 +283,8 @@ contract Setup is Test {
         vestManager = new VestManager(
             address(core), 
             address(govToken),
-            BURN_ADDRESS,   // Burn address
-            redemptionTokens  // Redemption tokens
+            BURN_ADDRESS,       // Burn address
+            redemptionTokens    // Redemption tokens
         );
         assertEq(address(vestManager), vestManagerAddress);
         

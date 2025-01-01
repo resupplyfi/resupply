@@ -5,10 +5,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 
+interface IClaimCallback {
+    function onClaim(address _account, address _recipient, uint256 _amount) external returns (bool success);
+}
+
 contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable VEST_GLOBAL_START_TIME;
-    IERC20 public token;
-
+    IERC20 public immutable token;
     mapping(address => Vest[]) public userVests;
     mapping(address => ClaimSettings) public claimSettings;
 
@@ -19,13 +22,14 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     }
 
     struct ClaimSettings {
-        bool blockPermissionlessClaims;
         address recipient;
+        address callback;
+        bool blockPermissionlessClaims;
     }
 
     event VestCreated(address indexed account, uint256 indexed duration, uint256 amount);
     event Claimed(address indexed account, uint256 amount);
-    event ClaimSettingsSet(address indexed account, bool indexed blockPermissionlessClaims, address indexed recipient);
+    event ClaimSettingsSet(address indexed account, address indexed recipient, address indexed callback, bool blockPermissionlessClaims);
 
     constructor(address _core, address _token) CoreOwnable(_core) {
         token = IERC20(_token);
@@ -77,7 +81,7 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
      * @dev Any caller can claim on behalf of an account, unless explicitly blocked via account's claimSettings
      */
     function claim(address _account) external returns (uint256 _claimed) {
-        address recipient = _enforceClaimSettings(_account);
+        (address recipient, address callback) = _enforceClaimSettings(_account);
         Vest[] storage vests = userVests[_account];
         uint256 length = vests.length;
         require(length > 0, "No vests to claim");
@@ -91,17 +95,23 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         }
     
         if (_claimed > 0) {
-            token.transfer(recipient, _claimed);
             emit Claimed(_account, _claimed);
+            if (callback != address(0)) {
+                token.transfer(callback, _claimed);
+                require(IClaimCallback(callback).onClaim(_account, recipient, _claimed), "Callback failed");
+            } else {
+                token.transfer(recipient, _claimed);
+            }
         }
     }
 
-    function _enforceClaimSettings(address _account) internal view returns (address) {
+    function _enforceClaimSettings(address _account) internal view returns (address recipient, address callback) {
         ClaimSettings memory settings = claimSettings[_account];
         if (settings.blockPermissionlessClaims) {
             require(msg.sender == _account, "!authorized");
         }
-        return settings.recipient != address(0) ? settings.recipient : _account;
+        recipient = settings.recipient != address(0) ? settings.recipient : _account;
+        callback = settings.callback;
     }
 
     /**
@@ -171,11 +181,12 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         }
     }
 
-    function setClaimSettings( 
-        bool _blockPermissionlessClaims, 
-        address _recipient
+    function setClaimSettings(
+        address _recipient,
+        address _callback,
+        bool _blockPermissionlessClaims
     ) external {
-        claimSettings[msg.sender] = ClaimSettings(_blockPermissionlessClaims, _recipient);
-        emit ClaimSettingsSet(msg.sender, _blockPermissionlessClaims, _recipient);
+        claimSettings[msg.sender] = ClaimSettings(_recipient, _callback, _blockPermissionlessClaims);
+        emit ClaimSettingsSet(msg.sender, _recipient, _callback, _blockPermissionlessClaims);
     }
 }
