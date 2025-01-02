@@ -48,6 +48,7 @@ contract VestManagerHarness is Setup {
         assertEq(vestManager.numAccountVests(address(permaStaker2)), 1);
         assertEq(vestManager.numAccountVests(FRAX_VEST_TARGET), 1);
 
+
         (uint256 total, uint256 claimable, uint256 claimed, uint256 timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
         assertEq(claimable, 0, 'claimable not 0');
         assertGt(total, 0, 'total not > 0');
@@ -97,6 +98,15 @@ contract VestManagerHarness is Setup {
         assertEq(claimed, 0, 'claimed not 0');
         assertEq(timeRemaining, 0, 'timeRemaining not 0');
 
+        address[] memory targets = new address[](4);
+        targets[0] = address(treasury);
+        targets[1] = address(permaStaker1);
+        targets[2] = address(permaStaker2);
+        targets[3] = FRAX_VEST_TARGET;
+        for (uint256 i = 0; i < targets.length; i++) {
+            vm.prank(targets[i]);
+            vestManager.setClaimSettings(true, targets[i]);
+        }
         uint256 claimedActual = vestManager.claim(address(treasury));
         (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
         uint256 locked = total - claimed - claimable;
@@ -126,7 +136,7 @@ contract VestManagerHarness is Setup {
         vestManager.claim(address(treasury));
 
         vm.prank(address(treasury));
-        vestManager.setClaimSettings(true, address(this));
+        vestManager.setClaimSettings(false, address(this));
 
         vm.expectRevert("!authorized");
         vestManager.claim(address(treasury));
