@@ -19,13 +19,13 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     }
 
     struct ClaimSettings {
-        bool blockPermissionlessClaims;
+        bool allowPermissionlessClaims;
         address recipient;
     }
 
     event VestCreated(address indexed account, uint256 indexed duration, uint256 amount);
     event Claimed(address indexed account, uint256 amount);
-    event ClaimSettingsSet(address indexed account, bool indexed blockPermissionlessClaims, address indexed recipient);
+    event ClaimSettingsSet(address indexed account, bool indexed allowPermissionlessClaims, address indexed recipient);
 
     constructor(address _core, address _token) CoreOwnable(_core) {
         token = IERC20(_token);
@@ -98,7 +98,7 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
 
     function _enforceClaimSettings(address _account) internal view returns (address) {
         ClaimSettings memory settings = claimSettings[_account];
-        if (settings.blockPermissionlessClaims) {
+        if (!settings.allowPermissionlessClaims) {
             require(msg.sender == _account, "!authorized");
         }
         return settings.recipient != address(0) ? settings.recipient : _account;
@@ -172,10 +172,10 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     }
 
     function setClaimSettings( 
-        bool _blockPermissionlessClaims, 
+        bool _allowPermissionlessClaims, 
         address _recipient
     ) external {
-        claimSettings[msg.sender] = ClaimSettings(_blockPermissionlessClaims, _recipient);
-        emit ClaimSettingsSet(msg.sender, _blockPermissionlessClaims, _recipient);
+        claimSettings[msg.sender] = ClaimSettings(_allowPermissionlessClaims, _recipient);
+        emit ClaimSettingsSet(msg.sender, _allowPermissionlessClaims, _recipient);
     }
 }

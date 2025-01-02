@@ -21,7 +21,7 @@ interface IVestManager {
     }
 
     struct ClaimSettings {
-        bool blockPermissionlessClaims;
+        bool allowPermissionlessClaims;
         address recipient;
     }
 
@@ -32,7 +32,7 @@ interface IVestManager {
     event InitializationParamsSet();
     event VestCreated(address indexed account, uint256 indexed duration, uint256 amount);
     event Claimed(address indexed account, uint256 amount);
-    event ClaimSettingsSet(address indexed account, bool indexed blockPermissionlessClaims, address indexed recipient);
+    event ClaimSettingsSet(address indexed account, bool indexed allowPermissionlessClaims, address indexed recipient);
 
     // View Functions
     function PRECISION() external view returns (uint256);
@@ -89,7 +89,7 @@ interface IVestManager {
     function claim(address _account) external returns (uint256 _claimed);
 
     function setClaimSettings(
-        bool _blockPermissionlessClaims,
+        bool _allowPermissionlessClaims,
         address _recipient
     ) external;
 }
