@@ -263,12 +263,7 @@ contract GovStakerStakingTest is Setup {
         vm.stopPrank();
     }
 
-
-    // must be able to migrate to a new staker
-    // cannot initiate a cooldown
-    // Vest claims must be staked
-
-    function test_ConfirmPermaStaker() public {
+    function test_SetPermaStaker() public {
         staker.stake(address(this), 100 * 10 ** 18);
         assertEq(staker.balanceOf(address(this)), 100 * 10 ** 18, "Balance should be 100");
         // make perma staker

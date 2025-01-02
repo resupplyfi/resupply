@@ -431,11 +431,22 @@ contract VestManagerHarness is Setup {
 
     function test_ClaimWithCallback() public {
         createVest(100_000e18);
+        skip(1 days);
         uint256 startBalance = govToken.balanceOf(address(this));
         uint256 startStakerBalance = staker.balanceOf(address(this));
         uint256 claimed = vestManager.claimWithCallback(address(this), address(this), address(autoStakeCallback));
+        assertGt(claimed, 0);
         assertEq(govToken.balanceOf(address(this)), startBalance);
         assertEq(staker.balanceOf(address(this)), startStakerBalance + claimed);
+    }
+
+    function test_ClaimWithCallbackFailsIfCallbackIsInvalid() public {
+        createVest(100_000e18);
+        skip(1 days);
+        vm.expectRevert();
+        vestManager.claimWithCallback(address(this), address(this), address(0));
+        vm.expectRevert();
+        vestManager.claimWithCallback(address(this), address(this), address(this));
     }
 
     function createVest(uint256 amount) public {

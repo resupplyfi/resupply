@@ -86,6 +86,14 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         }
     }
 
+    /**
+     * @notice Claims all available vested tokens for an account, and calls a callback to handle the tokens
+     * @dev Important: the claimed tokens are transferred to the callback contract for handling, not the recipient
+     * @param _account Address to claim tokens for
+     * @param _recipient Address to send the claimed tokens to
+     * @param _callback Address of the callback contract to use
+     * @return _claimed Total amount of tokens claimed
+     */
     function claimWithCallback(
         address _account, 
         address _recipient, 
@@ -95,7 +103,7 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         _claimed = _claim(_account);
         if (_claimed > 0) {
             token.transfer(_callback, _claimed);
-            IVestClaimCallback(_callback).onClaim(_account, recipient, _claimed);
+            require(IVestClaimCallback(_callback).onClaim(_account, recipient, _claimed), "callback failed");
             emit Claimed(_account, _claimed);
         }
     }
