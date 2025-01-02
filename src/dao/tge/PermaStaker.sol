@@ -40,7 +40,6 @@ contract PermaStaker is Ownable2Step {
         _staker.commitIrreversibleStakeForAccount(address(this));
         address token = _staker.stakeToken();
         vestManager = IVestManager(_vestManager);
-        vestManager.setClaimSettings(true, address(this));
         IERC20(token).approve(address(_staker), type(uint256).max);
     }
 
