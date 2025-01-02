@@ -238,9 +238,11 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if(userEpoch < globalEpoch){
             //need to calculate shares while keeping this as a view function
             for(;;){
-                //reduce shares by refactoring amount (will never be 0)
+                //reduce shares by refactoring amount
                 borrowShares /= SHARE_REFACTOR_PRECISION;
-                userEpoch += 1;
+                unchecked {
+                    userEpoch += 1;
+                }
                 if(userEpoch == globalEpoch){
                     break;
                 }

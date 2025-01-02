@@ -19,7 +19,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
-    uint256 constant public shareRefactor = 1e18;
+    uint256 constant public SHARE_REFACTOR_PRECISION = 1e12;
 
     uint256 public minimumHeldAssets = 10_000 * 1e18;
 
@@ -92,11 +92,26 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     /// @notice balance of a given account
-    /// @param account the user account
-    /// @dev not a view function
-    function balanceOf(address account) public returns (uint256) {
-        _checkpoint(account);
-        return _balances[account];
+    /// @param _account the user account
+    function balanceOf(address _account) public view returns (uint256 userBalance) {
+        userBalance = _balances[_account];
+
+        uint256 globalEpoch = currentRewardEpoch;
+        uint256 userEpoch = userRewardEpoch[_account];
+
+        if(userEpoch < globalEpoch){
+            //need to calculate balance while keeping this as a view function
+            for(;;){
+                //reduce shares by refactoring amount
+                userBalance /= SHARE_REFACTOR_PRECISION;
+                unchecked {
+                    userEpoch += 1;
+                }
+                if(userEpoch == globalEpoch){
+                    break;
+                }
+            }
+        }
     }
 
     function _mint(address account, uint256 amount) internal {
@@ -148,7 +163,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _balances[_account] = _balances[_account] / shareRefactor;
+        _balances[_account] = _balances[_account] / SHARE_REFACTOR_PRECISION;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -178,9 +193,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         IMintable(asset).burn(address(this), _amount);
 
         //if after many burns the amount to shares ratio has deteriorated too far, then refactor
-        if(totalAssets() * shareRefactor < _totalSupply){
+        if(totalAssets() * SHARE_REFACTOR_PRECISION < _totalSupply){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalSupply /= shareRefactor;
+            _totalSupply /= SHARE_REFACTOR_PRECISION;
         }
     }
 

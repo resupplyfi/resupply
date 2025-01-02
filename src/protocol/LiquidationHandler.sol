@@ -57,9 +57,8 @@ contract LiquidationHandler is CoreOwnable{
         //get balance
         uint256 collateralBalance = IERC20(_collateral).balanceOf(address(this));
         
-        emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
-
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
+        
         //check that it is indeed burnable..
         if(debtByCollateral[_collateral] <= maxBurnable){
             //burn debt
@@ -71,6 +70,8 @@ contract LiquidationHandler is CoreOwnable{
                 //send all collateral (and thus distribute)
                 IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
             }
+
+            emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
         }
     }
 
