@@ -58,7 +58,7 @@ contract LiquidationHandler is CoreOwnable{
         uint256 collateralBalance = IERC20(_collateral).balanceOf(address(this));
         
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
-        
+
         //check that it is indeed burnable..
         if(debtByCollateral[_collateral] <= maxBurnable){
             //burn debt
@@ -83,8 +83,9 @@ contract LiquidationHandler is CoreOwnable{
     }
 
     function processLiquidationDebt(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{
-        //ensure caller is a registered pair
-        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
+        //ensure caller is authorized
+        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender ||
+            IResupplyRegistry(registry).l2manager() == msg.sender, "!regPair");
 
         //add to debt needed to burn
         debtByCollateral[_collateral] += _debtAmount;

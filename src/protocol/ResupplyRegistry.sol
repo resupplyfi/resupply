@@ -44,6 +44,7 @@ contract ResupplyRegistry is CoreOwnable{
     address public insurancePool;
     address public staker;
     address public treasury;
+    address public l2manager;
 
     address[] public registeredPairs;
     address[] public defaultSwappers;
@@ -83,6 +84,11 @@ contract ResupplyRegistry is CoreOwnable{
     // ============================================================================================
     // Functions: Core Asset Registry
     // ============================================================================================
+
+    function setL2Manager(address _newAddress) external onlyOwner{
+        l2manager = _newAddress;
+        _setAddress(_newAddress, "L2_MANAGER", keccak256(bytes("L2_MANAGER")));
+    }
 
     function setLiquidationHandler(address _newAddress) external onlyOwner{
         liquidationHandler = _newAddress;
@@ -197,7 +203,7 @@ contract ResupplyRegistry is CoreOwnable{
     }
 
     function getProtectedKeys() public pure returns (string[] memory) {
-        string[] memory _protectedKeys = new string[](7);
+        string[] memory _protectedKeys = new string[](8);
         _protectedKeys[0] = "LIQUIDATION_HANDLER";
         _protectedKeys[1] = "FEE_DEPOSIT";
         _protectedKeys[2] = "REDEMPTION_HANDLER";
@@ -205,6 +211,7 @@ contract ResupplyRegistry is CoreOwnable{
         _protectedKeys[4] = "REWARD_HANDLER";
         _protectedKeys[5] = "TREASURY";
         _protectedKeys[6] = "STAKER";
+        _protectedKeys[7] = "L2_MANAGER";
         return _protectedKeys;
     }
 
