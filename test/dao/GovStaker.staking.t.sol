@@ -56,6 +56,8 @@ contract GovStakerStakingTest is Setup {
 
         vm.warp(block.timestamp + warmupWait() * 100);
         staker.checkpointAccount(user1);
+
+        staker.stake(100e18);
     }
 
     function test_AddReward() public {
@@ -261,19 +263,12 @@ contract GovStakerStakingTest is Setup {
         vm.stopPrank();
     }
 
-
-    // must be able to migrate to a new staker
-    // cannot initiate a cooldown
-    // Vest claims must be staked
-
-    function test_ConfirmPermaStaker() public {
+    function test_SetPermaStaker() public {
         staker.stake(address(this), 100 * 10 ** 18);
         assertEq(staker.balanceOf(address(this)), 100 * 10 ** 18, "Balance should be 100");
         // make perma staker
         assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
-        staker.startIrreversibleStakeForAccount(address(this));
-        assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
-        staker.commitIrreversibleStakeForAccount(address(this));
+        staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
         assertEq(staker.isPermaStaker(address(this)), true, "Account should be a perma staker");
 
         vm.expectRevert("perma staker account");
@@ -289,12 +284,8 @@ contract GovStakerStakingTest is Setup {
         staker.stake(address(this), amount);
         skip(warmupWait());
         staker.cooldown(address(this), amount); // cooldown before
-
-        staker.startIrreversibleStakeForAccount(address(this));
-        staker.commitIrreversibleStakeForAccount(address(this));
-
+        staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
         skip(cooldownWait());
-
         uint unstakableAmount = staker.getUnstakableAmount(address(this));
         assertEq(unstakableAmount, amount, "Unstakable amount should be equal to staked amount");
         uint unstakedAmount = staker.unstake(address(this), address(this));

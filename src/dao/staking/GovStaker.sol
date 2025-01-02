@@ -20,7 +20,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     // Account tracking state vars.
     mapping(address account => AccountData data) public accountData;
     mapping(address account => mapping(uint epoch => uint weight)) private accountWeightAt;
-    mapping(address account => bool pendingPermaStaker) public pendingPermaStaker;
 
     // Global weight tracking state vars.
     uint112 public totalPending;
@@ -59,7 +58,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     event Unstaked(address indexed account, uint amount);
     event Cooldown(address indexed account, uint amount, uint end);
     event CooldownEpochsUpdated(uint24 newDuration);
-    event PendingPermaStaker(address indexed account);
     event PermaStakerSet(address indexed account);
 
 
@@ -82,9 +80,15 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         registry = IResupplyRegistry(_registry);
     }
 
+    function stake(uint _amount) external returns (uint) {
+        return _stake(msg.sender, _amount);
+    }
 
+    function stake(address _account, uint _amount) external returns (uint) {
+        return _stake(_account, _amount);
+    }
 
-    function stake(address _account, uint _amount) external callerOrDelegated(_account) updateReward(_account) returns (uint) {
+    function _stake(address _account, uint _amount) internal updateReward(_account) returns (uint) {
         if (_amount == 0 || _amount >= type(uint112).max) revert InvalidAmount();
 
         // Before going further, let's sync our account and total weights
@@ -390,23 +394,11 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /* ========== PERMA STAKER FUNCTIONS ========== */
 
     /**
-     * @notice Step 1 of 2 for becoming a permanent staker, indicating their intent to irreversibly disable unstaking
-     * @dev Once confirmed via confirmPermaStaker(), the account will never be able to unstake their tokens
+     * @notice  Set account as a permanent staker, preventing them from ever unstaking their staked tokens. 
+     *          This action cannot be undone, and is irreversible.
      */
-    function startIrreversibleStakeForAccount(address _account) external callerOrDelegated(_account) {
+    function irreversiblyCommitAccountAsPermanentStaker(address _account) external callerOrDelegated(_account) {
         require(!accountData[_account].isPermaStaker, "already perma staker account");
-        pendingPermaStaker[_account] = true;
-        emit PendingPermaStaker(_account);
-    }
-
-    /**
-     * @notice Step 2 of 2 for confirming the caller as a permanent staker, preventing them from ever unstaking
-     * @dev Must first call irreversiblyDisableUnstaking() to be eligible
-     * @dev Once confirmed, this action cannot be undone - the account will never be able to unstake
-     */
-    function commitIrreversibleStakeForAccount(address _account) external callerOrDelegated(_account) {
-        require(pendingPermaStaker[_account], "pending perma staker");
-        pendingPermaStaker[_account] = false;
         accountData[_account].isPermaStaker = true;
         emit PermaStakerSet(_account);
     }

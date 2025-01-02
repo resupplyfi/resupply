@@ -123,7 +123,6 @@ contract PermaStakerTest is Setup {
 
     function test_ClaimAndStake() public {
         setupVest();
-
         skip(10 days); // allow vested amount to grow
         uint256 balance = staker.balanceOf(address(permaStaker1));
         vm.prank(permaStaker1.owner());
