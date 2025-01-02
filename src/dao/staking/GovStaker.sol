@@ -82,9 +82,15 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         registry = IResupplyRegistry(_registry);
     }
 
+    function stake(uint _amount) external returns (uint) {
+        return _stake(msg.sender, _amount);
+    }
 
+    function stake(address _account, uint _amount) external returns (uint) {
+        return _stake(_account, _amount);
+    }
 
-    function stake(address _account, uint _amount) external callerOrDelegated(_account) updateReward(_account) returns (uint) {
+    function _stake(address _account, uint _amount) internal updateReward(_account) returns (uint) {
         if (_amount == 0 || _amount >= type(uint112).max) revert InvalidAmount();
 
         // Before going further, let's sync our account and total weights

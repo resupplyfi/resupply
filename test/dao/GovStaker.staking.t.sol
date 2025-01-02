@@ -56,6 +56,8 @@ contract GovStakerStakingTest is Setup {
 
         vm.warp(block.timestamp + warmupWait() * 100);
         staker.checkpointAccount(user1);
+
+        staker.stake(100e18);
     }
 
     function test_AddReward() public {
