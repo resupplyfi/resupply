@@ -6,7 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";
 import { MockToken } from "../../mocks/MockToken.sol";
 import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
-import { AutoStakeCallback } from "src/dao/tge/AutoStakeCallback.sol";
+import { AutoStakeCallback } from "../../mocks/AutoStakeCallback.sol";
 
 
 contract VestManagerHarness is Setup {
