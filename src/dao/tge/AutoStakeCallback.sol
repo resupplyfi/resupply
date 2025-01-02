@@ -6,7 +6,7 @@ import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract VestClaimCallback is CoreOwnable {
+contract AutoStakeCallback is CoreOwnable {
     using SafeERC20 for IERC20;
 
     IGovStaker public immutable govStaker;

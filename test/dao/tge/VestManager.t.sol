@@ -6,15 +6,17 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";
 import { MockToken } from "../../mocks/MockToken.sol";
 import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
+import { AutoStakeCallback } from "src/dao/tge/AutoStakeCallback.sol";
+
 
 contract VestManagerHarness is Setup {
-
     // Max amount of redeemable PRISMA/yPRISMA/cvxPRISMA
     uint256 maxRedeemable = 150_000_000e18;
+    AutoStakeCallback autoStakeCallback;
 
     function setUp() public override {
         super.setUp();
-        
+        autoStakeCallback = new AutoStakeCallback(address(core), address(staker), address(vestManager));
         assertEq(vestManager.redemptionRatio(), 0);
         address prisma = address(vestManager.prisma());
         vm.expectRevert("ratio not set");
@@ -313,10 +315,6 @@ contract VestManagerHarness is Setup {
         }
     }
 
-    function test_CreateVest() public {
-
-    }
-
     function test_Redemption() public {
         vm.expectRevert("invalid token");
         vestManager.redeem(address(govToken), address(this), 1e18);
@@ -415,5 +413,44 @@ contract VestManagerHarness is Setup {
             params.durations,
             params.allocPercentages
         );
+    }
+
+    function test_PermaStakerCannotCallVestManager() public {
+        bytes memory data = abi.encodeWithSelector(
+            vestManager.setClaimSettings.selector,
+            true,           // _allowPermissionlessClaims
+            address(this)   // _recipient
+        );
+        vm.startPrank(permaStaker1.owner());
+        vm.expectRevert("target not allowed");
+        permaStaker1.execute(address(vestManager), data);
+        vm.expectRevert("target not allowed");
+        permaStaker1.safeExecute(address(vestManager), data);
+        vm.stopPrank();
+    }
+
+    function test_ClaimWithCallback() public {
+        createVest(100_000e18);
+        uint256 startBalance = govToken.balanceOf(address(this));
+        uint256 startStakerBalance = staker.balanceOf(address(this));
+        uint256 claimed = vestManager.claimWithCallback(address(this), address(this), address(autoStakeCallback));
+        assertEq(govToken.balanceOf(address(this)), startBalance);
+        assertEq(staker.balanceOf(address(this)), startStakerBalance + claimed);
+    }
+
+    function createVest(uint256 amount) public {
+        address prisma = address(vestManager.prisma());
+        deal(prisma, address(this), amount);
+        IERC20(prisma).approve(address(vestManager), amount);
+        vestManager.redeem(prisma, address(this), amount);
+        // Get data for the vest that was just created
+        (
+            uint256 _total,
+            uint256 _claimable,
+            uint256 _claimed,
+            uint256 _timeRemaining
+        ) = vestManager.getSingleVestData(address(this), 0);
+        assertGe(vestManager.numAccountVests(address(this)), 1);
+        assertGt(_total, 0);
     }
 }

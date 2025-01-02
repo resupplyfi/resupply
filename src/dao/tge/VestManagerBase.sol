@@ -89,13 +89,13 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     function claimWithCallback(
         address _account, 
         address _recipient, 
-        IVestClaimCallback _callback
+        address _callback
     ) external callerOrDelegated(_account) returns (uint256 _claimed) {
         address recipient = _enforceClaimSettings(_account);
         _claimed = _claim(_account);
         if (_claimed > 0) {
-            token.transfer(address(_callback), _claimed);
-            _callback.onClaim(_account, recipient, _claimed);
+            token.transfer(_callback, _claimed);
+            IVestClaimCallback(_callback).onClaim(_account, recipient, _claimed);
             emit Claimed(_account, _claimed);
         }
     }
