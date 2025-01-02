@@ -273,9 +273,7 @@ contract GovStakerStakingTest is Setup {
         assertEq(staker.balanceOf(address(this)), 100 * 10 ** 18, "Balance should be 100");
         // make perma staker
         assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
-        staker.startIrreversibleStakeForAccount(address(this));
-        assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
-        staker.commitIrreversibleStakeForAccount(address(this));
+        staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
         assertEq(staker.isPermaStaker(address(this)), true, "Account should be a perma staker");
 
         vm.expectRevert("perma staker account");
@@ -291,12 +289,8 @@ contract GovStakerStakingTest is Setup {
         staker.stake(address(this), amount);
         skip(warmupWait());
         staker.cooldown(address(this), amount); // cooldown before
-
-        staker.startIrreversibleStakeForAccount(address(this));
-        staker.commitIrreversibleStakeForAccount(address(this));
-
+        staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
         skip(cooldownWait());
-
         uint unstakableAmount = staker.getUnstakableAmount(address(this));
         assertEq(unstakableAmount, amount, "Unstakable amount should be equal to staked amount");
         uint unstakedAmount = staker.unstake(address(this), address(this));
