@@ -781,7 +781,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @notice The ```RemoveCollateral``` event is emitted when collateral is removed from a borrower's position
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _receiver The address to which Collateral Tokens will be transferred
-    /// @param _receiver The address of the account in which collateral is being removed
+    /// @param _borrower The address of the account in which collateral is being removed
     event RemoveCollateral(
         uint256 _collateralAmount,
         address indexed _receiver,
@@ -1041,30 +1041,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _userCollateralBalance = _userCollateralBalance[_borrower];
         uint128 _borrowerShares = _userBorrowShares[_borrower].toUint128();
 
-        // Prevent stack-too-deep
-        int256 _leftoverCollateral;
-        {
-            // Checks & Calculations
-            // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
-            uint256 _liquidationAmountInCollateralUnits = ((_totalBorrow.toAmount(_borrowerShares, false) *
-                _exchangeRate) / EXCHANGE_PRECISION);
+        // Checks & Calculations
+        // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
+        uint256 _liquidationAmountInCollateralUnits = ((_totalBorrow.toAmount(_borrowerShares, false) *
+            _exchangeRate) / EXCHANGE_PRECISION);
 
-            // We first optimistically calculate the amount of collateral to give the liquidator based on the higher clean liquidation fee
-            // This fee only applies if the liquidator does a full liquidation
-            _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
-                (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
+        // add fee for liquidation
+        _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
+            (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
-            // Because interest accrues every block, _liquidationAmountInCollateralUnits from a few lines up is an ever increasing value
-            // This means that leftoverCollateral can occasionally go negative by a few hundred wei (cleanLiqFee premium covers this for liquidator)
-            _leftoverCollateral = (_userCollateralBalance.toInt256() - _collateralForLiquidator.toInt256());
-
-            // If cleanLiquidation fee results in no leftover collateral, give liquidator all the collateral
-            // This will only be true when there liquidator is cleaning out the position
-            //edit: just clamp to user
-            _collateralForLiquidator = _leftoverCollateral <= 0
-                ? _userCollateralBalance
-                : _collateralForLiquidator;
-        }
+        // clamp to user collateral balance as we cant take more than that
+        _collateralForLiquidator = _collateralForLiquidator > _userCollateralBalance ? _userCollateralBalance : _collateralForLiquidator;
 
         // Calculated here for use during repayment, grouped with other calcs before effects start
         uint128 _amountLiquidatorToRepay = (_totalBorrow.toAmount(_borrowerShares, true)).toUint128();
@@ -1077,7 +1064,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             );
 
         // Effects & Interactions
-        // NOTE: reverts if _shares > _userBorrowShares
         // repay using address(0) to skip burning (liquidationHandler will burn from insurance pool)
         _repay(
             _totalBorrow,
@@ -1086,11 +1072,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             address(0),
             _borrower
         );
-        // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
 
-        
         // Collateral is removed on behalf of borrower and sent to liquidationHandler
-        // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
         // NOTE: isSolvent above checkpoints user with _syncUserRedemptions before removing collateral
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
