@@ -104,9 +104,9 @@ contract VoterTest is Setup {
         );
 
         vm.startPrank(user1);
-        vm.expectRevert("Pct must not exceed MAX_PCT");
+        vm.expectRevert("Sum of pcts must equal MAX_PCT");
         voter.voteForProposal(user1, proposalId, MAX_PCT+1, MAX_PCT);
-        vm.expectRevert("Pct must not exceed MAX_PCT");
+        vm.expectRevert("Sum of pcts must equal MAX_PCT");
         voter.voteForProposal(user1, proposalId, MAX_PCT, MAX_PCT+1);
         vm.expectRevert("Sum of pcts must equal MAX_PCT");
         voter.voteForProposal(user1, proposalId, MAX_PCT, 1);

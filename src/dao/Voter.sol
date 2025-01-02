@@ -7,6 +7,7 @@ import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
+import { BytesLib } from "../libraries/BytesLib.sol";
 
 interface IERC20 {
     function decimals() external view returns (uint256);
@@ -108,11 +109,10 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         return proposalData.length;
     }
 
+    // @dev: Reverts in epoch 0 as proposals are not permitted
     function minCreateProposalWeight() public view returns (uint256) {
         uint256 epoch = getEpoch();
-        if (epoch == 0) return 0;
         epoch -= 1;
-
         uint256 totalWeight = staker.getTotalWeightAt(epoch);
         return (totalWeight * minCreateProposalPct) / MAX_PCT;
     }
@@ -163,7 +163,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
 
-        _containsProposalCancelerPaylod(payload); // Enforce payloads with canceler must be single action
+        _containsProposalCancelerPayload(payload); // Enforce payloads with canceler must be single action
 
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
@@ -211,7 +211,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param pctNo Percent of account's total weight to vote against
      */
     function voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) external callerOrDelegated(account) {
-        require(pctYes <= MAX_PCT && pctNo <= MAX_PCT, "Pct must not exceed MAX_PCT");
         require(pctYes + pctNo == MAX_PCT, "Sum of pcts must equal MAX_PCT");
         _voteForProposal(account, id, pctYes, pctNo);
     }
@@ -252,32 +251,25 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
-        require(!_containsProposalCancelerPaylod(proposalPayloads[id]), "Contains canceler payload");
+        require(!_containsProposalCancelerPayload(proposalPayloads[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
 
     // @dev: inspects a payload to check if any actions contain a proposal canceler
     //       requires any proposal modifying cancel permissions to be the only action in the payload
-    function _containsProposalCancelerPaylod(Action[] memory payload) internal view returns (bool) {
+    function _containsProposalCancelerPayload(Action[] memory payload) internal view returns (bool) {
         uint256 payloadLength = payload.length;
-
         for (uint256 i = 0; i < payloadLength; i++) {
             Action memory action = payload[i];
             bytes memory data = action.data;
             bytes4 selector;
-
-            // Use inline assembly to extract the selector
             assembly {
                 selector := mload(add(data, 32))
             }
-
             if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
-                bytes memory slicedData = new bytes(data.length - 4); // create new byte array that excludes the selector
-                // copy the data to slicedData byte by byte, excluding the selector
-                for (uint256 j = 0; j < slicedData.length; j++) {
-                    slicedData[j] = data[j + 4];
-                }
+                // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
+                bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
                 if ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector) {
                     require(payloadLength == 1, "Payload with canceler must be single action");

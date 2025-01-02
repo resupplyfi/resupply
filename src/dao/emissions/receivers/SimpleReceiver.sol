@@ -51,6 +51,9 @@ contract SimpleReceiver is CoreOwnable {
         return emissionsController.transferFromAllocation(receiver, allocated);
     }
 
+    // Notice: Get the estimated allocation of emissions for this receiver
+    // dev: The return value does not include any pending emissions that have not yet been minted.
+    //      To ensure the pending amount is included, first call `allocateEmissions()`
     function claimableEmissions() external view returns (uint256) {
         (, uint256 allocated) = emissionsController.allocated(address(this));
         return allocated;

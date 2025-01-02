@@ -1,31 +1,42 @@
 pragma solidity ^0.8.22;
 
 import { Setup } from "../Setup.sol";
-import { MockPair } from "../mocks/MockPair.sol";
+import { MockOperator } from "../mocks/MockOperator.sol";
+import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
 contract CoreTest is Setup {
-    MockPair pair;
+    MockOperator operator;
 
     function setUp() public override {
         super.setUp();
-        pair = new MockPair(address(core));
+        operator = new MockOperator(address(core));
     }
 
-    function test_Pausable() public {
-        vm.startPrank(address(core));
-        core.pauseProtocol();
-        vm.expectRevert("Already Paused");
-        core.pauseProtocol();
+    function test_execute() public {
+        setupOperator();
+        operator.setExpectedValue(1);
+    
+        vm.prank(address(operator));
+        core.execute(address(operator), abi.encodeWithSelector(bytes4(keccak256("setValue(uint256)")), 1));
 
-        vm.expectRevert("Protocol Paused");
-        pair.setValue(1);
+        vm.prank(address(operator));
+        vm.expectRevert('Auth PostHook Failed');
+        core.execute(address(operator), abi.encodeWithSelector(bytes4(keccak256("setValue(uint256)")), 2));
+    }
 
-        core.unpauseProtocol();
+    function test_execute_revert() public {
+        vm.expectRevert('!authorized');
+        core.execute(address(operator), abi.encodeWithSelector(bytes4(keccak256("setValue(uint256)")), 1));
+    }
 
-        vm.expectRevert("Already Unpaused");
-        core.unpauseProtocol();
-
-        pair.setValue(1);
-        vm.stopPrank();
+    function setupOperator() internal {
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(operator), 
+            address(operator), 
+            bytes4(keccak256("setValue(uint256)")), 
+            true, 
+            IAuthHook(address(operator))
+        );
     }
 }
