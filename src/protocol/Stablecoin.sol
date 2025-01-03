@@ -2,20 +2,19 @@
 pragma solidity ^0.8.19;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
 
-contract Stablecoin is ERC20, CoreOwnable {
+contract Stablecoin is ERC20Permit, CoreOwnable {
 
     mapping(address => bool) public operators;
     event SetOperator(address indexed _op, bool _valid);
 
     constructor(address _core)
-        ERC20(
-            "Resupply USD",
-            "reUSD"
-        )
+        ERC20("Resupply USD", "reUSD")
+        ERC20Permit("Resupply USD")
         CoreOwnable(_core)
     {
         //premint a small amount to deployer so that it can be used in the full deployment sequence
