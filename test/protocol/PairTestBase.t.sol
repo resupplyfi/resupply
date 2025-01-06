@@ -1,3 +1,5 @@
+import "src/Constants.sol" as Constants;
+
 import { console } from "forge-std/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
@@ -24,6 +26,35 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         collateral.approve(address(pair), type(uint256).max);
         underlying.approve(address(pair), type(uint256).max);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
+    }
+
+    function addSwapLiquidity() public{
+        deal(address(stablecoin), address(this), 200_000_000e18);
+        deal(address(fraxToken), address(this), 100_000_000e18);
+        deal(address(crvusdToken), address(this), 100_000_000e18);
+        IERC4626 scrvusdvault = IERC4626(Constants.Mainnet.CURVE_SCRVUSD);
+        IERC4626 sfraxvault = IERC4626(Constants.Mainnet.SFRAX_ERC20);
+        fraxToken.approve(address(sfraxvault), type(uint256).max);
+        crvusdToken.approve(address(scrvusdvault), type(uint256).max);
+        scrvusdvault.deposit(100_000_000e18, address(this));
+        sfraxvault.deposit(100_000_000e18, address(this));
+
+        IERC20 scrvusd = IERC20(Constants.Mainnet.CURVE_SCRVUSD);
+        IERC20 sfrax = IERC20(Constants.Mainnet.SFRAX_ERC20);
+
+        scrvusd.approve(address(swapPoolsCrvUsd), type(uint256).max);
+        stablecoin.approve(address(swapPoolsCrvUsd), type(uint256).max);
+        sfrax.approve(address(swapPoolsFrax), type(uint256).max);
+        stablecoin.approve(address(swapPoolsFrax), type(uint256).max);
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 100_000_000e18;
+        amounts[1] = scrvusd.balanceOf(address(this));
+
+        swapPoolsCrvUsd.add_liquidity(amounts,0,address(this));
+
+        amounts[1] = sfrax.balanceOf(address(this));
+        swapPoolsFrax.add_liquidity(amounts,0,address(this));
     }
 
     function printPairInfo(ResupplyPair _pair) public view {

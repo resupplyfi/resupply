@@ -21,7 +21,8 @@ library Mainnet {
     address internal constant USDC_ERC20 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant SFRAX_ERC20 = 0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32;
     address internal constant CURVE_USD_ERC20 = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
-
+    address internal constant CURVE_SCRVUSD = 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367;
+    address internal constant CURVE_STABLE_FACTORY = 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf;
 
 
     address internal constant FRAXLEND_SFRXETH_FRAX = 0x78bB3aEC3d855431bd9289fD98dA13F9ebB7ef15;
@@ -48,6 +49,8 @@ abstract contract Helper is TestBase {
         vm.label(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, "Constants.USDC_ERC20");
         vm.label(0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32, "Constants.SFRAX_ERC20");
         vm.label(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E, "Constants.CURVE_USD_ERC20");
+        vm.label(0x0655977FEb2f289A4aB78af67BAB0d17aAb84367, "Constants.CURVE_SCRVUSD");
+        vm.label(0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf, "Constants.CURVE_STABLE_FACTORY");
     }
 }
 
