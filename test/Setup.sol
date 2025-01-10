@@ -416,7 +416,7 @@ contract Setup is Test {
         swapinfo.swappool = crvusdAmm;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 1;
-        swapinfo.swaptype = 0;
+        swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             address(stablecoin),
             Constants.Mainnet.CURVE_SCRVUSD,
@@ -427,7 +427,7 @@ contract Setup is Test {
         swapinfo.swappool = crvusdAmm;
         swapinfo.tokenInIndex = 1;
         swapinfo.tokenOutIndex = 0;
-        swapinfo.swaptype = 0;
+        swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             Constants.Mainnet.CURVE_SCRVUSD,
             address(stablecoin),
@@ -438,7 +438,7 @@ contract Setup is Test {
         swapinfo.swappool = Constants.Mainnet.CURVE_SCRVUSD;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
-        swapinfo.swaptype = 2;
+        swapinfo.swaptype = 3;
         defaultSwapper.addPairing(
             Constants.Mainnet.CURVE_SCRVUSD,
             Constants.Mainnet.CURVE_USD_ERC20,
@@ -449,7 +449,7 @@ contract Setup is Test {
         swapinfo.swappool = Constants.Mainnet.CURVE_SCRVUSD;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
-        swapinfo.swaptype = 1;
+        swapinfo.swaptype = 2;
         defaultSwapper.addPairing(
             Constants.Mainnet.CURVE_USD_ERC20,
             Constants.Mainnet.CURVE_SCRVUSD,
@@ -460,7 +460,7 @@ contract Setup is Test {
         swapinfo.swappool = fraxAmm;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 1;
-        swapinfo.swaptype = 0;
+        swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             address(stablecoin),
             Constants.Mainnet.SFRAX_ERC20,
@@ -471,7 +471,7 @@ contract Setup is Test {
         swapinfo.swappool = fraxAmm;
         swapinfo.tokenInIndex = 1;
         swapinfo.tokenOutIndex = 0;
-        swapinfo.swaptype = 0;
+        swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             Constants.Mainnet.SFRAX_ERC20,
             address(stablecoin),
@@ -482,7 +482,7 @@ contract Setup is Test {
         swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
-        swapinfo.swaptype = 2;
+        swapinfo.swaptype = 3;
         defaultSwapper.addPairing(
             Constants.Mainnet.SFRAX_ERC20,
             Constants.Mainnet.FRAX_ERC20,
@@ -493,7 +493,7 @@ contract Setup is Test {
         swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
-        swapinfo.swaptype = 1;
+        swapinfo.swaptype = 2;
         defaultSwapper.addPairing(
             Constants.Mainnet.FRAX_ERC20,
             Constants.Mainnet.SFRAX_ERC20,

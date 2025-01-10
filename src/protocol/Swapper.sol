@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "../interfaces/ICurveExchange.sol";
 
 import { IERC4626 } from "../interfaces/IERC4626.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -18,9 +19,10 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
         int32 tokenOutIndex;
         uint32 swaptype;
     }
-    uint32 public constant TYPE_SWAP = 0;
-    uint32 public constant TYPE_DEPOSIT = 1;
-    uint32 public constant TYPE_WITHDRAW = 2;
+    uint32 public constant TYPE_UNDEFINED = 0;
+    uint32 public constant TYPE_SWAP = 1;
+    uint32 public constant TYPE_DEPOSIT = 2;
+    uint32 public constant TYPE_WITHDRAW = 3;
 
     mapping(address => mapping(address => SwapInfo)) public swapPools;//token in -> token out -> info
     
@@ -54,7 +56,21 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
             //if final swap, send back to msg.sender
             address returnAddress = i == path.length - 2 ? to : address(this);
 
-            if(swapinfo.swaptype == TYPE_DEPOSIT){
+            if(swapinfo.swaptype == TYPE_UNDEFINED){
+                //if the destination is not defined, do some extra checks to see
+                //if its a pair's(msg.sender) collateral to deposit to
+                address collateral = IResupplyPair(msg.sender).collateral();
+                if(collateral == path[i+1]){
+                    IERC20(path[i]).approve(collateral, balanceIn);
+                    IERC4626(collateral).deposit(balanceIn, returnAddress);
+                }else{
+                    revert();
+                }
+
+                //TODO: rewrite this  to just check registry if its a registered pair
+                //and then auto add the swapinfo
+
+            }else if(swapinfo.swaptype == TYPE_DEPOSIT){
                 //if set as a deposit, use 4626 interface
                 IERC4626(swapinfo.swappool).deposit(balanceIn, returnAddress);
             }else if(swapinfo.swaptype == TYPE_WITHDRAW){
