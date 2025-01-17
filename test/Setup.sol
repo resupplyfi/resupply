@@ -405,7 +405,7 @@ contract Setup is Test {
 
 
         //deploy swapper
-        defaultSwapper = new Swapper(address(core));
+        defaultSwapper = new Swapper(address(core), address(registry));
 
         //set routes
         vm.startPrank(address(core));

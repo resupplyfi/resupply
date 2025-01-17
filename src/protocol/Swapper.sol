@@ -9,9 +9,13 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
+import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract Swapper is CoreOwnable, ReentrancyGuard{
     using SafeERC20 for IERC20;
+
+    address public immutable registry;
 
     struct SwapInfo{
         address swappool;
@@ -30,7 +34,8 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
     event PairAdded(address indexed _tokenIn, address indexed _tokenOut, SwapInfo _info);
 
 
-    constructor(address _core) CoreOwnable(_core){
+    constructor(address _core, address _registry) CoreOwnable(_core){
+        registry = _registry;
     }
 
     function addPairing(address _tokenIn, address _tokenOut, SwapInfo calldata _swapInfo) external onlyOwner{
@@ -57,20 +62,26 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
             address returnAddress = i == path.length - 2 ? to : address(this);
 
             if(swapinfo.swaptype == TYPE_UNDEFINED){
-                //if the destination is not defined, do some extra checks to see
-                //if its a pair's(msg.sender) collateral to deposit to
+                //if undefined, check if the caller is a registered pair
+                //if so, can dynamically add depositing to its collateral
+                address registeredPair = IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name());
+                if(registeredPair != msg.sender) revert();
+
                 address collateral = IResupplyPair(msg.sender).collateral();
-                if(collateral == path[i+1]){
-                    IERC20(path[i]).approve(collateral, balanceIn);
-                    IERC4626(collateral).deposit(balanceIn, returnAddress);
-                }else{
-                    revert();
-                }
+                address underlying = IResupplyPair(msg.sender).underlying();
+                if(collateral != path[i+1]) revert();
+                if(underlying != path[i]) revert();
+                swapinfo.swappool = collateral;
+                swapinfo.swaptype = TYPE_DEPOSIT;
+                //approve
+                IERC20(underlying).approve(collateral, type(uint256).max);
+                //write
+                swapPools[underlying][collateral] = swapinfo;
 
-                //TODO: rewrite this  to just check registry if its a registered pair
-                //and then auto add the swapinfo
+                emit PairAdded(underlying, collateral, swapinfo);
+            }
 
-            }else if(swapinfo.swaptype == TYPE_DEPOSIT){
+            if(swapinfo.swaptype == TYPE_DEPOSIT){
                 //if set as a deposit, use 4626 interface
                 IERC4626(swapinfo.swappool).deposit(balanceIn, returnAddress);
             }else if(swapinfo.swaptype == TYPE_WITHDRAW){
