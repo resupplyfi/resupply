@@ -1,25 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { OFT } from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 
-
-contract Stablecoin is ERC20Permit, CoreOwnable {
+contract Stablecoin is OFT {
 
     mapping(address => bool) public operators;
     event SetOperator(address indexed _op, bool _valid);
 
     constructor(address _core)
-        ERC20("Resupply USD", "reUSD")
-        ERC20Permit("Resupply USD")
-        CoreOwnable(_core)
+        OFT("Resupply USD", "reUSD", address(0x1a44076050125825900e736c501f859c50fE728c), _core)
+        Ownable(_core)
     {
         //premint a small amount to deployer so that it can be used in the full deployment sequence
         //ex. insurance pool needs a small seed
         _mint(msg.sender, 1e18);
+    }
+
+    function core() external returns(address){
+        return owner();
+    }
+
+    function _transferOwnership(address newOwner) internal override {
+        if(owner() == address(0)){
+            super._transferOwnership(newOwner);
+        }else{
+            revert OwnableInvalidOwner(newOwner);
+        }
     }
 
    function setOperator(address _operator, bool _valid) external onlyOwner{
