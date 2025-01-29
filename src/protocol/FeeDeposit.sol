@@ -17,8 +17,6 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
     address public immutable registry;
     address public immutable feeToken;
 
-    address public receiverPlatform;
-    address public receiverInsurance;
     address public operator;
 
     uint256 public lastDistributedEpoch;

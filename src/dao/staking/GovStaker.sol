@@ -6,20 +6,23 @@ import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/Saf
 import { EpochTracker } from '../../dependencies/EpochTracker.sol';
 import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 import { GovStakerEscrow } from './GovStakerEscrow.sol';
+import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
+import { IGovStaker } from "../../interfaces/IGovStaker.sol";
 
 contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;
 
+    uint24 public constant MAX_COOLDOWN_DURATION = 90 days;
     address private immutable _stakeToken;
     GovStakerEscrow public immutable escrow;
-    uint24 public constant MAX_COOLDOWN_DURATION = 90 days;
+    IResupplyRegistry public immutable registry;
 
     // Account tracking state vars.
     mapping(address account => AccountData data) public accountData;
     mapping(address account => mapping(uint epoch => uint weight)) private accountWeightAt;
 
     // Global weight tracking state vars.
-    uint120 public totalPending;
+    uint112 public totalPending;
     uint16 public totalLastUpdateEpoch;
     mapping(uint epoch => uint weight) private totalWeightAt;
 
@@ -31,9 +34,10 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     uint private _totalSupply;
 
     struct AccountData {
-        uint120 realizedStake; // Amount of stake that has fully realized weight.
-        uint120 pendingStake; // Amount of stake that has not yet fully realized weight.
+        uint112 realizedStake; // Amount of stake that has fully realized weight.
+        uint112 pendingStake; // Amount of stake that has not yet fully realized weight.
         uint16 lastUpdateEpoch;
+        bool isPermaStaker;
     }
 
     struct UserCooldown {
@@ -54,6 +58,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     event Unstaked(address indexed account, uint amount);
     event Cooldown(address indexed account, uint amount, uint end);
     event CooldownEpochsUpdated(uint24 newDuration);
+    event PermaStakerSet(address indexed account);
 
 
     /* ========== CONSTRUCTOR ========== */
@@ -65,26 +70,34 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     */
     constructor(
         address _core,
+        address _registry,
         address _token,
         uint24 _cooldownEpochs
     ) MultiRewardsDistributor(_core) EpochTracker(_core) {
         escrow = new GovStakerEscrow(address(this), _token);
         _stakeToken = _token;
         cooldownEpochs = _cooldownEpochs;
+        registry = IResupplyRegistry(_registry);
     }
 
+    function stake(uint _amount) external returns (uint) {
+        return _stake(msg.sender, _amount);
+    }
 
+    function stake(address _account, uint _amount) external returns (uint) {
+        return _stake(_account, _amount);
+    }
 
-    function stake(address _account, uint _amount) external callerOrDelegated(_account) updateReward(_account) returns (uint) {
-        if (_amount == 0 || _amount >= type(uint120).max) revert InvalidAmount();
+    function _stake(address _account, uint _amount) internal updateReward(_account) returns (uint) {
+        if (_amount == 0 || _amount >= type(uint112).max) revert InvalidAmount();
 
         // Before going further, let's sync our account and total weights
         uint systemEpoch = getEpoch();
         (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
         _checkpointTotal(systemEpoch);
 
-        acctData.pendingStake += uint120(_amount);
-        totalPending += uint120(_amount);
+        acctData.pendingStake += uint112(_amount);
+        totalPending += uint112(_amount);
 
         accountData[_account] = acctData;
         _totalSupply += _amount;
@@ -100,30 +113,30 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         @dev During partial unstake, this will always remove from the least-weighted first.
     */
     function cooldown(address _account, uint _amount) external callerOrDelegated(_account) returns (uint) {
-        return _cooldown(_account, _amount); // triggers updateReward
+        uint systemEpoch = getEpoch();
+        (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
+        require(!acctData.isPermaStaker, "perma staker account");
+        return _cooldown(_account, _amount, acctData, systemEpoch); // triggers updateReward
     }
 
     /**
      * @notice Initiate cooldown and claim any outstanding rewards.
      */
     function exit(address _account) external nonReentrant callerOrDelegated(_account) returns (uint) {
-        (AccountData memory acctData, ) = _checkpointAccount(_account, getEpoch());
-        _cooldown(_account, acctData.realizedStake); // triggers updateReward
+        uint systemEpoch = getEpoch();
+        (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
+        require(!acctData.isPermaStaker, "perma staker account");
+        _cooldown(_account, acctData.realizedStake, acctData, systemEpoch); // triggers updateReward
         _getRewardFor(_account);
         return acctData.realizedStake;
     }
 
-    function _cooldown(address _account, uint _amount) internal updateReward(_account) returns (uint) {
-        if (_amount == 0 || _amount > type(uint120).max) revert InvalidAmount();
-
-        uint systemEpoch = getEpoch();
-
-        // Before going further, let's sync our account and total weights
-        (AccountData memory acctData, ) = _checkpointAccount(_account, systemEpoch);
+    function _cooldown(address _account, uint _amount, AccountData memory acctData, uint systemEpoch) internal updateReward(_account) returns (uint) {
+        if (_amount == 0 || _amount > type(uint112).max) revert InvalidAmount();
         if (acctData.realizedStake < _amount) revert InsufficientRealizedStake();
         _checkpointTotal(systemEpoch);
 
-        acctData.realizedStake -= uint120(_amount);
+        acctData.realizedStake -= uint112(_amount);
         accountData[_account] = acctData;
 
         totalWeightAt[systemEpoch] -= _amount;
@@ -143,15 +156,16 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     }
 
     function unstake(address _account, address _receiver) external callerOrDelegated(_account) returns (uint) {
+        return _unstake(_account, _receiver);
+    }
+
+    function _unstake(address _account, address _receiver) internal returns (uint) {
         UserCooldown storage userCooldown = cooldowns[_account];
         uint256 amount = userCooldown.amount;
-
+        if(amount == 0) return 0;
         if(block.timestamp < userCooldown.end && cooldownEpochs != 0) revert InvalidCooldown();
-
         delete cooldowns[_account];
-
         escrow.withdraw(_receiver, amount);
-
         emit Unstaked(_account, amount);
         return amount;
     }
@@ -232,8 +246,9 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         // Write new account data to storage.
         acctData = AccountData({
             pendingStake: 0,
-            realizedStake: uint120(weight),
-            lastUpdateEpoch: uint16(_systemEpoch)
+            realizedStake: uint112(weight),
+            lastUpdateEpoch: uint16(_systemEpoch),
+            isPermaStaker: acctData.isPermaStaker
         });
     }
 
@@ -359,16 +374,59 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         return totalWeightAt[lastUpdateEpoch] + pending;
     }
 
-    // /// @notice Get the amount of tokens that have passed cooldown.
-    // /// @param _account The account to query.
-    // /// @return . amount of tokens that have passed cooldown.
-    // function getUnstakableAmount(address _account) external view returns (uint) {
-    //     UserCooldown memory userCooldown = cooldowns[_account];
-    //     if (block.timestamp < userCooldown.end) return 0;
-    //     return userCooldown.amount;
-    // }
+    /// @notice Get the amount of tokens that have passed cooldown.
+    /// @param _account The account to query.
+    /// @return . amount of tokens that have passed cooldown.
+    function getUnstakableAmount(address _account) external view returns (uint) {
+        UserCooldown memory userCooldown = cooldowns[_account];
+        if (block.timestamp < userCooldown.end) return 0;
+        return userCooldown.amount;
+    }
 
     function isCooldownEnabled() public view returns (bool) {
         return cooldownEpochs > 0;
     }
+
+    function isPermaStaker(address _account) public view returns (bool) {
+        return accountData[_account].isPermaStaker;
+    }
+
+    /* ========== PERMA STAKER FUNCTIONS ========== */
+
+    /**
+     * @notice  Set account as a permanent staker, preventing them from ever unstaking their staked tokens. 
+     *          This action cannot be undone, and is irreversible.
+     */
+    function irreversiblyCommitAccountAsPermanentStaker(address _account) external callerOrDelegated(_account) {
+        require(!accountData[_account].isPermaStaker, "already perma staker account");
+        accountData[_account].isPermaStaker = true;
+        emit PermaStakerSet(_account);
+    }
+
+    /**
+     * @notice Migrates a perma staker's stake to a new staking contract
+     * @dev Only callable when cooldown epochs are set to 0 and only by perma staker accounts
+     * @dev The new staking contract must be set in the registry
+     * @dev Will claim any pending rewards before migrating
+     * @dev The new staking contract must have delegate approval from this contract
+     * @return amount The amount of tokens that were migrated to the new staking contract
+     */
+    function migrateStake() external returns (uint amount) {
+        require(cooldownEpochs == 0, "cooldownEpochs != 0");
+        IGovStaker staker = IGovStaker(registry.staker());
+        require(address(this) != address(staker), "!migrate");
+        uint systemEpoch = getEpoch();
+        (AccountData memory acctData, ) = _checkpointAccount(msg.sender, systemEpoch);
+        require(acctData.isPermaStaker, "not perma staker account");
+        _cooldown(msg.sender, acctData.realizedStake, acctData, systemEpoch); // triggers updateReward
+        amount = _unstake(msg.sender, address(this));
+        _getRewardFor(msg.sender);
+
+        IERC20(_stakeToken).approve(address(staker), amount);
+        staker.stake(msg.sender, amount);
+        staker.onPermaStakeMigrate(msg.sender);
+        return amount;
+    }
+
+    function onPermaStakeMigrate(address _account) external virtual {}
 }

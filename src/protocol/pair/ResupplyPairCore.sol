@@ -83,6 +83,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     uint256 public liquidationFee;
     /// @dev 1e18 precision
     uint256 public protocolRedemptionFee;
+    uint256 public minimumRedemption = 100 * PAIR_DECIMALS; //minimum amount of debt to redeem
     uint256 public minimumLeftoverDebt = 10000 * PAIR_DECIMALS; //minimum amount of assets left over via redemptions
     uint256 public minimumBorrowAmount = 1000 * PAIR_DECIMALS; //minimum amount of assets to borrow
     
@@ -138,9 +139,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // ============================================================================================
 
     /// @notice The ```constructor``` function is called on deployment
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
-    /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
-    /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _borrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _immutables abi.encode(address _registry)
+    /// @param _customConfigData abi.encode(address _name, address _govToken, address _underlyingStaking, uint256 _stakingId)
     constructor(
         address _core,
         bytes memory _configData,
@@ -175,10 +176,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
                 revert InvalidParameter();
             }
             underlying = IERC20(IERC4626(_collateral).asset());
+            if(IERC20Metadata(address(underlying)).decimals() != 18){
+                revert InvalidParameter();
+            }
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
 
-            currentRateInfo.lastTimestamp = uint64(0);
             currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
             
             exchangeRateInfo.oracle = _oracle;
@@ -235,9 +238,11 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if(userEpoch < globalEpoch){
             //need to calculate shares while keeping this as a view function
             for(;;){
-                //reduce shares by refactoring amount (will never be 0)
+                //reduce shares by refactoring amount
                 borrowShares /= SHARE_REFACTOR_PRECISION;
-                userEpoch += 1;
+                unchecked {
+                    userEpoch += 1;
+                }
                 if(userEpoch == globalEpoch){
                     break;
                 }
@@ -259,8 +264,15 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
     /// @notice The ```totalDebtAvailable``` function returns the total balance of debt tokens in the contract
     /// @return The balance of debt tokens held by contract
-    function totalDebtAvailable(
-    ) public view returns (uint256) {
+    function totalDebtAvailable() external view returns (uint256) {
+        (,,, VaultAccount memory _totalBorrow) = previewAddInterest();
+        
+        return _totalDebtAvailable(_totalBorrow);
+    }
+
+    /// @notice The ```_totalDebtAvailable``` function returns the total balance of debt tokens in the contract
+    /// @return The balance of debt tokens held by contract
+    function _totalDebtAvailable(VaultAccount memory _totalBorrow) internal view returns (uint256) {
         //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
         //be a limited amount of stables that have been bridged and available
         uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
@@ -270,7 +282,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
-    function currentUtilization() public view returns (uint256) {
+    function currentUtilization() external view returns (uint256) {
+        if(borrowLimit == 0){
+            return PAIR_DECIMALS;
+        }
         return totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
     }
 
@@ -281,7 +296,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function _isSolvent(address _borrower, uint256 _exchangeRate) internal returns (bool) {
         if (maxLTV == 0) return true;
         //must look at borrow shares of current epoch so user helper function
-        uint256 _borrowerAmount = totalBorrow.toAmount(userBorrowShares(_borrower), true);
+        //user borrow shares should be synced before _isSolvent is called
+        uint256 _borrowerAmount = totalBorrow.toAmount(_userBorrowShares[_borrower], true);
         if (_borrowerAmount == 0) return true;
         
         //anything that calls _isSolvent will call _syncUserRedemptions beforehand
@@ -312,7 +328,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (!_isSolvent(_borrower, exchangeRateInfo.exchangeRate)) {
             revert Insolvent(
-                totalBorrow.toAmount(userBorrowShares(_borrower), true),
+                totalBorrow.toAmount(_userBorrowShares[_borrower], true),
                 _userCollateralBalance[_borrower], //_issolvent sync'd so take base _userCollateral
                 exchangeRateInfo.exchangeRate
             );
@@ -360,7 +376,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
     }
 
-    function _checkAddToken(address _address) internal view override returns(bool){
+    function _checkAddToken(address _address) internal view virtual override returns(bool){
+        if(_address == address(collateral)) return false;
+        if(_address == address(debtToken)) return false;
         return true;
     }
 
@@ -614,8 +632,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //sync rewards first
         _checkpoint(_account);
 
-        //get token count
-        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account];
+        //get token count (divide by LTV_PRECISION as precision is padded)
+        uint256 rTokens = claimable_reward[address(redemptionWriteOff)][_account] / LTV_PRECISION;
         //reset claimables
         claimable_reward[address(redemptionWriteOff)][_account] = 0;
 
@@ -652,7 +670,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 debtForMint = (_borrowAmount * (LIQ_PRECISION + mintFee) / LIQ_PRECISION);
 
         // Check available capital
-        uint256 _assetsAvailable = totalDebtAvailable();
+        uint256 _assetsAvailable = _totalDebtAvailable(_totalBorrow);
         if (_assetsAvailable < debtForMint) {
             revert InsufficientDebtAvailable(_assetsAvailable, debtForMint);
         }
@@ -660,9 +678,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Calculate the number of shares to add based on the amount to borrow
         _sharesAdded = _totalBorrow.toShares(debtForMint, true);
 
+        //combine current shares and new shares
+        uint256 newTotalShares = _totalBorrow.shares + _sharesAdded;
+
         // Effects: Bookkeeping to add shares & amounts to total Borrow accounting
         _totalBorrow.amount += debtForMint.toUint128();
-        _totalBorrow.shares += _sharesAdded.toUint128();
+        _totalBorrow.shares = newTotalShares.toUint128();
 
         // Effects: write back to storage
         totalBorrow = _totalBorrow;
@@ -710,10 +731,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```AddCollateral``` event is emitted when a borrower adds collateral to their position
-    /// @param sender The source of funds for the new collateral
     /// @param borrower The borrower account for which the collateral should be credited
     /// @param collateralAmount The amount of Collateral Token to be transferred
-    event AddCollateral(address indexed sender, address indexed borrower, uint256 collateralAmount);
+    event AddCollateral(address indexed borrower, uint256 collateralAmount);
 
     /// @notice The ```_addCollateral``` function is an internal implementation for adding collateral to a borrowers position
     /// @param _sender The source of funds for the new collateral
@@ -733,7 +753,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //stake underlying
         _stakeUnderlying(_collateralAmount);
 
-        emit AddCollateral(_sender, _borrower, _collateralAmount);
+        emit AddCollateral(_borrower, _collateralAmount);
     }
 
     /// @notice The ```addCollateral``` function allows the caller to add Collateral Token to a borrowers position
@@ -761,11 +781,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```RemoveCollateral``` event is emitted when collateral is removed from a borrower's position
-    /// @param _sender The account from which funds are transferred
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _receiver The address to which Collateral Tokens will be transferred
+    /// @param _borrower The address of the account in which collateral is being removed
     event RemoveCollateral(
-        address indexed _sender,
         uint256 _collateralAmount,
         address indexed _receiver,
         address indexed _borrower
@@ -780,8 +799,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // Effects: write to state
         // NOTE: Following line will revert on underflow if _collateralAmount > userCollateralBalance
         _userCollateralBalance[_borrower] -= _collateralAmount;
-        // NOTE: Following line will revert on underflow if totalCollateral < _collateralAmount
-        // totalCollateral -= _collateralAmount;
 
         //unstake underlying
         //NOTE: following will revert on underflow if total collateral < _collateralAmount
@@ -791,7 +808,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (_receiver != address(this)) {
             collateral.safeTransfer(_receiver, _collateralAmount);
         }
-        emit RemoveCollateral(msg.sender, _collateralAmount, _receiver, _borrower);
+        emit RemoveCollateral(_collateralAmount, _receiver, _borrower);
     }
 
     /// @notice The ```removeCollateralVault``` function is used to remove collateral from msg.sender's borrow position
@@ -931,6 +948,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         if (_receiver == address(0) || _receiver == address(this)) revert InvalidReceiver();
 
+        if(_amount < minimumRedemption){
+          revert MinimumRedemption();
+        }
+
         // accrue interest if necessary
         _addInterest();
 
@@ -974,7 +995,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         IERC20(_collateralToken).safeTransfer(_receiver, _collateralFreed);
 
         //distribute write off tokens to adjust userCollateralbalances
-        redemptionWriteOff.mint(_collateralFreed);
+        //padded with LTV_PRECISION for extra precision
+        redemptionWriteOff.mint(_collateralFreed * LTV_PRECISION);
 
         emit Redeemed(_caller, _amount, _collateralFreed, protocolFee, debtReduction);
     }
@@ -1021,30 +1043,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _userCollateralBalance = _userCollateralBalance[_borrower];
         uint128 _borrowerShares = _userBorrowShares[_borrower].toUint128();
 
-        // Prevent stack-too-deep
-        int256 _leftoverCollateral;
-        {
-            // Checks & Calculations
-            // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
-            uint256 _liquidationAmountInCollateralUnits = ((_totalBorrow.toAmount(_borrowerShares, false) *
-                _exchangeRate) / EXCHANGE_PRECISION);
+        // Checks & Calculations
+        // Determine the liquidation amount in collateral units (i.e. how much debt liquidator is going to repay)
+        uint256 _liquidationAmountInCollateralUnits = ((_totalBorrow.toAmount(_borrowerShares, false) *
+            _exchangeRate) / EXCHANGE_PRECISION);
 
-            // We first optimistically calculate the amount of collateral to give the liquidator based on the higher clean liquidation fee
-            // This fee only applies if the liquidator does a full liquidation
-            _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
-                (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
+        // add fee for liquidation
+        _collateralForLiquidator = (_liquidationAmountInCollateralUnits *
+            (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
-            // Because interest accrues every block, _liquidationAmountInCollateralUnits from a few lines up is an ever increasing value
-            // This means that leftoverCollateral can occasionally go negative by a few hundred wei (cleanLiqFee premium covers this for liquidator)
-            _leftoverCollateral = (_userCollateralBalance.toInt256() - _collateralForLiquidator.toInt256());
-
-            // If cleanLiquidation fee results in no leftover collateral, give liquidator all the collateral
-            // This will only be true when there liquidator is cleaning out the position
-            //edit: just clamp to user
-            _collateralForLiquidator = _leftoverCollateral <= 0
-                ? _userCollateralBalance
-                : _collateralForLiquidator;
-        }
+        // clamp to user collateral balance as we cant take more than that
+        _collateralForLiquidator = _collateralForLiquidator > _userCollateralBalance ? _userCollateralBalance : _collateralForLiquidator;
 
         // Calculated here for use during repayment, grouped with other calcs before effects start
         uint128 _amountLiquidatorToRepay = (_totalBorrow.toAmount(_borrowerShares, true)).toUint128();
@@ -1057,7 +1066,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             );
 
         // Effects & Interactions
-        // NOTE: reverts if _shares > _userBorrowShares
         // repay using address(0) to skip burning (liquidationHandler will burn from insurance pool)
         _repay(
             _totalBorrow,
@@ -1066,11 +1074,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             address(0),
             _borrower
         );
-        // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
 
-        
         // Collateral is removed on behalf of borrower and sent to liquidationHandler
-        // NOTE: reverts if _collateralForLiquidator > userCollateralBalance
         // NOTE: isSolvent above checkpoints user with _syncUserRedemptions before removing collateral
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
@@ -1138,20 +1143,17 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
 
         // Debit borrowers account
-        // setting recipient to address(this) so that swapping can occur from this contract (debt still goes to msg.sender)
-        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), address(this));
-
-        // Interactions
-        _debtToken.approve(_swapperAddress, _borrowAmount);
+        // setting recipient to _swapperAddress allows us to skip a transfer (debt still goes to msg.sender)
+        uint256 _borrowShares = _borrow(_borrowAmount.toUint128(), _swapperAddress);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
             _borrowAmount,
             _amountCollateralOutMin,
             _path,
-            address(this),
-            block.timestamp
+            address(this)
         );
         uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
 
@@ -1235,23 +1237,22 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
         _removeCollateral(_collateralToSwap, address(this), msg.sender);
 
-        // Interactions
-        _collateral.approve(_swapperAddress, _collateralToSwap);
+        // send directly to swapper
+        _collateral.safeTransfer(_swapperAddress, _collateralToSwap);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
-        ISwapper(_swapperAddress).swapExactTokensForTokens(
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
             _collateralToSwap,
             _amountOutMin,
             _path,
-            address(this),
-            block.timestamp
+            address(this)
         );
-        uint256 _finalBalance = _debtToken.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping
-        _amountOut = _finalBalance - _initialBalance;
+        _amountOut = _debtToken.balanceOf(address(this)) - _initialBalance;
         if (_amountOut < _amountOutMin) {
             revert SlippageTooHigh(_amountOutMin, _amountOut);
         }
@@ -1259,9 +1260,26 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         
         uint256 _sharesToRepay = _totalBorrow.toShares(_amountOut, false);
 
+        //check if over user borrow shares or will revert
+        if(_sharesToRepay > _userBorrowShares[msg.sender]){
+            //clamp
+            _sharesToRepay = _userBorrowShares[msg.sender];
+
+            //readjust token amount since shares changed
+            _amountOut = _totalBorrow.toAmount(_sharesToRepay, true);
+        }
+        
+
         // Effects: write to state
         // Note: setting _payer to address(this) means no actual transfer will occur.  Contract already has funds
         _repay(_totalBorrow, _amountOut.toUint128(), _sharesToRepay.toUint128(), address(this), msg.sender);
+
+        //check for leftover stables that didnt go toward repaying debt
+        uint256 leftover = debtToken.balanceOf(address(this)) - _initialBalance;
+        if(leftover > 0){
+            //send change back to user
+            debtToken.transfer(msg.sender, leftover);
+        }
 
         emit RepayWithCollateral(msg.sender, _swapperAddress, _collateralToSwap, _amountOut, _sharesToRepay);
     }

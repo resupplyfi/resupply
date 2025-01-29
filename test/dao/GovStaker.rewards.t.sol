@@ -31,10 +31,10 @@ contract GovStakerRewardsTest is Setup {
     uint256 public minFuzzAmount = 10_000;
 
     event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
-
+             
     function setUp() public override {
         super.setUp();
-        staker = new GovStaker(address(core), address(govToken), 2);
+        staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         owner = address(core);
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
@@ -339,7 +339,7 @@ contract GovStakerRewardsTest is Setup {
         emit RewardPaid(user1, address(rewardToken2), earned);
         staker.exit(user1);
 
-        (uint120 _realizedStake,,) = staker.accountData(user1);
+        (uint120 _realizedStake,,,) = staker.accountData(user1);
         assertEq(_realizedStake, 0);
         uint256 totalGainsTwo = rewardToken2.balanceOf(user1);
         assertGt(totalGainsTwo, currentProfitsTwo);
@@ -458,7 +458,7 @@ contract GovStakerRewardsTest is Setup {
                 }
                 if (bal > 0) {
                     staker.checkpointAccount(users[x]);
-                    (uint120 _realizedStake,,) = staker.accountData(users[x]);
+                    (uint120 _realizedStake,,,) = staker.accountData(users[x]);
                     if (_realizedStake > 0) {
                         vm.prank(users[x]);
                         staker.cooldown(users[x], bal / (x + 2));

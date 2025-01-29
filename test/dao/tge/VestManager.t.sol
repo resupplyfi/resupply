@@ -5,54 +5,35 @@ import { VestManager } from "../../../src/dao/tge/VestManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "../../../lib/forge-std/src/console.sol";
 import { MockToken } from "../../mocks/MockToken.sol";
+import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
+import { AutoStakeCallback } from "../../mocks/AutoStakeCallback.sol";
+
 
 contract VestManagerHarness is Setup {
-
     // Max amount of redeemable PRISMA/yPRISMA/cvxPRISMA
     uint256 maxRedeemable = 150_000_000e18;
+    AutoStakeCallback autoStakeCallback;
 
     function setUp() public override {
         super.setUp();
-        
+        autoStakeCallback = new AutoStakeCallback(address(core), address(staker), address(vestManager));
         assertEq(vestManager.redemptionRatio(), 0);
         address prisma = address(vestManager.prisma());
         vm.expectRevert("ratio not set");
         vestManager.redeem(prisma, address(this), 1e18);
 
+        VestManagerInitParams.InitParams memory params = VestManagerInitParams.getInitParams(
+            address(permaStaker1),
+            address(permaStaker2),
+            address(treasury)
+        );
         vm.prank(address(core));
         vestManager.setInitializationParams(
-            maxRedeemable,      // _maxRedeemable
-            [
-                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
-                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
-                bytes32(0) // We set this one later
-            ],
-            [   // _nonUserTargets
-                address(permaLocker1), // Convex
-                address(permaLocker2),  // Yearn
-                FRAX_VEST_TARGET,
-                address(treasury)
-            ],
-            [   // _durations
-                uint256(5 * 365 days),  // CONVEX
-                uint256(5 * 365 days),  // YEARN
-                uint256(1 * 365 days),  // Frax
-                uint256(5 * 365 days),  // TREASURY
-                uint256(5 * 365 days),  // REDEMPTIONS
-                uint256(1 * 365 days),  // AIRDROP_TEAM
-                uint256(2 * 365 days),  // AIRDROP_VICTIMS
-                uint256(5 * 365 days)   // AIRDROP_LOCK_PENALTY
-            ],
-            [ // _allocPercentages
-                uint256(333333333333333333),  // 33.33% Convex
-                uint256(166666666666666667),  // 16.67% Yearn
-                uint256(8333333333333333),    // 8.33% Frax
-                uint256(191666666666666667),  // 19.17% TREASURY
-                uint256(250000000000000000),  // 25.00% REDEMPTIONS
-                uint256(16666666666666667),   // 16.67% AIRDROP_TEAM
-                uint256(33333333333333333),   // 33.33% AIRDROP_VICTIMS
-                uint256(0)     // 0%   AIRDROP_LOCK_PENALTY
-            ]
+            params.maxRedeemable,      // _maxRedeemable
+            params.merkleRoots,
+            params.nonUserTargets,
+            params.durations,
+            params.allocPercentages
         );
     }
 
@@ -65,9 +46,10 @@ contract VestManagerHarness is Setup {
         assertEq(vestManager.durationByType(VestManager.AllocationType.AIRDROP_VICTIMS), 2 * 365 days, 'AIRDROP_VICTIMS not 2 years');
         assertEq(vestManager.durationByType(VestManager.AllocationType.AIRDROP_LOCK_PENALTY), 5 * 365 days, 'AIRDROP_LOCK_PENALTY not 5 years');
 
-        assertEq(vestManager.numAccountVests(address(permaLocker1)), 1);
-        assertEq(vestManager.numAccountVests(address(permaLocker2)), 1);
+        assertEq(vestManager.numAccountVests(address(permaStaker1)), 1);
+        assertEq(vestManager.numAccountVests(address(permaStaker2)), 1);
         assertEq(vestManager.numAccountVests(FRAX_VEST_TARGET), 1);
+
 
         (uint256 total, uint256 claimable, uint256 claimed, uint256 timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
         assertEq(claimable, 0, 'claimable not 0');
@@ -75,13 +57,13 @@ contract VestManagerHarness is Setup {
         assertEq(claimed, 0, 'claimed not 0');
         assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years');
 
-        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaStaker1), 0);
         assertEq(claimable, 0, 'claimable not 0');
         assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
         assertEq(timeRemaining, 5 * 365 days, 'timeRemaining not 5 years');
 
-        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaStaker2), 0);
         assertEq(claimable, 0, 'claimable not 0');
         assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
@@ -101,13 +83,13 @@ contract VestManagerHarness is Setup {
         assertEq(claimed, 0, 'claimed not 0');
         assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
 
-        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker1), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaStaker1), 0);
         assertEq(claimable, total / 5, 'claimable not total / 5');
         assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
         assertEq(timeRemaining, 4 * 365 days, 'timeRemaining not 4 years');
 
-        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaLocker2), 0);
+        (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(permaStaker2), 0);
         assertEq(claimable, total / 5, 'claimable not total / 5');
         assertGt(total, 0, 'total not > 0');
         assertEq(claimed, 0, 'claimed not 0');
@@ -118,6 +100,15 @@ contract VestManagerHarness is Setup {
         assertEq(claimed, 0, 'claimed not 0');
         assertEq(timeRemaining, 0, 'timeRemaining not 0');
 
+        address[] memory targets = new address[](4);
+        targets[0] = address(treasury);
+        targets[1] = address(permaStaker1);
+        targets[2] = address(permaStaker2);
+        targets[3] = FRAX_VEST_TARGET;
+        for (uint256 i = 0; i < targets.length; i++) {
+            vm.prank(targets[i]);
+            vestManager.setClaimSettings(true, targets[i]);
+        }
         uint256 claimedActual = vestManager.claim(address(treasury));
         (total, claimable, claimed, timeRemaining) = vestManager.getSingleVestData(address(treasury), 0);
         uint256 locked = total - claimed - claimable;
@@ -147,7 +138,7 @@ contract VestManagerHarness is Setup {
         vestManager.claim(address(treasury));
 
         vm.prank(address(treasury));
-        vestManager.setClaimSettings(true, address(this));
+        vestManager.setClaimSettings(false, address(this));
 
         vm.expectRevert("!authorized");
         vestManager.claim(address(treasury));
@@ -163,8 +154,8 @@ contract VestManagerHarness is Setup {
     function test_SetInitialParams() public {
         address[] memory targets = new address[](3);
         targets[0] = address(treasury);
-        targets[1] = address(permaLocker1);
-        targets[2] = address(permaLocker2);
+        targets[1] = address(permaStaker1);
+        targets[2] = address(permaStaker2);
 
         for (uint256 i = 0; i < uint256(type(VestManager.AllocationType).max); i++) {
             VestManager.AllocationType allocationType = VestManager.AllocationType(i);
@@ -324,10 +315,6 @@ contract VestManagerHarness is Setup {
         }
     }
 
-    function test_CreateVest() public {
-
-    }
-
     function test_Redemption() public {
         vm.expectRevert("invalid token");
         vestManager.redeem(address(govToken), address(this), 1e18);
@@ -412,41 +399,69 @@ contract VestManagerHarness is Setup {
     }
 
     function test_CannotReinitializeParams() public {
+        VestManagerInitParams.InitParams memory params = VestManagerInitParams.getInitParams(
+            address(permaStaker1),
+            address(permaStaker2),
+            address(treasury)
+        );
         vm.prank(address(core));
         vm.expectRevert("params already set");
         vestManager.setInitializationParams(
-            maxRedeemable,      // _maxRedeemable
-            [
-                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
-                bytes32(0x3adb010769f8a36c20d9ec03b89fe4d7f725c8ba133ce65faba53e18d13bf41f),
-                bytes32(0) // We set this one later
-            ],
-            [   // _nonUserTargets
-                address(permaLocker1), // Convex
-                address(permaLocker2),  // Yearn
-                FRAX_VEST_TARGET,
-                address(treasury)
-            ],
-            [   // _durations
-                uint256(5 * 365 days),  // TREASURY
-                uint256(5 * 365 days),  // PERMA_LOCKER1
-                uint256(5 * 365 days),  // PERMA_LOCKER2
-                uint256(1 * 365 days),  // Frax
-                uint256(3 * 365 days),  // REDEMPTIONS
-                uint256(1 * 365 days),  // AIRDROP_TEAM
-                uint256(2 * 365 days),  // AIRDROP_VICTIMS
-                uint256(5 * 365 days)   // AIRDROP_LOCK_PENALTY
-            ],
-            [ // _allocPercentages
-                uint256(333333333333333333),  // 33.33% Convex
-                uint256(166666666666666667),  // 16.67% Yearn
-                uint256(8333333333333333),    // 8.33% Frax
-                uint256(191666666666666667),  // 19.17% TREASURY
-                uint256(250000000000000000),  // 25.00% REDEMPTIONS
-                uint256(16666666666666667),   // 16.67% AIRDROP_TEAM
-                uint256(33333333333333333),   // 33.33% AIRDROP_VICTIMS
-                uint256(0)     // 0%   AIRDROP_LOCK_PENALTY
-            ]
+            params.maxRedeemable,      // _maxRedeemable
+            params.merkleRoots,
+            params.nonUserTargets,
+            params.durations,
+            params.allocPercentages
         );
+    }
+
+    function test_PermaStakerCannotCallVestManager() public {
+        bytes memory data = abi.encodeWithSelector(
+            vestManager.setClaimSettings.selector,
+            true,           // _allowPermissionlessClaims
+            address(this)   // _recipient
+        );
+        vm.startPrank(permaStaker1.owner());
+        vm.expectRevert("target not allowed");
+        permaStaker1.execute(address(vestManager), data);
+        vm.expectRevert("target not allowed");
+        permaStaker1.safeExecute(address(vestManager), data);
+        vm.stopPrank();
+    }
+
+    function test_ClaimWithCallback() public {
+        createVest(100_000e18);
+        skip(1 days);
+        uint256 startBalance = govToken.balanceOf(address(this));
+        uint256 startStakerBalance = staker.balanceOf(address(this));
+        uint256 claimed = vestManager.claimWithCallback(address(this), address(this), address(autoStakeCallback));
+        assertGt(claimed, 0);
+        assertEq(govToken.balanceOf(address(this)), startBalance);
+        assertEq(staker.balanceOf(address(this)), startStakerBalance + claimed);
+    }
+
+    function test_ClaimWithCallbackFailsIfCallbackIsInvalid() public {
+        createVest(100_000e18);
+        skip(1 days);
+        vm.expectRevert();
+        vestManager.claimWithCallback(address(this), address(this), address(0));
+        vm.expectRevert();
+        vestManager.claimWithCallback(address(this), address(this), address(this));
+    }
+
+    function createVest(uint256 amount) public {
+        address prisma = address(vestManager.prisma());
+        deal(prisma, address(this), amount);
+        IERC20(prisma).approve(address(vestManager), amount);
+        vestManager.redeem(prisma, address(this), amount);
+        // Get data for the vest that was just created
+        (
+            uint256 _total,
+            uint256 _claimable,
+            uint256 _claimed,
+            uint256 _timeRemaining
+        ) = vestManager.getSingleVestData(address(this), 0);
+        assertGe(vestManager.numAccountVests(address(this)), 1);
+        assertGt(_total, 0);
     }
 }

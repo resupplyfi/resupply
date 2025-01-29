@@ -33,7 +33,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     mapping(address => uint256) public rewardMap;
     mapping(address => address) public rewardRedirect;
     
-
+    uint256 constant private PRECISION = 1e22;
 
     //events
     event RewardPaid(address indexed _user, address indexed _rewardToken, address indexed _receiver, uint256 _rewardAmount);
@@ -162,7 +162,14 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
         
         //update the global integral but only for the current epoch
         if (_epoch == _currentEpoch && _totalRewardShares() > 0 && bal > reward.reward_remaining) {
-            global_reward_integral[_epoch][reward.reward_token] += ((bal - reward.reward_remaining) * 1e20 / _totalRewardShares());
+            uint256 rewardPerToken = ((bal - reward.reward_remaining) * PRECISION / _totalRewardShares());
+            if(rewardPerToken > 0){
+                //increase integral
+                global_reward_integral[_epoch][reward.reward_token] += rewardPerToken;
+            }else{
+                //set balance as current reward_remaining to let dust grow
+                bal = reward.reward_remaining;
+            }
         }
 
         uint256 reward_global = global_reward_integral[_epoch][reward.reward_token];
@@ -173,7 +180,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
             //_claimTo address non-zero means its a claim 
             // only allow claims if current epoch and if the reward allows it
             if(_epoch == _currentEpoch && _claimTo != address(0) && !reward.is_non_claimable){
-                uint256 receiveable = claimable_reward[reward.reward_token][_account] + (_userRewardShares(_account) * (reward_global - userI) / 1e20);
+                uint256 receiveable = claimable_reward[reward.reward_token][_account] + (_userRewardShares(_account) * (reward_global - userI) / PRECISION);
                 if(receiveable > 0){
                     claimable_reward[reward.reward_token][_account] = 0;
                     IERC20(reward.reward_token).safeTransfer(_claimTo, receiveable);
@@ -182,7 +189,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
                     bal -= receiveable;
                 }
             }else{
-                claimable_reward[reward.reward_token][_account] = claimable_reward[reward.reward_token][_account] + ( _userRewardShares(_account) * (reward_global - userI) / 1e20);
+                claimable_reward[reward.reward_token][_account] = claimable_reward[reward.reward_token][_account] + ( _userRewardShares(_account) * (reward_global - userI) / PRECISION);
             }
             reward_integral_for[_epoch][reward.reward_token][_account] = reward_global;
         }

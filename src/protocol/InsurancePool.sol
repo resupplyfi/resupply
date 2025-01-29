@@ -19,7 +19,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
-    uint256 constant public shareRefactor = 1e18;
+    uint256 constant public SHARE_REFACTOR_PRECISION = 1e12;
 
     uint256 public minimumHeldAssets = 10_000 * 1e18;
 
@@ -42,8 +42,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         address indexed sender,
         address indexed receiver,
         address indexed owner,
-        uint256 assets,
-        uint256 share
+        uint256 shares,
+        uint256 assets
     );
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -68,6 +68,10 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         _mint(address(this), 1e18);
     }
 
+
+    /// @notice set unlock length and withdraw window
+    /// @param _withdrawLength time to unlock
+    /// @param _withdrawWindow time to withdraw after unlock
     function setWithdrawTimers(uint256 _withdrawLength, uint256 _withdrawWindow) external onlyOwner{
         require(_withdrawLength <= MAX_WITHDRAW_DELAY, "too high");
         withdrawTime = _withdrawLength;
@@ -75,6 +79,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         emit WithdrawTimersUpdated(_withdrawLength, _withdrawWindow);
     }
 
+    /// @notice set a minimum amount of assets that must be kept from being burned
+    /// @param _minimum the amount of assets to protect from burn
     function setMinimumHeldAssets(uint256 _minimum) external onlyOwner{
         require(_minimum >= 1e18, "too low");
         minimumHeldAssets = _minimum;
@@ -85,10 +91,27 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         return _totalSupply;
     }
 
-    //note, note a view as need to checkpoint
-    function balanceOf(address account) public returns (uint256) {
-        _checkpoint(account);
-        return _balances[account];
+    /// @notice balance of a given account
+    /// @param _account the user account
+    function balanceOf(address _account) public view returns (uint256 userBalance) {
+        userBalance = _balances[_account];
+
+        uint256 globalEpoch = currentRewardEpoch;
+        uint256 userEpoch = userRewardEpoch[_account];
+
+        if(userEpoch < globalEpoch){
+            //need to calculate balance while keeping this as a view function
+            for(;;){
+                //reduce shares by refactoring amount
+                userBalance /= SHARE_REFACTOR_PRECISION;
+                unchecked {
+                    userEpoch += 1;
+                }
+                if(userEpoch == globalEpoch){
+                    break;
+                }
+            }
+        }
     }
 
     function _mint(address account, uint256 amount) internal {
@@ -140,7 +163,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function _increaseUserRewardEpoch(address _account, uint256 _currentUserEpoch) internal override{
         //convert shares to next epoch shares
         //share refactoring will never be 0
-        _balances[_account] = _balances[_account] / shareRefactor;
+        _balances[_account] = _balances[_account] / SHARE_REFACTOR_PRECISION;
         //update user reward epoch
         userRewardEpoch[_account] = _currentUserEpoch + 1;
     }
@@ -161,7 +184,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         return totalAssets() > minimumHeldAssets ? totalAssets() - minimumHeldAssets : 0;
     }
 
-    //burn underlying, liquidationHandler will send rewards in exchange
+    /// @notice burn underlying, liquidationHandler will send rewards in exchange
+    /// @param _amount the amount to burn
     function burnAssets(uint256 _amount) external {
         require(msg.sender == IResupplyRegistry(registry).liquidationHandler(), "!liq handler");
         require(_amount <= maxBurnableAssets(), "!minimumAssets");
@@ -169,12 +193,15 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         IMintable(asset).burn(address(this), _amount);
 
         //if after many burns the amount to shares ratio has deteriorated too far, then refactor
-        if(totalAssets() * shareRefactor < _totalSupply){
+        if(totalAssets() * SHARE_REFACTOR_PRECISION < _totalSupply){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalSupply /= shareRefactor;
+            _totalSupply /= SHARE_REFACTOR_PRECISION;
         }
     }
 
+    /// @notice deposit assets into the insurance pool
+    /// @param _assets the amount of tokens to deposit
+    /// @param _receiver the receiving address
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
@@ -191,6 +218,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice mint shares
+    /// @param _shares the amount of shares to mint
+    /// @param _receiver the receving address
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
@@ -207,6 +237,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice start unlock timing for msg.sender
     function exit() external{
         //clear any previous withdraw queue and restart
         _clearWithdrawQueue(msg.sender);
@@ -223,6 +254,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         emit Cooldown(msg.sender, balanceOf(msg.sender), exitTime);
     }
 
+    /// @notice cancel exit timer for msg.sender
     function cancelExit() external{
         //canceling will remove claimable emissions
         //but will redistribute those claimable back into the pool
@@ -231,7 +263,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _clearWithdrawQueue(address _account) internal{
-        if(withdrawQueue[msg.sender] != 0){
+        if(withdrawQueue[_account] != 0){
             //checkpoint rewards
             _checkpoint(_account);
             //get reward 0 info
@@ -243,17 +275,22 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
             //redistribute back to pool
             reward.reward_remaining -= reward0;
 
-            withdrawQueue[msg.sender] = 0; //flag as not waiting for withdraw
+            withdrawQueue[_account] = 0; //flag as not waiting for withdraw
         }
     }
 
     function _checkWithdrawReady(address _account) internal{
-        uint256 withdrawQueue = withdrawQueue[msg.sender];
+        uint256 withdrawQueue = withdrawQueue[_account];
         require(withdrawQueue > 0 && block.timestamp >= withdrawQueue, "!withdraw time");
         require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
     }
 
+    /// @notice burn shares and withdraw underlying assets
+    /// @param _shares number of shares to redeem
+    /// @param _receiver address to send underlying to
     function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
+        require(msg.sender == _owner);
+
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_shares > 0) {
@@ -268,7 +305,12 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice withdraw underlying assets
+    /// @param _amount amount of underlying assets to withdraw
+    /// @param _receiver the receiving address
     function withdraw(uint256 _amount, address _receiver, address _owner) public nonReentrant returns(uint256 shares){
+        require(msg.sender == _owner);
+
         _checkWithdrawReady(msg.sender);
         //note: ignore _owner
         if (_amount > 0) {
@@ -282,16 +324,24 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
+    /// @notice get rewards for the given account
+    /// @param _account the account to claim rewards for
     function getReward(address _account) public override{
         require(withdrawQueue[_account] == 0, "claim while queued");
         super.getReward(_account);
     }
 
+    /// @notice get rewards for the given account
+    /// @param _account the account to claim rewards for
+    /// @param _forwardTo the address to send claimed rewards to
     function getReward(address _account, address _forwardTo) public override{
         require(withdrawQueue[_account] == 0, "claim while queued");
         super.getReward(_account,_forwardTo);
     }
 
+    /// @notice check what rewards are claimable
+    /// @param _account the account to query
+    /// @dev not a view function
     function earned(address _account) public override returns(EarnedData[] memory claimable) {
         claimable = super.earned(_account);
         if(withdrawQueue[_account] > 0){

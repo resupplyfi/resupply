@@ -221,7 +221,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setRateCalculator``` function sets the rate contract address
     /// @param _newRateCalculator The new rate contract address
-    function setRateCalculator(address _newRateCalculator) external onlyOwner{
+    function setRateCalculator(address _newRateCalculator, bool _updateInterest) external onlyOwner{
+        //should add interest before changing rate calculator
+        //however if there is an intrinsic problem with the current rate calculate, need to be able
+        //to update without calling addInterest
+        if(_updateInterest){
+            _addInterest();
+        }
         emit SetRateCalculator(address(rateCalculator), _newRateCalculator);
         rateCalculator = IRateCalculator(_newRateCalculator);
     }
@@ -281,6 +287,16 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         }
         borrowLimit = _limit;
         emit SetBorrowLimit(_limit);
+    }
+
+    event SetMinimumRedemption(uint256 min);
+
+    function setMinimumRedemption(uint256 _min) external onlyOwner{
+        if(_min < 100 * PAIR_DECIMALS ){
+            revert InvalidParameter();
+        }
+        minimumRedemption = _min;
+        emit SetMinimumRedemption(_min);
     }
 
     event SetMinimumLeftover(uint256 min);
@@ -357,9 +373,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @dev
     /// @param _swapper The swapper address
     /// @param _approval The approval
-    function setSwapper(address _swapper, bool _approval) external onlyOwner{
-        swappers[_swapper] = _approval;
-        emit SetSwapper(_swapper, _approval);
+    function setSwapper(address _swapper, bool _approval) external{
+        if(msg.sender == owner() || msg.sender == registry){
+            swappers[_swapper] = _approval;
+            emit SetSwapper(_swapper, _approval);
+        }else{
+            revert OnlyProtocolOrOwner();
+        }
     }
 
     /// @notice The ```SetConvexPool``` event fires when convex pool id is updated

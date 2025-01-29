@@ -71,6 +71,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     event ReceiverAdded(uint256 indexed id, address indexed receiver);
     event ReceiverWeightsSet(uint256[] receiverIds, uint256[] weights);
     event UnallocatedRecovered(address indexed recipient, uint256 amount);
+    event EmissionsScheduleSet(uint256[] rates, uint256 epochsPer, uint256 tailRate);
 
     struct ReceiverInfo{
         bool active;
@@ -137,8 +138,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
                 require(receivers[j] != receiver.receiver, "Duplicate receiver id");
             }
             receivers[i] = receiver.receiver;
-
-            IReceiver(receiver.receiver).allocateEmissions(); // allocate according to old weight
+            _fetchEmissions(receiver.receiver); // allocate according to old weight
             if (_newWeights[i] > receiver.weight) {
                 totalWeight += (_newWeights[i] - receiver.weight);
             } else {
@@ -265,7 +265,6 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             uint256 mintable = _calcEmissionsForEpoch(++_lastMintEpoch);
             if (mintable > 0) govToken.mint(address(this), mintable);
             emissionsPerEpoch[_lastMintEpoch] = mintable;
-            if (nextReceiverId == 0) unallocated += mintable;
         }
         lastMintEpoch = epoch;
     }
@@ -292,7 +291,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         }
 
         return (
-            govToken.totalSupply() * 
+            govToken.globalSupply() * 
             _emissionsRate * 
             epochLength /
             365 days /
@@ -317,14 +316,15 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     function setEmissionsSchedule(uint256[] memory _rates, uint256 _epochsPer, uint256 _tailRate) external onlyOwner {
         require(_rates.length > 0 && _epochsPer > 0, "Must be >0");
         require(_rates[0] >= _tailRate, "Final rate less than tail rate");
-        for (uint256 i = 0; i < _rates.length; i++) {
-            if (i == _rates.length - 1) break; // prevent index out of bounds
+        for (uint256 i = 0; i < _rates.length - 1; i++) {
             require(_rates[i] <= _rates[i + 1], "Rates must decay"); // lower index must be <= than higher index
         }
-        _mintEmissions(getEpoch()); // before updating, mint current epoch emissions at old rate
+        // before updating, and only if receiver(s) are registered, mint current epoch emissions at old rate
+        if (nextReceiverId > 0) _mintEmissions(getEpoch());
         emissionsSchedule = _rates;
         epochsPer = _epochsPer;
         tailRate = _tailRate;
+        emit EmissionsScheduleSet(_rates, _epochsPer, _tailRate);
     }
 
     /**

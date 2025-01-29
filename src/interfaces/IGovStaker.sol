@@ -99,4 +99,6 @@ interface IGovStaker {
     function getEpoch() external view returns (uint);
     function epochLength() external view returns (uint);
     function startTime() external view returns (uint);
+    function irreversiblyCommitAccountAsPermanentStaker(address account) external;
+    function onPermaStakeMigrate(address account) external;
 }

@@ -22,6 +22,8 @@ contract GovStakerStakingTest is Setup {
         rewardToken2 = new MockToken("RewardToken2", "RT2");
         rewardToken2.approve(address(staker), type(uint256).max);
         deal(address(stakingToken), user1, 1_000_000 * 10 ** 18);
+        deal(address(stakingToken), address(this), 1_000_000 * 10 ** 18);
+        stakingToken.approve(address(staker), type(uint256).max);
         vm.prank(user1);
         stakingToken.approve(address(staker), type(uint256).max);
     }
@@ -36,7 +38,9 @@ contract GovStakerStakingTest is Setup {
         vm.prank(address(core));
         staker.setCooldownEpochs(0);
 
-        staker.unstake(address(this), address(this));
+        uint unstakableAmount = staker.getUnstakableAmount(address(this));
+        uint unstakedAmount = staker.unstake(address(this), address(this));
+        assertEq(unstakedAmount, unstakableAmount, "Unstaked amount should be equal to unstakable amount");
     }
 
     function test_Stake() public {
@@ -52,6 +56,8 @@ contract GovStakerStakingTest is Setup {
 
         vm.warp(block.timestamp + warmupWait() * 100);
         staker.checkpointAccount(user1);
+
+        staker.stake(100e18);
     }
 
     function test_AddReward() public {
@@ -117,7 +123,9 @@ contract GovStakerStakingTest is Setup {
         
         assertGt(amt, 0, "Amount should be greater than 0");
         assertGt(block.timestamp, _end, "Cooldown should be over");
-        staker.unstake(user1, user1);
+        uint unstakableAmount = staker.getUnstakableAmount(user1);
+        uint unstakedAmount = staker.unstake(user1, user1);
+        assertEq(unstakedAmount, unstakableAmount, "Unstaked amount should be equal to unstakable amount");
         vm.stopPrank();
 
         assertEq(staker.balanceOf(user1), 0, "Balance after unstake should be zero");
@@ -172,8 +180,7 @@ contract GovStakerStakingTest is Setup {
         vm.prank(user1);
         staker.stake(dev, 100 * 10 ** 18);
         staker.cooldown(dev, 100 * 10 ** 18);
-        staker.unstake(dev, dev);
-        // This should fail since user1 is not approved to stake for dev
+        staker.unstake(dev, dev); // This should fail since user1 is not approved to stake for dev
     }
 
     function test_CoolDown() public {
@@ -256,8 +263,42 @@ contract GovStakerStakingTest is Setup {
         vm.stopPrank();
     }
 
+    function test_SetPermaStaker() public {
+        staker.stake(address(this), 100 * 10 ** 18);
+        assertEq(staker.balanceOf(address(this)), 100 * 10 ** 18, "Balance should be 100");
+        // make perma staker
+        assertEq(staker.isPermaStaker(address(this)), false, "Account should not be a perma staker");
+        staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
+        assertEq(staker.isPermaStaker(address(this)), true, "Account should be a perma staker");
+
+        vm.expectRevert("perma staker account");
+        staker.cooldown(address(this), 100 * 10 ** 18);
+
+        uint unstakableAmount = staker.getUnstakableAmount(address(this));
+        uint unstakedAmount = staker.unstake(address(this), address(this));
+        assertEq(unstakedAmount, unstakableAmount, "Unstaked amount should be equal to unstakable amount");
+    }
+
+    function test_ShouldBeAbleToRecoverTokensWhenPermaStakingDuringPreexistingCooldown() public {
+        uint amount = 100 * 10 ** 18;
+        staker.stake(address(this), amount);
+        skip(warmupWait());
+        staker.cooldown(address(this), amount); // cooldown before
+        staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
+        skip(cooldownWait());
+        uint unstakableAmount = staker.getUnstakableAmount(address(this));
+        assertEq(unstakableAmount, amount, "Unstakable amount should be equal to staked amount");
+        uint unstakedAmount = staker.unstake(address(this), address(this));
+        assertEq(unstakedAmount, amount, "Unstaked amount should be equal to unstakable amount");
+        assertEq(staker.balanceOf(address(this)), 0, "Balance should be 0");
+    }
+
     function warmupWait() internal view returns (uint) {
         return epochLength;
+    }
+
+    function cooldownWait() internal view returns (uint) {
+        return epochLength * staker.cooldownEpochs();
     }
 
     function getEpoch() public view returns (uint) {

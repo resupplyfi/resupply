@@ -19,7 +19,7 @@ import { GovToken } from "src/dao/GovToken.sol";
 import { IGovToken } from "src/interfaces/IGovToken.sol";
 import { VestManager } from "src/dao/tge/VestManager.sol";
 import { Treasury } from "src/dao/Treasury.sol";
-import { PermaLocker } from "src/dao/tge/PermaLocker.sol";
+import { PermaStaker } from "src/dao/tge/PermaStaker.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 // Protocol Contracts
@@ -72,8 +72,8 @@ contract Setup is Test {
     address public dev = address(0x42069);
     address public tempGov = address(987);
     Treasury public treasury;
-    PermaLocker public permaLocker1;
-    PermaLocker public permaLocker2;
+    PermaStaker public permaStaker1;
+    PermaStaker public permaStaker2;
     Stablecoin public stablecoin;
     BasicVaultOracle public oracle;
     InterestRateCalculator public rateCalculator;
@@ -127,8 +127,8 @@ contract Setup is Test {
         vm.label(address(voter), "Voter");
         vm.label(address(govToken), "Gov Token");
         vm.label(address(emissionsController), "Emissions Controller");
-        vm.label(address(permaLocker1), "PermaLocker 1");
-        vm.label(address(permaLocker2), "PermaLocker 2");
+        vm.label(address(permaStaker1), "PermaStaker 1");
+        vm.label(address(permaStaker2), "PermaStaker 2");
         vm.label(address(staker), "Gov Staker");
         vm.label(address(treasury), "Treasury");
     }
@@ -269,7 +269,7 @@ contract Setup is Test {
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
         core = new Core(tempGov, epochLength);
-        address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+2);
+        address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+4);
         govToken = new GovToken(
             address(core), 
             vestManagerAddress,
@@ -277,7 +277,9 @@ contract Setup is Test {
             "Resupply", 
             "RSUP"
         );
-        staker = new GovStaker(address(core), address(govToken), 2);
+        stablecoin = new Stablecoin(address(core));
+        registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
+        staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         vestManager = new VestManager(
             address(core), 
             address(govToken),
@@ -305,12 +307,12 @@ contract Setup is Test {
         govToken.setMinter(address(emissionsController));
 
         treasury = new Treasury(address(core));
-        stablecoin = new Stablecoin(address(core));
-        registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
-        permaLocker1 = new PermaLocker(address(core), user1, address(staker), address(registry), "Yearn");
-        permaLocker2 = new PermaLocker(address(core), user2, address(staker), address(registry), "Convex");
-        assertEq(permaLocker1.owner(), user1);
-        assertEq(permaLocker2.owner(), user2);
+        vm.prank(address(core));
+        registry.setStaker(address(staker));
+        permaStaker1 = new PermaStaker(address(core), user1, address(registry), address(vestManager), "Yearn");
+        permaStaker2 = new PermaStaker(address(core), user2, address(registry), address(vestManager), "Convex");
+        assertEq(permaStaker1.owner(), user1);
+        assertEq(permaStaker2.owner(), user2);
 
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));

@@ -56,6 +56,29 @@ contract EmissionsControllerTest is Setup {
         }
     }
 
+    function test_UpdateScheduleBeforeReceiversAreRegisteredDoesNotMint() public {
+        uint256 startSupply = govToken.totalSupply();
+        uint256[] memory rates = new uint256[](2);
+        rates[0] = 100;
+        rates[1] = 101;
+        uint256 epochsPer = 1;
+        uint256 tailRate = 98;
+
+        // Make sure emissions cannot mint without receivers
+        skip(epochLength*5);
+        vm.prank(address(core));
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+        assertEq(govToken.totalSupply(), startSupply);
+
+        // Ensure all new mints go to first receiver, and none go to unallocated
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        vm.prank(address(mockReceiver1));
+        emissionsController.fetchEmissions();
+        assertGt(govToken.totalSupply(), startSupply);
+        assertEq(emissionsController.unallocated(), 0);
+    }
+
     function test_AddMultipleReceiversAndWeights() public {
         uint256[] memory receiverIds = new uint256[](3);
         receiverIds[0] = 0;

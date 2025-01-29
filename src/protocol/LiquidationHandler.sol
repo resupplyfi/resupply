@@ -57,9 +57,8 @@ contract LiquidationHandler is CoreOwnable{
         //get balance
         uint256 collateralBalance = IERC20(_collateral).balanceOf(address(this));
         
-        emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
-
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
+
         //check that it is indeed burnable..
         if(debtByCollateral[_collateral] <= maxBurnable){
             //burn debt
@@ -71,6 +70,8 @@ contract LiquidationHandler is CoreOwnable{
                 //send all collateral (and thus distribute)
                 IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
             }
+
+            emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
         }
     }
 
@@ -82,8 +83,9 @@ contract LiquidationHandler is CoreOwnable{
     }
 
     function processLiquidationDebt(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{
-        //ensure caller is a registered pair
-        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender, "!regPair");
+        //ensure caller is authorized
+        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender ||
+            IResupplyRegistry(registry).l2manager() == msg.sender, "!regPair");
 
         //add to debt needed to burn
         debtByCollateral[_collateral] += _debtAmount;
@@ -97,9 +99,6 @@ contract LiquidationHandler is CoreOwnable{
     function processCollateral(address _collateral) public{
         require(IResupplyRegistry(registry).liquidationHandler() == address(this), "!liq handler");
         
-        //get underlying
-        address underlying = IERC4626(_collateral).asset();
-
         //get max withdraw
         uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
         //debt to burn (clamp to debtByCollateral)

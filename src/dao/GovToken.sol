@@ -1,11 +1,10 @@
-// import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-// import { CoreOwnable } from "../../src/dependencies/CoreOwnable.sol";
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { OFT } from "@layerzerolabs/oft-evm/contracts/OFT.sol";
 
 contract GovToken is OFT {
     uint256 public immutable INITIAL_SUPPLY;
+    uint256 public globalSupply;
     bool public minterFinalized;
     address public minter;
 
@@ -27,6 +26,7 @@ contract GovToken is OFT {
       Ownable(_core) {
         INITIAL_SUPPLY = _initialSupply;
         _mint(_vesting, _initialSupply);
+        globalSupply += _initialSupply;
     }
 
     function core() external returns(address){
@@ -43,6 +43,7 @@ contract GovToken is OFT {
 
     function mint(address _to, uint256 _amount) external onlyMinter {
         _mint(_to, _amount);
+        globalSupply += _amount;
     }
 
     function setMinter(address _minter) external onlyOwner {
