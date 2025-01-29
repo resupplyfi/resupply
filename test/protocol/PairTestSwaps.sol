@@ -65,13 +65,18 @@ contract PairTestSwaps is PairTestBase {
         (address swappool, ,, uint32 swaptype) = Swapper(defaultswapper).swapPools(fraxpath[0],fraxpath[1]);
         console.log("swap pool, ", swappool);
         console.log("swap type, ", swaptype);
+        printPairInfo(fraxresupply);
+        printUserInfo(fraxresupply, address(this));
 
+
+        console.log("\ntry leverage...\n");
         uint256 toborrow = 100_000e18;
         uint256 startingfraxCollateral = frxcollateral.balanceOf(address(this));
         uint256 startingcrvusdCollateral = crvcollateral.balanceOf(address(this));
         fraxresupply.leveragedPosition(defaultswapper, toborrow, startingfraxCollateral, 0, fraxpath);
 
-        // console.log("total colllateral", fraxresupply.userCollateralBalance(address(this)));
+        printPairInfo(fraxresupply);
+        printUserInfo(fraxresupply, address(this));
     }
 
 }

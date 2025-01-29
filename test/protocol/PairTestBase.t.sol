@@ -64,6 +64,12 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         console.log("underlying", address(_pair.underlying()));
     }
 
+    function printUserInfo(ResupplyPair _pair, address _user) public {
+        (uint256 borrowshares, uint256 usercollateral) = _pair.getUserSnapshot(_user);
+        console.log("user borrowshares: ", borrowshares);
+        console.log("user collateral: ", usercollateral);
+    }
+
     function printPairFees(ResupplyPair _pair) internal view{
         console.log("interest fees: ", _pair.claimableFees());
         console.log("other fees: ", _pair.claimableOtherFees());
