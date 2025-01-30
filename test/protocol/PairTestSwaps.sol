@@ -35,16 +35,18 @@ contract PairTestSwaps is PairTestBase {
         IERC20 scrvusd = IERC20(Constants.Mainnet.CURVE_SCRVUSD);
         IERC20 sfrax = IERC20(Constants.Mainnet.SFRAX_ERC20);
 
-        
-        IERC20 crvcollateral = curveresupply.collateral();
-        IERC20 frxcollateral = fraxresupply.collateral();
-        crvusd.approve(address(crvcollateral), 999_999_999e18);
-        frxusd.approve(address(frxcollateral), 999_999_999e18);
-        frxcollateral.approve(address(fraxresupply), 999_999_999e18);
-        crvcollateral.approve(address(curveresupply), 999_999_999e18);
+        crvusd.approve(address(curveresupply), 999_999_999e18);
+        frxusd.approve(address(fraxresupply), 999_999_999e18);
 
-        IERC4626(address(crvcollateral)).deposit(10_000e18, address(this));
-        IERC4626(address(frxcollateral)).deposit(10_000e18, address(this));
+        // IERC20 crvcollateral = curveresupply.collateral();
+        // IERC20 frxcollateral = fraxresupply.collateral();
+        // crvusd.approve(address(crvcollateral), 999_999_999e18);
+        // frxusd.approve(address(frxcollateral), 999_999_999e18);
+        // frxcollateral.approve(address(fraxresupply), 999_999_999e18);
+        // crvcollateral.approve(address(curveresupply), 999_999_999e18);
+
+        // IERC4626(address(crvcollateral)).deposit(10_000e18, address(this));
+        // IERC4626(address(frxcollateral)).deposit(10_000e18, address(this));
         
 
         address[] memory curvepath = new address[](4);
@@ -71,12 +73,22 @@ contract PairTestSwaps is PairTestBase {
 
         console.log("\ntry leverage...\n");
         uint256 toborrow = 100_000e18;
-        uint256 startingfraxCollateral = frxcollateral.balanceOf(address(this));
-        uint256 startingcrvusdCollateral = crvcollateral.balanceOf(address(this));
-        fraxresupply.leveragedPosition(defaultswapper, toborrow, startingfraxCollateral, 0, fraxpath);
+        // uint256 startingfraxCollateral = frxcollateral.balanceOf(address(this));
+        // uint256 startingcrvusdCollateral = crvcollateral.balanceOf(address(this));
+        fraxresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, fraxpath);
 
         printPairInfo(fraxresupply);
         printUserInfo(fraxresupply, address(this));
+
+        console.log("\ncurve pair\n");
+        printPairInfo(curveresupply);
+        printUserInfo(curveresupply, address(this));
+
+
+        console.log("\ntry leverage...\n");
+        curveresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, curvepath);
+        printPairInfo(curveresupply);
+        printUserInfo(curveresupply, address(this));
     }
 
 }
