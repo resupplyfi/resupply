@@ -16,5 +16,5 @@ interface ICreateXDeployer {
 
 // Deploy a contract to a deterministic address with create2
 abstract contract CreateXDeployer {
-    ICreateXDeployer public constant deployer = ICreateXDeployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
+    ICreateXDeployer public constant createXDeployer = ICreateXDeployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 }

@@ -16,8 +16,9 @@ ffi = true
 # gas limit in tests
 gas_limit = 9223372036854775807
 # optimizer
-optimizer = false
+optimizer = true
 # optimizer runs
+# optimizer_runs = 1_000_000
 optimizer_runs = 200
 # use via-ir optimizer
 via_ir = true
@@ -25,6 +26,7 @@ fs_permissions = [{ access = "read-write", path = "./"}]
 bytecode_hash = "none"
 ignored_error_codes = [1878, 2519, 5574,5667,2072,2018,3420,3860]
 evm_version = "shanghai"
+compiler_version = "0.8.28"
 
 [profile.src]
 test = "_" # Makes building faster
@@ -35,6 +37,8 @@ optimizer = false
 src = "_"
 test = "_"
 optimizer = false
+optimizer_runs = 1_000_000
+via_ir = true
 
 [profile.deploy]
 src = "_"
