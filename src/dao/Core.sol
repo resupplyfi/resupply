@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 import { IAuthHook } from '../interfaces/IAuthHook.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
@@ -12,7 +12,7 @@ import { Address } from '@openzeppelin/contracts/utils/Address.sol';
             Ownership of this contract should be the DAO via `Voting`.
             Other ownable contracts inherit their ownership from this contract
             using `Ownable`.
- */
+*/
 contract Core {
     using Address for address;
 

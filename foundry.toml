@@ -5,7 +5,7 @@ test = 'test'
 out = 'out'
 libs = ["node_modules", "lib"]
 gas_reports = ["TimelockController"]
-auto_detect_solc = true
+auto_detect_solc = false
 cache = true
 #block number
 # block_number = 100

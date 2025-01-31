@@ -20,7 +20,6 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXDeployer {
     // Configs: DAO
-    address public constant tempGov = 0xfE11a5001EF95cbADd1a746D40B113e4AAA872F8; // Team multisig
     uint256 public constant EPOCH_LENGTH = 1 weeks;
     uint256 public constant STAKER_COOLDOWN_EPOCHS = 2;
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
