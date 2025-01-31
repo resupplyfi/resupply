@@ -37,6 +37,8 @@ optimizer = false
 src = "_"
 test = "_"
 optimizer = false
+optimizer_runs = 1_000_000
+via_ir = true
 
 [profile.deploy]
 src = "_"
