@@ -1,5 +1,5 @@
-import { TenderlyHelper } from "./utils/TenderlyHelper.s.sol";
-import { CreateXDeployer } from "./utils/CreateXDeployer.s.sol";
+import { TenderlyHelper } from "script/utils/TenderlyHelper.s.sol";
+import { CreateXDeployer } from "script/utils/CreateXDeployer.s.sol";
 import { console } from "forge-std/console.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -43,7 +43,7 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
-    address public dev = address(0xc4ad);
+    address public dev = address(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045);
 
     // DAO Contracts
     address public core;
