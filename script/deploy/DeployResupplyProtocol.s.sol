@@ -1,4 +1,3 @@
-
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -15,6 +14,7 @@ import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { console } from "forge-std/console.sol";
 import { ICore } from "src/interfaces/ICore.sol";
+import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 contract DeployResupplyProtocol is BaseDeploy {
 
@@ -139,7 +139,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             _stakingId
         );
         console.log("ResupplyPair deployed at", _pairAddress);
-        registry.addPair(_pairAddress);
+        ICore(core).execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.addPair.selector, _pairAddress));
         return _pairAddress;
     }
 }

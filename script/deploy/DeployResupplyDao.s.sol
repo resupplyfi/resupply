@@ -11,39 +11,41 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 
 contract DeployResupplyDao is BaseDeploy {
 
-    function deployDaoContracts() public {
-        bool isTestNet = false;
-        core = deployCore(dev);
-        govToken = deployGovToken(dev, isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
-        vestManager = deployVestManager(dev, isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
-        stablecoin = Stablecoin(deployStablecoin(dev));
-        registry = IResupplyRegistry(deployRegistry(dev));
-        staker = deployGovStaker(dev);
-        voter = deployVoter(dev);
-        emissionsController = deployEmissionsController(dev);
-        treasury = deployTreasury(dev);
+    address public deployer;
+
+    function deployDaoContracts(address _sender, bool isTestNet) public doBroadcast(_sender) {
+        deployer = _sender;
+        core = deployCore();
+        govToken = deployGovToken(isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
+        vestManager = deployVestManager(isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
+        stablecoin = Stablecoin(deployStablecoin());
+        registry = IResupplyRegistry(deployRegistry());
+        staker = deployGovStaker();
+        voter = deployVoter();
+        emissionsController = deployEmissionsController();
+        treasury = deployTreasury();
     }
 
-    function deployStablecoin(address _sender) public doBroadcast(_sender) returns (address) {
+    function deployStablecoin() public returns (address) {
         bytes memory constructorArgs = abi.encode(address(core));
         bytes memory bytecode = abi.encodePacked(vm.getCode("Stablecoin.sol:Stablecoin"), constructorArgs);
         return deployContract(DeployType.CREATE3, salt, bytecode, "Stablecoin");
     }
 
-    function deployRegistry(address _sender) public doBroadcast(_sender) returns (address) {
+    function deployRegistry() public returns (address) {
         bytes memory constructorArgs = abi.encode(address(core), address(stablecoin), address(govToken));
         bytes memory bytecode = abi.encodePacked(vm.getCode("ResupplyRegistry.sol:ResupplyRegistry"), constructorArgs);
         return deployContract(DeployType.CREATE3, salt, bytecode, "ResupplyRegistry");
     }
 
-    function deployCore(address _sender) public doBroadcast(_sender) returns (address) {
-        bytes memory constructorArgs = abi.encode(dev, EPOCH_LENGTH);
+    function deployCore() public returns (address) {
+        bytes memory constructorArgs = abi.encode(deployer, EPOCH_LENGTH);
         bytes memory bytecode = abi.encodePacked(vm.getCode("Core.sol:Core"), constructorArgs);
         return deployContract(DeployType.CREATE3, salt, bytecode, "Core");
     }
 
-    function deployGovToken(address _sender, bool _isTestNet) public doBroadcast(_sender) returns (address) {
-        address _vestManagerAddress = computeCreateAddress(_sender, vm.getNonce(_sender) + 1);
+    function deployGovToken(bool _isTestNet) public returns (address) {
+        address _vestManagerAddress = computeCreateAddress(deployer, vm.getNonce(deployer) + 1);
         console.log("Calculated VestManager Address:", _vestManagerAddress);
         bytes memory constructorArgs = abi.encode(
             address(core), 
@@ -56,7 +58,7 @@ contract DeployResupplyDao is BaseDeploy {
         return deployContract(DeployType.CREATE3, salt, bytecode, "GovToken");
     }
 
-    function deployVestManager(address _sender, bool _isTestNet) public doBroadcast(_sender) returns (address) {
+    function deployVestManager(bool _isTestNet) public returns (address) {
         if (_isTestNet) {
             return address(new VestManagerHarness(
                 address(core), 
@@ -82,7 +84,7 @@ contract DeployResupplyDao is BaseDeploy {
         }
     }
 
-    function deployGovStaker(address _sender) public doBroadcast(_sender) returns (address) {
+    function deployGovStaker() public returns (address) {
         bytes memory constructorArgs = abi.encode(
             address(core), 
             address(registry), 
@@ -100,14 +102,14 @@ contract DeployResupplyDao is BaseDeploy {
         return _staker;
     }
 
-    function deployVoter(address _sender) public doBroadcast(_sender) returns (address) {
+    function deployVoter() public returns (address) {
         bytes memory constructorArgs = abi.encode(address(core), IGovStaker(address(staker)), 100, 3000);
         bytes memory bytecode = abi.encodePacked(vm.getCode("Voter.sol:Voter"), constructorArgs);
         voter = deployContract(DeployType.CREATE1, salt, bytecode, "Voter");
         return voter;
     }
 
-    function deployEmissionsController(address _sender) public doBroadcast(_sender) returns (address) {
+    function deployEmissionsController() public returns (address) {
         bytes memory constructorArgs = abi.encode(
             address(core), 
             address(govToken), 
@@ -121,7 +123,7 @@ contract DeployResupplyDao is BaseDeploy {
         return emissionsController;
     }
 
-    function deployTreasury(address _sender) public doBroadcast(_sender) returns (address) {
+    function deployTreasury() public returns (address) {
         bytes memory constructorArgs = abi.encode(address(core));
         bytes memory bytecode = abi.encodePacked(vm.getCode("Treasury.sol:Treasury"), constructorArgs);
         treasury = deployContract(DeployType.CREATE1, salt, bytecode, "Treasury");

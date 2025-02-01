@@ -14,22 +14,21 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function run() public {
-        vm.createSelectFork(vm.envString("MAINNET_URL"));
-        // vm.createSelectFork(vm.envString("TENDERLY_URL"));
         setEthBalance(dev, 10 ether);
-        deployDaoContracts();
+        deployDaoContracts(dev, true); // true for testnet
         deployProtocolContracts(dev);
         configurationStep1(dev);
         deployRewardsContracts(dev);
         configureProtocolContracts(dev);
         (permaStaker1, permaStaker2) = deployPermaStakers(dev);
-        deployDefaultLendingPairs();
+        deployDefaultLendingPairs(dev);
+        handoffGovernance(dev);
     }
 
-    function deployDefaultLendingPairs() public {
+    function deployDefaultLendingPairs(address _sender) public {
         address pair;
-        pair = deployLendingPair(core, address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
-        pair = deployLendingPair(core, address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        pair = deployLendingPair(_sender, address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        pair = deployLendingPair(_sender, address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
     }
 
     function configurationStep1(address _sender) public doBroadcast(_sender) {
@@ -52,5 +51,18 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setFeeDeposit.selector, address(feeDeposit)));
         _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRewardHandler.selector, address(rewardHandler)));
         _core.execute(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
+    }
+
+    function handoffGovernance(address _sender) public doBroadcast(_sender) {
+        ICore _core = ICore(core);
+        _core.execute(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
+    }
+
+    function isForkedNetwork() public view returns (bool) {
+        try vm.activeFork() returns (uint256) {
+            return true;
+        } catch {
+            return false;
+        }
     }
 }
