@@ -35,6 +35,7 @@ interface IResupplyPair {
     function liquidationFee() external view returns (uint256);
 
     function collateral() external view returns (address);
+    function underlying() external view returns (address);
 
     function currentRateInfo()
         external

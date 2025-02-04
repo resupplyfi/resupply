@@ -1092,14 +1092,14 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _swapperAddress The address of the swapper which conforms the FraxSwap interface
     /// @param _borrowAmount The amount of Asset Token to be borrowed to be borrowed
     /// @param _borrowShares The number of Borrow Shares the borrower is credited
-    /// @param _initialCollateralAmount The amount of initial Collateral Tokens supplied by the borrower
+    /// @param _initialUnderlyingAmount The amount of initial underlying Tokens supplied by the borrower
     /// @param _amountCollateralOut The amount of Collateral Token which was received for the Asset Tokens
     event LeveragedPosition(
         address indexed _borrower,
         address _swapperAddress,
         uint256 _borrowAmount,
         uint256 _borrowShares,
-        uint256 _initialCollateralAmount,
+        uint256 _initialUnderlyingAmount,
         uint256 _amountCollateralOut
     );
 
@@ -1107,14 +1107,14 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @dev Caller must invoke ```ERC20.approve()``` on the Collateral Token contract prior to calling function
     /// @param _swapperAddress The address of the whitelisted swapper to use to swap borrowed Asset Tokens for Collateral Tokens
     /// @param _borrowAmount The amount of Asset Tokens borrowed
-    /// @param _initialCollateralAmount The initial amount of Collateral Tokens supplied by the borrower
+    /// @param _initialUnderlyingAmount The initial amount of underlying Tokens supplied by the borrower
     /// @param _amountCollateralOutMin The minimum amount of Collateral Tokens to be received in exchange for the borrowed Asset Tokens
     /// @param _path An array containing the addresses of ERC20 tokens to swap.  Adheres to UniV2 style path params.
     /// @return _totalCollateralBalance The total amount of Collateral Tokens added to a users account (initial + swap)
     function leveragedPosition(
         address _swapperAddress,
         uint256 _borrowAmount,
-        uint256 _initialCollateralAmount,
+        uint256 _initialUnderlyingAmount,
         uint256 _amountCollateralOutMin,
         address[] memory _path
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _totalCollateralBalance) {
@@ -1137,9 +1137,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             revert InvalidPath(address(_collateral), _path[_path.length - 1]);
         }
 
-        // Add initial collateral
-        if (_initialCollateralAmount > 0) {
-            _addCollateral(msg.sender, _initialCollateralAmount, msg.sender);
+        // Add initial underlying
+        if (_initialUnderlyingAmount > 0) {
+            underlying.safeTransferFrom(msg.sender, address(this), _initialUnderlyingAmount);
+            uint256 collateralShares = IERC4626(address(collateral)).deposit(_initialUnderlyingAmount, address(this));
+            _addCollateral(address(this), collateralShares, msg.sender);
+            _totalCollateralBalance = collateralShares;
         }
 
         // Debit borrowers account
@@ -1151,7 +1154,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         ISwapper(_swapperAddress).swap(
             msg.sender,
             _borrowAmount,
-            _amountCollateralOutMin,
             _path,
             address(this)
         );
@@ -1167,13 +1169,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         // address(this) as _sender means no transfer occurs as the pair has already received the collateral during swap
         _addCollateral(address(this), _amountCollateralOut, msg.sender);
 
-        _totalCollateralBalance = _initialCollateralAmount + _amountCollateralOut;
+        _totalCollateralBalance += _amountCollateralOut;
         emit LeveragedPosition(
             msg.sender,
             _swapperAddress,
             _borrowAmount,
             _borrowShares,
-            _initialCollateralAmount,
+            _initialUnderlyingAmount,
             _amountCollateralOut
         );
     }
@@ -1245,7 +1247,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         ISwapper(_swapperAddress).swap(
             msg.sender,
             _collateralToSwap,
-            _amountOutMin,
             _path,
             address(this)
         );
