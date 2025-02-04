@@ -276,7 +276,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
         //be a limited amount of stables that have been bridged and available
         uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
-        uint256 borrowable = borrowLimit > totalBorrow.amount ? borrowLimit - totalBorrow.amount : 0;
+        uint256 borrowable = borrowLimit > _totalBorrow.amount ? borrowLimit - _totalBorrow.amount : 0;
         //take minimum of mintable and the difference of borrowlimit and current borrowed
         borrowable = borrowable < mintable ? borrowable : mintable;
         return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
@@ -286,7 +286,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if(borrowLimit == 0){
             return PAIR_DECIMALS;
         }
-        return totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
+        (,,, VaultAccount memory _totalBorrow) = previewAddInterest();
+        return _totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
     }
 
     /// @notice The ```_isSolvent``` function determines if a given borrower is solvent given an exchange rate
