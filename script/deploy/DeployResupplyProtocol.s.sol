@@ -18,7 +18,7 @@ import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 contract DeployResupplyProtocol is BaseDeploy {
 
-    function deployProtocolContracts(address _sender) public doBroadcast(_sender) {
+    function deployProtocolContracts() public {
         pairDeployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
@@ -38,7 +38,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         console.log("RedemptionHandler deployed at", address(redemptionHandler));
     }
 
-    function deployRewardsContracts(address _sender) doBroadcast(_sender) public {
+    function deployRewardsContracts() public {
         address[] memory rewards = new address[](3);
         rewards[0] = address(govToken);
         rewards[1] = address(fraxToken);
@@ -122,7 +122,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         console.log("RewardHandler deployed at", address(rewardHandler));
     }
 
-    function deployLendingPair(address _sender, address _collateral, address _staking, uint256 _stakingId) public doBroadcast(_sender) returns(address){
+    function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(address){
         require(address(pairDeployer).code.length > 0, "ResupplyPairDeployer has no code");
         address _pairAddress = pairDeployer.deploy(
             abi.encode(
