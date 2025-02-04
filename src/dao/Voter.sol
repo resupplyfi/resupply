@@ -7,7 +7,7 @@ import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
-import { BytesLib } from "../libraries/BytesLib.sol";
+import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 
 interface IERC20 {
     function decimals() external view returns (uint256);
