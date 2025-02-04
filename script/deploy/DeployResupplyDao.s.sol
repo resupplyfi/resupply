@@ -11,10 +11,7 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 
 contract DeployResupplyDao is BaseDeploy {
 
-    address public deployer;
-
-    function deployDaoContracts(address _sender, bool isTestNet) public doBroadcast(_sender) {
-        deployer = _sender;
+    function deployDaoContracts(bool isTestNet) public {
         core = deployCore();
         govToken = deployGovToken(isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
         vestManager = deployVestManager(isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
@@ -39,13 +36,13 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployCore() public returns (address) {
-        bytes memory constructorArgs = abi.encode(deployer, EPOCH_LENGTH);
+        bytes memory constructorArgs = abi.encode(dev, EPOCH_LENGTH);
         bytes memory bytecode = abi.encodePacked(vm.getCode("Core.sol:Core"), constructorArgs);
         return deployContract(DeployType.CREATE3, salt, bytecode, "Core");
     }
 
     function deployGovToken(bool _isTestNet) public returns (address) {
-        address _vestManagerAddress = computeCreateAddress(deployer, vm.getNonce(deployer) + 1);
+        address _vestManagerAddress = computeCreateAddress(dev, vm.getNonce(dev) + 1);
         console.log("Calculated VestManager Address:", _vestManagerAddress);
         bytes memory constructorArgs = abi.encode(
             address(core), 
@@ -130,7 +127,7 @@ contract DeployResupplyDao is BaseDeploy {
         return treasury;
     }
 
-    function deployPermaStakers(address _sender) public doBroadcast(_sender) returns (address, address) {
+    function deployPermaStakers() public returns (address, address) {
         bytes memory constructorArgs = abi.encode(
             address(core), 
             PERMA_STAKER1_OWNER,
