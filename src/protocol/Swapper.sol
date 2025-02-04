@@ -6,7 +6,7 @@ import "../interfaces/ICurveExchange.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
@@ -43,7 +43,7 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
         //add to mapping
         swapPools[_tokenIn][_tokenOut] = _swapInfo;
         //approve tokenIn so it can be swapped
-        IERC20(_tokenIn).approve(_swapInfo.swappool, type(uint256).max);
+        IERC20(_tokenIn).forceApprove(_swapInfo.swappool, type(uint256).max);
 
         emit PairAdded(_tokenIn, _tokenOut, _swapInfo);
     }
@@ -51,10 +51,9 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
     function swap(
         address account,
         uint256 amountIn,
-        uint256 amountOutMin,
         address[] calldata path,
         address to
-    ) external returns (uint256 amountOut){
+    ) external nonReentrant {
 
         for(uint256 i=0; i < path.length-1;){
             SwapInfo memory swapinfo = swapPools[path[i]][path[i+1]];

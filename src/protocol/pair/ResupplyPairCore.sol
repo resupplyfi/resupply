@@ -1154,7 +1154,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         ISwapper(_swapperAddress).swap(
             msg.sender,
             _borrowAmount,
-            _amountCollateralOutMin,
             _path,
             address(this)
         );
@@ -1248,7 +1247,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         ISwapper(_swapperAddress).swap(
             msg.sender,
             _collateralToSwap,
-            _amountOutMin,
             _path,
             address(this)
         );
