@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { OFT } from "@layerzerolabs/oft-evm/contracts/OFT.sol";
+
+contract TestOFT is OFT {
+
+    mapping(address => bool) public operators;
+    event SetOperator(address indexed _op, bool _valid);
+
+    constructor(address _core)
+        OFT("ATestOFTToken", "testOFT", address(0x1a44076050125825900e736c501f859c50fE728c), _core)
+        Ownable(_core)
+    {
+    }
+
+    function faucet(uint256 _amount) external{
+        //just a test, dont worry about supply bounds
+        _mint(msg.sender, _amount);
+    }
+
+    function core() external returns(address){
+        return owner();
+    }
+
+    function _transferOwnership(address newOwner) internal override {
+        if(owner() == address(0)){
+            super._transferOwnership(newOwner);
+        }else{
+            revert OwnableInvalidOwner(newOwner);
+        }
+    }
+
+   function setOperator(address _operator, bool _valid) external onlyOwner{
+        operators[_operator] = _valid;
+        emit SetOperator(_operator, _valid);
+    }
+
+    function mint(address _to, uint256 _amount) external {
+        require(operators[msg.sender] || msg.sender == owner(), "!authorized");
+        
+        _mint(_to, _amount);
+    }
+
+    function burn(address _from, uint256 _amount) external {
+        // Allow msg.sender to burn from themselves
+        if (msg.sender != _from) {
+            _spendAllowance(_from, msg.sender, _amount);
+        }
+        _burn(_from, _amount);
+    }
+}
