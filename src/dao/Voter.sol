@@ -269,7 +269,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
                 bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
-                return ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector);
+                return ((target == address(this) || target == address(0)) && permissionSelector == this.cancelProposal.selector);
             }
         }
         return false;
