@@ -55,8 +55,11 @@ contract InterestRateCalculator is IRateCalculator {
 
         IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(sfrax).rewardsCycleData();
         uint256 sfraxtotal = IStakedFrax(sfrax).storedTotalAssets();
+        if(sfraxtotal == 0){
+            sfraxtotal = 1;
+        }
         uint256 maxsfraxDistro = IStakedFrax(sfrax).maxDistributionPerSecondPerAsset();
-        fraxPerSecond = rdata.rewardCycleAmount / REWARDS_CYCLE_LENGTH;
+        fraxPerSecond = rdata.rewardCycleAmount / (rdata.cycleEnd - rdata.lastSync);
         fraxPerSecond = fraxPerSecond * 1e18 / sfraxtotal;
         fraxPerSecond = fraxPerSecond > maxsfraxDistro ? maxsfraxDistro : fraxPerSecond;
     }
