@@ -120,12 +120,14 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
     /// @param _creationCode The creationCode for the Resupply Pair
     function setCreationCode(bytes calldata _creationCode) external onlyOwner{
-        bytes memory _firstHalf = BytesLib.slice(_creationCode, 0, 13_000);
-        contractAddress1 = SSTORE2.write(_firstHalf);
+        // If the creation code is larger than 13kb, split it into two parts
         if (_creationCode.length > 13_000) {
+            bytes memory _firstHalf = BytesLib.slice(_creationCode, 0, 13_000);
             bytes memory _secondHalf = BytesLib.slice(_creationCode, 13_000, _creationCode.length - 13_000);
+            contractAddress1 = SSTORE2.write(_firstHalf);
             contractAddress2 = SSTORE2.write(_secondHalf);
         }else{
+            contractAddress1 = SSTORE2.write(_creationCode);
             contractAddress2 = address(0);
         }
     }
