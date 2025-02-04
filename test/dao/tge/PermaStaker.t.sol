@@ -135,6 +135,44 @@ contract PermaStakerTest is Setup {
         );
     }
 
+    function test_MigrateStakerFromPermaStaker() public {
+        setupVest();
+        uint256 startAmount = staker.balanceOf(address(permaStaker1));
+        skip(10 days); // allow vested amount to grow
+        vm.prank(permaStaker1.owner());
+
+        uint256 amount = permaStaker1.claimAndStake();
+        assertGt(amount, 0);
+
+        deployNewStakerAndSetInRegistry();
+
+        vm.prank(permaStaker1.owner());
+        permaStaker1.migrateStaker();
+    }
+
+    function test_MigrateStakerFromPermaStakerAfterManualMigration() public {
+        setupVest();
+        uint256 startAmount = staker.balanceOf(address(permaStaker1));
+        skip(10 days); // allow vested amount to grow
+        vm.prank(permaStaker1.owner());
+        uint256 amount = permaStaker1.claimAndStake();
+        assertGt(amount, 0);
+        address newStaker = deployNewStakerAndSetInRegistry();
+        vm.prank(address(permaStaker1));
+        uint256 amount2 = staker.migrateStake();
+        address originalStaker = address(permaStaker1.staker());
+        assertNotEq(originalStaker, newStaker);
+        // Should not be able to claim to old staker
+        vm.prank(permaStaker1.owner());
+        vm.expectRevert("Migration needed");
+        permaStaker1.claimAndStake();
+        // Perform the migration to update the `staker` value in storage
+        vm.prank(permaStaker1.owner());
+        permaStaker1.migrateStaker();
+        address activeStaker = address(permaStaker1.staker());
+        assertEq(activeStaker, newStaker);
+    }
+
     function test_MigrateStaker() public {
         setupVest();
         uint256 startAmount = staker.balanceOf(address(permaStaker1));
@@ -199,5 +237,17 @@ contract PermaStakerTest is Setup {
                 params.allocPercentages
             );
         }
+    }
+
+    function deployNewStakerAndSetInRegistry() public returns (address) {
+        MockGovStaker newStaker = new MockGovStaker(address(core), address(registry), address(govToken), 2, address(staker));
+        vm.label(address(newStaker), 'NewStaker');
+        vm.prank(address(core));
+        registry.setStaker(address(newStaker));
+        vm.prank(address(core));
+        staker.setCooldownEpochs(0);
+        skip(staker.epochLength());
+        
+        return address(newStaker);
     }
 }

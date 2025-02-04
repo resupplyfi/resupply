@@ -14,6 +14,7 @@ contract PermaStaker is Ownable2Step {
     IVestManager public immutable vestManager;
     string public name;
     address public operator;
+    IGovStaker public staker;
     
     event UnstakingAllowed(bool indexed allowed);
     event OperatorUpdated(address indexed operator);
@@ -34,9 +35,10 @@ contract PermaStaker is Ownable2Step {
         core = _core;
         name = _name;
         registry = IResupplyRegistry(_registry);
-        require(address(_getStaker()) != address(0), "Staker not set");
         IGovStaker _staker = _getStaker();
+        require(address(_staker) != address(0), "Staker not set");
         _staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
+        staker = _staker;
         address token = _staker.stakeToken();
         vestManager = IVestManager(_vestManager);
         IERC20(token).approve(address(_staker), type(uint256).max);
@@ -63,11 +65,23 @@ contract PermaStaker is Ownable2Step {
     }
 
     function claimAndStake() external onlyOwnerOrOperator() returns(uint256 amount) {
+        require(staker == _getStaker(), "Migration needed");
         amount = vestManager.claim(address(this));
-        _getStaker().stake(address(this), amount);
+        staker.stake(address(this), amount);
+    }
+
+    function migrateStaker() external onlyOwnerOrOperator {
+        IGovStaker _oldStaker = staker;
+        IGovStaker _newStaker = _getStaker();
+        require(_oldStaker != _newStaker, "No migration needed");
+        if (IERC20(address(_oldStaker)).balanceOf(address(this)) > 0) {
+            _newStaker.setDelegateApproval(address(_oldStaker), true);
+            _oldStaker.migrateStake();
+        }
+        staker = _newStaker;
     }
     
     function _getStaker() internal view returns (IGovStaker) {
-        return IGovStaker(address(registry.staker()));
+        return IGovStaker(registry.staker());
     }
 }

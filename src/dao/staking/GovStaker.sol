@@ -405,7 +405,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     /**
      * @notice Migrates a perma staker's stake to a new staking contract
-     * @dev Only callable when cooldown epochs are set to 0 and only by perma staker accounts
+     * @dev Only callable when cooldown epochs are set to 0
      * @dev The new staking contract must be set in the registry
      * @dev Will claim any pending rewards before migrating
      * @dev The new staking contract must have delegate approval from this contract

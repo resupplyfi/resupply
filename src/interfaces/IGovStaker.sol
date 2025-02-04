@@ -101,4 +101,6 @@ interface IGovStaker {
     function startTime() external view returns (uint);
     function irreversiblyCommitAccountAsPermanentStaker(address account) external;
     function onPermaStakeMigrate(address account) external;
+    function migrateStake() external returns (uint amount);
+    function setDelegateApproval(address delegate, bool approved) external;
 }
