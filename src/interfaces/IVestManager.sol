@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IVestManager {
     enum AllocationType {
-        PERMA_LOCK,
+        PERMA_STAKE,
         LICENSING,
         TREASURY,
         REDEMPTIONS,

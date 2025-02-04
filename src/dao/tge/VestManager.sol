@@ -27,7 +27,7 @@ contract VestManager is VestManagerBase {
     mapping(address account => mapping(AllocationType => bool hasClaimed)) public hasClaimed; // used for airdrops only
 
     enum AllocationType {
-        PERMA_LOCK,
+        PERMA_STAKE,
         LICENSING,
         TREASURY,
         REDEMPTIONS,
@@ -62,8 +62,10 @@ contract VestManager is VestManagerBase {
         @param _merkleRoots     Merkle roots for the airdrop allocations
         @param _nonUserTargets  Addresses to receive the non-user allocations
         @param _vestDurations  Durations of the vesting periods for each type
-        @param _allocPercentages Percentages of the initial supply allocated to each type, 
-            with the final value being the total percentage allocated for emissions.
+        @param _allocPercentages Percentages of the initial supply allocated to each type with 
+            the first two values being perma-stakers, followed by all other types in order of 
+            AllocationType enum, and the final value being the percentage of the initial supply 
+            allocated for emissions.
     */
     function setInitializationParams(
         uint256 _maxRedeemable,
@@ -84,7 +86,7 @@ contract VestManager is VestManagerBase {
             durationByType[allocType] = uint32(_vestDurations[i]);
             totalPctAllocated += _allocPercentages[i];
             uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / PRECISION;
-            allocationByType[allocType] = allocation;
+            allocationByType[allocType] += allocation;
             
             if (i < _nonUserTargets.length) { 
                 _createVest(
