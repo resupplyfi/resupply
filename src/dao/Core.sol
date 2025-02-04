@@ -31,7 +31,7 @@ contract Core {
     event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);
 
     struct OperatorAuth {
-        bool authorized;    // uint8
+        bool authorized;
         IAuthHook hook;
     }
 

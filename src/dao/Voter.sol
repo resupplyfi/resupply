@@ -163,8 +163,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
 
-        _containsProposalCancelerPayload(payload); // Enforce payloads with canceler must be single action
-
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
         require(epoch > 0, "No proposals in first epoch");
@@ -271,10 +269,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
                 bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
-                if ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector) {
-                    require(payloadLength == 1, "Payload with canceler must be single action");
-                    return true;
-                }
+                return ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector);
             }
         }
         return false;
