@@ -57,7 +57,9 @@ contract SimpleReceiverFactory is CoreOwnable {
         return Clones.predictDeterministicAddress(implementation, bytes32(keccak256(bytes(_name))));
     }
 
-    function getReceiverId(address receiver) external view returns (uint256) {
-        return IEmissionsController(emissionsController).receiverToId(receiver);
+    function getReceiverId(address _receiver) external view returns (uint256) {
+        uint256 id = IEmissionsController(emissionsController).receiverToId(_receiver);
+        if (id == 0) require(IEmissionsController(emissionsController).idToReceiver(id).receiver == _receiver, "!registered");
+        return id;
     }
 }
