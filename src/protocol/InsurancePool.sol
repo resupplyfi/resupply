@@ -280,9 +280,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _checkWithdrawReady(address _account) internal{
-        uint256 withdrawQueue = withdrawQueue[_account];
-        require(withdrawQueue > 0 && block.timestamp >= withdrawQueue, "!withdraw time");
-        require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
+        uint256 exitTime = withdrawQueue[_account];
+        require(exitTime > 0 && block.timestamp >= exitTime, "!withdraw time");
+        require(block.timestamp <= exitTime + withdrawTimeLimit, "withdraw time over");
     }
 
     /// @notice burn shares and withdraw underlying assets

@@ -1041,7 +1041,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Read from state
         VaultAccount memory _totalBorrow = totalBorrow;
-        uint256 _userCollateralBalance = _userCollateralBalance[_borrower];
+        uint256 _collateralBalance = _userCollateralBalance[_borrower];
         uint128 _borrowerShares = _userBorrowShares[_borrower].toUint128();
 
         // Checks & Calculations
@@ -1054,7 +1054,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             (LIQ_PRECISION + liquidationFee)) / LIQ_PRECISION;
 
         // clamp to user collateral balance as we cant take more than that
-        _collateralForLiquidator = _collateralForLiquidator > _userCollateralBalance ? _userCollateralBalance : _collateralForLiquidator;
+        _collateralForLiquidator = _collateralForLiquidator > _collateralBalance ? _collateralBalance : _collateralForLiquidator;
 
         // Calculated here for use during repayment, grouped with other calcs before effects start
         uint128 _amountLiquidatorToRepay = (_totalBorrow.toAmount(_borrowerShares, true)).toUint128();

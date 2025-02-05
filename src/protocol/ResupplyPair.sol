@@ -110,13 +110,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```getUserSnapshot``` function gets user level accounting data
     /// @param _address The user address
-    /// @return _userBorrowShares The user borrow shares
-    /// @return _userCollateralBalance The user collateral balance
+    /// @return _borrowShares The user borrow shares
+    /// @return _collateralBalance The user collateral balance
     function getUserSnapshot(
         address _address
-    ) external returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
-        _userBorrowShares = userBorrowShares(_address);
-        _userCollateralBalance = userCollateralBalance(_address);
+    ) external returns (uint256 _borrowShares, uint256 _collateralBalance) {
+        _borrowShares = userBorrowShares(_address);
+        _collateralBalance = userCollateralBalance(_address);
     }
 
     /// @notice The ```getPairAccounting``` function gets all pair level accounting numbers
@@ -397,13 +397,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function _updateConvexPool(uint256 _pid) internal{
         if(convexPid != _pid){
             //get previous staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
             //get balance
-            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
+            uint256 stakedBalance = IConvexStaking(_rewards).balanceOf(address(this));
             
             if(stakedBalance > 0){
                 //withdraw
-                IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
+                IConvexStaking(_rewards).withdrawAndUnwrap(stakedBalance,false);
                 if(collateral.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
@@ -425,17 +425,17 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     function _unstakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount, false);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            IConvexStaking(_rewards).withdrawAndUnwrap(_amount, false);
         }
     }
 
     function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
         if(convexPid != 0){
             //get staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
             //get balance
-            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
+            _totalCollateralBalance = IConvexStaking(_rewards).balanceOf(address(this));
         }else{
             _totalCollateralBalance = collateral.balanceOf(address(this));   
         }
