@@ -42,7 +42,7 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
-    address public dev = address(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045);
+    address public dev = address(0xc4ad);
 
     // DAO Contracts
     address public core;

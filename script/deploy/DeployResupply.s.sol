@@ -15,23 +15,29 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function run() public {
         setEthBalance(dev, 10 ether);
-        deployDaoContracts(dev, true); // true for testnet
-        deployProtocolContracts(dev);
-        configurationStep1(dev);
-        deployRewardsContracts(dev);
-        configureProtocolContracts(dev);
-        (permaStaker1, permaStaker2) = deployPermaStakers(dev);
-        deployDefaultLendingPairs(dev);
-        handoffGovernance(dev);
+        vm.startPrank(dev);
+        deployAll();
+        vm.stopPrank();
     }
 
-    function deployDefaultLendingPairs(address _sender) public {
+    function deployAll() public {
+        deployDaoContracts(true); // true for testnet
+        deployProtocolContracts();
+        configurationStep1();
+        deployRewardsContracts();
+        configureProtocolContracts();
+        (permaStaker1, permaStaker2) = deployPermaStakers();
+        deployDefaultLendingPairs();
+        handoffGovernance();
+    }
+
+    function deployDefaultLendingPairs() public {
         address pair;
-        pair = deployLendingPair(_sender, address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
-        pair = deployLendingPair(_sender, address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        pair = deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        pair = deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
     }
 
-    function configurationStep1(address _sender) public doBroadcast(_sender) {
+    function configurationStep1() public {
         ICore _core = ICore(core);
         _core.execute(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
         _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
@@ -39,7 +45,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setStaker.selector, address(staker)));
     }
 
-    function configureProtocolContracts(address _sender) public doBroadcast(_sender) {
+    function configureProtocolContracts() public {
         ICore _core = ICore(core);
         _core.execute(address(feeDeposit), abi.encodeWithSelector(feeDeposit.setOperator.selector, address(feeDepositController)));
         _core.execute(address(staker), abi.encodeWithSelector(IGovStaker.addReward.selector, address(stablecoin), address(rewardHandler), uint256(7 days)));
@@ -53,7 +59,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _core.execute(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
     }
 
-    function handoffGovernance(address _sender) public doBroadcast(_sender) {
+    function handoffGovernance() public {
         ICore _core = ICore(core);
         _core.execute(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
     }
