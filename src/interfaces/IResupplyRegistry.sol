@@ -54,4 +54,6 @@ interface IResupplyRegistry {
     function treasury() external view returns(address);
     function govToken() external view returns(address);
     function l2manager() external view returns(address);
+    function setRewardHandler(address _newAddress) external;
+    function setVestManager(address _newAddress) external;
 }

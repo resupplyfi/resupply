@@ -45,7 +45,8 @@ contract ResupplyRegistry is CoreOwnable{
     address public staker;
     address public treasury;
     address public l2manager;
-
+    address public vestManager;
+    
     address[] public registeredPairs;
     address[] public defaultSwappers;
     string[] private keys; // Registry keys
@@ -123,6 +124,11 @@ contract ResupplyRegistry is CoreOwnable{
     function setTreasury(address _newAddress) external onlyOwner{
         treasury = _newAddress;
         _setAddress(_newAddress, "TREASURY", keccak256(bytes("TREASURY")));
+    }
+
+    function setVestManager(address _newAddress) external onlyOwner{
+        vestManager = _newAddress;
+        _setAddress(_newAddress, "VEST_MANAGER", keccak256(bytes("VEST_MANAGER")));
     }
 
     /// @notice The ```addPair``` function adds a pair to the registry and ensures a unique name

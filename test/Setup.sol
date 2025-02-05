@@ -144,8 +144,6 @@ contract Setup is Test {
     }
 
     function deployProtocolContracts() public {
-        // stablecoin = new Stablecoin(address(core));
-        // registry = new ResupplyRegistry(address(core), address(stablecoin), address(stakingToken));
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
