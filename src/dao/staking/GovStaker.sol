@@ -379,7 +379,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /// @return . amount of tokens that have passed cooldown.
     function getUnstakableAmount(address _account) external view returns (uint) {
         UserCooldown memory userCooldown = cooldowns[_account];
-        if (block.timestamp < userCooldown.end) return 0;
+        if (isCooldownEnabled() && block.timestamp < userCooldown.end) return 0;
         return userCooldown.amount;
     }
 
