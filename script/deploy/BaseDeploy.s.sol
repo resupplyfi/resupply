@@ -125,7 +125,9 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
         } 
         else if (_deployType == DeployType.CREATE3) {
             randomness = uint88(uint256(keccak256(abi.encode(_contractName))));
-            _salt = bytes32(uint256(uint160(dev) + randomness));
+            // dev address in first 20 bytes, 1 zero byte, then 11 bytes of randomness
+            _salt = bytes32(uint256(uint160(dev)) << 96) | bytes32(uint256(randomness));
+            console.logBytes32(_salt);
             computedSalt = keccak256(abi.encode(_salt));
             computedAddress = createXDeployer.computeCreate3Address(computedSalt);
             if (address(computedAddress).code.length == 0) {
