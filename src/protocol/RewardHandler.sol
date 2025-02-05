@@ -135,7 +135,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
         //get previous and update
         uint256 lastTimestamp = pairTimestamp[_pair];
-        pairTimestamp[_pair] == block.timestamp;
+        pairTimestamp[_pair] = block.timestamp;
 
         uint256 borrowLimit = IResupplyPair(_pair).borrowLimit();
         uint256 rate;
