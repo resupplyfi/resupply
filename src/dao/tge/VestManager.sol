@@ -62,7 +62,7 @@ contract VestManager is VestManagerBase {
         @param _merkleRoots     Merkle roots for the airdrop allocations
         @param _nonUserTargets  Addresses to receive the non-user allocations
         @param _vestDurations  Durations of the vesting periods for each type
-        @param _allocPercentages Percentages of the initial supply allocated to each type with 
+        @param _allocPercentages Percentages of the initial supply allocated to each type,  
             the first two values being perma-stakers, followed by all other types in order of 
             AllocationType enum, and the final value being the percentage of the initial supply 
             allocated for emissions.
@@ -79,7 +79,7 @@ contract VestManager is VestManagerBase {
 
         uint256 totalPctAllocated;
         uint256 airdropIndex;
-        // Set durations and allocations for each allocation type
+        require(_vestDurations[0] == _vestDurations[1], "perma-staker durations must match");
         for (uint256 i = 0; i < _allocPercentages.length; i++) {
             AllocationType allocType = i == 0 ? AllocationType(i) : AllocationType(i-1); // First two are same type
             require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
