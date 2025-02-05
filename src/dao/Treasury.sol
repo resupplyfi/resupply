@@ -11,7 +11,6 @@ contract Treasury is CoreOwnable {
 
     event RetrieveToken (address token,uint amount);
     event RetrieveETH (uint amount);
-    event FailedETHSend(bytes returnedData);
 
     receive() external payable {}
 
@@ -33,7 +32,6 @@ contract Treasury is CoreOwnable {
 
     function retrieveETHExact(address _to, uint _amount) public onlyOwner {
         (bool success, bytes memory returnData) = _to.call{value: _amount}("");
-        if(!success) {emit FailedETHSend(returnData);}
         require(success, "Sending ETH failed");
         emit RetrieveETH(_amount);
     }
