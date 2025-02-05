@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
 import { GovStaker } from "../../src/dao/staking/GovStaker.sol";
 
 contract MockGovStaker is GovStaker {

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
 import { console } from "forge-std/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { Setup } from "test/Setup.sol";

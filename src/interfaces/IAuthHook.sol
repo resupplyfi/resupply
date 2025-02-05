@@ -1,4 +1,5 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 interface IAuthHook {
     function preHook(address operator, address target, bytes calldata data) external returns (bool);

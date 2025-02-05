@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";

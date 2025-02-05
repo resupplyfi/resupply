@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";

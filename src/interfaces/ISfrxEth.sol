@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This file generated from sfrxEth contract at https://etherscan.io/address/0xac3e018457b222d93114458476f3e3416abbe38f#code
 interface ISfrxEth {

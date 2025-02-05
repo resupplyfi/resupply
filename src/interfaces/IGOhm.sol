@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This file generated from gOHm contract at https://etherscan.io/address/0x0ab87046fBb341D058F17CBC4c1133F25a20a52f#code
 

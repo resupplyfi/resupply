@@ -1,4 +1,5 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";

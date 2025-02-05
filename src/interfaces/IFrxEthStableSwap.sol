@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This file generated from ABI of the frxEth/Eth curve pool found at https://etherscan.io/address/0xa1f8a6807c402e4a15ef4eba36528a3fed24e577#code
 
