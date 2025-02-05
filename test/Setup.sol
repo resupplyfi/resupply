@@ -48,14 +48,13 @@ import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
 
 
 contract Setup is Test {
-
+    address public immutable _THIS;
     // Deployer constants
     uint256 public constant epochLength = 1 weeks;
-    address public immutable _THIS;
-    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
-    uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 5% with 1e5 precision
+    uint256 internal constant DEFAULT_MAX_LTV = 95_000;     // 95% with 1e5 precision
+    uint256 internal constant DEFAULT_LIQ_FEE = 5_000;      // 5% with 1e5 precision
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
-    uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
+    uint256 internal constant DEFAULT_MINT_FEE = 0;         //1e5 precision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);

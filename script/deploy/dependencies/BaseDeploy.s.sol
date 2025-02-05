@@ -36,9 +36,6 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
     uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
-    uint64 internal constant FIFTY_BPS = 158_247_046;
-    uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
-    uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
@@ -126,7 +123,7 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
         else if (_deployType == DeployType.CREATE3) {
             randomness = uint88(uint256(keccak256(abi.encode(_contractName))));
             // dev address in first 20 bytes, 1 zero byte, then 11 bytes of randomness
-            _salt = bytes32(uint256(uint160(dev)) << 96) | bytes32(uint256(randomness));
+            _salt = bytes32(uint256(uint160(dev)) << 96) | bytes32(uint256(0x00)) << 88| bytes32(uint256(randomness));
             console.logBytes32(_salt);
             computedSalt = keccak256(abi.encode(_salt));
             computedAddress = createXDeployer.computeCreate3Address(computedSalt);

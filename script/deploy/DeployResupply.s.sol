@@ -1,7 +1,7 @@
 import "src/Constants.sol" as Constants;
 import { console } from "forge-std/console.sol";
-import { DeployResupplyDao } from "./DeployResupplyDao.s.sol";
-import { DeployResupplyProtocol } from "./DeployResupplyProtocol.s.sol";
+import { DeployResupplyDao } from "./dependencies/DeployResupplyDao.s.sol";
+import { DeployResupplyProtocol } from "./dependencies/DeployResupplyProtocol.s.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -14,10 +14,13 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function run() public {
+        console.log("Deploying Resupply");
+        console.log("Dev nonce", vm.getNonce(dev));
         setEthBalance(dev, 10 ether);
         vm.startPrank(dev);
         deployAll();
         vm.stopPrank();
+        console.log("Dev nonce", vm.getNonce(dev));
     }
 
     function deployAll() public {
