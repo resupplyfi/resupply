@@ -29,8 +29,6 @@ import { CreateXDeployer } from "script/utils/CreateXDeployer.s.sol";
 
 
 contract DeployTestToken is TenderlyHelper, CreateXDeployer {
-// contract DeployTestToken is CreateXDeployer {
-
 
     function run() external{
         address deployer = vm.rememberKey(vm.envUint("PK"));
@@ -47,13 +45,15 @@ contract DeployTestToken is TenderlyHelper, CreateXDeployer {
     function deployEnvironment(address deployer) private{
 
         address _core = deployer;
-        // ICreateXDeployer createXDeployer = ICreateXDeployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
+        address tokendeployer = deployer; //change to test permission
+
         // TestOFT _token = new TestOFT(_core);
 
         bytes memory constructorArgs = abi.encode(address(_core));
-        bytes memory bytecode = abi.encodePacked(vm.getCode("Voter.sol:Voter"), constructorArgs);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("TestOFT.sol:TestOFT"), constructorArgs);
         uint88 randomness = uint88(uint256(keccak256(abi.encode("TestToken1"))));
-        bytes32 _salt = bytes32(uint256(uint160(deployer) + randomness));
+        bytes32 _salt = bytes32(uint256(uint160(tokendeployer) + randomness));
+        // console.log("_salt: ", _salt);
         bytes32 computedSalt = keccak256(abi.encode(_salt));
         address computedAddress = createXDeployer.computeCreate3Address(computedSalt);
         if (address(computedAddress).code.length == 0) {
