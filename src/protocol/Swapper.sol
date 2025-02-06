@@ -40,6 +40,10 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
 
     function addPairing(address _tokenIn, address _tokenOut, SwapInfo calldata _swapInfo) external onlyOwner{
         require(_swapInfo.swaptype != TYPE_UNDEFINED, "!type_def");
+        SwapInfo memory previousInfo = swapPools[_tokenIn][_tokenOut];
+        if(previousInfo.swaptype != TYPE_UNDEFINED){
+            IERC20(_tokenIn).forceApprove(previousInfo.swappool, 0);
+        }
         //add to mapping
         swapPools[_tokenIn][_tokenOut] = _swapInfo;
         //approve tokenIn so it can be swapped
