@@ -1,29 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ====================== ResupplyPairDeployer ========================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
-
-// Primary Author
-// Drake Evans: https://github.com/DrakeEvans
-
-// Reviewers
-// Dennis: https://github.com/denett
-// Sam Kazemian: https://github.com/samkazemian
-// Travis Moore: https://github.com/FortisFortuna
-// Jack Corddry: https://github.com/corddry
-// Rich Gee: https://github.com/zer0blockchain
-
-// ====================================================================
+/**
+ * @title ResupplyPairDeployer
+ * @notice Based on code from Drake Evans and Frax Finance's pair deployer contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
+ */
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
@@ -36,10 +17,6 @@ import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
 
-/// @title PairDeployer
-/// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice Deploys and initializes new ResupplyPairs
-/// @dev Uses create2 to deploy the pairs, logs an event, and records a list of all deployed pairs
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
     using SafeERC20 for IERC20;

@@ -1,29 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ========================== ResupplyPair ============================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
-
-// Primary Author
-// Drake Evans: https://github.com/DrakeEvans
-
-// Reviewers
-// Dennis: https://github.com/denett
-// Sam Kazemian: https://github.com/samkazemian
-// Travis Moore: https://github.com/FortisFortuna
-// Jack Corddry: https://github.com/corddry
-// Rich Gee: https://github.com/zer0blockchain
-
-// ====================================================================
+/**
+ * @title ResupplyPair
+ * @notice Based on code from Drake Evans and Frax Finance's lending pair contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
+ */
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -39,9 +20,7 @@ import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
-/// @title ResupplyPair
-/// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  The ResupplyPair is a lending pair that allows users to engage in lending and borrowing activities
+
 contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;

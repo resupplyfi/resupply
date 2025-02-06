@@ -1,26 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ====================== ResupplyPairRegistry ========================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
-
-// Primary Author
-// Drake Evans: https://github.com/DrakeEvans
-
-// Reviewers
-// Dennis: https://github.com/denett
-// Rich Gee: https://github.com/zer0blockchain
-
-// ====================================================================
+/**
+ * @title ResupplyRegistry
+ * @notice Based on code from Drake Evans and Frax Finance's registry contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
+ */
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
