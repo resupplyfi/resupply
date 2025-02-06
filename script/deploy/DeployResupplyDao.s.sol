@@ -42,7 +42,8 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployGovToken(bool _isTestNet) public returns (address) {
-        address _vestManagerAddress = computeCreateAddress(dev, vm.getNonce(dev) + 1);
+        address _vestManagerAddress = vm.computeCreateAddress(dev, vm.getNonce(dev));
+        console.log("Dev nonce:", dev, vm.getNonce(dev));
         console.log("Calculated VestManager Address:", _vestManagerAddress);
         bytes memory constructorArgs = abi.encode(
             address(core), 
@@ -56,6 +57,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployVestManager(bool _isTestNet) public returns (address) {
+        console.log("Dev nonce:", dev, vm.getNonce(dev));
         if (_isTestNet) {
             return address(new VestManagerHarness(
                 address(core), 
