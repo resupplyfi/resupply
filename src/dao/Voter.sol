@@ -21,13 +21,12 @@ interface IERC20 {
  */
 contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
-    uint256 public immutable TOKEN_DECIMALS;
     uint256 public constant VOTING_PERIOD = 1 weeks;
     uint256 public constant EXECUTION_DELAY = 1 days;
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
     uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
     uint256 public constant MAX_PCT = 10000;
-
+    uint256 public immutable TOKEN_DECIMALS;
     IGovStaker public immutable staker;
 
     Proposal[] proposalData;
@@ -230,14 +229,11 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         vote.weightNo = uint40(accountWeight * pctNo / MAX_PCT);
         accountVoteWeights[account][id] = vote;
 
-        {
-            Vote memory result = proposal.results;
-            result.weightYes += vote.weightYes;
-            result.weightNo += vote.weightNo;
-            proposal.results = result;
-        }
+        Vote memory result = proposal.results;
+        result.weightYes += vote.weightYes;
+        result.weightNo += vote.weightNo;
+        proposalData[id].results = result;
         
-        proposalData[id] = proposal;
         emit VoteCast(account, id, vote.weightYes, vote.weightNo);
     }
 
