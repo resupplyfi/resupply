@@ -228,4 +228,27 @@ contract PairTest is PairTestBase {
         assertEq(stablecoin.balanceOf(address(redemptionHandler)), 0);
     }
 
+    function test_Pause() public {
+        uint256 amount = 100_000e18;
+        deal(address(underlying), address(this), amount);
+        addCollateral(pair, amount);
+        underlying.approve(address(pair), type(uint256).max);
+        uint256 borrowAmount = 10_000e18;
+        uint256 startLimit = pair.borrowLimit();
+        assertGt(startLimit, 0);
+        vm.prank(pair.owner());
+        pair.pause();
+        assertEq(pair.borrowLimit(), 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(ResupplyPairConstants.InsufficientDebtAvailable.selector, 0, borrowAmount)
+        );
+        pair.borrow(borrowAmount, 20_000e18, address(this));
+        // ensure double pause does not set previous to 0.
+        vm.startPrank(pair.owner());
+        pair.pause();
+        pair.unpause();
+        assertEq(pair.borrowLimit(), startLimit);
+        vm.stopPrank();
+    }
+
 }

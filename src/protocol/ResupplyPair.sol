@@ -427,8 +427,10 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     uint256 previousBorrowLimit;
     /// @notice The ```pause``` function is called to pause all contract functionality
     function pause() external onlyOwner{
-        previousBorrowLimit = borrowLimit;
-        _setBorrowLimit(0);
+        if (borrowLimit > 0) {
+            previousBorrowLimit = borrowLimit;
+            _setBorrowLimit(0);
+        }
     }
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality
