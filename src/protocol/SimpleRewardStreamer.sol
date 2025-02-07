@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-
 /**
  *Submitted for verification at Etherscan.io on 2020-07-17
  */
@@ -48,15 +47,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-
+import { IERC20Decimals } from "../interfaces/IERC20Decimals.sol";
 
 /*
  a managed single reward contract which can set weights for any account address
 */
-contract SimpleRewardStreamer is CoreOwnable{
+contract SimpleRewardStreamer is CoreOwnable {
     using SafeERC20 for IERC20;
 
-    
     uint256 public constant duration = 7 days;
 
     IERC20 public immutable rewardToken;
@@ -83,6 +81,7 @@ contract SimpleRewardStreamer is CoreOwnable{
 
     constructor(address _rewardToken, address _registry, address _core, address _initialWeightAddress) CoreOwnable(_core){
         rewardToken = IERC20(_rewardToken);
+        require(IERC20Decimals(_rewardToken).decimals() == 18, "18 decimals required"); // Guard against precision loss.
         registry = _registry;
 
         //set an initial target address weight
