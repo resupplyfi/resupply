@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
@@ -379,7 +379,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /// @return . amount of tokens that have passed cooldown.
     function getUnstakableAmount(address _account) external view returns (uint) {
         UserCooldown memory userCooldown = cooldowns[_account];
-        if (block.timestamp < userCooldown.end) return 0;
+        if (isCooldownEnabled() && block.timestamp < userCooldown.end) return 0;
         return userCooldown.amount;
     }
 
@@ -405,7 +405,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     /**
      * @notice Migrates a perma staker's stake to a new staking contract
-     * @dev Only callable when cooldown epochs are set to 0 and only by perma staker accounts
+     * @dev Only callable when cooldown epochs are set to 0
      * @dev The new staking contract must be set in the registry
      * @dev Will claim any pending rewards before migrating
      * @dev The new staking contract must have delegate approval from this contract

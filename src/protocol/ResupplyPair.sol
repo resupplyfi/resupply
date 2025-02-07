@@ -1,29 +1,10 @@
-// SPDX-License-Identifier: ISC
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ========================== ResupplyPair ============================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
-
-// Primary Author
-// Drake Evans: https://github.com/DrakeEvans
-
-// Reviewers
-// Dennis: https://github.com/denett
-// Sam Kazemian: https://github.com/samkazemian
-// Travis Moore: https://github.com/FortisFortuna
-// Jack Corddry: https://github.com/corddry
-// Rich Gee: https://github.com/zer0blockchain
-
-// ====================================================================
+/**
+ * @title ResupplyPair
+ * @notice Based on code from Drake Evans and Frax Finance's lending pair contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
+ */
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -39,9 +20,7 @@ import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
-/// @title ResupplyPair
-/// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  The ResupplyPair is a lending pair that allows users to engage in lending and borrowing activities
+
 contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
@@ -110,13 +89,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```getUserSnapshot``` function gets user level accounting data
     /// @param _address The user address
-    /// @return _userBorrowShares The user borrow shares
-    /// @return _userCollateralBalance The user collateral balance
+    /// @return _borrowShares The user borrow shares
+    /// @return _collateralBalance The user collateral balance
     function getUserSnapshot(
         address _address
-    ) external returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
-        _userBorrowShares = userBorrowShares(_address);
-        _userCollateralBalance = userCollateralBalance(_address);
+    ) external returns (uint256 _borrowShares, uint256 _collateralBalance) {
+        _borrowShares = userBorrowShares(_address);
+        _collateralBalance = userCollateralBalance(_address);
     }
 
     /// @notice The ```getPairAccounting``` function gets all pair level accounting numbers
@@ -397,13 +376,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function _updateConvexPool(uint256 _pid) internal{
         if(convexPid != _pid){
             //get previous staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
             //get balance
-            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
+            uint256 stakedBalance = IConvexStaking(_rewards).balanceOf(address(this));
             
             if(stakedBalance > 0){
                 //withdraw
-                IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
+                IConvexStaking(_rewards).withdrawAndUnwrap(stakedBalance,false);
                 if(collateral.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
@@ -425,17 +404,17 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     function _unstakeUnderlying(uint256 _amount) internal override{
         if(convexPid != 0){
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount, false);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            IConvexStaking(_rewards).withdrawAndUnwrap(_amount, false);
         }
     }
 
     function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
         if(convexPid != 0){
             //get staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
             //get balance
-            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
+            _totalCollateralBalance = IConvexStaking(_rewards).balanceOf(address(this));
         }else{
             _totalCollateralBalance = collateral.balanceOf(address(this));   
         }
@@ -448,8 +427,10 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     uint256 previousBorrowLimit;
     /// @notice The ```pause``` function is called to pause all contract functionality
     function pause() external onlyOwner{
-        previousBorrowLimit = borrowLimit;
-        _setBorrowLimit(0);
+        if (borrowLimit > 0) {
+            previousBorrowLimit = borrowLimit;
+            _setBorrowLimit(0);
+        }
     }
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality

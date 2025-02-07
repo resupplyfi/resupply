@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ReentrancyGuard } from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 import { ICore } from '../../interfaces/ICore.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
+import { IERC20Decimals } from '../../interfaces/IERC20Decimals.sol';
 
 abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     using SafeERC20 for IERC20;
@@ -37,6 +38,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     error SupplyMustBeGreaterThanZero();
     error RewardTooHigh();
     error RewardsStillActive();
+    error DecimalsMustBe18();
 
     /* ========== EVENTS ========== */
 
@@ -98,6 +100,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @param _rewardsToken Address of the rewards token.
      * @param _rewardsDistributor Address of the rewards distributor.
      * @param _rewardsDuration The duration of our rewards distribution for staking in seconds.
+     * @dev To avoid precision loss, reward tokens must have 18 decimals.
      */
     function addReward(
         address _rewardsToken,
@@ -107,6 +110,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         if (_rewardsToken == address(0) || _rewardsDistributor == address(0)) revert ZeroAddress();
         if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
         if (rewardData[_rewardsToken].rewardsDuration != 0) revert RewardAlreadyAdded();
+        if (IERC20Decimals(_rewardsToken).decimals() != 18) revert DecimalsMustBe18();
 
         rewardTokens.push(_rewardsToken);
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;

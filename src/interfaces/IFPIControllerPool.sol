@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: ISC
-pragma solidity >=0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This file generated from FPIController contract at https://etherscan.io/address/0x2397321b301B80A1C0911d6f9ED4b6033d43cF51#code
 

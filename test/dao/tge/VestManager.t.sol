@@ -39,7 +39,7 @@ contract VestManagerHarness is Setup {
 
     function test_VestDurations() public {
         assertEq(vestManager.durationByType(VestManager.AllocationType.TREASURY), 5 * 365 days, 'TREASURY not 5 years');
-        assertEq(vestManager.durationByType(VestManager.AllocationType.PERMA_LOCK), 5 * 365 days, 'PERMA_LOCK not 5 years');
+        assertEq(vestManager.durationByType(VestManager.AllocationType.PERMA_STAKE), 5 * 365 days, 'PERMA_STAKE not 5 years');
         assertEq(vestManager.durationByType(VestManager.AllocationType.LICENSING), 1 * 365 days, 'LICENSING not 1 years');
         assertEq(vestManager.durationByType(VestManager.AllocationType.REDEMPTIONS), 5 * 365 days, 'REDEMPTIONS not 5 years');
         assertEq(vestManager.durationByType(VestManager.AllocationType.AIRDROP_TEAM), 1 * 365 days, 'AIRDROP_TEAM not 1 year');
@@ -161,7 +161,14 @@ contract VestManagerHarness is Setup {
             VestManager.AllocationType allocationType = VestManager.AllocationType(i);
             uint256 duration = vestManager.durationByType(allocationType);
             bytes32 merkleRoot = vestManager.merkleRootByType(allocationType);
+            uint256 allocation = vestManager.allocationByType(allocationType);
             assertGt(duration, 0);
+            if (allocationType != VestManager.AllocationType.AIRDROP_LOCK_PENALTY) assertGt(allocation, 0);
+            if (allocationType == VestManager.AllocationType.PERMA_STAKE){
+                (, uint256 _amount,) = vestManager.userVests(targets[1], 0);
+                (, uint256 _amount2,) = vestManager.userVests(targets[2], 0);
+                assertEq(allocation, _amount + _amount2);
+            }
             if (
                 allocationType == VestManager.AllocationType.AIRDROP_VICTIMS ||
                 allocationType == VestManager.AllocationType.AIRDROP_TEAM
@@ -173,9 +180,9 @@ contract VestManagerHarness is Setup {
             }
             if (
                 allocationType == VestManager.AllocationType.TREASURY ||
-                allocationType == VestManager.AllocationType.PERMA_LOCK
+                allocationType == VestManager.AllocationType.PERMA_STAKE
             ) {
-                (uint256 _duration, uint256 _amount, uint256 _claimed) = vestManager.userVests(targets[i], 0);
+                (uint256 _duration, uint256 _amount, uint256 _claimed) = vestManager.userVests(targets[0], 0);
                 assertGt(_duration, 0);
                 assertGt(_amount, 0);
                 assertEq(_claimed, 0);
@@ -389,7 +396,7 @@ contract VestManagerHarness is Setup {
 
     function getAllocationTypeName(VestManager.AllocationType allocationType) internal pure returns (string memory) {
         if (allocationType == VestManager.AllocationType.TREASURY) return "TREASURY";
-        if (allocationType == VestManager.AllocationType.PERMA_LOCK) return "PERMA_LOCK";
+        if (allocationType == VestManager.AllocationType.PERMA_STAKE) return "PERMA_STAKE";
         if (allocationType == VestManager.AllocationType.LICENSING) return "LICENSING";
         if (allocationType == VestManager.AllocationType.REDEMPTIONS) return "REDEMPTIONS";
         if (allocationType == VestManager.AllocationType.AIRDROP_TEAM) return "AIRDROP_TEAM";

@@ -1,5 +1,7 @@
-import "src/Constants.sol" as Constants;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
+import "src/Constants.sol" as Constants;
 import { console } from "forge-std/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: ISC
-pragma solidity >=0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This file generated from https://etherscan.io/address/0x8412ebf45bAC1B340BbE8F318b928C466c4E39CA#code
 

@@ -1,4 +1,5 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -11,7 +12,6 @@ contract Treasury is CoreOwnable {
 
     event RetrieveToken (address token,uint amount);
     event RetrieveETH (uint amount);
-    event FailedETHSend(bytes returnedData);
 
     receive() external payable {}
 
@@ -33,7 +33,6 @@ contract Treasury is CoreOwnable {
 
     function retrieveETHExact(address _to, uint _amount) public onlyOwner {
         (bool success, bytes memory returnData) = _to.call{value: _amount}("");
-        if(!success) {emit FailedETHSend(returnData);}
         require(success, "Sending ETH failed");
         emit RetrieveETH(_amount);
     }

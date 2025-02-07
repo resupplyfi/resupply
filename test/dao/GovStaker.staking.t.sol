@@ -176,11 +176,15 @@ contract GovStakerStakingTest is Setup {
         // TODO
     }
 
-    function testFail_StakeForCooldownForAndUnstakeFor() public {
-        vm.prank(user1);
+    function test_RevertStakeForCooldownForAndUnstakeFor() public {
+        vm.startPrank(user1);
+        // Anybody can permissionlessly stake on behalf of another account
         staker.stake(dev, 100 * 10 ** 18);
+        vm.expectRevert("!CallerOrDelegated");
         staker.cooldown(dev, 100 * 10 ** 18);
+        vm.expectRevert("!CallerOrDelegated");
         staker.unstake(dev, dev); // This should fail since user1 is not approved to stake for dev
+        vm.stopPrank();
     }
 
     function test_CoolDown() public {

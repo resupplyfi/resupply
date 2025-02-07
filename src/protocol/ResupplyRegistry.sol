@@ -1,26 +1,10 @@
-// SPDX-License-Identifier: ISC
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ====================== ResupplyPairRegistry ========================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
-
-// Primary Author
-// Drake Evans: https://github.com/DrakeEvans
-
-// Reviewers
-// Dennis: https://github.com/denett
-// Rich Gee: https://github.com/zer0blockchain
-
-// ====================================================================
+/**
+ * @title ResupplyRegistry
+ * @notice Based on code from Drake Evans and Frax Finance's registry contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
+ */
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
@@ -32,6 +16,16 @@ import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 
 contract ResupplyRegistry is CoreOwnable{
     using SafeERC20 for IERC20;
+
+    // Protected keys
+    string public constant LIQUIDATION_HANDLER = "LIQUIDATION_HANDLER";
+    string public constant FEE_DEPOSIT = "FEE_DEPOSIT";
+    string public constant REDEMPTION_HANDLER = "REDEMPTION_HANDLER";
+    string public constant INSURANCE_POOL = "INSURANCE_POOL";
+    string public constant REWARD_HANDLER = "REWARD_HANDLER";
+    string public constant TREASURY = "TREASURY";
+    string public constant STAKER = "STAKER";
+    string public constant L2_MANAGER = "L2_MANAGER";
 
     address public immutable token;
     address public immutable govToken;
@@ -92,37 +86,37 @@ contract ResupplyRegistry is CoreOwnable{
 
     function setLiquidationHandler(address _newAddress) external onlyOwner{
         liquidationHandler = _newAddress;
-        _setAddress(_newAddress, "LIQUIDATION_HANDLER", keccak256(bytes("LIQUIDATION_HANDLER")));
+        _setAddress(_newAddress, LIQUIDATION_HANDLER, keccak256(bytes(LIQUIDATION_HANDLER)));
     }
 
     function setFeeDeposit(address _newAddress) external onlyOwner{
         feeDeposit = _newAddress;
-        _setAddress(_newAddress, "FEE_DEPOSIT", keccak256(bytes("FEE_DEPOSIT")));
+        _setAddress(_newAddress, FEE_DEPOSIT, keccak256(bytes(FEE_DEPOSIT)));
     }
 
     function setRedemptionHandler(address _newAddress) external onlyOwner{
         redemptionHandler = _newAddress;
-        _setAddress(_newAddress, "REDEMPTION_HANDLER", keccak256(bytes("REDEMPTION_HANDLER")));
+        _setAddress(_newAddress, REDEMPTION_HANDLER, keccak256(bytes(REDEMPTION_HANDLER)));
     }
 
     function setInsurancePool(address _newAddress) external onlyOwner{
         insurancePool = _newAddress;
-        _setAddress(_newAddress, "INSURANCE_POOL", keccak256(bytes("INSURANCE_POOL")));
+        _setAddress(_newAddress, INSURANCE_POOL, keccak256(bytes(INSURANCE_POOL)));
     }
 
     function setRewardHandler(address _newAddress) external onlyOwner{
         rewardHandler = _newAddress;
-        _setAddress(_newAddress, "REWARD_HANDLER", keccak256(bytes("REWARD_HANDLER")));
+        _setAddress(_newAddress, REWARD_HANDLER, keccak256(bytes(REWARD_HANDLER)));
     }
 
     function setStaker(address _newAddress) external onlyOwner{
         staker = _newAddress;
-        _setAddress(_newAddress, "STAKER", keccak256(bytes("STAKER")));
+        _setAddress(_newAddress, STAKER, keccak256(bytes(STAKER)));
     }
 
     function setTreasury(address _newAddress) external onlyOwner{
         treasury = _newAddress;
-        _setAddress(_newAddress, "TREASURY", keccak256(bytes("TREASURY")));
+        _setAddress(_newAddress, TREASURY, keccak256(bytes(TREASURY)));
     }
 
     /// @notice The ```addPair``` function adds a pair to the registry and ensures a unique name
@@ -204,14 +198,14 @@ contract ResupplyRegistry is CoreOwnable{
 
     function getProtectedKeys() public pure returns (string[] memory) {
         string[] memory _protectedKeys = new string[](8);
-        _protectedKeys[0] = "LIQUIDATION_HANDLER";
-        _protectedKeys[1] = "FEE_DEPOSIT";
-        _protectedKeys[2] = "REDEMPTION_HANDLER";
-        _protectedKeys[3] = "INSURANCE_POOL";
-        _protectedKeys[4] = "REWARD_HANDLER";
-        _protectedKeys[5] = "TREASURY";
-        _protectedKeys[6] = "STAKER";
-        _protectedKeys[7] = "L2_MANAGER";
+        _protectedKeys[0] = LIQUIDATION_HANDLER;
+        _protectedKeys[1] = FEE_DEPOSIT;
+        _protectedKeys[2] = REDEMPTION_HANDLER;
+        _protectedKeys[3] = INSURANCE_POOL;
+        _protectedKeys[4] = REWARD_HANDLER;
+        _protectedKeys[5] = TREASURY;
+        _protectedKeys[6] = STAKER;
+        _protectedKeys[7] = L2_MANAGER;
         return _protectedKeys;
     }
 

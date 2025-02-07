@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
@@ -280,9 +280,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function _checkWithdrawReady(address _account) internal{
-        uint256 withdrawQueue = withdrawQueue[_account];
-        require(withdrawQueue > 0 && block.timestamp >= withdrawQueue, "!withdraw time");
-        require(block.timestamp <= withdrawQueue + withdrawTimeLimit, "withdraw time over");
+        uint256 exitTime = withdrawQueue[_account];
+        require(exitTime > 0 && block.timestamp >= exitTime, "!withdraw time");
+        require(block.timestamp <= exitTime + withdrawTimeLimit, "withdraw time over");
     }
 
     /// @notice burn shares and withdraw underlying assets

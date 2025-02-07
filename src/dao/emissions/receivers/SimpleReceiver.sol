@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEmissionsController } from "../../../interfaces/IEmissionsController.sol";
@@ -11,6 +11,7 @@ contract SimpleReceiver is CoreOwnable {
     IEmissionsController public immutable emissionsController;
     IERC20 public immutable govToken;
     string public name;
+    bool public initialized;
     mapping(address => bool) public approvedClaimers;
 
     event ClaimerApproved(address indexed claimer, bool indexed approved);
@@ -23,11 +24,13 @@ contract SimpleReceiver is CoreOwnable {
     constructor(address _core, address _emissionsController) CoreOwnable(_core) {
         emissionsController = IEmissionsController(_emissionsController);
         govToken = IERC20(address(emissionsController.govToken()));
+        initialized = true; // Mark implementation as initialized
     }
 
     function initialize(string memory _name, address[] memory _approvedClaimers) external {
         require(bytes(_name).length != 0, "Name cannot be empty");
-        require(bytes(name).length == 0, "Already initialized");
+        require(!initialized, "Already initialized");
+        initialized = true;
         name = _name;
         for (uint256 i = 0; i < _approvedClaimers.length; i++) {
             approvedClaimers[_approvedClaimers[i]] = true;
