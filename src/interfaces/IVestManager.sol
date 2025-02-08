@@ -41,7 +41,7 @@ interface IVestManager {
     function cvxprisma() external view returns (address);
     function INITIAL_SUPPLY() external view returns (uint256);
     function BURN_ADDRESS() external view returns (address);
-    function initParamsSet() external view returns (bool);
+    function initialized() external view returns (bool);
     function redemptionRatio() external view returns (uint256);
     function allocationByType(AllocationType) external view returns (uint256);
     function durationByType(AllocationType) external view returns (uint256);

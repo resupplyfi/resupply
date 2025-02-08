@@ -266,6 +266,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 selector := mload(add(data, 32))
             }
             if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
+                // 62 bytes is the minimum length of a properly formed action which grants or revokes proposal canceler permissions
+                if (data.length < 62) return false;
                 // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
                 bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));

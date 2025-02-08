@@ -18,7 +18,7 @@ contract VestManager is VestManagerBase {
     uint256 public immutable INITIAL_SUPPLY;
     address public immutable BURN_ADDRESS;
     
-    bool public initParamsSet;
+    bool public initialized;
     uint256 public redemptionRatio;
     mapping(AllocationType => uint256) public allocationByType;
     mapping(AllocationType => uint256) public durationByType;
@@ -73,8 +73,8 @@ contract VestManager is VestManagerBase {
         uint256[8] memory _vestDurations,
         uint256[8] memory _allocPercentages
     ) external onlyOwner {
-        require(!initParamsSet, "params already set");
-        initParamsSet = true;
+        require(!initialized, "params already set");
+        initialized = true;
 
         uint256 totalPctAllocated;
         uint256 airdropIndex;
@@ -122,6 +122,7 @@ contract VestManager is VestManagerBase {
         @param _allocation Allocation for the lock penalty airdrop
     */
     function setLockPenaltyMerkleRoot(bytes32 _root, uint256 _allocation) external onlyOwner {
+        require(initialized, "init params not set");
         require(merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] == bytes32(0), "root already set");
         merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] = _root;
         emit MerkleRootSet(AllocationType.AIRDROP_LOCK_PENALTY, _root);

@@ -148,7 +148,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
                     (address, address, address, uint256, uint256, uint256, uint256, uint256)
                 );
 
-            
             // Pair Settings
             collateral = IERC20(_collateral);
             if(IERC20Metadata(_collateral).decimals() != 18){
@@ -160,13 +159,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             }
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
-
             currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
-            
             exchangeRateInfo.oracle = _oracle;
-
             rateCalculator = IRateCalculator(_rateCalculator);
-
             borrowLimit = _initialBorrowLimit;
 
             //Liquidation Fee Settings

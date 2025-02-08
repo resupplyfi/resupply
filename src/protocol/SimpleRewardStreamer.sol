@@ -203,6 +203,7 @@ contract SimpleRewardStreamer is CoreOwnable {
     function getReward(address _account, address _forwardTo) external updateReward(_account){
         //in order to forward, must be called by the account itself
         require(msg.sender == _account, "!self");
+        require(_forwardTo != address(0), "fwd address cannot be 0");
 
         //claim to _forwardTo
         uint256 reward = earned(msg.sender);

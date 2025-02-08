@@ -82,6 +82,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     function checkNewRewards(address _pair) external{
         address booster = IResupplyPair(_pair).convexBooster();
         uint256 pid = IResupplyPair(_pair).convexPid();
+        require(pid != 0, "pid cannot be 0");
         
         //get main reward distribution contract from convex pool
         (,,,address rewards,,) = IConvexStaking(booster).poolInfo(pid);

@@ -312,7 +312,8 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     function getReward(address _account, address _forwardTo) public virtual nonReentrant{
         //in order to forward, must be called by the account itself
         require(msg.sender == _account, "!self");
+        require(_forwardTo != address(0), "fwd address cannot be 0");
         //use _forwardTo address instead of _account
-        _checkpoint(_account,_forwardTo, type(uint256).max);
+        _checkpoint(_account, _forwardTo, type(uint256).max);
     }
 }

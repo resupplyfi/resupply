@@ -39,7 +39,8 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     error RewardTooHigh();
     error RewardsStillActive();
     error DecimalsMustBe18();
-
+    error CannotAddStakeToken();
+    
     /* ========== EVENTS ========== */
 
     event RewardAdded(address indexed rewardToken, uint256 amount);
@@ -111,6 +112,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
         if (rewardData[_rewardsToken].rewardsDuration != 0) revert RewardAlreadyAdded();
         if (IERC20Decimals(_rewardsToken).decimals() != 18) revert DecimalsMustBe18();
+        if (_rewardsToken == stakeToken()) revert CannotAddStakeToken();
 
         rewardTokens.push(_rewardsToken);
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;
