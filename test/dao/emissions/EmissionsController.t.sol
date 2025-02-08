@@ -250,7 +250,7 @@ contract EmissionsControllerTest is Setup {
         epochsPer = 1;
 
         // Rates must be in decaying order
-        vm.expectRevert("Rates must decay");
+        vm.expectRevert("Rate greater than predecessor");
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
 
         // Final rate can't be less than tail rate

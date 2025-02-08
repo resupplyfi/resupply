@@ -387,7 +387,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         return cooldownEpochs > 0;
     }
 
-    function isPermaStaker(address _account) public view returns (bool) {
+    function isPermaStaker(address _account) external view returns (bool) {
         return accountData[_account].isPermaStaker;
     }
 

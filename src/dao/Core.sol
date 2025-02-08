@@ -86,7 +86,7 @@ contract Core is ReentrancyGuard {
         bytes4 selector,
         bool authorized,
         IAuthHook authHook
-    ) onlyCore public {
+    ) onlyCore external {
         operatorPermissions[caller][target][selector] = OperatorAuth(authorized, authHook);
         emit OperatorSet(caller, target, authorized, selector, authHook);
     }

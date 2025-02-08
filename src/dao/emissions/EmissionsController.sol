@@ -105,7 +105,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         require(_emissionsSchedule.length > 0 && _epochsPer > 0, "Must be >0");
         require(_emissionsSchedule[0] >= _tailRate, "Final rate less than tail rate");
         for (uint256 i = 0; i < _emissionsSchedule.length - 1; i++) {
-            require(_emissionsSchedule[i] <= _emissionsSchedule[i + 1], "Rate cannot be greater than its predecessor");
+            require(_emissionsSchedule[i] <= _emissionsSchedule[i + 1], "Rate greater than predecessor");
         }
         govToken = IGovToken(_govToken);
         tailRate = _tailRate;
@@ -166,7 +166,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         idToReceiver[_id] = ReceiverInfo({
             active: true,
             receiver: _receiver,
-            weight: _id == 0 ? BPS : 0 // first receiver gets 100%
+            weight: uint24(_id == 0 ? BPS : 0) // first receiver gets 100%
         });
         allocated[_receiver] = Allocated({
             // in case we don't register a receiver until after bootstrap, hardcode first receiver to epoch 0
@@ -318,7 +318,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         require(_rates.length > 0 && _epochsPer > 0, "Must be >0");
         require(_rates[0] >= _tailRate, "Final rate less than tail rate");
         for (uint256 i = 0; i < _rates.length - 1; i++) {
-            require(_rates[i] <= _rates[i + 1], "Rate cannot be greater than its predecessor");
+            require(_rates[i] <= _rates[i + 1], "Rate greater than predecessor");
         }
         // before updating, and only if receiver(s) are registered, mint current epoch emissions at old rate
         if (nextReceiverId > 0) _mintEmissions(getEpoch());
