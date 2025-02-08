@@ -38,7 +38,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     //events
     event RewardPaid(address indexed _user, address indexed _rewardToken, address indexed _receiver, uint256 _rewardAmount);
     event RewardAdded(address indexed _rewardToken);
-    event RewardInvalidated(address _rewardToken);
+    event RewardInvalidated(address indexed _rewardToken);
     event RewardRedirected(address indexed _account, address _forward);
     event NewEpoch(uint256 indexed _epoch);
 

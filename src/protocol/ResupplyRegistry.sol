@@ -54,7 +54,7 @@ contract ResupplyRegistry is CoreOwnable{
         govToken = _govToken;
     }
 
-    event AddPair(address pairAddress);
+    event AddPair(address indexed pairAddress);
     event DefaultSwappersSet(address[] addresses);
     event EntryUpdated(string indexed key, address indexed addr);
     event WithdrawTo(address indexed user, uint256 amount);
