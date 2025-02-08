@@ -46,7 +46,6 @@ contract RedemptionHandler is CoreOwnable{
     }
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
-    /// TODO: add settable contract for upgradeable logic
     function getRedemptionFeePct(address /*_pair*/, uint256 /*_amount*/) public view returns(uint256){
         return baseRedemptionFee;
     }

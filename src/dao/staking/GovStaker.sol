@@ -102,7 +102,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         accountData[_account] = acctData;
         _totalSupply += _amount;
 
-        IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), uint(_amount));
+        IERC20(_stakeToken).safeTransferFrom(msg.sender, address(this), _amount);
         emit Staked(_account, systemEpoch, _amount);
 
         return _amount;

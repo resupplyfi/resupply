@@ -166,7 +166,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         idToReceiver[_id] = ReceiverInfo({
             active: true,
             receiver: _receiver,
-            weight: _id == 0 ? 10_000 : 0 // first receiver gets 100%
+            weight: _id == 0 ? BPS : 0 // first receiver gets 100%
         });
         allocated[_receiver] = Allocated({
             // in case we don't register a receiver until after bootstrap, hardcode first receiver to epoch 0

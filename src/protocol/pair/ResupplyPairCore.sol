@@ -715,13 +715,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _borrower The borrower account for which the collateral should be credited
     function _addCollateral(address _sender, uint256 _collateralAmount, address _borrower) internal {
-        //could call _syncUserRedemptions to clean things up but can skip to save on gas since adding is always a positive
-
-        // Effects: write to state
         _userCollateralBalance[_borrower] += _collateralAmount;
-        // totalCollateral += _collateralAmount;
-
-        // Interactions
         if (_sender != address(this)) {
             collateral.safeTransferFrom(_sender, address(this), _collateralAmount);
         }
