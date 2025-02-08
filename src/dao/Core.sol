@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { IAuthHook } from '../interfaces/IAuthHook.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
     @title Core
@@ -13,7 +14,7 @@ import { Address } from '@openzeppelin/contracts/utils/Address.sol';
             Other ownable contracts inherit their ownership from this contract
             using `Ownable`.
  */
-contract Core {
+contract Core is ReentrancyGuard {
     using Address for address;
 
     address public voter;
@@ -53,7 +54,7 @@ contract Core {
         @notice Execute an arbitrary function call using this contract
         @dev Callable via the voter, or any operator with explicit permission.       
      */
-    function execute(address target, bytes calldata data) external returns (bytes memory) {
+    function execute(address target, bytes calldata data) external nonReentrant returns (bytes memory) {
         if (msg.sender == voter) return target.functionCall(data);
         bytes4 selector = bytes4(data[:4]);
         OperatorAuth memory auth = operatorPermissions[msg.sender][address(0)][selector];
