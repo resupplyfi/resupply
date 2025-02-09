@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ReentrancyGuard } from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
-import { ICore } from '../../interfaces/ICore.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
 import { IERC20Decimals } from '../../interfaces/IERC20Decimals.sol';
 
@@ -39,7 +38,8 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     error RewardTooHigh();
     error RewardsStillActive();
     error DecimalsMustBe18();
-
+    error CannotAddStakeToken();
+    
     /* ========== EVENTS ========== */
 
     event RewardAdded(address indexed rewardToken, uint256 amount);
@@ -111,6 +111,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
         if (rewardData[_rewardsToken].rewardsDuration != 0) revert RewardAlreadyAdded();
         if (IERC20Decimals(_rewardsToken).decimals() != 18) revert DecimalsMustBe18();
+        if (_rewardsToken == stakeToken()) revert CannotAddStakeToken();
 
         rewardTokens.push(_rewardsToken);
         rewardData[_rewardsToken].rewardsDistributor = _rewardsDistributor;

@@ -31,7 +31,7 @@ contract WriteOffToken {
         //do nothing
     }
 
-    function balanceOf(address account) external view returns (uint256){
+    function balanceOf(address) external view returns (uint256){
         //just return total supply
         return totalSupply;
     }

@@ -90,13 +90,11 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
      * @notice Claims all available vested tokens for an account, and calls a callback to handle the tokens
      * @dev Important: the claimed tokens are transferred to the callback contract for handling, not the recipient
      * @param _account Address to claim tokens for
-     * @param _recipient Address to send the claimed tokens to
      * @param _callback Address of the callback contract to use
      * @return _claimed Total amount of tokens claimed
      */
     function claimWithCallback(
         address _account, 
-        address _recipient, 
         address _callback
     ) external callerOrDelegated(_account) returns (uint256 _claimed) {
         address recipient = _enforceClaimSettings(_account);

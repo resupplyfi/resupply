@@ -21,7 +21,6 @@ abstract contract ResupplyPairConstants {
     error SlippageTooHigh(uint256 _minOut, uint256 _actual);
     error BadSwapper();
     error InvalidPath(address _expected, address _actual);
-    error SetterRevoked();
     error InvalidReceiver();
     error InvalidLiquidator();
     error InvalidRedemptionHandler();

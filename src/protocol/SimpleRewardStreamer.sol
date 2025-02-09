@@ -42,9 +42,7 @@ pragma solidity 0.8.28;
 
 import "../libraries/MathUtil.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20Decimals } from "../interfaces/IERC20Decimals.sol";
@@ -203,6 +201,7 @@ contract SimpleRewardStreamer is CoreOwnable {
     function getReward(address _account, address _forwardTo) external updateReward(_account){
         //in order to forward, must be called by the account itself
         require(msg.sender == _account, "!self");
+        require(_forwardTo != address(0), "fwd address cannot be 0");
 
         //claim to _forwardTo
         uint256 reward = earned(msg.sender);

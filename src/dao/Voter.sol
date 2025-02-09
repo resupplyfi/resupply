@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { GovStaker } from './staking/GovStaker.sol';
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
 import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
@@ -63,7 +62,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     );
     event ProposalCreationMinPctSet(uint256 weight);
     event ProposalPassingPctSet(uint256 pct);
-    event OperatorExecuted(address indexed caller, address indexed target, bytes data);
 
     struct Proposal {
         uint16 epoch; // epoch which vote weights are based upon
@@ -266,6 +264,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 selector := mload(add(data, 32))
             }
             if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
+                // 62 bytes is the minimum length of a properly formed action which grants or revokes proposal canceler permissions
+                if (data.length < 62) return false;
                 // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
                 bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));

@@ -51,8 +51,6 @@ contract InterestRateCalculator is IRateCalculator {
 
     function sfraxRates() public view returns(uint256 fraxPerSecond){
         //on fraxtal need to get pricefeed, on mainnet check directly on sfrax
-        // address pricefeed = IStakedFrax(sfrax).priceFeedVault();
-
         IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(sfrax).rewardsCycleData();
         uint256 sfraxtotal = IStakedFrax(sfrax).storedTotalAssets();
         if(sfraxtotal == 0){

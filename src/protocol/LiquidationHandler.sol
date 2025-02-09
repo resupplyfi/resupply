@@ -32,6 +32,7 @@ contract LiquidationHandler is CoreOwnable{
     //allow protocol to migrate collateral left in this handler if an update is required
     //registry must point to a different handler to ensure this contract is no longer being used
     function migrateCollateral(address _collateral, uint256 _amount, address _to) external onlyOwner{
+        require(_to != address(this), "!same_handler");
         require(IResupplyRegistry(registry).liquidationHandler() != address(this), "handler still used");
         IERC20(_collateral).safeTransfer(_to, _amount);
     }

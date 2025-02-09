@@ -222,7 +222,7 @@ contract PermaStakerTest is Setup {
     }
 
     function setupVest() public {
-        if (!vestManager.initParamsSet()) {
+        if (!vestManager.initialized()) {
             VestManagerInitParams.InitParams memory params = VestManagerInitParams.getInitParams(
                 address(permaStaker1),
                 address(permaStaker2),

@@ -8,7 +8,6 @@ pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairConstants } from "./ResupplyPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
@@ -148,7 +147,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
                     (address, address, address, uint256, uint256, uint256, uint256, uint256)
                 );
 
-            
             // Pair Settings
             collateral = IERC20(_collateral);
             if(IERC20Metadata(_collateral).decimals() != 18){
@@ -160,13 +158,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             }
             // approve so this contract can deposit
             underlying.approve(_collateral, type(uint256).max);
-
             currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
-            
             exchangeRateInfo.oracle = _oracle;
-
             rateCalculator = IRateCalculator(_rateCalculator);
-
             borrowLimit = _initialBorrowLimit;
 
             //Liquidation Fee Settings
@@ -550,10 +544,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param exchangeRate The exchange rate
     event UpdateExchangeRate(uint256 exchangeRate);
 
-    /// @notice The ```WarnOracleData``` event is emitted when one of the oracles has stale or otherwise problematic data
-    /// @param oracle The oracle address
-    event WarnOracleData(address oracle);
-
     /// @notice The ```updateExchangeRate``` function is the external implementation of _updateExchangeRate.
     /// @dev This function is invoked at most once per block as these queries can be expensive
     /// @return _exchangeRate The exchange rate
@@ -720,13 +710,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _collateralAmount The amount of Collateral Token to be transferred
     /// @param _borrower The borrower account for which the collateral should be credited
     function _addCollateral(address _sender, uint256 _collateralAmount, address _borrower) internal {
-        //could call _syncUserRedemptions to clean things up but can skip to save on gas since adding is always a positive
-
-        // Effects: write to state
         _userCollateralBalance[_borrower] += _collateralAmount;
-        // totalCollateral += _collateralAmount;
-
-        // Interactions
         if (_sender != address(this)) {
             collateral.safeTransferFrom(_sender, address(this), _collateralAmount);
         }

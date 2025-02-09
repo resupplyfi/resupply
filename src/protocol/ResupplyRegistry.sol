@@ -54,7 +54,7 @@ contract ResupplyRegistry is CoreOwnable{
         govToken = _govToken;
     }
 
-    event AddPair(address pairAddress);
+    event AddPair(address indexed pairAddress);
     event DefaultSwappersSet(address[] addresses);
     event EntryUpdated(string indexed key, address indexed addr);
     event WithdrawTo(address indexed user, uint256 amount);
@@ -180,15 +180,15 @@ contract ResupplyRegistry is CoreOwnable{
         emit EntryUpdated(key, addr);
     }
 
-    function getAddress(string memory key) public view returns (address) {
+    function getAddress(string memory key) external view returns (address) {
         return keyToAddress[key];
     }
 
-    function getAllKeys() public view returns (string[] memory) {
+    function getAllKeys() external view returns (string[] memory) {
         return keys;
     }
 
-    function getAllAddresses() public view returns (address[] memory) {
+    function getAllAddresses() external view returns (address[] memory) {
         address[] memory addresses = new address[](keys.length);
         for (uint i = 0; i < keys.length; i++) {
             addresses[i] = keyToAddress[keys[i]];
@@ -244,6 +244,5 @@ contract ResupplyRegistry is CoreOwnable{
     // ============================================================================================
 
     error NameMustBeUnique();
-    error CircuitBreakerOnly();
     error ProtectedKey(string key);
 }

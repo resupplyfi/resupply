@@ -16,7 +16,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
     uint256 public emissionsRate;
     
     /// @notice Array of emission rates, each representing a percentage with 18 decimals (1e18 = 100%)
-    /// @dev Note 
+    /// @dev Rates are in reverse order - meaning the last item will be used first. 
     uint256[] internal emissionsSchedule;
     
     /// @notice Number of epochs between emission rate changes
@@ -102,11 +102,12 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         uint256 _tailRate,
         uint256 _bootstrapEpochs
     ) CoreOwnable(_core) EpochTracker(_core) {
-        govToken = IGovToken(_govToken);
-        
         require(_emissionsSchedule.length > 0 && _epochsPer > 0, "Must be >0");
         require(_emissionsSchedule[0] >= _tailRate, "Final rate less than tail rate");
-        
+        for (uint256 i = 0; i < _emissionsSchedule.length - 1; i++) {
+            require(_emissionsSchedule[i] <= _emissionsSchedule[i + 1], "Rate greater than predecessor");
+        }
+        govToken = IGovToken(_govToken);
         tailRate = _tailRate;
         epochsPer = _epochsPer;
         emissionsRate = _emissionsSchedule[_emissionsSchedule.length - 1];
@@ -165,7 +166,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         idToReceiver[_id] = ReceiverInfo({
             active: true,
             receiver: _receiver,
-            weight: _id == 0 ? 10_000 : 0 // first receiver gets 100%
+            weight: uint24(_id == 0 ? BPS : 0) // first receiver gets 100%
         });
         allocated[_receiver] = Allocated({
             // in case we don't register a receiver until after bootstrap, hardcode first receiver to epoch 0
@@ -310,14 +311,14 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      * @notice Sets the emissions schedule and epochs per schedule item
      * @param _rates An array of inflation rates expressed as annual pct of total supply (100% = 1e18)
      * @param _epochsPer Number of epochs each schedule item lasts
-     * @dev Rates must be in reverse order. Last item will be used first.
+     * @dev Rates must be in reverse order. Last item will be used first. No rate can be greater than the previous rate.
      * @dev All updates take effect in the epoch following the epoch in which the call is made.
      */
     function setEmissionsSchedule(uint256[] memory _rates, uint256 _epochsPer, uint256 _tailRate) external onlyOwner {
         require(_rates.length > 0 && _epochsPer > 0, "Must be >0");
         require(_rates[0] >= _tailRate, "Final rate less than tail rate");
         for (uint256 i = 0; i < _rates.length - 1; i++) {
-            require(_rates[i] <= _rates[i + 1], "Rates must decay"); // lower index must be <= than higher index
+            require(_rates[i] <= _rates[i + 1], "Rate greater than predecessor");
         }
         // before updating, and only if receiver(s) are registered, mint current epoch emissions at old rate
         if (nextReceiverId > 0) _mintEmissions(getEpoch());

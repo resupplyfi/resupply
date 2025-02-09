@@ -3,9 +3,7 @@ pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
-import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
@@ -288,7 +286,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice burn shares and withdraw underlying assets
     /// @param _shares number of shares to redeem
     /// @param _receiver address to send underlying to
-    function redeem(uint256 _shares, address _receiver, address _owner) public nonReentrant returns (uint256 assets){
+    function redeem(uint256 _shares, address _receiver, address _owner) external nonReentrant returns (uint256 assets){
         require(msg.sender == _owner);
 
         _checkWithdrawReady(msg.sender);

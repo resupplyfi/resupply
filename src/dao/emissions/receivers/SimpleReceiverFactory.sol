@@ -53,7 +53,7 @@ contract SimpleReceiverFactory is CoreOwnable {
         return receivers.length;
     }
 
-    function getDeterministicAddress(string memory _name) public view returns (address) {
+    function getDeterministicAddress(string memory _name) external view returns (address) {
         return Clones.predictDeterministicAddress(implementation, bytes32(keccak256(bytes(_name))));
     }
 

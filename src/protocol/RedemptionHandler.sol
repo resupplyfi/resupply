@@ -38,7 +38,7 @@ contract RedemptionHandler is CoreOwnable{
     }
 
     /// @notice Estimates the maximum amount of debtToken that can be used to redeem collateral
-    function getMaxRedeemableDebt(address _pair) public view returns(uint256){
+    function getMaxRedeemableDebt(address _pair) external view returns(uint256){
         (,,,IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
         uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
         if (_totalBorrow.amount < minLeftoverDebt) return 0;
@@ -46,7 +46,6 @@ contract RedemptionHandler is CoreOwnable{
     }
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
-    /// TODO: add settable contract for upgradeable logic
     function getRedemptionFeePct(address /*_pair*/, uint256 /*_amount*/) public view returns(uint256){
         return baseRedemptionFee;
     }

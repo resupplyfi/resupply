@@ -11,8 +11,6 @@ import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
-import { IFraxlendWhitelist } from "../interfaces/IFraxlendWhitelist.sol";
-import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
