@@ -1044,7 +1044,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _removeCollateral(_collateralForLiquidator, liquidationHandler, _borrower);
 
         //call liquidation handler to distribute and burn debt
-        ILiquidationHandler(liquidationHandler).processLiquidationDebt(address(collateral), _collateralForLiquidator, _amountLiquidatorToRepay);
+        ILiquidationHandler(liquidationHandler).processLiquidationDebt(address(collateral), _amountLiquidatorToRepay);
     }
 
     // ============================================================================================

@@ -83,7 +83,7 @@ contract LiquidationHandler is CoreOwnable{
         _collateralForLiquidator = IResupplyPair(_pair).liquidate(_borrower);
     }
 
-    function processLiquidationDebt(address _collateral, uint256 _collateralAmount, uint256 _debtAmount) external{
+    function processLiquidationDebt(address _collateral, uint256 _debtAmount) external{
         //ensure caller is authorized
         require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name()) == msg.sender ||
             IResupplyRegistry(registry).l2manager() == msg.sender, "!regPair");
