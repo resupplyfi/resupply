@@ -545,10 +545,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param exchangeRate The exchange rate
     event UpdateExchangeRate(uint256 exchangeRate);
 
-    /// @notice The ```WarnOracleData``` event is emitted when one of the oracles has stale or otherwise problematic data
-    /// @param oracle The oracle address
-    event WarnOracleData(address oracle);
-
     /// @notice The ```updateExchangeRate``` function is the external implementation of _updateExchangeRate.
     /// @dev This function is invoked at most once per block as these queries can be expensive
     /// @return _exchangeRate The exchange rate

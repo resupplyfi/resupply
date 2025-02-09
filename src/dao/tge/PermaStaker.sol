@@ -16,9 +16,7 @@ contract PermaStaker is Ownable2Step {
     address public operator;
     IGovStaker public staker;
     
-    event UnstakingAllowed(bool indexed allowed);
     event OperatorUpdated(address indexed operator);
-    event StakerMigrated(address indexed oldStaker, address indexed newStaker);
     
     modifier onlyOwnerOrOperator {
         require(msg.sender == owner() || msg.sender == operator, "!ownerOrOperator");

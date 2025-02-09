@@ -63,7 +63,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     );
     event ProposalCreationMinPctSet(uint256 weight);
     event ProposalPassingPctSet(uint256 pct);
-    event OperatorExecuted(address indexed caller, address indexed target, bytes data);
 
     struct Proposal {
         uint16 epoch; // epoch which vote weights are based upon
