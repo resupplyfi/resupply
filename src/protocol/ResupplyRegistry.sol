@@ -244,6 +244,5 @@ contract ResupplyRegistry is CoreOwnable{
     // ============================================================================================
 
     error NameMustBeUnique();
-    error CircuitBreakerOnly();
     error ProtectedKey(string key);
 }

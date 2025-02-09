@@ -48,7 +48,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     error InvalidAmount();
     error InsufficientRealizedStake();
     error InvalidCooldown();
-    error InvalidEpoch();
     error InvalidDuration();
     error OldEpoch();
 
