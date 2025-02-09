@@ -42,9 +42,7 @@ pragma solidity 0.8.28;
 
 import "../libraries/MathUtil.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20Decimals } from "../interfaces/IERC20Decimals.sol";

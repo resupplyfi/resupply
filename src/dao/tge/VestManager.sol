@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 import { VestManagerBase } from "./VestManagerBase.sol";
 
 interface IGovToken is IERC20 {

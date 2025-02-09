@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { GovStaker } from './staking/GovStaker.sol';
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
 import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';

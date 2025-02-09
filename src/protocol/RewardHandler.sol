@@ -7,7 +7,6 @@ import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
 import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
-import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
