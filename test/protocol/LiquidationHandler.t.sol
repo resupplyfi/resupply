@@ -100,10 +100,10 @@ contract LiquidationManagerTest is PairTestBase {
         deal(address(collateral), address(liquidationHandler), amt);
         vm.startPrank(address(core));
         vm.expectRevert("handler still used");
-        liquidationHandler.migrateCollateral(address(collateral), amt, address(newLiquidationHandler));
+        liquidationHandler.migrateCollateral(address(collateral));
 
         registry.setLiquidationHandler(address(newLiquidationHandler));
-        liquidationHandler.migrateCollateral(address(collateral), collateral.balanceOf(address(liquidationHandler)), address(newLiquidationHandler));
+        liquidationHandler.migrateCollateral(address(collateral));
         vm.stopPrank();
         assertEq(collateral.balanceOf(address(newLiquidationHandler)), amt);
     }

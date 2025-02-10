@@ -23,6 +23,7 @@ contract LiquidationHandler is CoreOwnable{
 
     event CollateralProccessed(address indexed _collateral, uint256 _debtBurned, uint256 _profit);
     event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
+    event CollateralMigrated(address indexed _collateral, uint256 _collateralAmount, address _newHandler);
 
     constructor(address _core, address _registry, address _insurancePool) CoreOwnable(_core){
         registry = _registry;
@@ -31,10 +32,21 @@ contract LiquidationHandler is CoreOwnable{
 
     //allow protocol to migrate collateral left in this handler if an update is required
     //registry must point to a different handler to ensure this contract is no longer being used
-    function migrateCollateral(address _collateral, uint256 _amount, address _to) external onlyOwner{
-        require(_to != address(this), "!same_handler");
-        require(IResupplyRegistry(registry).liquidationHandler() != address(this), "handler still used");
-        IERC20(_collateral).safeTransfer(_to, _amount);
+    function migrateCollateral(address _collateral) external returns(uint256 debtCanceled){
+        address currentHandler = IResupplyRegistry(registry).liquidationHandler();
+        require(currentHandler != address(this), "handler still used");
+        require(currentHandler == msg.sender, "!liq handler");
+
+        //return how much debt was cleared so new handler can process
+        debtCanceled = debtByCollateral[_collateral];
+
+        //clear debt
+        debtByCollateral[_collateral] = 0;
+
+        uint256 collateralAmount = IERC20(_collateral).balanceOf(address(this));
+        IERC20(_collateral).safeTransfer(currentHandler, collateralAmount);
+
+        emit CollateralMigrated(_collateral, collateralAmount, currentHandler);
     }
 
     //if there is bad debt in the system where the collateral on this handler is
@@ -60,10 +72,13 @@ contract LiquidationHandler is CoreOwnable{
         
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
 
+        //get how much debt this collateral has
+        uint256 collateralDebt = debtByCollateral[_collateral];
+
         //check that it is indeed burnable..
-        if(debtByCollateral[_collateral] <= maxBurnable){
+        if(collateralDebt <= maxBurnable){
             //burn debt
-            IInsurancePool(insurancePool).burnAssets(debtByCollateral[_collateral]);
+            IInsurancePool(insurancePool).burnAssets(collateralDebt);
             //clear debt
             debtByCollateral[_collateral] = 0;
 
@@ -102,8 +117,10 @@ contract LiquidationHandler is CoreOwnable{
         
         //get max withdraw
         uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
+        //get how much debt this collateral has
+        uint256 collateralDebt = debtByCollateral[_collateral];
         //debt to burn (clamp to debtByCollateral)
-        uint256 toBurn = withdrawable > debtByCollateral[_collateral] ? debtByCollateral[_collateral] : withdrawable;
+        uint256 toBurn = withdrawable > collateralDebt ? collateralDebt : withdrawable;
         //get max burnable
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
 
@@ -118,7 +135,11 @@ contract LiquidationHandler is CoreOwnable{
             } catch{}
 
             if(withdrawnAmount == 0) return;
+
+            //its possible redeemed amount could be slightly different than the above maxWithdraw so recompute toburn
+            toBurn = withdrawnAmount > collateralDebt ? collateralDebt : withdrawnAmount;
         
+            //burn
             IInsurancePool(insurancePool).burnAssets(toBurn);
 
             //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
