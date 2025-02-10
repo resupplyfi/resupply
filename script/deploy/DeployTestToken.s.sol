@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 // import { BaseScript } from "frax-std/BaseScript.sol";
 // import { console } from "frax-std/FraxTest.sol";
 import { TenderlyHelper } from "../utils/TenderlyHelper.s.sol";
-import { console } from "lib/forge-std/src/console.sol";
+import { console } from "forge-std/console.sol";
 import "src/Constants.sol" as Constants;
 // import { DeployScriptReturn } from "./DeployScriptReturn.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -48,12 +48,11 @@ contract DeployTestToken is TenderlyHelper, CreateXDeployer {
         address tokendeployer = deployer; //change to test permission
 
         // TestOFT _token = new TestOFT(_core);
-
         bytes memory constructorArgs = abi.encode(address(_core));
         bytes memory bytecode = abi.encodePacked(vm.getCode("TestOFT.sol:TestOFT"), constructorArgs);
         uint88 randomness = uint88(uint256(keccak256(abi.encode("TestToken1"))));
-        bytes32 _salt = bytes32(uint256(uint160(tokendeployer) + randomness));
-        // console.log("_salt: ", _salt);
+        bytes32 _salt = bytes32(uint256(uint160(tokendeployer)) << 96) | bytes32(uint256(randomness));
+        console.logBytes32(_salt);
         bytes32 computedSalt = keccak256(abi.encode(_salt));
         address computedAddress = createXDeployer.computeCreate3Address(computedSalt);
         if (address(computedAddress).code.length == 0) {
@@ -70,9 +69,10 @@ contract DeployTestToken is TenderlyHelper, CreateXDeployer {
         _token.faucet(1_000 * 1e18);
         
         ILayerZeroEndpointV2 endpoint = ILayerZeroEndpointV2(0x1a44076050125825900e736c501f859c50fE728c);
-        // _token.setPeer(1, addressToBytes32(address(_token)));
-        _token.setPeer(252, addressToBytes32(address(_token)));
+        _token.setPeer(1, addressToBytes32(address(_token)));
+        // _token.setPeer(252, addressToBytes32(address(_token)));
 
+        vm.stopBroadcast();
         console.log("======================================");
         console.log("    Contracts     ");
         console.log("======================================");
