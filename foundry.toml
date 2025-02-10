@@ -57,11 +57,12 @@ verbosity = 3
 # Network configurations
 [rpc_endpoints]
 mainnet = "${MAINNET_URL}"
+fraxtal = "${FRAXTAL_MAINNET_URL}"
 local = "http://127.0.0.1:8545"
 
 # Block explorer API configurations
 [etherscan]
-fraxtal = { key = "${FRAXTAL_API_KEY}", url = "https://api.fraxscan.com/api", chain = "252" }
+fraxtal = {key = "${FRAXTAL_API_KEY}", url = "${FRAXTAL_VERIFIER_URL}", chain = "252"}
 
 # Formatting settings
 [fmt]
