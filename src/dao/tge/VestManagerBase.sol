@@ -180,7 +180,8 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         _total = vest.amount;
         _claimable = vested - vest.claimed;
         _claimed = vest.claimed;
-        _timeRemaining = vest.duration - (block.timestamp - VEST_GLOBAL_START_TIME);
+        uint256 elapsed = block.timestamp - VEST_GLOBAL_START_TIME;
+        _timeRemaining = elapsed > vest.duration ? 0 : vest.duration - elapsed;
     }
 
     function _claimableAmount(Vest storage vest) internal view returns (uint112) {
