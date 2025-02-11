@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
 //abstract reward handling to attach to another contract
@@ -100,10 +100,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
             //workaround: transfer 0 to self so that earned() reports correctly
             //with new tokens
             if(_token.code.length > 0){
-                try IERC20(_token).transfer(address(this), 0){}catch{
-                    //cant transfer? invalidate
-                    _invalidateReward(_token);
-                }
+                IERC20(_token).safeTransfer(address(this), 0);
             }else{
                 //non contract address added? invalidate
                 _invalidateReward(_token);

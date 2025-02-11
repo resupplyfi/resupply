@@ -11,7 +11,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairConstants } from "./ResupplyPairConstants.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../../libraries/VaultAccount.sol";
-import { SafeERC20 } from "../../libraries/SafeERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IOracle } from "../../interfaces/IOracle.sol";
 import { IRateCalculator } from "../../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../../interfaces/ISwapper.sol";
@@ -157,7 +157,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
                 revert InvalidParameter();
             }
             // approve so this contract can deposit
-            underlying.approve(_collateral, type(uint256).max);
+            underlying.forceApprove(_collateral, type(uint256).max);
             currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
             exchangeRateInfo.oracle = _oracle;
             rateCalculator = IRateCalculator(_rateCalculator);

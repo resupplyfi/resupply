@@ -79,7 +79,7 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
                 swapinfo.swappool = collateral;
                 swapinfo.swaptype = TYPE_DEPOSIT;
                 //approve
-                IERC20(underlying).approve(collateral, type(uint256).max);
+                IERC20(underlying).forceApprove(collateral, type(uint256).max);
                 //write
                 swapPools[underlying][collateral] = swapinfo;
 
