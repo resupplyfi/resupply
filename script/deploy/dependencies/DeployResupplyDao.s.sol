@@ -1,6 +1,7 @@
 import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { IGovStakerEscrow } from "src/interfaces/IGovStakerEscrow.sol";
+import { console2 } from "forge-std/console2.sol";
 import { console } from "forge-std/console.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { VestManagerHarness } from "src/helpers/VestManagerHarness.sol";
@@ -10,27 +11,31 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
 
 contract DeployResupplyDao is BaseDeploy {
-
-    function deployDaoContracts(bool isTestNet) public {
+    bool constant DEBUG = false;
+    function deployDaoContracts() public {
         core = deployCore();
-        govToken = deployGovToken(isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
-        vestManager = deployVestManager(isTestNet); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
+        govToken = deployGovToken(); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
+        vestManager = deployVestManager(); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         stablecoin = Stablecoin(deployStablecoin());
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         registry = IResupplyRegistry(deployRegistry());
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         staker = deployGovStaker();
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         voter = deployVoter();
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         emissionsController = deployEmissionsController();
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         treasury = deployTreasury();
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
     }
 
     function deployStablecoin() public returns (address) {
         bytes memory constructorArgs = abi.encode(address(core));
-        bytes32 salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            0
-        );
+        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6007d4a011e1aea8d0220315d;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory bytecode = abi.encodePacked(vm.getCode("Stablecoin.sol:Stablecoin"), constructorArgs);
@@ -38,6 +43,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("Stablecoin deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -51,6 +57,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("Registry deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -64,16 +71,16 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("Core deployed to", predictedAddress);
         return predictedAddress;
     }
 
-    function deployGovToken(bool _isTestNet) public returns (address) {
+    function deployGovToken() public returns (address) {
         bytes32 vmSalt = 0xfe11a5009f2121622271e7dd0fd470264e076af6000cc7db37bf283f00158d19;
         address _vestManagerAddress = computeCreate3AddressFromSaltPreimage(vmSalt, dev, true, false);
         
         bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6007817270164e1790196c4f0;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
-        console.log("GovToken predictedAddress", predictedAddress);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
             address(core), 
@@ -87,10 +94,11 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("GovToken deployed to", predictedAddress);
         return predictedAddress;
     }
 
-    function deployVestManager(bool _isTestNet) public returns (address) {
+    function deployVestManager() public returns (address) {
         bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6000cc7db37bf283f00158d19;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
@@ -105,7 +113,7 @@ contract DeployResupplyDao is BaseDeploy {
             ]
         );
         bytes memory bytecode = (
-            _isTestNet ?
+            deployMode != DeployMode.MAINNET ?
                 abi.encodePacked(vm.getCode("VestManagerHarness.sol:VestManagerHarness"), constructorArgs) :
                 abi.encodePacked(vm.getCode("VestManager.sol:VestManager"), constructorArgs)
         );
@@ -113,6 +121,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("VestManager deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -131,6 +140,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("GovStaker deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -144,6 +154,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("Voter deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -164,6 +175,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("EmissionsController deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -177,6 +189,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
+        console.log("Treasury deployed to", predictedAddress);
         return predictedAddress;
     }
 
@@ -189,7 +202,21 @@ contract DeployResupplyDao is BaseDeploy {
             PERMA_STAKER1_NAME
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
-        permaStaker1 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaStaker - Convex");
+        bytes32 salt = buildGuardedSalt(
+            dev, 
+            true,   // enablePermissionedDeploy
+            false,  // enableCrossChainProtection
+            uint88(uint256(keccak256(bytes("Permastaker Convex"))))
+        );
+        address predictedAddress1 = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        if (!addressHasCode(predictedAddress1)) {
+            addToBatch(
+                address(createXFactory),
+                encodeCREATE3Deployment(salt, bytecode)
+            );
+        }
+        console.log("PermaStaker Convex deployed to", predictedAddress1);
+
         constructorArgs = abi.encode(
             address(core), 
             PERMA_STAKER2_OWNER,
@@ -198,8 +225,22 @@ contract DeployResupplyDao is BaseDeploy {
             PERMA_STAKER2_NAME
         );
         bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
-        permaStaker2 = deployContract(DeployType.CREATE3, salt, bytecode, "PermaStaker - Yearn");
-        return (permaStaker1, permaStaker2);
+        salt = buildGuardedSalt(
+            dev, 
+            true,   // enablePermissionedDeploy
+            false,  // enableCrossChainProtection
+            uint88(uint256(keccak256(bytes("Permastaker Yearn"))))
+        );
+        address predictedAddress2 = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        if (!addressHasCode(predictedAddress2)) {
+            addToBatch(
+                address(createXFactory),
+                encodeCREATE3Deployment(salt, bytecode)
+            );
+        }
+        
+        console.log("PermaStaker Yearn deployed to", predictedAddress2);
+        return (predictedAddress1, predictedAddress2);
     }
 
     function getEmissionsSchedule() public pure returns (uint256[] memory) {

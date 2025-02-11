@@ -18,10 +18,9 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function deployAll() isBatch(dev) public {
-        bool isTestnet = true;
+        deployMode = DeployMode.TENDERLY;
         setEthBalance(dev, 10e18);
-        enableBroadcastMode(isTestnet);
-        deployDaoContracts(isTestnet); // true for testnet
+        deployDaoContracts(); // true for testnet
         deployProtocolContracts();
         configurationStep1();
         deployRewardsContracts();
@@ -34,12 +33,13 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     function deployDefaultLendingPairs() public {
         address pair;
         pair = deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        console.log('pair deployed: fraxlend_sfrxeth_frax', pair);
         pair = deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        console.log('pair deployed: curvelend_sfrax_crvusd', pair);
     }
 
     function configurationStep1() public {
         ICore _core = ICore(core);
-        console.log('VOTER IS', _core.voter());
         _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));
