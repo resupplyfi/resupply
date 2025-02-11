@@ -146,55 +146,58 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     //calculate and record an account's earnings of the given reward.  if _claimTo is given it will also claim.
     function _calcRewardIntegral(uint256 _epoch, uint256 _currentEpoch, uint256 _index, address _account, address _claimTo) internal{
         RewardType storage reward = rewards[_index];
+        address rewardToken = reward.reward_token;
         //skip invalidated rewards
         //if a reward token starts throwing an error, calcRewardIntegral needs a way to exit
-        if(reward.reward_token == address(0)){
+        if(rewardToken == address(0)){
            return;
         }
 
         //get difference in balance and remaining rewards
         //getReward is unguarded so we use reward_remaining to keep track of how much was actually claimed since last checkpoint
-        uint256 bal = IERC20(reward.reward_token).balanceOf(address(this));
-
+        uint256 bal = IERC20(rewardToken).balanceOf(address(this));
+        uint256 remainingRewards = reward.reward_remaining;
         
         //update the global integral but only for the current epoch
-        if (_epoch == _currentEpoch && _totalRewardShares() > 0 && bal > reward.reward_remaining) {
-            uint256 rewardPerToken = ((bal - reward.reward_remaining) * PRECISION / _totalRewardShares());
+        if (_epoch == _currentEpoch && _totalRewardShares() > 0 && bal > remainingRewards) {
+            uint256 rewardPerToken = ((bal - remainingRewards) * PRECISION / _totalRewardShares());
             if(rewardPerToken > 0){
                 //increase integral
-                global_reward_integral[_epoch][reward.reward_token] += rewardPerToken;
+                global_reward_integral[_epoch][rewardToken] += rewardPerToken;
             }else{
                 //set balance as current reward_remaining to let dust grow
-                bal = reward.reward_remaining;
+                bal = remainingRewards;
             }
         }
 
-        uint256 reward_global = global_reward_integral[_epoch][reward.reward_token];
+        uint256 reward_global = global_reward_integral[_epoch][rewardToken];
 
-        //update user integrals
-        uint userI = reward_integral_for[_epoch][reward.reward_token][_account];
-        if(_claimTo != address(0) || userI < reward_global){
-            //_claimTo address non-zero means its a claim 
-            // only allow claims if current epoch and if the reward allows it
-            if(_epoch == _currentEpoch && _claimTo != address(0) && !reward.is_non_claimable){
-                uint256 receiveable = claimable_reward[reward.reward_token][_account] + (_userRewardShares(_account) * (reward_global - userI) / PRECISION);
-                if(receiveable > 0){
-                    claimable_reward[reward.reward_token][_account] = 0;
-                    IERC20(reward.reward_token).safeTransfer(_claimTo, receiveable);
-                    emit RewardPaid(_account, reward.reward_token, _claimTo, receiveable);
-                    //remove what was claimed from balance
-                    bal -= receiveable;
+        if(_account != address(0)){
+            //update user integrals
+            uint userI = reward_integral_for[_epoch][rewardToken][_account];
+            if(_claimTo != address(0) || userI < reward_global){
+                //_claimTo address non-zero means its a claim 
+                // only allow claims if current epoch and if the reward allows it
+                if(_epoch == _currentEpoch && _claimTo != address(0) && !reward.is_non_claimable){
+                    uint256 receiveable = claimable_reward[rewardToken][_account] + (_userRewardShares(_account) * (reward_global - userI) / PRECISION);
+                    if(receiveable > 0){
+                        claimable_reward[rewardToken][_account] = 0;
+                        IERC20(rewardToken).safeTransfer(_claimTo, receiveable);
+                        emit RewardPaid(_account, rewardToken, _claimTo, receiveable);
+                        //remove what was claimed from balance
+                        bal -= receiveable;
+                    }
+                }else{
+                    claimable_reward[rewardToken][_account] = claimable_reward[rewardToken][_account] + ( _userRewardShares(_account) * (reward_global - userI) / PRECISION);
                 }
-            }else{
-                claimable_reward[reward.reward_token][_account] = claimable_reward[reward.reward_token][_account] + ( _userRewardShares(_account) * (reward_global - userI) / PRECISION);
+                reward_integral_for[_epoch][rewardToken][_account] = reward_global;
             }
-            reward_integral_for[_epoch][reward.reward_token][_account] = reward_global;
         }
 
 
         //update remaining reward so that next claim can properly calculate the balance change
         //claims and tracking new rewards should only happen on current epoch
-        if(_epoch == _currentEpoch && bal != reward.reward_remaining){
+        if(_epoch == _currentEpoch && bal != remainingRewards){
             reward.reward_remaining = bal;
         }
     }
@@ -204,9 +207,10 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
         _checkpoint(address(0), address(0), type(uint256).max);
 
         //move epoch up
-        currentRewardEpoch += 1;
+        uint256 newEpoch = currentRewardEpoch + 1;
+        currentRewardEpoch = newEpoch;
 
-        emit NewEpoch(currentRewardEpoch);
+        emit NewEpoch(newEpoch);
     }
 
     //checkpoint without claiming
@@ -222,6 +226,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
         _fetchIncentives();
 
         uint256 globalEpoch = currentRewardEpoch;
+        uint256 rewardCount = rewards.length;
 
         for (uint256 loops = 0; loops < _maxloops;) {
             uint256 userEpoch = globalEpoch;
@@ -238,7 +243,6 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
             }
             
             //calc reward integrals
-            uint256 rewardCount = rewards.length;
             for(uint256 i = 0; i < rewardCount;){
                 _calcRewardIntegral(userEpoch, globalEpoch, i,_account,_claimTo);
                 unchecked { i += 1; }
@@ -297,8 +301,9 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     //claim reward for given account (unguarded)
     function getReward(address _account) public virtual nonReentrant {
         //check if there is a redirect address
-        if(rewardRedirect[_account] != address(0)){
-            _checkpoint(_account, rewardRedirect[_account], type(uint256).max);
+        address redirect = rewardRedirect[_account];
+        if(redirect != address(0)){
+            _checkpoint(_account, redirect, type(uint256).max);
         }else{
             //claim directly in checkpoint logic to save a bit of gas
             _checkpoint(_account, _account, type(uint256).max);
