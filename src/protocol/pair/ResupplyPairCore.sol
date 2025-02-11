@@ -243,15 +243,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         return _totalDebtAvailable(_totalBorrow);
     }
 
-    /// @notice The ```_totalDebtAvailable``` function returns the total balance of debt tokens in the contract
-    /// @return The balance of debt tokens held by contract
+    /// @notice The ```_totalDebtAvailable``` function returns the total amount of debt that can be issued on this pair
+    /// @return The amount of debt that can be issued
     function _totalDebtAvailable(VaultAccount memory _totalBorrow) internal view returns (uint256) {
-        //check for max mintable. on mainnet this shouldnt be limited but on l2 there could
-        //be a limited amount of stables that have been bridged and available
-        uint256 mintable = block.chainid == 1 ? type(uint256).max : IResupplyRegistry(registry).getMaxMintable(address(this));
+        
         uint256 borrowable = borrowLimit > _totalBorrow.amount ? borrowLimit - _totalBorrow.amount : 0;
-        //take minimum of mintable and the difference of borrowlimit and current borrowed
-        borrowable = borrowable < mintable ? borrowable : mintable;
+
         return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
@@ -267,7 +264,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _borrower The borrower address to check
     /// @param _exchangeRate The exchange rate, i.e. the amount of collateral to buy 1e18 asset
     /// @return Whether borrower is solvent
-    function _isSolvent(address _borrower, uint256 _exchangeRate) internal returns (bool) {
+    function _isSolvent(address _borrower, uint256 _exchangeRate) internal view returns (bool) {
         if (maxLTV == 0) return true;
         //must look at borrow shares of current epoch so user helper function
         //user borrow shares should be synced before _isSolvent is called

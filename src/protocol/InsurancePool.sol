@@ -174,7 +174,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     //we cant limit reward types since collaterals could be sent as rewards
     //however reward lists growing too large is undesirable
     //governance should act if too many are added
-    function maxRewards() public override returns(uint256){
+    function maxRewards() public pure override returns(uint256){
         return type(uint256).max;
     }
 
@@ -281,7 +281,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         }
     }
 
-    function _checkWithdrawReady(address _account) internal{
+    function _checkWithdrawReady(address _account) internal view{
         uint256 exitTime = withdrawQueue[_account];
         require(exitTime > 0 && block.timestamp >= exitTime, "!withdraw time");
         require(block.timestamp <= exitTime + withdrawTimeLimit, "withdraw time over");
@@ -405,13 +405,13 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     function previewMint(uint256 _shares) public view returns (uint256){
         return convertToAssetsRoundUp(_shares); //round up
     }
-    function maxWithdraw(address _owner) external returns (uint256){
+    function maxWithdraw(address _owner) external view returns (uint256){
         return convertToAssets(balanceOf(_owner));
     }
     function previewWithdraw(uint256 _amount) public view returns (uint256){
         return convertToSharesRoundUp(_amount); //round up
     }
-    function maxRedeem(address _owner) external returns (uint256){
+    function maxRedeem(address _owner) external view returns (uint256){
         return balanceOf(_owner);
     }
     function previewRedeem(uint256 _shares) public view returns (uint256){

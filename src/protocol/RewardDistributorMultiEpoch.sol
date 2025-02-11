@@ -68,7 +68,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
     function _checkAddToken(address _address) internal view virtual returns(bool);
 //////////
 
-    function maxRewards() public virtual returns(uint256){
+    function maxRewards() public pure virtual returns(uint256){
         return 15;
     }
 

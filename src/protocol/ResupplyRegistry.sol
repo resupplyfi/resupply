@@ -236,10 +236,6 @@ contract ResupplyRegistry is CoreOwnable{
         IRewardHandler(rewardHandler).claimInsuranceRewards();
     }
 
-    function getMaxMintable(address _pair) external view returns(uint256) {
-        return type(uint256).max;
-    }
-
     // ============================================================================================
     // Errors
     // ============================================================================================
