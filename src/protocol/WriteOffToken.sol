@@ -29,6 +29,7 @@ contract WriteOffToken {
 
     function transfer(address to, uint256 amount) external returns (bool){
         //do nothing
+        return true; /// @notice Adhere to SafeERC20 Convention
     }
 
     function balanceOf(address) external view returns (uint256){
