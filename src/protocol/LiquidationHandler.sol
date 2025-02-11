@@ -95,6 +95,7 @@ contract LiquidationHandler is CoreOwnable{
         address _pair,
         address _borrower
     ) external returns (uint256 _collateralForLiquidator){
+        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(_pair).name()) == _pair, "!registered");
         _collateralForLiquidator = IResupplyPair(_pair).liquidate(_borrower);
     }
 

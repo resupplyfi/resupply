@@ -224,6 +224,7 @@ contract ResupplyRegistry is CoreOwnable{
     }
 
     function claimFees(address _pair) external {
+        require(pairsByName[IERC20Metadata(_pair).name()] == _pair, "!regPair");
         IResupplyPair(_pair).withdrawFees();
     }
 
