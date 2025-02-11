@@ -105,11 +105,12 @@ contract SimpleRewardStreamer is CoreOwnable {
 
     //checkpoint earned rewards modifier
     modifier updateReward(address _account) {
-        rewardPerTokenStored = rewardPerToken();
+        uint256 rewardPerToken = rewardPerToken();
+        rewardPerTokenStored = rewardPerToken;
         lastUpdateTime = lastTimeRewardApplicable();
         if (_account != address(0)) {
             rewards[_account] = earned(_account);
-            userRewardPerTokenPaid[_account] = rewardPerTokenStored;
+            userRewardPerTokenPaid[_account] = rewardPerToken;
         }
         _;
     }
@@ -158,11 +159,11 @@ contract SimpleRewardStreamer is CoreOwnable {
         updateReward(_account)
         returns(bool)
     {
-
-        emit WeightSet(_account, _balances[_account], _amount);
+        uint256 currentBalance = _balances[_account];
+        emit WeightSet(_account, currentBalance, _amount);
 
         uint256 tsupply = _totalSupply;
-        tsupply -= _balances[_account]; //remove current from temp supply
+        tsupply -= currentBalance; //remove current from temp supply
         _balances[_account] = _amount; //set new account balance
         tsupply += _amount; //add new to temp supply
         _totalSupply = tsupply; //set supply
@@ -177,19 +178,20 @@ contract SimpleRewardStreamer is CoreOwnable {
         emit RewardRedirected(msg.sender, _to);
     }
 
-    function getReward() external updateReward(msg.sender){
+    function getReward() external{
         getReward(msg.sender);
     }
 
     //claim reward for given account (unguarded)
     function getReward(address _account) public updateReward(_account){
-        uint256 reward = earned(_account);
+        uint256 reward = rewards[_account]; //earned is called in updateReward and thus up to date
         if (reward > 0) {
             rewards[_account] = 0;
             emit RewardPaid(_account, reward);
             //check if there is a redirect address
-            if(rewardRedirect[_account] != address(0)){
-                rewardToken.safeTransfer(rewardRedirect[_account], reward);
+            address redirect = rewardRedirect[_account];
+            if(redirect != address(0)){
+                rewardToken.safeTransfer(redirect, reward);
             }else{
                 //normal claim to account address
                 rewardToken.safeTransfer(_account, reward);
@@ -204,7 +206,7 @@ contract SimpleRewardStreamer is CoreOwnable {
         require(_forwardTo != address(0), "fwd address cannot be 0");
 
         //claim to _forwardTo
-        uint256 reward = earned(msg.sender);
+        uint256 reward = rewards[_account]; //earned is called in updateReward and thus up to date
         if (reward > 0) {
             rewards[msg.sender] = 0;
             rewardToken.safeTransfer(_forwardTo, reward);
