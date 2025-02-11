@@ -43,7 +43,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         rewards[0] = address(govToken);
         rewards[1] = address(fraxToken);
         rewards[2] = address(crvusdToken);
-
+        bytes memory result;
         address simpleReceiverImplementation = address(new 
             SimpleReceiver(
                 address(core), 
@@ -56,20 +56,18 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(simpleReceiverImplementation)
         );
         console.log("SimpleReceiverFactory deployed at", address(receiverFactory));
-        ICore _core = ICore(core);
-        bytes memory result = _core.execute(
+        result = _executeCore(
             address(receiverFactory), 
             abi.encodeWithSelector(SimpleReceiverFactory.deployNewReceiver.selector, "Debt Receiver", new address[](0))
         );
-        console.log("Result:", uint256(bytes32(result)));
-        debtReceiver = SimpleReceiver(address(uint160(uint256(bytes32(result))))); // cast the bytes result to an address
-        console.log("Debt Receiver deployed at", address(debtReceiver));
-        result = _core.execute(
+        result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
+        debtReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
+        result = _executeCore(
             address(receiverFactory), 
             abi.encodeWithSelector(SimpleReceiverFactory.deployNewReceiver.selector, "Insurance Receiver", new address[](0))
         );
-        console.log("Result:", uint256(bytes32(result)));
-        insuranceEmissionsReceiver = SimpleReceiver(address(uint160(uint256(bytes32(result))))); // cast the bytes result to an address
+        result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
+        insuranceEmissionsReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
         console.log("Insurance Receiver deployed at", address(insuranceEmissionsReceiver));
         insurancePool = new InsurancePool(
                 address(core), //core
@@ -124,22 +122,30 @@ contract DeployResupplyProtocol is BaseDeploy {
 
     function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(address){
         require(address(pairDeployer).code.length > 0, "ResupplyPairDeployer has no code");
-        address _pairAddress = pairDeployer.deploy(
-            abi.encode(
-                _collateral,
-                address(oracle),
-                address(rateCalculator),
-                DEFAULT_MAX_LTV, //max ltv 75%
-                DEFAULT_BORROW_LIMIT,
-                DEFAULT_LIQ_FEE,
-                DEFAULT_MINT_FEE,
-                DEFAULT_PROTOCOL_REDEMPTION_FEE
-            ),
-            _staking,
-            _stakingId
+        bytes memory result;
+        result = _executeCore(
+            address(pairDeployer),
+            abi.encodeWithSelector(ResupplyPairDeployer.deploy.selector,
+                abi.encode(
+                    _collateral,
+                    address(oracle),
+                    address(rateCalculator),
+                    DEFAULT_MAX_LTV, //max ltv 75%
+                    DEFAULT_BORROW_LIMIT,
+                    DEFAULT_LIQ_FEE,
+                    DEFAULT_MINT_FEE,
+                    DEFAULT_PROTOCOL_REDEMPTION_FEE
+                ),
+                _staking,
+                _stakingId
+            )
         );
-        console.log("ResupplyPair deployed at", _pairAddress);
-        ICore(core).execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.addPair.selector, _pairAddress));
-        return _pairAddress;
+        result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
+        console.log("ResupplyPair deployed at", abi.decode(result, (address)));
+        _executeCore(
+            address(registry),
+            abi.encodeWithSelector(ResupplyRegistry.addPair.selector, abi.decode(result, (address)))
+        );
+        return abi.decode(result, (address));
     }
 }

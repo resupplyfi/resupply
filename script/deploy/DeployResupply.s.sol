@@ -14,17 +14,14 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function run() public {
-        console.log("Deploying Resupply");
-        console.log("Dev nonce", vm.getNonce(dev));
-        setEthBalance(dev, 10 ether);
-        vm.startPrank(dev);
         deployAll();
-        vm.stopPrank();
-        console.log("Dev nonce", vm.getNonce(dev));
     }
 
-    function deployAll() public {
-        deployDaoContracts(true); // true for testnet
+    function deployAll() isBatch(dev) public {
+        bool isTestnet = true;
+        setEthBalance(dev, 10e18);
+        enableBroadcastMode(isTestnet);
+        deployDaoContracts(isTestnet); // true for testnet
         deployProtocolContracts();
         configurationStep1();
         deployRewardsContracts();
@@ -42,36 +39,27 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function configurationStep1() public {
         ICore _core = ICore(core);
-        _core.execute(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setStaker.selector, address(staker)));
+        console.log('VOTER IS', _core.voter());
+        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setStaker.selector, address(staker)));
     }
 
     function configureProtocolContracts() public {
-        ICore _core = ICore(core);
-        _core.execute(address(feeDeposit), abi.encodeWithSelector(feeDeposit.setOperator.selector, address(feeDepositController)));
-        _core.execute(address(staker), abi.encodeWithSelector(IGovStaker.addReward.selector, address(stablecoin), address(rewardHandler), uint256(7 days)));
-        _core.execute(address(debtReceiver), abi.encodeWithSelector(SimpleReceiver.setApprovedClaimer.selector, address(rewardHandler), true));
-        _core.execute(address(insuranceEmissionsReceiver), abi.encodeWithSelector(SimpleReceiver.setApprovedClaimer.selector, address(rewardHandler), true));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRedemptionHandler.selector, address(redemptionHandler)));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setLiquidationHandler.selector, address(liquidationHandler)));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setInsurancePool.selector, address(insurancePool)));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setFeeDeposit.selector, address(feeDeposit)));
-        _core.execute(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRewardHandler.selector, address(rewardHandler)));
-        _core.execute(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
+        _executeCore(address(feeDeposit), abi.encodeWithSelector(feeDeposit.setOperator.selector, address(feeDepositController)));
+        _executeCore(address(staker), abi.encodeWithSelector(IGovStaker.addReward.selector, address(stablecoin), address(rewardHandler), uint256(7 days)));
+        _executeCore(address(debtReceiver), abi.encodeWithSelector(SimpleReceiver.setApprovedClaimer.selector, address(rewardHandler), true));
+        _executeCore(address(insuranceEmissionsReceiver), abi.encodeWithSelector(SimpleReceiver.setApprovedClaimer.selector, address(rewardHandler), true));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRedemptionHandler.selector, address(redemptionHandler)));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setLiquidationHandler.selector, address(liquidationHandler)));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setInsurancePool.selector, address(insurancePool)));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setFeeDeposit.selector, address(feeDeposit)));
+        _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRewardHandler.selector, address(rewardHandler)));
+        _executeCore(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
     }
 
     function handoffGovernance() public {
-        ICore _core = ICore(core);
-        _core.execute(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
-    }
-
-    function isForkedNetwork() public view returns (bool) {
-        try vm.activeFork() returns (uint256) {
-            return true;
-        } catch {
-            return false;
-        }
+        _executeCore(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
     }
 }

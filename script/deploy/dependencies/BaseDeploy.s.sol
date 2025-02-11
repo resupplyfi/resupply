@@ -17,6 +17,8 @@ import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
+import { BatchScript } from "lib/forge-safe/src/BatchScript.sol";
+import { ICore } from "src/interfaces/ICore.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXDeployer {
     // Configs: DAO
@@ -39,7 +41,8 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
-    address public dev = address(0xc4ad);
+    // address public dev = address(0xc4ad);
+    address public dev = address(0xFE11a5009f2121622271e7dd0FD470264e076af6);
 
     // DAO Contracts
     address public core;
@@ -101,10 +104,10 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
         bytes32 computedSalt;
         console.log("Deploying contract:", _contractName, " .... ");
         if (_deployType == DeployType.CREATE1) {
-            uint256 nonce = vm.getNonce(address(createXDeployer));
-            computedAddress = createXDeployer.computeCreateAddress(nonce);
+            uint256 nonce = vm.getNonce(address(createXFactory));
+            computedAddress = createXFactory.computeCreateAddress(nonce);
             if (address(computedAddress).code.length == 0) {
-                computedAddress = createXDeployer.deployCreate(_bytecode);
+                computedAddress = createXFactory.deployCreate(_bytecode);
                 console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
             } else {
                 console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
@@ -112,9 +115,9 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
         } 
         else if (_deployType == DeployType.CREATE2) {
             computedSalt = keccak256(abi.encode(_salt));
-            computedAddress = createXDeployer.computeCreate2Address(computedSalt, keccak256(_bytecode));
+            computedAddress = createXFactory.computeCreate2Address(computedSalt, keccak256(_bytecode));
             if (address(computedAddress).code.length == 0) {
-                computedAddress = createXDeployer.deployCreate2(_salt, _bytecode);
+                computedAddress = createXFactory.deployCreate2(_salt, _bytecode);
                 console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
             } else {
                 console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
@@ -126,14 +129,23 @@ contract BaseDeploy is TenderlyHelper, CreateXDeployer {
             _salt = bytes32(uint256(uint160(dev)) << 96) | bytes32(uint256(0x00)) << 88| bytes32(uint256(randomness));
             console.logBytes32(_salt);
             computedSalt = keccak256(abi.encode(_salt));
-            computedAddress = createXDeployer.computeCreate3Address(computedSalt);
+            computedAddress = createXFactory.computeCreate3Address(computedSalt);
             if (address(computedAddress).code.length == 0) {
-                computedAddress = createXDeployer.deployCreate3(_salt, _bytecode);
+                computedAddress = createXFactory.deployCreate3(_salt, _bytecode);
                 console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
             } else {
                 console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
             }
         } 
         return computedAddress;
+    }
+
+    function _executeCore(address _target, bytes memory _data) internal returns (bytes memory) {
+        return addToBatch(
+            core,
+            abi.encodeWithSelector(
+                ICore.execute.selector, address(_target), _data
+            )
+        );
     }
 }

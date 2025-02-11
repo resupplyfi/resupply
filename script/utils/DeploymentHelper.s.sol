@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Script} from "lib/forge-std/src/Script.sol";
-import {StdJson} from "lib/forge-std/src/StdJson.sol";
+import {stdJson} from "lib/forge-std/src/StdJson.sol";
 
 abstract contract DeploymentHelper is Script {
     using stdJson for string;
@@ -19,10 +19,8 @@ abstract contract DeploymentHelper is Script {
         uint256 count = 0;
         
         keys[count] = "GOV_STAKER";
-        values[count] = contractAddress;
+        values[count] = deployedAddresses["GOV_STAKER"];
         count++;
-
-
         
         // Convert to JSON string
         json = _generateJson(keys, values, count);
