@@ -164,7 +164,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     function queueInsuranceRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
+        require(msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposistOp");
 
         //queue up any reward tokens currently on this handler
         IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
@@ -179,7 +179,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     function queueStakingRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
+        require(msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposistOp");
 
         //queue up any reward tokens currently on this handler
         uint256 revenueBalance = IERC20(revenueToken).balanceOf(address(this));

@@ -142,7 +142,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     // ============================================================================================
 
     function _isRewardManager() internal view override returns(bool){
-        return msg.sender == registry || msg.sender == owner()
+        return msg.sender == address(core)
         || msg.sender == IResupplyRegistry(registry).rewardHandler();
     }
 
