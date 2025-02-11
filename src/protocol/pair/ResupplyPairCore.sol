@@ -224,7 +224,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     //get _userCollateralBalance minus redemption tokens
-    function userCollateralBalance(address _account) public returns(uint256 _collateralAmount){
+    function userCollateralBalance(address _account) public nonReentrant returns(uint256 _collateralAmount){
         _syncUserRedemptions(_account);
 
         _collateralAmount = _userCollateralBalance[_account];

@@ -238,7 +238,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice start unlock timing for msg.sender
     function exit() external{
         //clear any previous withdraw queue and restart
-        _clearWithdrawQueue(msg.sender);
+        _clearWithdrawQueueGuarded(msg.sender);
         
         //claim all rewards now because reward0 will be excluded during
         //the withdraw sequence
@@ -257,10 +257,14 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         //canceling will remove claimable emissions
         //but will redistribute those claimable back into the pool
         //thus a portion will go back to msg.sender in accordance with its weight
-        _clearWithdrawQueue(msg.sender);
+        _clearWithdrawQueueGuarded(msg.sender);
     }
 
-    function _clearWithdrawQueue(address _account) internal{
+    function _clearWithdrawQueueGuarded(address _account) internal nonReentrant{
+        _clearWithdrawQueue(_account);
+    }
+
+    function _clearWithdrawQueue(address _account) internal {
         if(withdrawQueue[_account] != 0){
             //checkpoint rewards
             _checkpoint(_account);
