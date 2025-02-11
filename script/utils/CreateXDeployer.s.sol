@@ -129,7 +129,7 @@ abstract contract CreateXDeployer {
 
     function encodeCREATE3Deployment(bytes32 salt, bytes memory initCode) public pure returns (bytes memory) {
         return abi.encodeWithSelector(
-            createXDeployer.deployCreate3.selector,
+            ICreateXDeployer.deployCreate3.selector,
             salt,
             initCode
         );
@@ -137,7 +137,7 @@ abstract contract CreateXDeployer {
 
     function encodeCREATE2Deployment(bytes32 salt, bytes memory initCode) public pure returns (bytes memory) {
         return abi.encodeWithSelector(
-            createXDeployer.deployCreate2.selector,
+            ICreateXDeployer.deployCreate2.selector,
             salt,
             initCode
         );
@@ -146,9 +146,43 @@ abstract contract CreateXDeployer {
 
     function encodeCREATEDeployment(bytes memory initCode) public pure returns (bytes memory) {
         return abi.encodeWithSelector(
-            createXDeployer.deployCreate.selector,
+            ICreateXDeployer.deployCreate.selector,
             initCode
         );
+    }
+
+    function computeCreate3AddressFromSaltPreimage(bytes32 saltPreimage, address deployer, bool enablePermissionedDeploy, bool enableCrossChainProtection) public view returns (address) {
+        if (enablePermissionedDeploy && !enableCrossChainProtection) {
+            return createXFactory.computeCreate3Address(
+                _efficientHash({a: bytes32(uint256(uint160(deployer))), b: saltPreimage})
+            );
+        } else if (enablePermissionedDeploy && enableCrossChainProtection) {
+            return createXFactory.computeCreate3Address(
+                keccak256(abi.encode(msg.sender, block.chainid, saltPreimage))
+            );
+        } else if (!enablePermissionedDeploy && enableCrossChainProtection) {
+            return createXFactory.computeCreate3Address(
+                _efficientHash({a: bytes32(block.chainid), b: saltPreimage})
+            );
+        } else {
+            return createXFactory.computeCreate3Address(keccak256(abi.encode(saltPreimage)));
+        }
+    }
+
+    function computeCreate2AddressFromSaltPreimage(bytes32 saltPreimage, bytes memory initCode) public view returns (address) {
+        return createXFactory.computeCreate2Address(keccak256(abi.encode(saltPreimage)), keccak256(initCode));
+    }
+
+    function isAlreadyDeployedCreate2(bytes32 saltPreimage, bytes memory initCode) public view returns (bool) {
+        return addressHasCode(computeCreate2AddressFromSaltPreimage(saltPreimage, initCode));
+    }
+
+    function isAlreadyDeployedCreate3(bytes32 saltPreimage, address deployer, bool enablePermissionedDeploy, bool enableCrossChainProtection) public view returns (bool) {
+        return addressHasCode(computeCreate3AddressFromSaltPreimage(saltPreimage, deployer, enablePermissionedDeploy, enableCrossChainProtection));
+    }
+
+    function addressHasCode(address addr) public view returns (bool) {
+        return addr.code.length > 0;
     }
 
     /// @notice Creates a salt with embedded settings for deterministic create3 deployment using CreateX
@@ -164,9 +198,43 @@ abstract contract CreateXDeployer {
         uint88 randomness
     ) public pure returns (bytes32) {
         return bytes32(
-            (enablePermissionedDeploy ? bytes32(uint256(uint160(deployer))) : bytes32(0)) << 96 | // 
-            (enableCrossChainProtection ? bytes32(uint256(1)) : bytes32(0)) << 88 | 
-            bytes32(uint256(randomness))
+            (enablePermissionedDeploy ? bytes32(uint256(uint160(deployer))) : bytes32(0)) << 96 | // left 160 bits specify permissioned deployer
+            (enableCrossChainProtection ? bytes32(uint256(1)) : bytes32(0)) << 88 | // byte specifing 0x01 for cross-chain protection; 0x00 for none
+            bytes32(uint256(randomness)) // final 128 bits are randomness
         );
+    }
+
+    function buildRandomSalt() public view returns (bytes32) {
+        return keccak256(
+                abi.encode(
+                    blockhash(block.number - 32),
+                    block.coinbase,
+                    block.number,
+                    block.timestamp,
+                    block.prevrandao,
+                    block.chainid,
+                    msg.sender
+                )
+            );
+    }
+
+    function buildRandom88Bits() public view returns (uint88) {
+        return uint88(uint256(keccak256(abi.encode(
+            blockhash(block.number - 32),
+            block.coinbase,
+            block.number,
+            block.timestamp,
+            block.prevrandao,
+            block.chainid,
+            msg.sender
+        ))));
+    }
+
+    function _efficientHash(bytes32 a, bytes32 b) internal pure returns (bytes32 hash) {
+        assembly ("memory-safe") {
+            mstore(0x00, a)
+            mstore(0x20, b)
+            hash := keccak256(0x00, 0x40)
+        }
     }
 }
