@@ -94,8 +94,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function getUserSnapshot(
         address _address
     ) external returns (uint256 _borrowShares, uint256 _collateralBalance) {
-        _borrowShares = userBorrowShares(_address);
         _collateralBalance = userCollateralBalance(_address);
+        _borrowShares = userBorrowShares(_address);
     }
 
     /// @notice The ```getPairAccounting``` function gets all pair level accounting numbers
@@ -374,9 +374,10 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     }
 
     function _updateConvexPool(uint256 _pid) internal{
-        if(convexPid != _pid){
+        uint256 currentPid = convexPid;
+        if(currentPid != _pid){
             //get previous staking
-            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
             //get balance
             uint256 stakedBalance = IConvexStaking(_rewards).balanceOf(address(this));
             
@@ -397,22 +398,25 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     }
 
     function _stakeUnderlying(uint256 _amount) internal override{
-        if(convexPid != 0){
-            IConvexStaking(convexBooster).deposit(convexPid, _amount, true);
+        uint256 currentPid = convexPid;
+        if(currentPid != 0){
+            IConvexStaking(convexBooster).deposit(currentPid, _amount, true);
         }
     }
 
     function _unstakeUnderlying(uint256 _amount) internal override{
-        if(convexPid != 0){
-            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+        uint256 currentPid = convexPid;
+        if(currentPid != 0){
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
             IConvexStaking(_rewards).withdrawAndUnwrap(_amount, false);
         }
     }
 
     function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
-        if(convexPid != 0){
+        uint256 currentPid = convexPid;
+        if(currentPid != 0){
             //get staking
-            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
             //get balance
             _totalCollateralBalance = IConvexStaking(_rewards).balanceOf(address(this));
         }else{

@@ -246,18 +246,19 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @notice The ```_totalDebtAvailable``` function returns the total amount of debt that can be issued on this pair
     /// @return The amount of debt that can be issued
     function _totalDebtAvailable(VaultAccount memory _totalBorrow) internal view returns (uint256) {
-        
-        uint256 borrowable = borrowLimit > _totalBorrow.amount ? borrowLimit - _totalBorrow.amount : 0;
+        uint256 _borrowLimit = borrowLimit;
+        uint256 borrowable = _borrowLimit > _totalBorrow.amount ? _borrowLimit - _totalBorrow.amount : 0;
 
         return borrowable > type(uint128).max ? type(uint128).max : borrowable; 
     }
 
     function currentUtilization() external view returns (uint256) {
-        if(borrowLimit == 0){
+        uint256 _borrowLimit = borrowLimit;
+        if(_borrowLimit == 0){
             return PAIR_DECIMALS;
         }
         (,,, VaultAccount memory _totalBorrow) = previewAddInterest();
-        return _totalBorrow.amount * PAIR_DECIMALS / borrowLimit;
+        return _totalBorrow.amount * PAIR_DECIMALS / _borrowLimit;
     }
 
     /// @notice The ```_isSolvent``` function determines if a given borrower is solvent given an exchange rate
@@ -265,7 +266,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _exchangeRate The exchange rate, i.e. the amount of collateral to buy 1e18 asset
     /// @return Whether borrower is solvent
     function _isSolvent(address _borrower, uint256 _exchangeRate) internal view returns (bool) {
-        if (maxLTV == 0) return true;
+        uint256 _maxLTV = maxLTV;
+        if (_maxLTV == 0) return true;
         //must look at borrow shares of current epoch so user helper function
         //user borrow shares should be synced before _isSolvent is called
         uint256 _borrowerAmount = totalBorrow.toAmount(_userBorrowShares[_borrower], true);
@@ -276,7 +278,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (_collateralAmount == 0) return false;
 
         uint256 _ltv = (((_borrowerAmount * _exchangeRate) / EXCHANGE_PRECISION) * LTV_PRECISION) / _collateralAmount;
-        return _ltv <= maxLTV;
+        return _ltv <= _maxLTV;
     }
 
     function _isSolventSync(address _borrower, uint256 _exchangeRate) internal returns (bool){
@@ -297,11 +299,11 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _;
         ExchangeRateInfo memory _exchangeRateInfo = exchangeRateInfo;
 
-        if (!_isSolvent(_borrower, exchangeRateInfo.exchangeRate)) {
+        if (!_isSolvent(_borrower, _exchangeRateInfo.exchangeRate)) {
             revert Insolvent(
                 totalBorrow.toAmount(_userBorrowShares[_borrower], true),
                 _userCollateralBalance[_borrower], //_issolvent sync'd so take base _userCollateral
-                exchangeRateInfo.exchangeRate
+                _exchangeRateInfo.exchangeRate
             );
         }
     }
@@ -423,7 +425,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     {
         _newCurrentRateInfo = currentRateInfo;
         _newCurrentRateInfo.lastTimestamp = uint64(block.timestamp);
-        
+
         // Write return values
         InterestCalculationResults memory _results = _calculateInterest(_newCurrentRateInfo);
 
@@ -607,7 +609,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         claimable_reward[address(redemptionWriteOff)][_account] = 0;
 
         //remove from collateral balance the number of rtokens the user has
-        _userCollateralBalance[_account] = _userCollateralBalance[_account] >= rTokens ? _userCollateralBalance[_account] - rTokens : 0;
+        uint256 currentUserBalance = _userCollateralBalance[_account];
+        _userCollateralBalance[_account] = currentUserBalance >= rTokens ? currentUserBalance - rTokens : 0;
     }
 
     /// @notice The ```Borrow``` event is emitted when a borrower increases their position
@@ -844,10 +847,11 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         _totalBorrow.shares -= _shares;
 
         // Effects: write user state
-        _userBorrowShares[_borrower] -= _shares;
+        uint256 usershares = _userBorrowShares[_borrower] - _shares;
+        _userBorrowShares[_borrower] = usershares;
     
         //check that any remaining user amount is greater than minimumBorrowAmount
-        if(_userBorrowShares[_borrower] > 0 && _totalBorrow.toAmount(_userBorrowShares[_borrower], true) < minimumBorrowAmount){
+        if(usershares > 0 && _totalBorrow.toAmount(usershares, true) < minimumBorrowAmount){
             revert InsufficientBorrowAmount();
         }
 
@@ -1198,12 +1202,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
 
         // Effects: bookkeeping & write to state
-        // Debit users collateral balance in preparation for swap, setting _recipient to address(this) means no transfer occurs
+        // Debit users collateral balance and sends directly to the swapper
         // NOTE: isSolvent checkpoints msg.sender with _syncUserRedemptions
-        _removeCollateral(_collateralToSwap, address(this), msg.sender);
-
-        // send directly to swapper
-        _collateral.safeTransfer(_swapperAddress, _collateralToSwap);
+        _removeCollateral(_collateralToSwap, _swapperAddress, msg.sender);
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
@@ -1225,9 +1226,10 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _sharesToRepay = _totalBorrow.toShares(_amountOut, false);
 
         //check if over user borrow shares or will revert
-        if(_sharesToRepay > _userBorrowShares[msg.sender]){
+        uint256 currentUserBorrowShares = _userBorrowShares[msg.sender];
+        if(_sharesToRepay > currentUserBorrowShares){
             //clamp
-            _sharesToRepay = _userBorrowShares[msg.sender];
+            _sharesToRepay = currentUserBorrowShares;
 
             //readjust token amount since shares changed
             _amountOut = _totalBorrow.toAmount(_sharesToRepay, true);
