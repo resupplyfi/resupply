@@ -113,9 +113,9 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```_deploy``` function is an internal function with deploys the pair
-    /// @param _configData abi.encode(address _asset, address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
-    /// @param _immutables abi.encode(address _circuitBreakerAddress, address _comptrollerAddress, address _timelockAddress)
-    /// @param _customConfigData abi.encode(string memory _nameOfContract, string memory _symbolOfContract, uint8 _decimalsOfContract)
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _immutables abi.encode(address _registry)
+    /// @param _customConfigData abi.encode(string memory _nameOfContract, address _govToken, address _underlyingStaking, uint256 _stakingId)
     /// @return _pairAddress The address to which the Pair was deployed
     function _deploy(
         bytes memory _configData,

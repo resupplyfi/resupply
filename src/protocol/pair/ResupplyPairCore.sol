@@ -818,7 +818,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         IERC4626(address(collateral)).redeem(_collateralAmount, _receiver, address(this));
     }
 
-    /// @notice The ```RepayAsset``` event is emitted whenever a debt position is repaid
+    /// @notice The ```Repay``` event is emitted whenever a debt position is repaid
     /// @param payer The address paying for the repayment
     /// @param borrower The borrower whose account will be credited
     /// @param amountToRepay The amount of Asset token to be transferred
@@ -867,11 +867,11 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         emit Repay(_payer, _borrower, _amountToRepay, _shares);
     }
 
-    /// @notice The ```repayAsset``` function allows the caller to pay down the debt for a given borrower.
+    /// @notice The ```repay``` function allows the caller to pay down the debt for a given borrower.
     /// @dev Caller must first invoke ```ERC20.approve()``` for the Asset Token contract
     /// @param _shares The number of Borrow Shares which will be repaid by the call
     /// @param _borrower The account for which the debt will be reduced
-    /// @return _amountToRepay The amount of Asset Tokens which were transferred in order to repay the Borrow Shares
+    /// @return _amountToRepay The amount of Asset Tokens which were burned to repay the Borrow Shares
     function repay(uint256 _shares, address _borrower) external nonReentrant returns (uint256 _amountToRepay) {
         if (_borrower == address(0)) revert InvalidReceiver();
 
@@ -1237,7 +1237,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         
 
         // Effects: write to state
-        // Note: setting _payer to address(this) means no actual transfer will occur.  Contract already has funds
         _repay(_totalBorrow, _amountOut.toUint128(), _sharesToRepay.toUint128(), address(this), msg.sender);
 
         //check for leftover stables that didnt go toward repaying debt

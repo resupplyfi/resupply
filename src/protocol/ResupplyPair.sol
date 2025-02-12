@@ -162,7 +162,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     // ============================================================================================
 
 
-    /// @notice The ```SetOracleInfo``` event is emitted when the oracle info (address and max deviation) is set
+    /// @notice The ```SetOracleInfo``` event is emitted when the oracle info is set
     /// @param oldOracle The old oracle address
     /// @param newOracle The new oracle address
     event SetOracleInfo(

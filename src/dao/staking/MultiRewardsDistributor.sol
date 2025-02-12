@@ -305,7 +305,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @notice Total reward that will be paid out over the reward duration.
      * @dev These values are only updated when notifying, adding, or adjust duration of rewards.
      * @param _rewardsToken Reward token to check.
-     * @return Total reward token remaining to be paid out.
+     * @return Total reward tokens paid out over the reward duration.
      */
     function getRewardForDuration(address _rewardsToken) external view returns (uint256) {
         return rewardData[_rewardsToken].rewardRate * rewardData[_rewardsToken].rewardsDuration;

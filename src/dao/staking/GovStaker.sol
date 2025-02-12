@@ -111,7 +111,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     /**
         @notice Request a cooldown tokens from the contract.
-        @dev During partial unstake, this will always remove from the least-weighted first.
     */
     function cooldown(address _account, uint _amount) external callerOrDelegated(_account) returns (uint) {
         uint systemEpoch = getEpoch();
