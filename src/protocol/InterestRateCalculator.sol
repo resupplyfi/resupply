@@ -22,6 +22,8 @@ contract InterestRateCalculator is IRateCalculator {
 
     /// @notice The ```constructor``` function
     /// @param _suffix The suffix of the contract name
+    /// @param _minimumRate Floor rate applied during rate calculation
+    /// @param _rateRatio Divisor amount by which both the underlying APR and sFRXUSD rate are adjusted by during rate calculation
     constructor(
         string memory _suffix,
         uint256 _minimumRate,
@@ -63,8 +65,11 @@ contract InterestRateCalculator is IRateCalculator {
     }
 
     /// @notice The ```getNewRate``` function calculates interest rates using underlying rates and minimums
+    /// @param _vault The vault to calculate the rate for
     /// @param _deltaTime The elapsed time since last update, given in seconds
+    /// @param _previousShares The number of shares at the previous timestamp, 18 decimals of precision
     /// @return _newRatePerSec The new interest rate, 18 decimals of precision
+    /// @return _newShares The new number of shares, 18 decimals of precision
     function getNewRate(
         address _vault,
         uint256 _deltaTime,

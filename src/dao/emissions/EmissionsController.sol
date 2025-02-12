@@ -311,6 +311,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
      * @notice Sets the emissions schedule and epochs per schedule item
      * @param _rates An array of inflation rates expressed as annual pct of total supply (100% = 1e18)
      * @param _epochsPer Number of epochs each schedule item lasts
+     * @param _tailRate Final emission rate to persist after full schedule is exhausted
      * @dev Rates must be in reverse order. Last item will be used first. No rate can be greater than the previous rate.
      * @dev All updates take effect in the epoch following the epoch in which the call is made.
      */

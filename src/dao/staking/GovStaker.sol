@@ -63,9 +63,10 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /* ========== CONSTRUCTOR ========== */
 
     /**
-        @param _core            The Core protocol contract address.
-        @param _token           The token to be staked.
-        @param _cooldownEpochs  The number of epochs to cooldown for.
+        @param _core            Core contract address.
+        @param _registry        ResupplyRegistry contract address.
+        @param _token           Token to be staked.
+        @param _cooldownEpochs  Number of epochs to cooldown for.
     */
     constructor(
         address _core,
@@ -77,7 +78,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         _stakeToken = _token;
         cooldownEpochs = _cooldownEpochs;
         registry = IResupplyRegistry(_registry);
-
         emit CooldownEpochsUpdated(_cooldownEpochs);
     }
 

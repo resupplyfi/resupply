@@ -37,6 +37,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     error FeesAlreadyDistributed();
     error IncorrectStakeBalance();
 
+    /// @param _core Core contract address
     /// @param _configData config data
     /// @param _immutables immutable data
     /// @param _customConfigData extras
@@ -202,6 +203,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setRateCalculator``` function sets the rate contract address
     /// @param _newRateCalculator The new rate contract address
+    /// @param _updateInterest Whether to update interest before setting new rate calculator
     function setRateCalculator(address _newRateCalculator, bool _updateInterest) external onlyOwner{
         //should add interest before changing rate calculator
         //however if there is an intrinsic problem with the current rate calculate, need to be able
