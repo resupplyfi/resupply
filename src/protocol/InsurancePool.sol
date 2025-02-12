@@ -46,6 +46,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event Cooldown(address indexed account, uint256 amount, uint256 end);
+    event ExitCancel(address indexed account);
     event WithdrawTimersUpdated(uint256 withdrawTime, uint256 withdrawWindow);
     event MinimumHeldAssetsUpdated(uint256 minimumAssets);
 
@@ -261,6 +262,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         //but will redistribute those claimable back into the pool
         //thus a portion will go back to msg.sender in accordance with its weight
         _clearWithdrawQueueGuarded(msg.sender);
+        emit ExitCancel(msg.sender);
     }
 
     function _clearWithdrawQueueGuarded(address _account) internal nonReentrant{

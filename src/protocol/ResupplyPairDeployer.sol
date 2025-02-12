@@ -53,6 +53,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         govToken = _govToken;
         operators[_initialoperator] = true;
         operators[_core] = true;
+        emit SetOperator(_core, true);
         emit SetOperator(_initialoperator, true);
     }
 

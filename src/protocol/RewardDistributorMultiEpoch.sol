@@ -117,6 +117,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
             if(reward.reward_token == address(0)){
                 //revive
                 reward.reward_token = _token;
+                emit RewardAdded(_token);
             }
         }
     }

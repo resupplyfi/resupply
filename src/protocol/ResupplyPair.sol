@@ -63,6 +63,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             //add rewards for curve staking
             _insertRewardToken(CRV);
             _insertRewardToken(CVX);
+
+            emit SetConvexPool(_convexpid);
         }
     }
 

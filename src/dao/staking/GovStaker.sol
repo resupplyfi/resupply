@@ -77,6 +77,8 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         _stakeToken = _token;
         cooldownEpochs = _cooldownEpochs;
         registry = IResupplyRegistry(_registry);
+
+        emit CooldownEpochsUpdated(_cooldownEpochs);
     }
 
     function stake(uint _amount) external returns (uint) {
