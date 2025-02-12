@@ -97,6 +97,7 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
             //set map index after push (mapped value is +1 of real index)
             rewardMap[_token] = rewards.length;
 
+            emit RewardAdded(_token);
             //workaround: transfer 0 to self so that earned() reports correctly
             //with new tokens
             if(_token.code.length > 0){
@@ -105,8 +106,6 @@ abstract contract RewardDistributorMultiEpoch is ReentrancyGuard{
                 //non contract address added? invalidate
                 _invalidateReward(_token);
             }
-
-            emit RewardAdded(_token);
         }else{
             //get previous used index of given token
             //this ensures that reviving can only be done on the previous used slot
