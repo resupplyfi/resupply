@@ -4,9 +4,10 @@
     import {Script} from "lib/forge-std/src/Script.sol";
     import {console} from "lib/forge-std/src/console.sol";
     import {BatchScript} from "lib/forge-safe/src/BatchScript.sol";
+    import {Test} from "lib/forge-std/src/Test.sol";
 
     // All helper functions take care of setting the values in both local environment + fork environment.
-    contract TenderlyHelper is BatchScript {
+    contract TenderlyHelper is Test {
         string public URL = vm.envString("TENDERLY_URL");
 
         function skipTime(uint256 _seconds) public {
@@ -23,10 +24,12 @@
         }
 
         function setTokenBalance(address token, address user, uint256 amount) public {
+            deal(token, user, amount);
             sendCurlRequest("tenderly_setErc20Balance", vm.toString(token), vm.toString(user), toHexString(amount));
         }
 
         function setEthBalance(address user, uint256 amount) public {
+            deal(user, amount);
             sendCurlRequest("tenderly_setBalance", vm.toString(user), toHexString(amount));
         }
 
