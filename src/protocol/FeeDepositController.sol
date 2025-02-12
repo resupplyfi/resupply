@@ -46,7 +46,7 @@ contract FeeDepositController is CoreOwnable{
         splits.insurance = uint80(_insuranceSplit);
         splits.treasury = uint80(_treasurySplit);
         splits.platform = uint80(BPS - splits.insurance - splits.treasury);
-        emit SplitsSet(splits.insurance, splits.treasury, splits.platform);
+        emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), splits.platform);
     }
 
     function distribute() external{
@@ -83,7 +83,7 @@ contract FeeDepositController is CoreOwnable{
         splits.insurance = uint80(_insuranceSplit);
         splits.treasury = uint80(_treasurySplit);
         splits.platform = uint80(_platformSplit);
-        emit SplitsSet(splits.insurance, splits.treasury, splits.platform);
+        emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), uint80(_platformSplit));
     }
 
     

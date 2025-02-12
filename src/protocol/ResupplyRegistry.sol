@@ -190,7 +190,8 @@ contract ResupplyRegistry is CoreOwnable{
 
     function getAllAddresses() external view returns (address[] memory) {
         address[] memory addresses = new address[](keys.length);
-        for (uint i = 0; i < keys.length; i++) {
+        uint256 len = keys.length;
+        for (uint i = 0; i < len; i++) {
             addresses[i] = keyToAddress[keys[i]];
         }
         return addresses;

@@ -179,7 +179,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function maxBurnableAssets() public view returns(uint256){
-        return totalAssets() > minimumHeldAssets ? totalAssets() - minimumHeldAssets : 0;
+        uint256 minimumHeld = minimumHeldAssets;
+        return totalAssets() > minimumHeld ? totalAssets() - minimumHeld : 0;
     }
 
     /// @notice burn underlying, liquidationHandler will send rewards in exchange
@@ -191,9 +192,11 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         IMintable(asset).burn(address(this), _amount);
 
         //if after many burns the amount to shares ratio has deteriorated too far, then refactor
-        if(totalAssets() * SHARE_REFACTOR_PRECISION < _totalSupply){
+        uint256 tsupply = _totalSupply;
+        if(totalAssets() * SHARE_REFACTOR_PRECISION < tsupply){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply
-            _totalSupply /= SHARE_REFACTOR_PRECISION;
+            tsupply /= SHARE_REFACTOR_PRECISION;
+            _totalSupply = tsupply;
         }
     }
 
@@ -270,10 +273,11 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
             _checkpoint(_account);
             //get reward 0 info
             RewardType storage reward = rewards[0];
+            address rewardToken = reward.reward_token;
             //note how much is claimable
-            uint256 reward0 = claimable_reward[reward.reward_token][_account];
+            uint256 reward0 = claimable_reward[rewardToken][_account];
             //reset claimable
-            claimable_reward[reward.reward_token][_account] = 0;
+            claimable_reward[rewardToken][_account] = 0;
             //redistribute back to pool
             reward.reward_remaining -= reward0;
 

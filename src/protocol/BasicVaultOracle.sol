@@ -9,7 +9,7 @@ contract BasicVaultOracle {
     // Config Data
     uint8 internal constant DECIMALS = 18;
     string public name;
-    uint256 public oracleType = 1;
+    uint256 public constant oracleType = 1;
 
     constructor(
         string memory _name

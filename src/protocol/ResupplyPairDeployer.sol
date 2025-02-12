@@ -123,8 +123,9 @@ contract ResupplyPairDeployer is CoreOwnable {
     ) private returns (address _pairAddress) {
         // Get creation code
         bytes memory _creationCode = SSTORE2.read(contractAddress1);
-        if (contractAddress2 != address(0)) {
-            _creationCode = BytesLib.concat(_creationCode, SSTORE2.read(contractAddress2));
+        address _contractAddress2 = contractAddress2;
+        if (_contractAddress2 != address(0)) {
+            _creationCode = BytesLib.concat(_creationCode, SSTORE2.read(_contractAddress2));
         }
 
         // Get bytecode

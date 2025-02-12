@@ -211,7 +211,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         _voteForProposal(account, id, pctYes, pctNo);
     }
 
-    function _voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) internal callerOrDelegated(account) {
+    function _voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) internal {
         require(id < proposalData.length, "Invalid ID");
         Vote memory vote = accountVoteWeights[account][id];
         require(vote.weightYes + vote.weightNo == 0, "Already voted");

@@ -28,7 +28,7 @@ contract GovToken is OFT {
       Ownable(_core) {
         INITIAL_SUPPLY = _initialSupply;
         _mint(_vesting, _initialSupply);
-        globalSupply += _initialSupply;
+        globalSupply = _initialSupply;
     }
 
     function core() external returns(address){

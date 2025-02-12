@@ -46,8 +46,9 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
 
         lastDistributedEpoch = currentEpoch;
         uint256 amount = IERC20(feeToken).balanceOf(address(this));
-        IERC20(feeToken).safeTransfer(operator, amount);
-        emit FeesDistributed(operator,amount);
+        address _operator = operator;
+        IERC20(feeToken).safeTransfer(_operator, amount);
+        emit FeesDistributed(_operator,amount);
     }
 
     function incrementPairRevenue(uint256 _fees, uint256 _otherFees) external{

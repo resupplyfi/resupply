@@ -77,20 +77,27 @@ contract RedemptionHandler is CoreOwnable{
         //check against maxfee to avoid frontrun
         require(feePct <= _maxFeePct, "fee > maxFee");
 
+        address returnToAddress = address(this);
+        if(!_redeemToUnderlying){
+            //if directly redeeming lending collateral, send directly to receiver
+            returnToAddress = _receiver;
+        }
         (address _collateral, uint256 _returnedCollateral) = IResupplyPair(_pair).redeemCollateral(
             msg.sender,
             _amount,
             feePct,
-            address(this)
+            returnToAddress
         );
 
         IMintable(debtToken).burn(msg.sender, _amount);
 
         //withdraw to underlying
+        //if false receiver will have already received during redeemCollateral()
+        //unwrap only if true
         if(_redeemToUnderlying){
             return IERC4626(_collateral).redeem(_returnedCollateral, _receiver, address(this));
         }
-        IERC20(_collateral).safeTransfer(_receiver, _returnedCollateral);
+        
         return _returnedCollateral;
     }
 
