@@ -135,7 +135,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             ReceiverInfo memory receiver = idToReceiver[_receiverIds[i]];
             require(receiver.receiver != address(0), "Invalid receiver");
             if (_newWeights[i] > 0) require(receiver.active, "Receiver not active");
-            for (uint256 j; j < receivers.length; ++j) {
+            for (uint256 j; j < i; ++j) {
                 require(receivers[j] != receiver.receiver, "Duplicate receiver id");
             }
             receivers[i] = receiver.receiver;
@@ -304,7 +304,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         if (_receiver == address(0)) return false;
         uint256 id = receiverToId[_receiver];
         if (id == 0) return idToReceiver[0].receiver == _receiver;
-        return id != 0;
+        return true;
     }
 
     /**
