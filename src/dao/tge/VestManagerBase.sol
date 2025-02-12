@@ -8,7 +8,7 @@ import { IVestClaimCallback } from 'src/interfaces/IVestClaimCallback.sol';
 
 contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable VEST_GLOBAL_START_TIME;
-    IERC20 public token;
+    IERC20 public immutable token;
 
     mapping(address => Vest[]) public userVests;
     mapping(address => ClaimSettings) public claimSettings;

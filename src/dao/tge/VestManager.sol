@@ -106,10 +106,11 @@ contract VestManager is VestManagerBase {
         }
 
         // Set the redemption ratio to be used for all PRISMA/yPRISMA/cvxPRISMA redemptions
-        redemptionRatio = (
+        uint256 _redemptionRatio = (
             allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable
         );
-        require(redemptionRatio != 0, "ratio is 0");
+        redemptionRatio = _redemptionRatio;
+        require(_redemptionRatio != 0, "ratio is 0");
         require(totalPctAllocated == PRECISION, "Total not 100%");
         emit InitializationParamsSet();
     }

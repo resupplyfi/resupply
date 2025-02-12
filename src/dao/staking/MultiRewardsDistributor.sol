@@ -51,13 +51,15 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     /* ========== MODIFIERS ========== */
 
     modifier updateReward(address _account) {
-        for (uint256 i; i < rewardTokens.length; ++i) {
+        uint256 length = rewardTokens.length;
+        for (uint256 i; i < length; ++i) {
             address token = rewardTokens[i];
-            rewardData[token].rewardPerTokenStored = rewardPerToken(token);
+            uint256 rewardPerToken = rewardPerToken(token);
+            rewardData[token].rewardPerTokenStored = rewardPerToken;
             rewardData[token].lastUpdateTime = lastTimeRewardApplicable(token);
             if (_account != address(0)) {
                 rewards[_account][token] = earned(_account, token);
-                userRewardPerTokenPaid[_account][token] = rewardData[token].rewardPerTokenStored;
+                userRewardPerTokenPaid[_account][token] = rewardPerToken;
             }
         }
         _;
@@ -183,9 +185,8 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @param _rewardsDuration New length of period in seconds.
      */
     function setRewardsDuration(address _rewardsToken, uint256 _rewardsDuration) external {
-        Reward memory _rewardData = rewardData[_rewardsToken];
-        if (block.timestamp <= _rewardData.periodFinish) revert RewardsStillActive();
-        if (_rewardData.rewardsDistributor != msg.sender) revert Unauthorized();
+        if (block.timestamp <= rewardData[_rewardsToken].periodFinish) revert RewardsStillActive();
+        if (rewardData[_rewardsToken].rewardsDistributor != msg.sender) revert Unauthorized();
         if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
 
         rewardData[_rewardsToken].rewardsDuration = _rewardsDuration;
@@ -224,7 +225,8 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
 
     // internal function to get rewards.
     function _getRewardFor(address _recipient) internal {
-        for (uint256 i; i < rewardTokens.length; ++i) {
+        uint256 length = rewardTokens.length;
+        for (uint256 i; i < length; ++i) {
             address _rewardsToken = rewardTokens[i];
             uint256 reward = rewards[_recipient][_rewardsToken];
             if (reward > 0) {
@@ -281,7 +283,8 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @return rewardAmount Reward paid out per whole token.
      */
     function rewardPerToken(address _rewardsToken) public view returns (uint256 rewardAmount) {
-        if (totalSupply() == 0) {
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
             return rewardData[_rewardsToken].rewardPerTokenStored;
         }
 
@@ -289,7 +292,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
             rewardData[_rewardsToken].rewardPerTokenStored +
             (((lastTimeRewardApplicable(_rewardsToken) - rewardData[_rewardsToken].lastUpdateTime) *
                 rewardData[_rewardsToken].rewardRate *
-                PRECISION) / totalSupply());
+                PRECISION) / _totalSupply);
     }
 
     function lastTimeRewardApplicable(address _rewardsToken) public view returns (uint256) {
