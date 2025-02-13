@@ -253,7 +253,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     }
 
     // @dev: inspects a payload to check if any actions contain a proposal canceler
-    //       requires any proposal modifying cancel permissions to be the only action in the payload
     function _containsProposalCancelerPayload(Action[] memory payload) internal view returns (bool) {
         uint256 payloadLength = payload.length;
         for (uint256 i = 0; i < payloadLength; i++) {
@@ -264,12 +263,14 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 selector := mload(add(data, 32))
             }
             if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
-                // 62 bytes is the minimum length of a properly formed action which grants or revokes proposal canceler permissions
-                if (data.length < 62) return false;
+                // 164 bytes is the length of a properly formed action which sets operator permissions on Core
+                if (data.length < 164) return false;
                 // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
                 bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
-                return ((target == address(this) || target == address(0)) && permissionSelector == this.cancelProposal.selector);
+                if (permissionSelector != this.cancelProposal.selector) continue;
+                if (target != address(this) && target != address(0)) continue;
+                return true;
             }
         }
         return false;

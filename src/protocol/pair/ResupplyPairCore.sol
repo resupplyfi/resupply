@@ -117,6 +117,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // ============================================================================================
 
     /// @notice The ```constructor``` function is called on deployment
+    /// @param _core Core contract address
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _borrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
     /// @param _immutables abi.encode(address _registry)
     /// @param _customConfigData abi.encode(address _name, address _govToken, address _underlyingStaking, uint256 _stakingId)
@@ -244,6 +245,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```_totalDebtAvailable``` function returns the total amount of debt that can be issued on this pair
+    /// @param _totalBorrow Total borrowed amount, inclusive of interest
     /// @return The amount of debt that can be issued
     function _totalDebtAvailable(VaultAccount memory _totalBorrow) internal view returns (uint256) {
         uint256 _borrowLimit = borrowLimit;
@@ -385,6 +387,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     );
 
     /// @notice The ```addInterest``` function is a public implementation of _addInterest and allows 3rd parties to trigger interest accrual
+    /// @param _returnAccounting Whether to return additional accounting data
     /// @return _interestEarned The amount of interest accrued by all borrowers
     /// @return _currentRateInfo The new rate info struct
     /// @return _claimableFees The new total of fees that are claimable
@@ -618,6 +621,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _receiver The address to which the Asset Tokens were transferred
     /// @param _borrowAmount The amount of Asset Tokens transferred
     /// @param _sharesAdded The number of Borrow Shares the borrower was debited
+    /// @param _mintFees The amount of mint fees incurred
     event Borrow(
         address indexed _borrower,
         address indexed _receiver,
@@ -899,6 +903,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
     /// @notice Allows redemption of the debt tokens for collateral
     /// @dev Only callable by the registry's redeemer contract
+    /// @param _caller The address of the caller
     /// @param _amount The amount of debt tokens to redeem
     /// @param _totalFeePct Total fee to charge, expressed as a percentage of the stablecoin input; to be subdivided between protocol and borrowers.
     /// @param _receiver The address to receive the collateral tokens
@@ -973,7 +978,9 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     // ============================================================================================
     /// @notice The ```Liquidate``` event is emitted when a liquidation occurs
     /// @param _borrower The borrower account for which the liquidation occurred
-    /// @param _collateralForLiquidator The amount of Collateral Token transferred to the liquidator
+    /// @param _collateralForLiquidator The amount of collateral token transferred to the liquidator
+    /// @param _sharesLiquidated The number of borrow shares liquidated
+    /// @param _amountLiquidatorToRepay The amount of asset tokens to be repaid by the liquidator
     event Liquidate(
         address indexed _borrower,
         uint256 _collateralForLiquidator,

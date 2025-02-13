@@ -236,8 +236,11 @@ contract PairTest is PairTestBase {
         uint256 borrowAmount = 10_000e18;
         uint256 startLimit = pair.borrowLimit();
         assertGt(startLimit, 0);
-        vm.prank(pair.owner());
+        vm.startPrank(pair.owner());
+        pair.unpause();
+        assertGt(pair.borrowLimit(), 0); // ensure unpausing doesn't set to 0
         pair.pause();
+        vm.stopPrank();
         assertEq(pair.borrowLimit(), 0);
         vm.expectRevert(
             abi.encodeWithSelector(ResupplyPairConstants.InsufficientDebtAvailable.selector, 0, borrowAmount)

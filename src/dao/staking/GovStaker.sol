@@ -63,9 +63,10 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     /* ========== CONSTRUCTOR ========== */
 
     /**
-        @param _core            The Core protocol contract address.
-        @param _token           The token to be staked.
-        @param _cooldownEpochs  The number of epochs to cooldown for.
+        @param _core            Core contract address.
+        @param _registry        ResupplyRegistry contract address.
+        @param _token           Token to be staked.
+        @param _cooldownEpochs  Number of epochs to cooldown for.
     */
     constructor(
         address _core,
@@ -77,7 +78,6 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         _stakeToken = _token;
         cooldownEpochs = _cooldownEpochs;
         registry = IResupplyRegistry(_registry);
-
         emit CooldownEpochsUpdated(_cooldownEpochs);
     }
 
@@ -418,12 +418,13 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         uint systemEpoch = getEpoch();
         (AccountData memory acctData, ) = _checkpointAccount(msg.sender, systemEpoch);
         require(acctData.isPermaStaker, "not perma staker account");
-        _cooldown(msg.sender, acctData.realizedStake, acctData, systemEpoch); // triggers updateReward
-        amount = _unstake(msg.sender, address(this));
-        _getRewardFor(msg.sender);
-
-        IERC20(_stakeToken).approve(address(staker), amount);
-        staker.stake(msg.sender, amount);
+        if (acctData.realizedStake > 0) {
+            _cooldown(msg.sender, acctData.realizedStake, acctData, systemEpoch); // triggers updateReward
+            amount = _unstake(msg.sender, address(this));
+            _getRewardFor(msg.sender);
+            IERC20(_stakeToken).approve(address(staker), amount);
+            staker.stake(msg.sender, amount);
+        }
         staker.onPermaStakeMigrate(msg.sender);
         return amount;
     }

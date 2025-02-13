@@ -204,6 +204,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice deposit assets into the insurance pool
     /// @param _assets the amount of tokens to deposit
     /// @param _receiver the receiving address
+    /// @return shares amount of shares minted
     function deposit(uint256 _assets, address _receiver) external nonReentrant returns (uint256 shares){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
@@ -223,6 +224,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice mint shares
     /// @param _shares the amount of shares to mint
     /// @param _receiver the receving address
+    /// @return assets amount of assets minted
     function mint(uint256 _shares, address _receiver) external nonReentrant returns (uint256 assets){
         //can not deposit if in withdraw queue, call cancel first
         require(withdrawQueue[_receiver] == 0,"withdraw queued");
@@ -316,6 +318,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice withdraw underlying assets
     /// @param _amount amount of underlying assets to withdraw
     /// @param _receiver the receiving address
+    /// @return shares amount of shares burned
     function withdraw(uint256 _amount, address _receiver, address _owner) public nonReentrant returns(uint256 shares){
         require(msg.sender == _owner);
 

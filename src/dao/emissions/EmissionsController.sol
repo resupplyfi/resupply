@@ -135,7 +135,7 @@ contract EmissionsController is CoreOwnable, EpochTracker {
             ReceiverInfo memory receiver = idToReceiver[_receiverIds[i]];
             require(receiver.receiver != address(0), "Invalid receiver");
             if (_newWeights[i] > 0) require(receiver.active, "Receiver not active");
-            for (uint256 j; j < receivers.length; ++j) {
+            for (uint256 j; j < i; ++j) {
                 require(receivers[j] != receiver.receiver, "Duplicate receiver id");
             }
             receivers[i] = receiver.receiver;
@@ -304,13 +304,14 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         if (_receiver == address(0)) return false;
         uint256 id = receiverToId[_receiver];
         if (id == 0) return idToReceiver[0].receiver == _receiver;
-        return id != 0;
+        return true;
     }
 
     /**
      * @notice Sets the emissions schedule and epochs per schedule item
      * @param _rates An array of inflation rates expressed as annual pct of total supply (100% = 1e18)
      * @param _epochsPer Number of epochs each schedule item lasts
+     * @param _tailRate Final emission rate to persist after full schedule is exhausted
      * @dev Rates must be in reverse order. Last item will be used first. No rate can be greater than the previous rate.
      * @dev All updates take effect in the epoch following the epoch in which the call is made.
      */

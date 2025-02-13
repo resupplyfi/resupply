@@ -8,7 +8,7 @@ import { IVestClaimCallback } from 'src/interfaces/IVestClaimCallback.sol';
 
 contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable VEST_GLOBAL_START_TIME;
-    IERC20 public token;
+    IERC20 public immutable token;
 
     mapping(address => Vest[]) public userVests;
     mapping(address => ClaimSettings) public claimSettings;
@@ -180,7 +180,8 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         _total = vest.amount;
         _claimable = vested - vest.claimed;
         _claimed = vest.claimed;
-        _timeRemaining = vest.duration - (block.timestamp - VEST_GLOBAL_START_TIME);
+        uint256 elapsed = block.timestamp - VEST_GLOBAL_START_TIME;
+        _timeRemaining = elapsed > vest.duration ? 0 : vest.duration - elapsed;
     }
 
     function _claimableAmount(Vest storage vest) internal view returns (uint112) {

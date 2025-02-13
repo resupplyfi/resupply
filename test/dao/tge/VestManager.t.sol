@@ -456,6 +456,15 @@ contract VestManagerHarness is Setup {
         vestManager.claimWithCallback(address(this), address(this));
     }
 
+    function test_GetAggregateVestData() public {
+        createVest(100_000e18);
+        createVest(200_000e18);
+        createVest(300_000e18);
+        skip(10 * 365 days);
+        (uint256 total, uint256 claimable, uint256 claimed) = vestManager.getAggregateVestData(address(this));
+        assertEq(total, 600_000e18 * vestManager.redemptionRatio() / 1e18);
+    }
+
     function createVest(uint256 amount) public {
         address prisma = address(vestManager.prisma());
         deal(prisma, address(this), amount);
