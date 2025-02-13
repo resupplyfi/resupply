@@ -11,7 +11,6 @@ contract InterestRateCalculator is IRateCalculator {
     using Strings for uint256;
 
     address public constant sfrax = address(0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32);
-    uint256 public constant REWARDS_CYCLE_LENGTH = 604800;
 
     /// @notice The name suffix for the interest rate calculator
     string public suffix;
