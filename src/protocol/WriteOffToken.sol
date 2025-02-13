@@ -16,8 +16,6 @@ contract WriteOffToken {
     address public immutable owner;
     uint256 public totalSupply;
 
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
     constructor(address _owner)
     {
         owner = _owner;
@@ -26,12 +24,11 @@ contract WriteOffToken {
     function mint(uint256 _amount) external{
         if(msg.sender == owner){
             totalSupply += _amount;
-            emit Transfer(address(0), owner, _amount);
         }
     }
 
     function transfer(address to, uint256 amount) external returns (bool){
-        //do nothing
+        return true;
     }
 
     function balanceOf(address) external view returns (uint256){
