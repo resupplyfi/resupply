@@ -253,7 +253,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     }
 
     // @dev: inspects a payload to check if any actions contain a proposal canceler
-    //       requires any proposal modifying cancel permissions to be the only action in the payload
     function _containsProposalCancelerPayload(Action[] memory payload) internal view returns (bool) {
         uint256 payloadLength = payload.length;
         for (uint256 i = 0; i < payloadLength; i++) {
