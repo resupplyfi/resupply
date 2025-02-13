@@ -418,12 +418,13 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
         uint systemEpoch = getEpoch();
         (AccountData memory acctData, ) = _checkpointAccount(msg.sender, systemEpoch);
         require(acctData.isPermaStaker, "not perma staker account");
-        _cooldown(msg.sender, acctData.realizedStake, acctData, systemEpoch); // triggers updateReward
-        amount = _unstake(msg.sender, address(this));
-        _getRewardFor(msg.sender);
-
-        IERC20(_stakeToken).approve(address(staker), amount);
-        staker.stake(msg.sender, amount);
+        if (acctData.realizedStake > 0) {
+            _cooldown(msg.sender, acctData.realizedStake, acctData, systemEpoch); // triggers updateReward
+            amount = _unstake(msg.sender, address(this));
+            _getRewardFor(msg.sender);
+            IERC20(_stakeToken).approve(address(staker), amount);
+            staker.stake(msg.sender, amount);
+        }
         staker.onPermaStakeMigrate(msg.sender);
         return amount;
     }

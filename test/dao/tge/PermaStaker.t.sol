@@ -11,21 +11,6 @@ contract PermaStakerTest is Setup {
 
     function setUp() public override {
         super.setUp();
-        
-        deal(address(govToken), address(permaStaker1), 1000e18);
-        deal(address(govToken), address(permaStaker2), 2000e18);
-
-        console.log('govtoken',address(govToken));
-        console.log('staketoken',staker.stakeToken());
-        uint256 balance = govToken.balanceOf(address(permaStaker1));
-        vm.prank(address(permaStaker1));
-        staker.stake(address(permaStaker1), balance);
-
-        balance = govToken.balanceOf(address(permaStaker2));
-        vm.prank(address(permaStaker2));
-        staker.stake(address(permaStaker2), balance);
-
-        skip(staker.epochLength());
     }
 
     function test_SafeExecute() public {
@@ -101,14 +86,6 @@ contract PermaStakerTest is Setup {
         vm.stopPrank();
     }
 
-    function stakeSome() public {
-        deal(address(govToken), address(permaStaker1), 1000e18);
-        uint256 balance = govToken.balanceOf(address(permaStaker1));
-        vm.prank(address(permaStaker1));
-        staker.stake(address(permaStaker1), balance);
-        assertGt(staker.balanceOf(address(permaStaker1)), 0);
-    }
-
     function test_SetOperator() public {
         vm.prank(permaStaker1.owner());
         permaStaker1.setOperator(address(user1));
@@ -123,6 +100,7 @@ contract PermaStakerTest is Setup {
 
     function test_ClaimAndStake() public {
         setupVest();
+        stakeSome(address(permaStaker1), 1000e18);
         skip(10 days); // allow vested amount to grow
         uint256 balance = staker.balanceOf(address(permaStaker1));
         vm.prank(permaStaker1.owner());
@@ -140,18 +118,16 @@ contract PermaStakerTest is Setup {
         uint256 startAmount = staker.balanceOf(address(permaStaker1));
         skip(10 days); // allow vested amount to grow
         vm.prank(permaStaker1.owner());
-
         uint256 amount = permaStaker1.claimAndStake();
         assertGt(amount, 0);
-
         deployNewStakerAndSetInRegistry();
-
         vm.prank(permaStaker1.owner());
         permaStaker1.migrateStaker();
     }
 
     function test_MigrateStakerFromPermaStakerAfterManualMigration() public {
         setupVest();
+        stakeSome(address(permaStaker1), 1000e18);
         uint256 startAmount = staker.balanceOf(address(permaStaker1));
         skip(10 days); // allow vested amount to grow
         vm.prank(permaStaker1.owner());
@@ -175,6 +151,7 @@ contract PermaStakerTest is Setup {
 
     function test_MigrateStaker() public {
         setupVest();
+        stakeSome(address(permaStaker1), 1000e18);
         uint256 startAmount = staker.balanceOf(address(permaStaker1));
         skip(10 days); // allow vested amount to grow
         vm.prank(permaStaker1.owner());
@@ -219,6 +196,12 @@ contract PermaStakerTest is Setup {
         newStaker.migrateStake();
         assertEq(newStaker2.balanceOf(address(permaStaker1)), amount + startAmount, 'new staker balance not equal to claimed amount');
         vm.stopPrank();
+    }
+
+    function stakeSome(address permaStaker, uint256 amount) public {
+        deal(address(govToken), address(permaStaker), amount);
+        vm.prank(address(permaStaker));
+        staker.stake(address(permaStaker), amount);
     }
 
     function setupVest() public {
