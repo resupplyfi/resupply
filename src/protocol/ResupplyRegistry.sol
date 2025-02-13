@@ -81,7 +81,7 @@ contract ResupplyRegistry is CoreOwnable{
 
     function setL2Manager(address _newAddress) external onlyOwner{
         l2manager = _newAddress;
-        _setAddress(_newAddress, "L2_MANAGER", keccak256(bytes("L2_MANAGER")));
+        _setAddress(_newAddress, L2_MANAGER, keccak256(bytes(L2_MANAGER)));
     }
 
     function setLiquidationHandler(address _newAddress) external onlyOwner{
