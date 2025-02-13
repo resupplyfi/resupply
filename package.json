@@ -45,7 +45,7 @@
   "dependencies": {
     "@layerzerolabs/oft-evm": "3.1.0",
     "@mean-finance/uniswap-v3-oracle": "1.0.3",
-    "@openzeppelin/contracts": "5.1.0",
+    "@openzeppelin/contracts": "5.2.0",
     "@rari-capital/solmate": "6.4.0",
     "frax-standard-solidity": "github:FraxFinance/frax-standard-solidity"
   }
