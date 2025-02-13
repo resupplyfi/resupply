@@ -9,7 +9,7 @@ import { MockToken } from "../mocks/MockToken.sol";
 import { Setup } from "../Setup.sol";
 import { MockPair } from "../mocks/MockPair.sol";
 import { Voter } from "../../src/dao/Voter.sol";
-import { ICore } from "../../src/interfaces/ICore.sol";
+import { IVoter } from "../../src/interfaces/IVoter.sol";
 
 contract VoterTest is Setup {
     MockPair pair;
@@ -207,7 +207,7 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(voter), 
-                ICore.cancelProposal.selector, 
+                IVoter.cancelProposal.selector, 
                 true,
                 address(0)
             )
@@ -230,7 +230,7 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(voter), 
-                ICore.cancelProposal.selector, 
+                IVoter.cancelProposal.selector, 
                 true,
                 address(0)
             )
@@ -247,7 +247,7 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(0), 
-                ICore.cancelProposal.selector, 
+                IVoter.cancelProposal.selector, 
                 true,
                 address(0)
             )
