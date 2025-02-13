@@ -191,6 +191,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @notice The ```setMaxLTV``` function sets the max LTV
     /// @param _newMaxLTV The new max LTV
     function setMaxLTV(uint256 _newMaxLTV) external onlyOwner{
+        if (_newMaxLTV > LTV_PRECISION) revert InvalidParameter();
         emit SetMaxLTV(maxLTV, _newMaxLTV);
         maxLTV = _newMaxLTV;
     }
@@ -229,6 +230,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function setLiquidationFees(
         uint256 _newLiquidationFee
     ) external onlyOwner{
+        if (_newLiquidationFee > LIQ_PRECISION) revert InvalidParameter();
         emit SetLiquidationFees(
             liquidationFee,
             _newLiquidationFee
