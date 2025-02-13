@@ -103,8 +103,9 @@ contract LiquidationManagerTest is PairTestBase {
         liquidationHandler.migrateCollateral(address(collateral));
 
         registry.setLiquidationHandler(address(newLiquidationHandler));
-        liquidationHandler.migrateCollateral(address(collateral));
         vm.stopPrank();
+        vm.prank(address(newLiquidationHandler));
+        liquidationHandler.migrateCollateral(address(collateral));
         assertEq(collateral.balanceOf(address(newLiquidationHandler)), amt);
     }
 
