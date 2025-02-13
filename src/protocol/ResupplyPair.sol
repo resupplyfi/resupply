@@ -443,6 +443,6 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality
     function unpause() external onlyOwner{
-        _setBorrowLimit(previousBorrowLimit);
+        if (borrowLimit == 0) _setBorrowLimit(previousBorrowLimit);
     }
 }
