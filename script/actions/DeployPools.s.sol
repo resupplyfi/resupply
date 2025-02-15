@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import "forge-std/Script.sol";
 import "src/Constants.sol" as Constants;
-import { TenderlyHelper } from "script/utils/TenderlyHelper.s.sol";
+import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 

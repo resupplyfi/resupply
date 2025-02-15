@@ -12,7 +12,7 @@ interface ICreateXDeployer {
 }
 
 // Deploy a contract to a deterministic address with create2
-abstract contract CreateXDeployer {
+abstract contract CreateXHelper {
     ICreateXDeployer public constant createXFactory = ICreateXDeployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
     function encodeCREATE3Deployment(bytes32 salt, bytes memory initCode) public pure returns (bytes memory) {
@@ -30,7 +30,6 @@ abstract contract CreateXDeployer {
             initCode
         );
     }
-
 
     function encodeCREATEDeployment(bytes memory initCode) public pure returns (bytes memory) {
         return abi.encodeWithSelector(

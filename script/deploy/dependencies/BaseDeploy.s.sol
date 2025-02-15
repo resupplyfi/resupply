@@ -1,5 +1,5 @@
-import { TenderlyHelper } from "script/utils/TenderlyHelper.s.sol";
-import { CreateXDeployer } from "script/utils/CreateXDeployer.s.sol";
+import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
+import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { console } from "forge-std/console.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -17,10 +17,9 @@ import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
-import { BatchScript } from "lib/forge-safe/src/BatchScript.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 
-contract BaseDeploy is TenderlyHelper, CreateXDeployer {
+contract BaseDeploy is TenderlyHelper, CreateXHelper {
     // Configs: DAO
     uint256 public constant EPOCH_LENGTH = 1 weeks;
     uint256 public constant STAKER_COOLDOWN_EPOCHS = 2;
