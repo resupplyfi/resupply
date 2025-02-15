@@ -1,0 +1,185 @@
+import "src/Constants.sol" as Constants;
+import { console } from "forge-std/console.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BaseDeploy } from "script/deploy/dependencies/BaseDeploy.s.sol";
+import { DeployResupply } from "script/deploy/DeployResupply.s.sol";
+import { ICore } from "src/interfaces/ICore.sol";
+import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { Swapper } from "src/protocol/Swapper.sol";
+
+contract TestEnvironmentSetup is DeployResupply {
+    address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
+    address public sfrxusd = Constants.Mainnet.SFRAX_ERC20;
+    address public crvusdPool;
+    address public fraxPool;
+    Swapper public defaultSwapper;
+
+
+    function run() public override {
+        deployMode = DeployMode.FOUNDRY;
+        super.deployAll();
+        issueTokens();
+        deployCurvePools();
+        provideLiquidity();
+        deploySwapper();
+        handoffGovernance();
+    }
+
+    function handoffGovernance() public {
+        _executeCore(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
+    }
+
+    function issueTokens() public {
+        setTokenBalance(address(stablecoin), dev, 100_000_000e18);
+        setTokenBalance(scrvusd, dev, 100_000_000e18);
+        setTokenBalance(sfrxusd, dev, 100_000_000e18);
+    }
+
+    function deployCurvePools() public{
+        address[] memory coins = new address[](2);
+        coins[0] = address(stablecoin);
+        coins[1] = scrvusd;
+        uint8[] memory assetTypes = new uint8[](2);
+        assetTypes[1] = 3; //second coin is erc4626
+        bytes4[] memory methods = new bytes4[](2);
+        address[] memory oracles = new address[](2);
+        crvusdPool = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
+            "reUSD/scrvUSD",    // name
+            "reusdscrv",        // symbol
+            coins,              // coins
+            200,                // A
+            4000000,            // fee
+            50000000000,        // off peg multi
+            866,                // ma exp time
+            0,                  // implementation index
+            assetTypes,         // asset types - normal + erc4626
+            methods,            // method ids
+            oracles             // oracles
+        );
+        console.log("reUSD/scrvUSD Pool deployed at", crvusdPool);
+        //TODO, update to sfrxusd from sfrax
+        coins[1] = sfrxusd;
+        fraxPool = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
+            "reUSD/sfrxUSD",    //name
+            "reusdsfrx",        //symbol
+            coins,              //coins
+            200,                //A
+            4000000,            //fee
+            50000000000,        //off peg multi
+            866,                //ma exp time
+            0,                  //implementation index
+            assetTypes,         //asset types - normal + erc4626
+            methods,            //method ids
+            oracles             //oracles
+        );
+        console.log("reUSD/sfrxUSD Pool deployed at", fraxPool);
+    }
+
+    function provideLiquidity() public {
+        // Approve tokens for both pools
+        addToBatch(
+            address(stablecoin),
+            abi.encodeWithSelector(IERC20.approve.selector, crvusdPool, type(uint256).max)
+        );
+        addToBatch(
+            address(scrvusd),
+            abi.encodeWithSelector(IERC20.approve.selector, crvusdPool, type(uint256).max)
+        );
+        addToBatch(
+            address(sfrxusd),
+            abi.encodeWithSelector(IERC20.approve.selector, fraxPool, type(uint256).max)
+        );
+        addToBatch(
+            address(stablecoin),
+            abi.encodeWithSelector(IERC20.approve.selector, fraxPool, type(uint256).max)
+        );
+
+        // Add liquidity to reUSD/scrvUSD pool
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1_000_000e18;
+        amounts[1] = 1_000_000e18;
+        addToBatch(
+            crvusdPool,
+            abi.encodeWithSelector(ICurveExchange.add_liquidity.selector, amounts, 0, dev)
+        );
+        console.log("Added liquidity to reUSD/scrvUSD pool");
+
+        // Add liquidity to reUSD/sfrxUSD pool
+        addToBatch(
+            fraxPool,
+            abi.encodeWithSelector(ICurveExchange.add_liquidity.selector, amounts, 0, dev)
+        );
+        console.log("Added liquidity to reUSD/sfrxUSD pool");
+    }
+
+    function deploySwapper() public {
+        //deploy swapper
+        defaultSwapper = new Swapper(address(core), address(registry));
+
+        Swapper.SwapInfo memory swapinfo;
+
+        //reusd to scrvusd
+        swapinfo.swappool = crvusdPool;
+        swapinfo.tokenInIndex = 0;
+        swapinfo.tokenOutIndex = 1;
+        swapinfo.swaptype = 1;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, address(stablecoin), Constants.Mainnet.CURVE_SCRVUSD, swapinfo));
+
+        //scrvusd to reusd
+        swapinfo.swappool = crvusdPool;
+        swapinfo.tokenInIndex = 1;
+        swapinfo.tokenOutIndex = 0;
+        swapinfo.swaptype = 1;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CURVE_SCRVUSD, address(stablecoin), swapinfo));
+
+        //scrvusd withdraw to crvusd
+        swapinfo.swappool = Constants.Mainnet.CURVE_SCRVUSD;
+        swapinfo.tokenInIndex = 0;
+        swapinfo.tokenOutIndex = 0;
+        swapinfo.swaptype = 3;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CURVE_SCRVUSD, Constants.Mainnet.CURVE_USD_ERC20, swapinfo));
+
+        //crvusd deposit to scrvusd
+        swapinfo.swappool = Constants.Mainnet.CURVE_SCRVUSD;
+        swapinfo.tokenInIndex = 0;
+        swapinfo.tokenOutIndex = 0;
+        swapinfo.swaptype = 2;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CURVE_USD_ERC20, Constants.Mainnet.CURVE_SCRVUSD, swapinfo));
+
+        //reusd to sfrxusd
+        swapinfo.swappool = fraxPool;
+        swapinfo.tokenInIndex = 0;
+        swapinfo.tokenOutIndex = 1;
+        swapinfo.swaptype = 1;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, address(stablecoin), Constants.Mainnet.SFRAX_ERC20, swapinfo));
+
+        //sfrxusd to reusd
+        swapinfo.swappool = fraxPool;
+        swapinfo.tokenInIndex = 1;
+        swapinfo.tokenOutIndex = 0;
+        swapinfo.swaptype = 1;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SFRAX_ERC20, address(stablecoin), swapinfo));
+
+        //sfrxusd withdraw to frxusd
+        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.tokenInIndex = 0;
+        swapinfo.tokenOutIndex = 0;
+        swapinfo.swaptype = 3;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SFRAX_ERC20, Constants.Mainnet.FRAX_ERC20, swapinfo));
+
+        //frxusd deposit to sfrxusd
+        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.tokenInIndex = 0;
+        swapinfo.tokenOutIndex = 0;
+        swapinfo.swaptype = 2;
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.FRAX_ERC20, Constants.Mainnet.SFRAX_ERC20, swapinfo));
+
+
+        //set swapper to registry
+        address[] memory swappers = new address[](1);
+        swappers[0] = address(defaultSwapper);
+        _executeCore(address(registry), abi.encodeWithSelector(registry.setDefaultSwappers.selector, swappers));
+        console.log("Swapper deployed at", address(defaultSwapper));
+        console.log("Swapper configured");
+    }
+}

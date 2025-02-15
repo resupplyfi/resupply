@@ -3,11 +3,14 @@
 
     import {Script} from "lib/forge-std/src/Script.sol";
     import {console} from "lib/forge-std/src/console.sol";
-    import {BatchScript} from "lib/forge-safe/src/BatchScript.sol";
+    import {BatchScript} from "script/utils/BatchScript.sol";
     import {Test} from "lib/forge-std/src/Test.sol";
+    import {stdStorage, StdStorage} from "lib/forge-std/src/StdStorage.sol";
+    import {StdCheats} from "lib/forge-std/src/StdCheats.sol";
 
     // All helper functions take care of setting the values in both local environment + fork environment.
-    contract TenderlyHelper is Test {
+    contract TenderlyHelper is BatchScript {
+
         string public URL = vm.envString("TENDERLY_URL");
 
         function skipTime(uint256 _seconds) public {

@@ -13,12 +13,12 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
-    function run() public {
+    function run() public virtual {
+        deployMode = DeployMode.TENDERLY;
         deployAll();
     }
 
     function deployAll() isBatch(dev) public {
-        deployMode = DeployMode.TENDERLY;
         setEthBalance(dev, 10e18);
         deployDaoContracts(); // true for testnet
         deployProtocolContracts();
@@ -27,7 +27,6 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         configureProtocolContracts();
         (permaStaker1, permaStaker2) = deployPermaStakers();
         deployDefaultLendingPairs();
-        handoffGovernance();
     }
 
     function deployDefaultLendingPairs() public {
@@ -57,9 +56,5 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setFeeDeposit.selector, address(feeDeposit)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRewardHandler.selector, address(rewardHandler)));
         _executeCore(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
-    }
-
-    function handoffGovernance() public {
-        _executeCore(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
     }
 }
