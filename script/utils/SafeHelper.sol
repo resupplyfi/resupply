@@ -275,6 +275,21 @@ abstract contract SafeHelper is Script, Test {
         return batch_;
     }
 
+    function _getSignerAddress() private returns (address signer) {
+        if (walletType == LOCAL) {
+            signer = vm.addr(uint256(privateKey));
+        } else { // LEDGER
+            // For Ledger, we'll need the address from the derivation path
+            string[] memory inputs = new string[](4);
+            inputs[0] = "cast";
+            inputs[1] = "wallet";
+            inputs[2] = "address";
+            inputs[3] = string.concat("--ledger --mnemonic-index ", vm.toString(mnemonicIndex));
+            bytes memory addr = vm.ffi(inputs);
+            signer = address(bytes20(addr));
+        }
+    }
+
     function _sendBatch(address safe_, Batch memory batch_) private {
         string memory endpoint = _getSafeAPIEndpoint(safe_);
 
@@ -293,7 +308,7 @@ abstract contract SafeHelper is Script, Test {
         placeholder.serialize("refundReceiver", address(0));
         placeholder.serialize("contractTransactionHash", batch_.txHash);
         placeholder.serialize("signature", batch_.signature);
-        string memory payload = placeholder.serialize("sender", safe_);
+        string memory payload = placeholder.serialize("sender", _getSignerAddress());
 
         // Send batch
         (uint256 status, bytes memory data) = endpoint.post(
