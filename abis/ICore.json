@@ -8,6 +8,11 @@
         "internalType": "address"
       },
       {
+        "name": "_registry",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "_epochLength",
         "type": "uint256",
         "internalType": "uint256"
@@ -88,6 +93,19 @@
   },
   {
     "type": "function",
+    "name": "registry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "setOperatorPermissions",
     "inputs": [
       {
@@ -114,6 +132,19 @@
         "name": "authHook",
         "type": "address",
         "internalType": "contract IAuthHook"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setRegistry",
+    "inputs": [
+      {
+        "name": "newRegistry",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -222,6 +253,19 @@
   },
   {
     "type": "event",
+    "name": "RegistrySet",
+    "inputs": [
+      {
+        "name": "newRegistry",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "VoterSet",
     "inputs": [
       {
@@ -264,5 +308,10 @@
         "internalType": "uint256"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
   }
 ]

@@ -8,11 +8,6 @@
         "internalType": "address"
       },
       {
-        "name": "_registry",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "_feeToken",
         "type": "address",
         "internalType": "address"

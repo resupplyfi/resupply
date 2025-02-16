@@ -113,7 +113,7 @@
     "name": "getReceiverId",
     "inputs": [
       {
-        "name": "receiver",
+        "name": "_receiver",
         "type": "address",
         "internalType": "address"
       }

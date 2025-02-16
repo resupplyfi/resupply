@@ -182,11 +182,6 @@
   },
   {
     "type": "error",
-    "name": "SetterRevoked",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "SlippageTooHigh",
     "inputs": [
       {

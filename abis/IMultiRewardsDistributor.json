@@ -1,28 +1,38 @@
 [
   {
-    "type": "constructor",
-    "inputs": [
+    "type": "function",
+    "name": "PRECISION",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "_rewardToken",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_registry",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_core",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_initialWeightAddress",
-        "type": "address",
-        "internalType": "address"
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addReward",
+    "inputs": [
+      {
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_rewardsDistributor",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_rewardsDuration",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -30,7 +40,7 @@
     "name": "balanceOf",
     "inputs": [
       {
-        "name": "_account",
+        "name": "account",
         "type": "address",
         "internalType": "address"
       }
@@ -59,78 +69,7 @@
   },
   {
     "type": "function",
-    "name": "currentRewards",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "donate",
-    "inputs": [
-      {
-        "name": "_amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "duration",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "earned",
-    "inputs": [
-      {
-        "name": "_account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getReward",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "getReward",
     "inputs": [
       {
         "name": "_account",
@@ -138,7 +77,45 @@
         "internalType": "address"
       },
       {
-        "name": "_forwardTo",
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "pending",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "earnedMulti",
+    "inputs": [
+      {
+        "name": "_account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "pending",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getOneReward",
+    "inputs": [
+      {
+        "name": "_rewardsToken",
         "type": "address",
         "internalType": "address"
       }
@@ -149,20 +126,20 @@
   {
     "type": "function",
     "name": "getReward",
-    "inputs": [
-      {
-        "name": "_account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "historicalRewards",
-    "inputs": [],
+    "name": "getRewardForDuration",
+    "inputs": [
+      {
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
     "outputs": [
       {
         "name": "",
@@ -175,7 +152,13 @@
   {
     "type": "function",
     "name": "lastTimeRewardApplicable",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
     "outputs": [
       {
         "name": "",
@@ -187,16 +170,21 @@
   },
   {
     "type": "function",
-    "name": "lastUpdateTime",
-    "inputs": [],
-    "outputs": [
+    "name": "notifyRewardAmount",
+    "inputs": [
       {
-        "name": "",
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_rewardAmount",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "view"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -213,58 +201,62 @@
   },
   {
     "type": "function",
-    "name": "periodFinish",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "queueNewRewards",
+    "name": "recoverERC20",
     "inputs": [
       {
-        "name": "_rewards",
+        "name": "_tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_tokenAmount",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "queuedRewards",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "registry",
-    "inputs": [],
-    "outputs": [
+    "name": "rewardData",
+    "inputs": [
       {
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "rewardsDistributor",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "rewardsDuration",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "periodFinish",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rewardRate",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lastUpdateTime",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "rewardPerTokenStored",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -272,10 +264,16 @@
   {
     "type": "function",
     "name": "rewardPerToken",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
     "outputs": [
       {
-        "name": "",
+        "name": "rewardAmount",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -284,38 +282,12 @@
   },
   {
     "type": "function",
-    "name": "rewardPerTokenStored",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "rewardRate",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "rewardRedirect",
+    "name": "rewardTokens",
     "inputs": [
       {
         "name": "",
-        "type": "address",
-        "internalType": "address"
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -329,13 +301,13 @@
   },
   {
     "type": "function",
-    "name": "rewardToken",
+    "name": "rewardTokensLength",
     "inputs": [],
     "outputs": [
       {
         "name": "",
-        "type": "address",
-        "internalType": "contract IERC20"
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -348,6 +320,11 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -361,10 +338,15 @@
   },
   {
     "type": "function",
-    "name": "setRewardRedirect",
+    "name": "setRewardsDistributor",
     "inputs": [
       {
-        "name": "_to",
+        "name": "_rewardsToken",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_rewardsDistributor",
         "type": "address",
         "internalType": "address"
       }
@@ -374,45 +356,34 @@
   },
   {
     "type": "function",
-    "name": "setWeight",
+    "name": "setRewardsDuration",
     "inputs": [
       {
-        "name": "_account",
+        "name": "_rewardsToken",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "_amount",
+        "name": "_rewardsDuration",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "setWeights",
-    "inputs": [
+    "name": "stakeToken",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "_account",
-        "type": "address[]",
-        "internalType": "address[]"
-      },
-      {
-        "name": "_amount",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -435,6 +406,11 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -447,24 +423,17 @@
     "stateMutability": "view"
   },
   {
-    "type": "function",
-    "name": "user_checkpoint",
-    "inputs": [
-      {
-        "name": "_account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
     "type": "event",
     "name": "RewardAdded",
     "inputs": [
       {
-        "name": "reward",
+        "name": "rewardToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -483,6 +452,12 @@
         "internalType": "address"
       },
       {
+        "name": "rewardToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
         "name": "reward",
         "type": "uint256",
         "indexed": false,
@@ -493,18 +468,43 @@
   },
   {
     "type": "event",
-    "name": "RewardRedirected",
+    "name": "RewardTokenAdded",
     "inputs": [
       {
-        "name": "user",
+        "name": "rewardsToken",
         "type": "address",
         "indexed": true,
         "internalType": "address"
       },
       {
-        "name": "redirect",
+        "name": "rewardsDistributor",
         "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "rewardsDuration",
+        "type": "uint256",
         "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RewardsDistributorSet",
+    "inputs": [
+      {
+        "name": "rewardsToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "rewardsDistributor",
+        "type": "address",
+        "indexed": true,
         "internalType": "address"
       }
     ],
@@ -512,28 +512,57 @@
   },
   {
     "type": "event",
-    "name": "WeightSet",
+    "name": "RewardsDurationUpdated",
     "inputs": [
       {
-        "name": "user",
+        "name": "rewardsToken",
         "type": "address",
         "indexed": true,
         "internalType": "address"
       },
       {
-        "name": "oldWeight",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "newWeight",
+        "name": "duration",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "CannotAddStakeToken",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "DecimalsMustBe18",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MustBeGreaterThanZero",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RewardAlreadyAdded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RewardTooHigh",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RewardsStillActive",
+    "inputs": []
   },
   {
     "type": "error",
@@ -545,5 +574,20 @@
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "SupplyMustBeGreaterThanZero",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
   }
 ]

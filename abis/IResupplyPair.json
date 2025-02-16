@@ -613,12 +613,12 @@
     ],
     "outputs": [
       {
-        "name": "_userBorrowShares",
+        "name": "_borrowShares",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_userCollateralBalance",
+        "name": "_collateralBalance",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -690,7 +690,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "_initialCollateralAmount",
+        "name": "_initialUnderlyingAmount",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -770,7 +770,7 @@
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "nonpayable"
+    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -1780,7 +1780,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "_initialCollateralAmount",
+        "name": "_initialUnderlyingAmount",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1988,7 +1988,7 @@
       {
         "name": "_rewardToken",
         "type": "address",
-        "indexed": false,
+        "indexed": true,
         "internalType": "address"
       }
     ],
@@ -2282,19 +2282,6 @@
   },
   {
     "type": "event",
-    "name": "WarnOracleData",
-    "inputs": [
-      {
-        "name": "oracle",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "WithdrawFees",
     "inputs": [
       {
@@ -2462,11 +2449,6 @@
         "internalType": "address"
       }
     ]
-  },
-  {
-    "type": "error",
-    "name": "SetterRevoked",
-    "inputs": []
   },
   {
     "type": "error",

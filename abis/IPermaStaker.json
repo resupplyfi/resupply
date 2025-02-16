@@ -13,11 +13,6 @@
         "internalType": "address"
       },
       {
-        "name": "_registry",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "_vestManager",
         "type": "address",
         "internalType": "address"
@@ -90,6 +85,13 @@
         "internalType": "bytes"
       }
     ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "migrateStaker",
+    "inputs": [],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -203,6 +205,19 @@
   },
   {
     "type": "function",
+    "name": "staker",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IGovStaker"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -274,38 +289,6 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "StakerMigrated",
-    "inputs": [
-      {
-        "name": "oldStaker",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "newStaker",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "UnstakingAllowed",
-    "inputs": [
-      {
-        "name": "allowed",
-        "type": "bool",
-        "indexed": true,
-        "internalType": "bool"
       }
     ],
     "anonymous": false

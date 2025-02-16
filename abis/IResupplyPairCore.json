@@ -493,7 +493,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "_initialCollateralAmount",
+        "name": "_initialUnderlyingAmount",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -573,7 +573,7 @@
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "nonpayable"
+    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -1314,7 +1314,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "_initialCollateralAmount",
+        "name": "_initialUnderlyingAmount",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1522,7 +1522,7 @@
       {
         "name": "_rewardToken",
         "type": "address",
-        "indexed": false,
+        "indexed": true,
         "internalType": "address"
       }
     ],
@@ -1618,19 +1618,6 @@
         "type": "uint128",
         "indexed": false,
         "internalType": "uint128"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "WarnOracleData",
-    "inputs": [
-      {
-        "name": "oracle",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1769,11 +1756,6 @@
         "internalType": "address"
       }
     ]
-  },
-  {
-    "type": "error",
-    "name": "SetterRevoked",
-    "inputs": []
   },
   {
     "type": "error",

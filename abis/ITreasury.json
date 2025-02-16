@@ -137,19 +137,6 @@
   },
   {
     "type": "event",
-    "name": "FailedETHSend",
-    "inputs": [
-      {
-        "name": "returnedData",
-        "type": "bytes",
-        "indexed": false,
-        "internalType": "bytes"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "RetrieveETH",
     "inputs": [
       {
