@@ -23,7 +23,7 @@ contract TestEnvironmentSetup is DeployResupply {
         provideLiquidity();
         deploySwapper();
         handoffGovernance();
-        // addLiquidity();
+        provideLiquidity();
     }
 
     function handoffGovernance() public {
@@ -31,7 +31,8 @@ contract TestEnvironmentSetup is DeployResupply {
     }
 
     function issueTokens() public {
-        setTokenBalance(address(stablecoin), dev, 100_000_000e18);
+        address _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
+        setTokenBalance(address(_stablecoin), dev, 100_000_000e18);
         setTokenBalance(scrvusd, dev, 100_000_000e18);
         setTokenBalance(sfrxusd, dev, 100_000_000e18);
     }
@@ -85,10 +86,15 @@ contract TestEnvironmentSetup is DeployResupply {
         console.log("reUSD/sfrxUSD Pool deployed at", fraxPool);
     }
 
-    function provideLiquidity() public {
+    function provideLiquidity() public isBatch(dev) {
+        // Add liquidity to reUSD/scrvUSD pool
+        // TODO: Not yet able to figure out how to get tenderly API to fund dev account with `stablecoin`
+        crvusdPool = 0xE97b3271F812ff43522312705dbe58C8C6077B5f;
+        fraxPool = 0x3CEf1AFC0E8324b57293a6E7cE663781bbEFBB79;
+        address _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
         // Approve tokens for both pools
         addToBatch(
-            address(stablecoin),
+            _stablecoin,
             abi.encodeWithSelector(IERC20.approve.selector, crvusdPool, type(uint256).max)
         );
         addToBatch(
@@ -100,14 +106,9 @@ contract TestEnvironmentSetup is DeployResupply {
             abi.encodeWithSelector(IERC20.approve.selector, fraxPool, type(uint256).max)
         );
         addToBatch(
-            address(stablecoin),
+            address(_stablecoin),
             abi.encodeWithSelector(IERC20.approve.selector, fraxPool, type(uint256).max)
         );
-    }
-
-    function addLiquidity() public {
-        // Add liquidity to reUSD/scrvUSD pool
-        // TODO: Not yet able to figure out how to get tenderly API to fund dev account with `stablecoin`
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 1_000_000e18;
         amounts[1] = 1_000_000e18;

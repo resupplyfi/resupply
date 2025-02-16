@@ -161,8 +161,6 @@ abstract contract SafeHelper is Script, Test {
         bytes memory data_
     ) internal returns (bytes memory) {
         // Add transaction to batch array
-        console2.log("Deploy mode ! =====> ", uint256(deployMode));
-        console2.log("We want ! =====> ", uint256(DeployMode.TENDERLY));
         if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
         if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
         // Add transaction to batch array

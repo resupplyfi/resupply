@@ -421,11 +421,12 @@ contract DeployResupplyProtocol is BaseDeploy {
             )
         );
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
-        console.log("ResupplyPair deployed at", abi.decode(result, (address)));
+        address pair = abi.decode(result, (address));
+        console.log("ResupplyPair deployed at", pair);
         _executeCore(
             address(registry),
-            abi.encodeWithSelector(ResupplyRegistry.addPair.selector, abi.decode(result, (address)))
+            abi.encodeWithSelector(ResupplyRegistry.addPair.selector, pair)
         );
-        return abi.decode(result, (address));
+        return pair;
     }
 }
