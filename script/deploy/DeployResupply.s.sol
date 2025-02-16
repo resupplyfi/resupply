@@ -20,13 +20,14 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function deployAll() isBatch(dev) public {
         setEthBalance(dev, 10e18);
-        deployDaoContracts(); // true for testnet
+        deployDaoContracts();
         deployProtocolContracts();
         configurationStep1();
         deployRewardsContracts();
         configureProtocolContracts();
         (permaStaker1, permaStaker2) = deployPermaStakers();
         deployDefaultLendingPairs();
+        grantPermissionsToSetVoter();
     }
 
     function deployDefaultLendingPairs() public {
@@ -38,7 +39,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function configurationStep1() public {
-        ICore _core = ICore(core);
+        console.log("VOTER SET IN CORE ===> ", ICore(core).voter());
         _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));
@@ -56,5 +57,21 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setFeeDeposit.selector, address(feeDeposit)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setRewardHandler.selector, address(rewardHandler)));
         _executeCore(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
+    }
+
+    function grantPermissionsToSetVoter() public {
+        // During protocol launch phase, we grant the guardian multisig permissions to set the voter
+        _executeCore(
+            core, 
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector, 
+                dev, 
+                address(core),
+                ICore.setVoter.selector,
+                true,
+                address(0)
+            )
+        );
+        console.log("Granted permissions to set voter");
     }
 }

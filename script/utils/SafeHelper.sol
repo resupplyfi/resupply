@@ -161,13 +161,15 @@ abstract contract SafeHelper is Script, Test {
         bytes memory data_
     ) internal returns (bytes memory) {
         // Add transaction to batch array
+        console2.log("Deploy mode ! =====> ", uint256(deployMode));
+        console2.log("We want ! =====> ", uint256(DeployMode.TENDERLY));
         if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
-        encodedTxns.push(abi.encodePacked(Operation.CALL, to_, value_, data_.length, data_));
-
-        // Simulate transaction and get return value
         if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
+        // Add transaction to batch array
+        encodedTxns.push(abi.encodePacked(Operation.CALL, to_, value_, data_.length, data_));
+        // Simulate transaction and get return value
         (bool success, bytes memory data) = to_.call{value: value_}(data_);
-        if (deployMode == DeployMode.TENDERLY) vm.stopPrank();
+        if (deployMode == DeployMode.TENDERLY) vm.stopBroadcast();
         if (success) {
             return data;
         } else {
@@ -178,12 +180,12 @@ abstract contract SafeHelper is Script, Test {
     // Convenience funtion to add an encoded transaction to the batch, but passes
     // 0 as the `value` (equivalent to msg.value) field.
     function addToBatch(address to_, bytes memory data_) internal returns (bytes memory) {
-        // Add transaction to batch array
+        if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
+        if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
+        // Add transaction to batch array and simulate simulate the txn with return value
         encodedTxns.push(abi.encodePacked(Operation.CALL, to_, uint256(0), data_.length, data_));
-
-        // Simulate transaction and get return value
-        vm.prank(safe);
         (bool success, bytes memory data) = to_.call(data_);
+        if (deployMode == DeployMode.TENDERLY) vm.stopBroadcast();
         if (success) {
             return data;
         } else {
@@ -218,8 +220,6 @@ abstract contract SafeHelper is Script, Test {
             data = bytes.concat(data, encodedTxns[i]);
         }
         batch.data = abi.encodeWithSignature("multiSend(bytes)", data);
-
-        // Batch gas parameters can all be zero and don't need to be set
 
         // Get the safe nonce
         batch.nonce = _getNonce(safe_);

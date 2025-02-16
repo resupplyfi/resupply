@@ -54,6 +54,7 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     address public treasury;
     address public permaStaker1;
     address public permaStaker2;
+    address public autoStakeCallback;
     IResupplyRegistry public registry;
     Stablecoin public stablecoin;
 

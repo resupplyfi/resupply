@@ -16,13 +16,14 @@ contract TestEnvironmentSetup is DeployResupply {
 
 
     function run() public override {
-        deployMode = DeployMode.FOUNDRY;
+        deployMode = DeployMode.TENDERLY;
         super.deployAll();
         issueTokens();
         deployCurvePools();
         provideLiquidity();
         deploySwapper();
         handoffGovernance();
+        // addLiquidity();
     }
 
     function handoffGovernance() public {
@@ -43,35 +44,44 @@ contract TestEnvironmentSetup is DeployResupply {
         assetTypes[1] = 3; //second coin is erc4626
         bytes4[] memory methods = new bytes4[](2);
         address[] memory oracles = new address[](2);
-        crvusdPool = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
-            "reUSD/scrvUSD",    // name
-            "reusdscrv",        // symbol
-            coins,              // coins
-            200,                // A
-            4000000,            // fee
-            50000000000,        // off peg multi
-            866,                // ma exp time
-            0,                  // implementation index
-            assetTypes,         // asset types - normal + erc4626
-            methods,            // method ids
-            oracles             // oracles
+        bytes memory result;
+        result = addToBatch(
+            address(Constants.Mainnet.CURVE_STABLE_FACTORY),
+            abi.encodeWithSelector(ICurveExchange.deploy_plain_pool.selector,
+                "reUSD/scrvUSD",    // name
+                "reusdscrv",        // symbol
+                coins,              // coins
+                200,                // A
+                4000000,            // fee
+                50000000000,        // off peg multi
+                866,                // ma exp time
+                0,                  // implementation index
+                assetTypes,         // asset types - normal + erc4626
+                methods,            // method ids
+                oracles             // oracles
+            )
         );
+        crvusdPool = abi.decode(result, (address));
         console.log("reUSD/scrvUSD Pool deployed at", crvusdPool);
         //TODO, update to sfrxusd from sfrax
         coins[1] = sfrxusd;
-        fraxPool = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
-            "reUSD/sfrxUSD",    //name
-            "reusdsfrx",        //symbol
-            coins,              //coins
-            200,                //A
-            4000000,            //fee
-            50000000000,        //off peg multi
-            866,                //ma exp time
-            0,                  //implementation index
-            assetTypes,         //asset types - normal + erc4626
-            methods,            //method ids
-            oracles             //oracles
+        result = addToBatch(
+            address(Constants.Mainnet.CURVE_STABLE_FACTORY),
+            abi.encodeWithSelector(ICurveExchange.deploy_plain_pool.selector,
+                "reUSD/sfrxUSD",    //name
+                "reusdsfrx",        //symbol
+                coins,              //coins
+                200,                //A
+                4000000,            //fee
+                50000000000,        //off peg multi
+                866,                //ma exp time
+                0,                  //implementation index
+                assetTypes,         //asset types - normal + erc4626
+                methods,            //method ids
+                oracles             //oracles
+            )
         );
+        fraxPool = abi.decode(result, (address));
         console.log("reUSD/sfrxUSD Pool deployed at", fraxPool);
     }
 
@@ -93,8 +103,11 @@ contract TestEnvironmentSetup is DeployResupply {
             address(stablecoin),
             abi.encodeWithSelector(IERC20.approve.selector, fraxPool, type(uint256).max)
         );
+    }
 
+    function addLiquidity() public {
         // Add liquidity to reUSD/scrvUSD pool
+        // TODO: Not yet able to figure out how to get tenderly API to fund dev account with `stablecoin`
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 1_000_000e18;
         amounts[1] = 1_000_000e18;
@@ -114,7 +127,18 @@ contract TestEnvironmentSetup is DeployResupply {
 
     function deploySwapper() public {
         //deploy swapper
-        defaultSwapper = new Swapper(address(core));
+        bytes32 salt = buildGuardedSalt(dev, true, false, uint88(uint256(keccak256(bytes("Swapper")))));
+        bytes memory bytecode = abi.encodePacked(vm.getCode("Swapper.sol:Swapper"), abi.encode(address(core)));
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        if (addressHasCode(predictedAddress)) revert("Swapper already deployed");
+        addToBatch(
+            address(createXFactory),
+            encodeCREATE3Deployment(
+                salt, 
+                bytecode
+            )
+        );
+        defaultSwapper = Swapper(predictedAddress);
 
         Swapper.SwapInfo memory swapinfo;
 

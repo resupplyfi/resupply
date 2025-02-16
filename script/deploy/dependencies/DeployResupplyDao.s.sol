@@ -25,12 +25,28 @@ contract DeployResupplyDao is BaseDeploy {
         if (DEBUG) console2.log("Gas used", totalGasUsed);
         staker = deployGovStaker();
         if (DEBUG) console2.log("Gas used", totalGasUsed);
+        autoStakeCallback = deployAutoStakeCallback();
+        if (DEBUG) console2.log("Gas used", totalGasUsed);
         voter = deployVoter();
         if (DEBUG) console2.log("Gas used", totalGasUsed);
         emissionsController = deployEmissionsController();
         if (DEBUG) console2.log("Gas used", totalGasUsed);
         treasury = deployTreasury();
         if (DEBUG) console2.log("Gas used", totalGasUsed);
+    }
+
+    function deployAutoStakeCallback() public returns (address) {
+        bytes32 salt = buildGuardedSalt(dev, true, false, uint88(uint256(keccak256(bytes("AutoStakeCallback")))));
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        if (addressHasCode(predictedAddress)) return predictedAddress;
+        bytes memory constructorArgs = abi.encode(address(core), address(staker), address(vestManager));
+        bytes memory bytecode = abi.encodePacked(vm.getCode("AutoStakeCallback.sol:AutoStakeCallback"), constructorArgs);
+        addToBatch(
+            address(createXFactory),
+            encodeCREATE3Deployment(salt, bytecode)
+        );
+        console.log("AutoStakeCallback deployed to", predictedAddress);
+        return predictedAddress;
     }
 
     function deployStablecoin() public returns (address) {
