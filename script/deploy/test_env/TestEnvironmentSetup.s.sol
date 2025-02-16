@@ -114,7 +114,7 @@ contract TestEnvironmentSetup is DeployResupply {
 
     function deploySwapper() public {
         //deploy swapper
-        defaultSwapper = new Swapper(address(core), address(registry));
+        defaultSwapper = new Swapper(address(core));
 
         Swapper.SwapInfo memory swapinfo;
 

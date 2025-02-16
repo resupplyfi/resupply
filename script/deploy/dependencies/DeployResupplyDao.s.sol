@@ -64,8 +64,15 @@ contract DeployResupplyDao is BaseDeploy {
     function deployCore() public returns (address) {
         bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af60075182fe1eff89e02ce3cff;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        bytes32 registrySalt = 0xfe11a5009f2121622271e7dd0fd470264e076af60035199030be4b0602635825;
+        address predictedRegistryAddress = computeCreate3AddressFromSaltPreimage(
+            registrySalt,
+            dev, 
+            true, 
+            false
+        );
         if (addressHasCode(predictedAddress)) return predictedAddress;
-        bytes memory constructorArgs = abi.encode(dev, EPOCH_LENGTH);
+        bytes memory constructorArgs = abi.encode(dev, predictedRegistryAddress, EPOCH_LENGTH);
         bytes memory bytecode = abi.encodePacked(vm.getCode("Core.sol:Core"), constructorArgs);
         addToBatch(
             address(createXFactory),
@@ -130,8 +137,7 @@ contract DeployResupplyDao is BaseDeploy {
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
-            address(core), 
-            address(registry), 
+            address(core),
             address(govToken), 
             uint24(STAKER_COOLDOWN_EPOCHS)
         );
@@ -197,7 +203,6 @@ contract DeployResupplyDao is BaseDeploy {
         bytes memory constructorArgs = abi.encode(
             address(core), 
             PERMA_STAKER1_OWNER,
-            address(registry),
             address(vestManager),
             PERMA_STAKER1_NAME
         );
@@ -219,8 +224,7 @@ contract DeployResupplyDao is BaseDeploy {
 
         constructorArgs = abi.encode(
             address(core), 
-            PERMA_STAKER2_OWNER,
-            address(registry), 
+            PERMA_STAKER2_OWNER, 
             address(vestManager),
             PERMA_STAKER2_NAME
         );

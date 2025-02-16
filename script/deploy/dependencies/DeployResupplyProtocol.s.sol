@@ -25,7 +25,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         bytes memory constructorArgs = abi.encode(
             address(core),
-            address(registry),
             address(govToken),
             dev
         );
@@ -98,8 +97,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ====== Deploy RedemptionHandler ============
         // ============================================
         constructorArgs = abi.encode(
-            address(core),
-            address(registry)
+            address(core)
         );
         bytecode = abi.encodePacked(vm.getCode("RedemptionHandler.sol:RedemptionHandler"), constructorArgs);
         salt = buildGuardedSalt(
@@ -203,7 +201,6 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(core),
             address(stablecoin),
             rewards,
-            address(registry),
             address(insuranceEmissionsReceiver)
         );
         bytecode = abi.encodePacked(vm.getCode("InsurancePool.sol:InsurancePool"), constructorArgs);
@@ -228,7 +225,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(core),
-            address(registry),
             address(insurancePool)
         );
         bytecode = abi.encodePacked(vm.getCode("LiquidationHandler.sol:LiquidationHandler"), constructorArgs);
@@ -253,7 +249,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(stablecoin),
-            address(registry),
             address(core),
             address(insurancePool)
         );
@@ -279,7 +274,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(govToken),
-            address(registry), 
             address(core), 
             address(insurancePool)
         );
@@ -306,8 +300,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ====== Deploy PairEmissionStream =========
         // ============================================
         constructorArgs = abi.encode(
-            address(govToken), 
-            address(registry), 
+            address(govToken),
             address(core), 
             address(0)
         );
@@ -333,7 +326,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(core),
-            address(registry),
             address(stablecoin)
         );
         bytecode = abi.encodePacked(vm.getCode("FeeDeposit.sol:FeeDeposit"), constructorArgs);
@@ -357,8 +349,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ====== Deploy FeeDepositController ========
         // ============================================
         constructorArgs = abi.encode(
-            address(core), 
-            address(registry), 
+            address(core),
             address(feeDeposit), 
             1500, 
             500
@@ -385,7 +376,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(core),
-            address(registry),
             address(insurancePool), 
             address(debtReceiver),
             address(pairEmissionStream),
