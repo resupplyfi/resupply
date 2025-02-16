@@ -161,13 +161,13 @@ abstract contract SafeHelper is Script, Test {
         bytes memory data_
     ) internal returns (bytes memory) {
         // Add transaction to batch array
-        if (deployMode != DeployMode.FOUNDRY) vm.startBroadcast(safe);
+        if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
         encodedTxns.push(abi.encodePacked(Operation.CALL, to_, value_, data_.length, data_));
 
         // Simulate transaction and get return value
-        vm.prank(safe);
+        if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
         (bool success, bytes memory data) = to_.call{value: value_}(data_);
-        vm.stopPrank();
+        if (deployMode == DeployMode.TENDERLY) vm.stopPrank();
         if (success) {
             return data;
         } else {
