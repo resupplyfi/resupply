@@ -10,7 +10,7 @@ import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
-
+import { ICore } from "../interfaces/ICore.sol";
 
 //Receive collateral from pairs during liquidations and process
 //send underlying to insurance pool while burning debt to compensate
@@ -29,8 +29,8 @@ contract LiquidationHandler is CoreOwnable{
     event CollateralMigrated(address indexed _collateral, uint256 _collateralAmount, address _newHandler);
     event SetLiquidationIncentive(uint256 _incentive);
 
-    constructor(address _core, address _registry, address _insurancePool) CoreOwnable(_core){
-        registry = _registry;
+    constructor(address _core, address _insurancePool) CoreOwnable(_core){
+        registry = ICore(_core).registry();
         insurancePool = _insurancePool;
         liquidateIncentive = 25e18;
     }

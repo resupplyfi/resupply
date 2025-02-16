@@ -98,7 +98,6 @@ contract LiquidationHandlerTest is PairTestBase {
     function test_migrateCollateral() public {
         LiquidationHandler newLiquidationHandler = new LiquidationHandler(
             address(core),
-            address(registry),
             address(insurancePool)
         );
         uint256 amt = 100_000e18;

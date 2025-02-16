@@ -13,7 +13,7 @@ import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
-
+import { ICore } from "../interfaces/ICore.sol";
 
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
@@ -67,8 +67,8 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     event SetOperator(address indexed _op, bool _valid);
 
-    constructor(address _core,address _registry, address _govToken, address _initialoperator) CoreOwnable(_core){
-        registry = _registry;
+    constructor(address _core, address _govToken, address _initialoperator) CoreOwnable(_core){
+        registry = ICore(_core).registry();
         govToken = _govToken;
         operators[_initialoperator] = true;
         operators[_core] = true;

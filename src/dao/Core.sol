@@ -18,6 +18,8 @@ contract Core is ReentrancyGuard {
 
     address public voter;
 
+    address public registry;
+
     /// @notice The start time of the first epoch. To be referenced by other system contracts.
     uint256 public immutable startTime;
     
@@ -28,6 +30,7 @@ contract Core is ReentrancyGuard {
     mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) public operatorPermissions;
 
     event VoterSet(address indexed newVoter);
+    event RegistrySet(address indexed newRegistry);
     event OperatorExecuted(address indexed caller, address indexed target, bytes data);
     event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);
 
@@ -41,13 +44,15 @@ contract Core is ReentrancyGuard {
         _;
     }
 
-    constructor(address _voter, uint256 _epochLength) {
+    constructor(address _voter, address _registry, uint256 _epochLength) {
         require(_epochLength > 0, "Epoch length must be greater than 0");
         require(_epochLength <= 100 days, "Epoch length must be less than 100 days");
         startTime = (block.timestamp / _epochLength) * _epochLength;
         epochLength = _epochLength;
         voter = _voter;
         emit VoterSet(_voter);
+        registry = _registry;
+        emit RegistrySet(_registry);
     }
 
     /**
@@ -94,5 +99,10 @@ contract Core is ReentrancyGuard {
     function setVoter(address newVoter) external onlyCore {
         voter = newVoter;
         emit VoterSet(newVoter);
+    }
+
+    function setRegistry(address newRegistry) external onlyCore {
+        registry = newRegistry;
+        emit RegistrySet(newRegistry);
     }
 }
