@@ -13,7 +13,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
 import { IGovStaker } from "../interfaces/IGovStaker.sol";
-
+import { ICore } from "../interfaces/ICore.sol";
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
     using SafeERC20 for IERC20;
@@ -37,15 +37,14 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
     constructor(
-        address _core, 
-        address _registry, 
+        address _core,
         address _insurancepool, 
         address _debtEmissionsReceiver, 
         address _pairEmissions, 
         address _insuranceEmissions, 
         address _insuranceRevenue
     ) CoreOwnable(_core) EpochTracker(_core){
-        registry = _registry;
+        registry = ICore(_core).registry();
         address _revenueToken = IResupplyRegistry(registry).token();
         require(_revenueToken != address(0), "revenueToken not set");
         address _emissionToken = IResupplyRegistry(registry).govToken();

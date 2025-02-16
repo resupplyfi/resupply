@@ -7,8 +7,7 @@ import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
-
-
+import { ICore } from "../interfaces/ICore.sol";
 
 //FeeDeposit controller to handle distribution of funds
 contract FeeDepositController is CoreOwnable{
@@ -31,17 +30,17 @@ contract FeeDepositController is CoreOwnable{
 
     constructor(
         address _core,
-        address _registry, 
         address _feeDeposit, 
         uint256 _insuranceSplit, 
         uint256 _treasurySplit
     ) CoreOwnable(_core){
+        address _registry = ICore(_core).registry();
         registry = _registry;
+        feeToken = IResupplyRegistry(_registry).token();
         address _treasury = IResupplyRegistry(_registry).treasury();
         require(_treasury != address(0), "treasury not set");
         treasury = _treasury;
         feeDeposit = _feeDeposit;
-        feeToken = IResupplyRegistry(_registry).token();
         require(_insuranceSplit + _treasurySplit <= BPS, "invalid splits");
         splits.insurance = uint80(_insuranceSplit);
         splits.treasury = uint80(_treasurySplit);
@@ -85,6 +84,4 @@ contract FeeDepositController is CoreOwnable{
         splits.platform = uint80(_platformSplit);
         emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), uint80(_platformSplit));
     }
-
-    
 }

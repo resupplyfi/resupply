@@ -58,7 +58,6 @@ contract DeployTestEnvironment is TenderlyHelper {
             address(_core), //core
             address(_stable),
             rewards,
-            address(_registry),
             address(0) //todo emissions receiver
         );
 
@@ -72,70 +71,65 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         SimpleRewardStreamer _ipstablestream = new SimpleRewardStreamer(
             address(_stable),
-            address(_registry),
             address(_core), //core
-            address(_insurancepool));
+            address(_insurancepool)
+        );
         _return[1].address_ = address(_ipstablestream);
         _return[1].constructorParams = "";
         _return[1].contractName = "Insurance Pool Revenue Stream";
 
         SimpleRewardStreamer _ipemissionstream = new SimpleRewardStreamer(
             address(_gov),
-            address(_registry),
             address(_core), //core
-            address(_insurancepool));
+            address(_insurancepool)
+        );
         _return[2] = setReturnData(address(_ipemissionstream),"","Insurance Pool Emissions Stream");
 
         //todo queue rewards to pools
 
         SimpleRewardStreamer _pairemissionstream = new SimpleRewardStreamer(
             address(_gov),
-            address(_registry),
             address(_core), //core
-            address(0));
+            address(0)
+        );
         _return[3] = setReturnData(address(_pairemissionstream),"","Pair Emissions Stream");
 
         FeeDeposit _feedeposit = new FeeDeposit(
              address(_core), //core
-             address(_registry),
              address(_stable)
-             );
+        );
         _return[4] = setReturnData(address(_feedeposit),"","Fee Deposit");
         FeeDepositController _feedepositController = new FeeDepositController(
             address(_core), //core
-            address(_registry),
             address(_feedeposit),
             1500,
             1000
-            );
+        );
         _return[5] = setReturnData(address(_feedepositController),"","Fee Deposit Controller");
         //attach fee deposit controller to fee deposit
         _feedeposit.setOperator(address(_feedepositController));
 
         RedemptionHandler _redemptionHandler = new RedemptionHandler(
-            address(_core),//core
-            address(_registry)
-            );
+            address(_core)
+        );
         _return[6] = setReturnData(address(_redemptionHandler),"","Redemption Handler");
 
         LiquidationHandler _liqHandler = new LiquidationHandler(
             address(_core),//core
-            address(_registry),
             address(_insurancepool)
-            );
+        );
         _return[7] = setReturnData(address(_liqHandler),"","Liquidation Handler");
 
         // address _emissionReceiver = address(0); //TODO emission receiver
 
         RewardHandler _rewardHandler = new RewardHandler(
             address(_core),//core
-            address(_registry),
             address(_insurancepool),
             address(0),//address(_emissionReceiver),
             address(_pairemissionstream),
             address(_ipemissionstream),
             address(_ipstablestream)
-            );
+        );
         _return[8] = setReturnData(address(_rewardHandler),"","Reward Handler");
 
         _registry.setLiquidationHandler(address(_liqHandler));
@@ -183,7 +177,6 @@ contract DeployTestEnvironment is TenderlyHelper {
 
         ResupplyPairDeployer _pairDeployer = new ResupplyPairDeployer(
             address(_core),
-            address(_registry),
             address(_gov),
             address(deployer)
         );

@@ -34,7 +34,7 @@ contract GovStakerRewardsTest is Setup {
              
     function setUp() public override {
         super.setUp();
-        staker = new GovStaker(address(core), address(registry), address(govToken), 2);
+        staker = new GovStaker(address(core), address(govToken), 2);
         owner = address(core);
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");

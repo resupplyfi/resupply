@@ -159,7 +159,7 @@ contract PermaStakerTest is Setup {
         uint256 amount = permaStaker1.claimAndStake();
         assertGt(amount, 0);
 
-        MockGovStaker newStaker = new MockGovStaker(address(core), address(registry), address(govToken), 2, address(staker));
+        MockGovStaker newStaker = new MockGovStaker(address(core), address(govToken), 2, address(staker));
         vm.label(address(newStaker), 'NewStaker');
         vm.prank(address(permaStaker1));
         newStaker.setDelegateApproval(address(staker), true); // Must give approval for migration
@@ -182,7 +182,7 @@ contract PermaStakerTest is Setup {
         assertEq(newStaker.balanceOf(address(permaStaker1)), amount + startAmount, 'new staker balance not equal to claimed amount');
         assertEq(newStaker.isPermaStaker(address(permaStaker1)), true, 'perma staker not set');
 
-        MockGovStaker newStaker2 = new MockGovStaker(address(core), address(registry), address(govToken), 2, address(newStaker));
+        MockGovStaker newStaker2 = new MockGovStaker(address(core), address(govToken), 2, address(newStaker));
         vm.label(address(newStaker2), 'NewStaker2');
         vm.prank(address(core));
         registry.setStaker(address(newStaker2));
@@ -223,7 +223,7 @@ contract PermaStakerTest is Setup {
     }
 
     function deployNewStakerAndSetInRegistry() public returns (address) {
-        MockGovStaker newStaker = new MockGovStaker(address(core), address(registry), address(govToken), 2, address(staker));
+        MockGovStaker newStaker = new MockGovStaker(address(core), address(govToken), 2, address(staker));
         vm.label(address(newStaker), 'NewStaker');
         vm.prank(address(core));
         registry.setStaker(address(newStaker));

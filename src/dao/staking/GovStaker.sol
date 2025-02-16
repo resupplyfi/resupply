@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
+import { MultiRewardsDistributor } from 'src/dao/staking/MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { EpochTracker } from '../../dependencies/EpochTracker.sol';
-import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
-import { GovStakerEscrow } from './GovStakerEscrow.sol';
-import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
-import { IGovStaker } from "../../interfaces/IGovStaker.sol";
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { DelegatedOps } from 'src/dependencies/DelegatedOps.sol';
+import { GovStakerEscrow } from 'src/dao/staking/GovStakerEscrow.sol';
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
+import { ICore } from "src/interfaces/ICore.sol";
 
 contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;
@@ -64,20 +65,18 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     /**
         @param _core            Core contract address.
-        @param _registry        ResupplyRegistry contract address.
         @param _token           Token to be staked.
         @param _cooldownEpochs  Number of epochs to cooldown for.
     */
     constructor(
         address _core,
-        address _registry,
         address _token,
         uint24 _cooldownEpochs
     ) MultiRewardsDistributor(_core) EpochTracker(_core) {
         escrow = new GovStakerEscrow(address(this), _token);
         _stakeToken = _token;
         cooldownEpochs = _cooldownEpochs;
-        registry = IResupplyRegistry(_registry);
+        registry = IResupplyRegistry(ICore(_core).registry());
         emit CooldownEpochsUpdated(_cooldownEpochs);
     }
 

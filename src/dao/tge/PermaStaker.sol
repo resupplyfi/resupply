@@ -6,11 +6,11 @@ import { IGovStaker } from "../../interfaces/IGovStaker.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
 import { IVestManager } from "../../interfaces/IVestManager.sol";
+import { ICore } from "../../interfaces/ICore.sol";
 
 contract PermaStaker is Ownable2Step {
 
     address public immutable core;
-    IResupplyRegistry public immutable registry;
     IVestManager public immutable vestManager;
     string public name;
     address public operator;
@@ -25,14 +25,12 @@ contract PermaStaker is Ownable2Step {
 
     constructor(
         address _core, 
-        address _owner, 
-        address _registry, 
+        address _owner,
         address _vestManager,
         string memory _name
     ) Ownable(_owner) {
         core = _core;
         name = _name;
-        registry = IResupplyRegistry(_registry);
         IGovStaker _staker = _getStaker();
         require(address(_staker) != address(0), "Staker not set");
         _staker.irreversiblyCommitAccountAsPermanentStaker(address(this));
@@ -77,6 +75,10 @@ contract PermaStaker is Ownable2Step {
     }
     
     function _getStaker() internal view returns (IGovStaker) {
-        return IGovStaker(registry.staker());
+        return IGovStaker(registry().staker());
+    }
+
+    function registry() public view returns (IResupplyRegistry) {
+        return IResupplyRegistry(ICore(core).registry());
     }
 }

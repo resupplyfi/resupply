@@ -8,6 +8,7 @@ import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
+import { ICore } from "../interfaces/ICore.sol";
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
@@ -23,9 +24,9 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public constant PRECISION = 1e18;
     event SetBaseRedemptionFee(uint256 _fee);
 
-    constructor(address _core, address _registry) CoreOwnable(_core){
-        registry = _registry;
-        debtToken = IResupplyRegistry(_registry).token();
+    constructor(address _core) CoreOwnable(_core){
+        registry = ICore(_core).registry();
+        debtToken = IResupplyRegistry(registry).token();
     }
 
     /// @notice Sets the base redemption fee.
