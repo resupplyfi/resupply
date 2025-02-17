@@ -88,8 +88,6 @@
             curlCommand[6] = data;
             curlCommand[7] = "-s";
             curlCommand[8] = URL;
-
-            console.log("Sending request:", data);
             string memory result = string(vm.ffi(curlCommand));
             console.log("Response:", result);
             require(bytes(result).length > 0, "Empty response from RPC call");

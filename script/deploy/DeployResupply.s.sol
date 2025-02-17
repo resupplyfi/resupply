@@ -39,7 +39,6 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function configurationStep1() public {
-        console.log("VOTER SET IN CORE ===> ", ICore(core).voter());
         _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));

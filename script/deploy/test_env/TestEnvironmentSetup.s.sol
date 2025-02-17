@@ -16,7 +16,7 @@ contract TestEnvironmentSetup is DeployResupply {
 
 
     function run() public override {
-        deployMode = DeployMode.TENDERLY;
+        deployMode = DeployMode.FOUNDRY;
         super.deployAll();
         issueTokens();
         deployCurvePools();
