@@ -39,14 +39,12 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @param _core Core contract address
     /// @param _configData config data
-    /// @param _immutables immutable data
     /// @param _customConfigData extras
     constructor(
         address _core,
         bytes memory _configData,
-        bytes memory _immutables,
         bytes memory _customConfigData
-    ) ResupplyPairCore(_core, _configData, _immutables, _customConfigData) EpochTracker(_core) {
+    ) ResupplyPairCore(_core, _configData, _customConfigData) EpochTracker(_core) {
 
         (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
             _customConfigData,

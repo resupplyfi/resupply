@@ -35,14 +35,12 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @param collateral The address of the Collateral Token contract
     /// @param name The name of the Pair
     /// @param configData The config data of the Pair
-    /// @param immutables The immutables of the Pair
     /// @param customConfigData The custom config data of the Pair
     event LogDeploy(
         address indexed address_,
         address indexed collateral,
         string name,
         bytes configData,
-        bytes immutables,
         bytes customConfigData
     );
 
@@ -114,12 +112,10 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     /// @notice The ```_deploy``` function is an internal function with deploys the pair
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
-    /// @param _immutables abi.encode(address _registry)
     /// @param _customConfigData abi.encode(string memory _nameOfContract, address _govToken, address _underlyingStaking, uint256 _stakingId)
     /// @return _pairAddress The address to which the Pair was deployed
     function _deploy(
         bytes memory _configData,
-        bytes memory _immutables,
         bytes memory _customConfigData
     ) private returns (address _pairAddress) {
         // Get creation code
@@ -132,11 +128,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         // Get bytecode
         bytes memory bytecode = abi.encodePacked(
             _creationCode,
-            abi.encode(core, _configData, _immutables, _customConfigData)
+            abi.encode(core, _configData, _customConfigData)
         );
 
         // Generate salt using constructor params
-        bytes32 salt = keccak256(abi.encodePacked(core, _configData, _immutables, _customConfigData));
+        bytes32 salt = keccak256(abi.encodePacked(core, _configData, _customConfigData));
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -167,12 +163,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         string memory _name = getNextName(_collateral);
         collateralId[_collateral] += 1;
 
-        bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
-        _pairAddress = _deploy(_configData, _immutables, _customConfigData);
+        _pairAddress = _deploy(_configData, _customConfigData);
 
-        emit LogDeploy(_pairAddress, _collateral, _name, _configData, _immutables, _customConfigData);
+        emit LogDeploy(_pairAddress, _collateral, _name, _configData, _customConfigData);
     }
 
     // ============================================================================================

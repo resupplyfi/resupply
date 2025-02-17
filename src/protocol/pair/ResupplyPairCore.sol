@@ -22,6 +22,7 @@ import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 import { IMintable } from "../../interfaces/IMintable.sol";
+import { ICore } from "../../interfaces/ICore.sol";
 
 
 abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, RewardDistributorMultiEpoch {
@@ -119,19 +120,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @notice The ```constructor``` function is called on deployment
     /// @param _core Core contract address
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _borrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
-    /// @param _immutables abi.encode(address _registry)
     /// @param _customConfigData abi.encode(address _name, address _govToken, address _underlyingStaking, uint256 _stakingId)
     constructor(
         address _core,
         bytes memory _configData,
-        bytes memory _immutables,
         bytes memory _customConfigData
     ) CoreOwnable(_core){
-        (address _registry) = abi.decode(
-            _immutables,
-            (address)
-        );
-        registry = _registry;
+        registry = ICore(_core).registry();
         debtToken = IERC20(IResupplyRegistry(registry).token());
         {
             (
