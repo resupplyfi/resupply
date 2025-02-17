@@ -298,11 +298,12 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice burn shares and withdraw underlying assets
     /// @param _shares number of shares to redeem
     /// @param _receiver address to send underlying to
+    /// @param _owner the account to redeem from (must equal msg.sender)
+    /// @return assets amount of asset tokens received
     function redeem(uint256 _shares, address _receiver, address _owner) external nonReentrant returns (uint256 assets){
         require(msg.sender == _owner);
 
         _checkWithdrawReady(msg.sender);
-        //note: ignore _owner
         if (_shares > 0) {
             //clear queue will also checkpoint rewards
             _clearWithdrawQueue(msg.sender);
@@ -318,12 +319,12 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     /// @notice withdraw underlying assets
     /// @param _amount amount of underlying assets to withdraw
     /// @param _receiver the receiving address
+    /// @param _owner the account to redeem from (must equal msg.sender)
     /// @return shares amount of shares burned
-    function withdraw(uint256 _amount, address _receiver, address _owner) public nonReentrant returns(uint256 shares){
+    function withdraw(uint256 _amount, address _receiver, address _owner) external nonReentrant returns(uint256 shares){
         require(msg.sender == _owner);
 
         _checkWithdrawReady(msg.sender);
-        //note: ignore _owner
         if (_amount > 0) {
             //clear queue will also checkpoint rewards
             _clearWithdrawQueue(msg.sender);

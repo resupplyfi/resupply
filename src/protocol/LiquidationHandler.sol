@@ -139,6 +139,8 @@ contract LiquidationHandler is CoreOwnable{
 
             //its possible redeemed amount could be slightly different than the above maxWithdraw so recompute toburn
             toBurn = withdrawnAmount > collateralDebt ? collateralDebt : withdrawnAmount;
+
+            if(toBurn > maxBurnable) return;
         
             //burn
             IInsurancePool(insurancePool).burnAssets(toBurn);

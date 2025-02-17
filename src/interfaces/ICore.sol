@@ -9,11 +9,6 @@ interface ICore {
         IAuthHook hook;
     }
 
-    struct Action {
-        address target;
-        bytes data;
-    }
-
     event VoterSet(address indexed newVoter);
     event OperatorExecuted(address indexed caller, address indexed target, bytes data);
     event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);

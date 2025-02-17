@@ -12,7 +12,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairConstants } from "./pair/ResupplyPairConstants.sol";
 import { ResupplyPairCore } from "./pair/ResupplyPairCore.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../interfaces/ISwapper.sol";
@@ -60,7 +60,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             convexBooster = _convexBooster;
             convexPid = _convexpid;
             //approve
-            collateral.approve(convexBooster, type(uint256).max);
+            collateral.forceApprove(convexBooster, type(uint256).max);
             //add rewards for curve staking
             _insertRewardToken(CRV);
             _insertRewardToken(CVX);

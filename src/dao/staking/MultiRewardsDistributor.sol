@@ -267,7 +267,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @param _account Account to check earned balance for.
      * @return pending Amount of reward token(s) pending claim.
      */
-    function earnedMulti(address _account) public view returns (uint256[] memory pending) {
+    function earnedMulti(address _account) external view returns (uint256[] memory pending) {
         address[] memory _rewardTokens = rewardTokens;
         uint256 length = _rewardTokens.length;
         pending = new uint256[](length);

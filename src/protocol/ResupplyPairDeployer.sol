@@ -152,7 +152,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
-    /// @param _configData abi.encode(address _collateral, address _oracle, uint32 _maxOracleDeviation, address _rateCalculator, uint64 _fullUtilizationRate, uint256 _maxLTV, uint256 _cleanLiquidationFee, uint256 _dirtyLiquidationFee, uint256 _protocolLiquidationFee)
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
     /// @return _pairAddress The address to which the Pair was deployed
     function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
         if (!operators[msg.sender]) {
