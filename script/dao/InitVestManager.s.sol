@@ -31,11 +31,11 @@ contract InitVestManager {
             [ // _allocPercentages
                 uint256(333333333333333333),  // 33.33% PERMA_STAKER: Convex
                 uint256(166666666666666667),  // 16.67% PERMA_STAKER: Yearn
-                uint256(8333333333333333),    // 8.33% LICENSING: FRAX
+                uint256(8333333333333333),    // 0.833% LICENSING: FRAX
                 uint256(175000000000000000),  // 17.50% TREASURY
                 uint256(250000000000000000),  // 25.00% REDEMPTIONS
-                uint256(33333333333333333),   // 16.67% AIRDROP_TEAM
-                uint256(33333333333333333),   // 33.33% AIRDROP_VICTIMS
+                uint256(33333333333333333),   // 3.33% AIRDROP_TEAM
+                uint256(33333333333333333),   // 3.33% AIRDROP_VICTIMS
                 uint256(0)                    // 0%   AIRDROP_LOCK_PENALTY
             ]
         );
