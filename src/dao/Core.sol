@@ -18,7 +18,7 @@ contract Core is ReentrancyGuard {
 
     address public voter;
 
-    address public registry;
+    address public immutable registry;
 
     /// @notice The start time of the first epoch. To be referenced by other system contracts.
     uint256 public immutable startTime;
@@ -99,10 +99,5 @@ contract Core is ReentrancyGuard {
     function setVoter(address newVoter) external onlyCore {
         voter = newVoter;
         emit VoterSet(newVoter);
-    }
-
-    function setRegistry(address newRegistry) external onlyCore {
-        registry = newRegistry;
-        emit RegistrySet(newRegistry);
     }
 }
