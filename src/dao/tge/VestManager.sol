@@ -61,9 +61,8 @@ contract VestManager is VestManagerBase {
         @param _nonUserTargets  Addresses to receive the non-user allocations
         @param _vestDurations  Durations of the vesting periods for each type
         @param _allocPercentages Percentages of the initial supply allocated to each type,  
-            the first two values being perma-stakers, followed by all other types in order of 
-            AllocationType enum, and the final value being the percentage of the initial supply 
-            allocated for emissions.
+            the first two values being perma-stakers, followed by all other allocation types in order of 
+            AllocationType enum.
     */
     function setInitializationParams(
         uint256 _maxRedeemable,
