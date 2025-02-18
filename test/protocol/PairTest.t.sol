@@ -66,8 +66,8 @@ contract PairTest is PairTestBase {
     }
 
     function test_RedemptionPartial() public {
-        uint256 collateralAmount = 150_000e18;
-        uint256 borrowAmount = 100_000e18;
+        uint256 collateralAmount = 1_500_000e18;
+        uint256 borrowAmount = 500_000e18;
         uint256 redeemAmount = 10_000e18;
 
         console.log("redemption token: ", address(pair.redemptionWriteOff()));
@@ -102,6 +102,8 @@ contract PairTest is PairTestBase {
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
+        uint256 nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
@@ -109,6 +111,8 @@ contract PairTest is PairTestBase {
             address(this),  // return to
             true           // unwrap
         );
+        
+
         uint256 underlyingBalAfter = underlying.balanceOf(address(this));
         uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
         uint256 collateralBalAfter = pair.userCollateralBalance(address(this));
@@ -121,7 +125,8 @@ contract PairTest is PairTestBase {
         (uint256 totalDebtAfter, ) = pair.totalBorrow();
         uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
         uint256 amountToStakers = pair.claimableOtherFees() - otherFeesBefore;
-        console.log("totalFeePct", totalFee);
+        console.log("nextFee", nextFee);
+        console.log("real fee", totalFee);
         console.log("redeemAmount", redeemAmount);
         console.log("collateralFreed", collateralFreed);
         console.log("collateralBefore", collateralBalBefore);
@@ -132,8 +137,10 @@ contract PairTest is PairTestBase {
         console.log("amountToStakers", amountToStakers);
         printEarned(pair, address(this));
 
+        (,uint192 pairUsage) = redemptionHandler.ratingData(address(pair));
+        console.log("current pair usage: ", pairUsage);
         console.log("continue redemptions...");
-        for(uint256 i=0; i < 8; i++){
+        for(uint256 i=0; i < 5; i++){
             totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
             collateralBalAfter = pair.userCollateralBalance(address(this));
             redemptionHandler.redeemFromPair(
@@ -143,8 +150,29 @@ contract PairTest is PairTestBase {
                 address(this),  // return to
                 true           // unwrap
             );
-            console.log("fee", totalFee);
-            console.log("collateral remaining", collateralBalAfter);
+            console.log("fee used: ", totalFee);
+            nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+            console.log("nextFee: ", nextFee);
+            (, pairUsage) = redemptionHandler.ratingData(address(pair));
+            console.log("current pair usage: ", pairUsage);
+            console.log("collateral remaining: ", collateralBalAfter);
+        }
+
+        uint256 minimumRedeem = pair.minimumRedemption();
+        for(uint256 i=0; i < 20; i++){
+            vm.warp(block.timestamp +7 days);
+            console.log("warp forward...");
+            nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+            console.log("nextFee: ", nextFee);
+            redemptionHandler.redeemFromPair(
+                address(pair),  // pair
+                minimumRedeem,   // amount
+                1e18,           // max fee
+                address(this),  // return to
+                true           // unwrap
+            );
+            (, pairUsage) = redemptionHandler.ratingData(address(pair));
+            console.log("current pair usage: ", pairUsage);
         }
         
 

@@ -32,6 +32,7 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public maxDiscount = 1e15; //up to 0.1% discount
 
     event SetBaseRedemptionFee(uint256 _fee);
+    event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);
 
     constructor(address _core, address _registry) CoreOwnable(_core){
         registry = _registry;
@@ -43,8 +44,17 @@ contract RedemptionHandler is CoreOwnable{
     /// @param _fee The new base redemption fee, must be <= 1e18 (100%)
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
         require(_fee <= 1e18, "!fee");
+        require(_fee >= maxDiscount, "!discount");
         baseRedemptionFee = _fee;
         emit SetBaseRedemptionFee(_fee);
+    }
+
+    function setDiscountInfo(uint256 _rate, uint256 _maxUsage, uint256 _maxDiscount) external onlyOwner{
+        require(_maxDiscount <= baseRedemptionFee, "!discount");
+        usageDecayRate = _rate;
+        maxUsage = _maxUsage;
+        maxDiscount = _maxDiscount;
+        emit SetDiscountInfo(_rate, _maxUsage, _maxDiscount);
     }
 
     /// @notice Estimates the maximum amount of debt that can be redeemed from a pair
@@ -94,14 +104,16 @@ contract RedemptionHandler is CoreOwnable{
         //just use the half way point by using current + half the newly added weight
         uint256 halfway = rdata.usage + (weightOfRedeem/2);
         
+        uint256 _maxusage = maxUsage;
+
         //add new weight to the struct
         rdata.usage += uint192(weightOfRedeem);
-        
-        // //write to state
-        // ratingData[_pair] = rdata;
-
+        //clamp to max usage
+        if(rdata.usage > uint192(_maxusage)){
+            rdata.usage = uint192(_maxusage);
+        }
+    
         //calculate the discount and final fee (base fee minus discount)
-        uint256 _maxusage = maxUsage;
         
         //first get how close we are to _maxusage by taking difference.
         //if halfway is >= to _maxusage then discount is 0.
@@ -139,10 +151,12 @@ contract RedemptionHandler is CoreOwnable{
     ) external returns(uint256){
         //get fee
         (uint256 feePct, RedeemptionRateInfo memory rdata) = _getRedemptionFee(_pair, _amount);
-        //write to state
-        ratingData[_pair] = rdata;
+        
         //check against maxfee to avoid frontrun
         require(feePct <= _maxFeePct, "fee > maxFee");
+
+        //write new rating data to state
+        ratingData[_pair] = rdata;
 
         address returnToAddress = address(this);
         if(!_redeemToUnderlying){
