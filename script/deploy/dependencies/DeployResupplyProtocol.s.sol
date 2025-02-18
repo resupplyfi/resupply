@@ -184,7 +184,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         console.log("Debt Receiver deployed at", address(debtReceiver));
 
         // ============================================
-        // ====== Deploy InsuranceReceiver =============
+        // ====== Deploy InsurancePoolReceiver =============
         // ============================================
         result = _executeCore(
             address(receiverFactory), 
@@ -192,7 +192,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         insuranceEmissionsReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
-        console.log("Insurance Receiver deployed at", address(insuranceEmissionsReceiver));
+        console.log("Insurance Pool Receiver deployed at", address(insuranceEmissionsReceiver));
 
         // ============================================
         // ====== Deploy InsurancePool ================
