@@ -26,12 +26,13 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
     uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
     uint256 public constant MAX_PCT = 10000;
+    uint256 public constant MAX_DESCRIPTION_BYTES = 384;
 
     IGovStaker public immutable staker;
 
     Proposal[] proposalData;
     // Proposal ID -> payload
-    mapping(uint256 id => Action[] payload) public proposalPayloads;
+    mapping(uint256 id => Action[] payload) public proposalPayload;
     // Proposal ID -> description
     mapping(uint256 id => string description) public proposalDescription;
     // Record of user's vote: account -> ID -> vote
@@ -52,6 +53,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     );
     event ProposalExecuted(uint256 indexed proposalId);
     event ProposalCancelled(uint256 indexed proposalId);
+    event ProposalDescriptionUpdated(uint256 indexed proposalId);
     event VoteCast(
         address indexed account,
         uint256 indexed id,
@@ -134,7 +136,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         )
     {
         Proposal memory proposal = proposalData[id];
-        payload = proposalPayloads[id];
+        payload = proposalPayload[id];
         return (
             proposalDescription[id],
             proposal.epoch,
@@ -161,7 +163,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             latestProposalTimestamp[account] + MIN_TIME_BETWEEN_PROPOSALS < block.timestamp,
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
-        require(bytes(description).length <= 384, "Description too long");
+        require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
 
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
@@ -185,7 +187,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             })
         );
         for (uint256 i = 0; i < payload.length; i++) {
-            proposalPayloads[proposalId].push(payload[i]);
+            proposalPayload[proposalId].push(payload[i]);
         }
         proposalDescription[proposalId] = description;
         latestProposalTimestamp[account] = block.timestamp;
@@ -251,7 +253,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
-        require(!_containsProposalCancelerPayload(proposalPayloads[id]), "Contains canceler payload");
+        require(!_containsProposalCancelerPayload(proposalPayload[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
@@ -293,7 +295,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         require(_canExecute(proposal), "Proposal cannot be executed");
         proposalData[id].processed = true;
 
-        Action[] storage payload = proposalPayloads[id];
+        Action[] storage payload = proposalPayload[id];
         uint256 payloadLength = payload.length;
 
         for (uint256 i = 0; i < payloadLength; i++) {
@@ -358,13 +360,14 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
 
     /**
-        @notice Update the description text for an existing proposal
+        @notice Overwrite the description text for an existing proposal
         @param id The ID of the proposal to update
         @param description New description text for the proposal
      */
     function updateProposalDescription(uint256 id, string calldata description) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
-        require(bytes(description).length <= 384, "Description too long");
+        require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
         proposalDescription[id] = description;
+        emit ProposalDescriptionUpdated(id);
     }
 }
