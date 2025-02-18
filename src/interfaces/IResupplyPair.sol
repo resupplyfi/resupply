@@ -88,7 +88,7 @@ interface IResupplyPair {
     function leveragedPosition(
         address _swapperAddress,
         uint256 _borrowAmount,
-        uint256 _initialCollateralAmount,
+        uint256 _initialUnderlyingAmount,
         uint256 _amountCollateralOutMin,
         address[] memory _path
     ) external returns (uint256 _totalCollateralBalance);

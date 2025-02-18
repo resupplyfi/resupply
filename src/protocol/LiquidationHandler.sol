@@ -21,7 +21,7 @@ contract LiquidationHandler is CoreOwnable{
     address public immutable insurancePool;
     mapping(address => uint256) public debtByCollateral;
 
-    event CollateralProccessed(address indexed _collateral, uint256 _debtBurned, uint256 _profit);
+    event CollateralProccessed(address indexed _collateral, uint256 _debtBurned, uint256 _amountWithdrawn);
     event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
     event CollateralMigrated(address indexed _collateral, uint256 _collateralAmount, address _newHandler);
 
@@ -140,7 +140,9 @@ contract LiquidationHandler is CoreOwnable{
             //its possible redeemed amount could be slightly different than the above maxWithdraw so recompute toburn
             toBurn = withdrawnAmount > collateralDebt ? collateralDebt : withdrawnAmount;
 
-            if(toBurn > maxBurnable) return;
+            if(toBurn > maxBurnable){
+                toBurn = maxBurnable;
+            }
         
             //burn
             IInsurancePool(insurancePool).burnAssets(toBurn);
@@ -148,7 +150,7 @@ contract LiquidationHandler is CoreOwnable{
             //update remaining debt (toBurn should not be greater than debtByCollateral as its adjusted above)
             debtByCollateral[_collateral] -= toBurn;
 
-            emit CollateralProccessed(_collateral, toBurn, withdrawnAmount - toBurn);
+            emit CollateralProccessed(_collateral, toBurn, withdrawnAmount);
         }
     }
 }

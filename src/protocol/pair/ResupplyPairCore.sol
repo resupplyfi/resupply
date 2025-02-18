@@ -1077,8 +1077,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _amountCollateralOut
     );
 
-    /// @notice The ```leveragedPosition``` function allows a user to enter a leveraged borrow position with minimal upfront Collateral
-    /// @dev Caller must invoke ```ERC20.approve()``` on the Collateral Token contract prior to calling function
+    /// @notice The ```leveragedPosition``` function allows a user to enter a leveraged borrow position with minimal upfront Underlying tokens
+    /// @dev Caller must invoke ```ERC20.approve()``` on the Underlying Token contract prior to calling function
     /// @param _swapperAddress The address of the whitelisted swapper to use to swap borrowed Asset Tokens for Collateral Tokens
     /// @param _borrowAmount The amount of Asset Tokens borrowed
     /// @param _initialUnderlyingAmount The initial amount of underlying Tokens supplied by the borrower
