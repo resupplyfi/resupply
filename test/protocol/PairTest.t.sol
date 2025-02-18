@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { console } from "forge-std/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { Setup } from "test/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
@@ -70,10 +70,20 @@ contract PairTest is PairTestBase {
         uint256 borrowAmount = 100_000e18;
         uint256 redeemAmount = 10_000e18;
 
+        console.log("redemption token: ", address(pair.redemptionWriteOff()));
+
+        (address reward0, bool isclaimable, uint256 rewardsRemaining) = pair.rewards(0);
+        console.log("reward0 token", reward0);
+        console.log("reward0 isclaimable", isclaimable);
+        console.log("reward0 rewardsRemaining", uint(rewardsRemaining));
+        console.logUint(rewardsRemaining);
+
+
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
 
-        deal(address(stablecoin), address(this), redeemAmount);
+        // deal(address(stablecoin), address(this), redeemAmount);
+        deal(address(stablecoin), address(this), borrowAmount);
         
         vm.expectRevert("fee > maxFee");
         redemptionHandler.redeemFromPair(
@@ -84,8 +94,11 @@ contract PairTest is PairTestBase {
             false           // unwrap
         );
 
+        
+
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
         uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
+        uint256 collateralBalBefore = pair.userCollateralBalance(address(this));
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
@@ -98,6 +111,7 @@ contract PairTest is PairTestBase {
         );
         uint256 underlyingBalAfter = underlying.balanceOf(address(this));
         uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
+        uint256 collateralBalAfter = pair.userCollateralBalance(address(this));
         assertGt(underlyingGain, 0);
         assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
         uint256 feesPaid = redeemAmount - underlyingGain;
@@ -110,10 +124,29 @@ contract PairTest is PairTestBase {
         console.log("totalFeePct", totalFee);
         console.log("redeemAmount", redeemAmount);
         console.log("collateralFreed", collateralFreed);
+        console.log("collateralBefore", collateralBalBefore);
+        console.log("collateralAfter", collateralBalAfter);
         console.log("debtWrittenOff", debtWrittenOff);
         console.log("underlyingReturned", underlyingGain);
         console.log("feesPaid (w/ rounding error)", feesPaid);
         console.log("amountToStakers", amountToStakers);
+        printEarned(pair, address(this));
+
+        console.log("continue redemptions...");
+        for(uint256 i=0; i < 8; i++){
+            totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
+            collateralBalAfter = pair.userCollateralBalance(address(this));
+            redemptionHandler.redeemFromPair(
+                address(pair),  // pair
+                redeemAmount,   // amount
+                1e18,           // max fee
+                address(this),  // return to
+                true           // unwrap
+            );
+            console.log("fee", totalFee);
+            console.log("collateral remaining", collateralBalAfter);
+        }
+        
 
         assertZeroBalanceRH();
     }
@@ -173,6 +206,7 @@ contract PairTest is PairTestBase {
         console.log("underlyingReturned", underlyingGain);
         console.log("feesPaid (w/ rounding error)", feesPaid);
         console.log("amountToStakers", amountToStakers);
+
 
         assertZeroBalanceRH();
     }

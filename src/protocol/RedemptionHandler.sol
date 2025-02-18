@@ -21,6 +21,16 @@ contract RedemptionHandler is CoreOwnable{
 
     uint256 public baseRedemptionFee = 1e16; //1%
     uint256 public constant PRECISION = 1e18;
+
+    struct RedeemptionRateInfo {
+        uint64 timestamp;  //time since last update
+        uint192 usage;  //usage weight, defined by % of pair redeemed. thus a pair redeemed for 2% three times will have a weight of 6
+    }
+    mapping(address => RedeemptionRateInfo) public ratingData;
+    uint256 public usageDecayRate = 1e17 / uint256(7 days); //10% per week
+    uint256 public maxUsage = 3e17; //max usage of 30%. any thing above 30% will be 0 discount.  linearly scale between 0 and maxusage
+    uint256 public maxDiscount = 1e15; //up to 0.1% discount
+
     event SetBaseRedemptionFee(uint256 _fee);
 
     constructor(address _core, address _registry) CoreOwnable(_core){
@@ -54,9 +64,64 @@ contract RedemptionHandler is CoreOwnable{
     }
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
-    function getRedemptionFeePct(address /*_pair*/, uint256 /*_amount*/) public view returns(uint256){
-        return baseRedemptionFee;
+    function getRedemptionFeePct(address _pair, uint256 _amount) public view returns(uint256){
+        //get fee
+        (uint256 feePct,) = _getRedemptionFee(_pair, _amount);
+        return feePct;
     }
+
+    function _getRedemptionFee(address _pair, uint256 _amount) internal view returns(uint256, RedeemptionRateInfo memory){
+        (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        
+        //determine the weight of this current redemption by dividing by pair's total borrow
+        uint256 weightOfRedeem = _amount * 1e18 / _totalBorrow.amount;
+
+        //update current data with decay rate
+        RedeemptionRateInfo memory rdata = ratingData[_pair];
+        
+        //only decay if this pair has been used before
+        if(rdata.timestamp != 0){
+            //reduce useage by time difference since last redemption
+            uint192 decay = uint192((block.timestamp - rdata.timestamp) * usageDecayRate);
+            //set the pair's usage or weight
+            rdata.usage = rdata.usage < decay ? 0 : rdata.usage - decay;
+        }
+        //update timestamp
+        rdata.timestamp = uint64(block.timestamp);
+        
+        //use halfway point as the current weight for fee calc
+        //using pre weight would have high discount, using post weight would have low discount
+        //just use the half way point by using current + half the newly added weight
+        uint256 halfway = rdata.usage + (weightOfRedeem/2);
+        
+        //add new weight to the struct
+        rdata.usage += uint192(weightOfRedeem);
+        
+        // //write to state
+        // ratingData[_pair] = rdata;
+
+        //calculate the discount and final fee (base fee minus discount)
+        uint256 _maxusage = maxUsage;
+        
+        //first get how close we are to _maxusage by taking difference.
+        //if halfway is >= to _maxusage then discount is 0.
+        //if halfway is == to 0 then discount equals our max usage
+        uint256 discount = _maxusage > halfway ? _maxusage - halfway : 0;
+        
+        //convert the above value to a percentage with precision 1e18
+        //if halfway is 8 units of usage then discount is 2 (10-8)
+        //thus below should convert to 20%  (2 is 20% of the max usage 10)
+        discount = (discount * 1e18 / _maxusage); //discount is now a 1e18 percision % 
+        
+        //take above percentage of maxDiscount as our final discount
+        //above example is 20% so a 0.2 max discount * 20% will be 0.04 discount (2e15 * 20% = 4e14)
+        discount = (maxDiscount * discount / 1e18);// get % of maxDiscount
+        
+        //remove from base fee the discount and return
+        //above example will be 1.0 - 0.04 = 0.96% fee (1e16 - 4e14)
+        return (baseRedemptionFee - discount, rdata);
+    }
+
 
     /// @notice Redeem stablecoins for collateral from a pair
     /// @param _pair The address of the pair to redeem from
@@ -73,7 +138,9 @@ contract RedemptionHandler is CoreOwnable{
         bool _redeemToUnderlying
     ) external returns(uint256){
         //get fee
-        uint256 feePct = getRedemptionFeePct(_pair, _amount);
+        (uint256 feePct, RedeemptionRateInfo memory rdata) = _getRedemptionFee(_pair, _amount);
+        //write to state
+        ratingData[_pair] = rdata;
         //check against maxfee to avoid frontrun
         require(feePct <= _maxFeePct, "fee > maxFee");
 

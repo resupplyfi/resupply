@@ -2,11 +2,12 @@
 pragma solidity 0.8.28;
 
 import "src/Constants.sol" as Constants;
-import { console } from "forge-std/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { Setup } from "test/Setup.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract PairTestBase is Setup, ResupplyPairConstants {
@@ -132,5 +133,18 @@ contract PairTestBase is Setup, ResupplyPairConstants {
 
     function calculateMinUnderlyingNeededForBorrow(uint256 borrowAmount) public view returns (uint256) {
         return borrowAmount * ResupplyPairConstants.LTV_PRECISION / pair.maxLTV();
+    }
+
+    function printEarned(ResupplyPair _pair, address _account) public{
+        ResupplyPair.EarnedData[] memory eData = _pair.earned(_account);
+        uint256 len = eData.length;
+        console.log("--- earned ---");
+        for(uint256 i=0; i < len; i++){
+            console.log("token: ", eData[i].token);
+            IERC20Metadata meta = IERC20Metadata(eData[i].token);
+            console.log("token name: ", meta.name());
+            console.log("amount: ", eData[i].amount);
+        }
+        console.log("-----------");
     }
 }

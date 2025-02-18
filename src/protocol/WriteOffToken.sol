@@ -21,6 +21,18 @@ contract WriteOffToken {
         owner = _owner;
     }
 
+    function name() external pure returns (string memory){
+        return "WriteOffToken";
+    }
+
+    function symbol() external pure returns (string memory){
+        return "WOT";
+    }
+
+    function decimals() external pure returns (uint8){
+        return 18;
+    }
+
     function mint(uint256 _amount) external{
         if(msg.sender == owner){
             totalSupply += _amount;
