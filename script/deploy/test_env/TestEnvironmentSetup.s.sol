@@ -16,14 +16,13 @@ contract TestEnvironmentSetup is DeployResupply {
 
 
     function run() public override {
-        deployMode = DeployMode.FOUNDRY;
+        deployMode = DeployMode.TENDERLY;
         super.deployAll();
         issueTokens();
         deployCurvePools();
-        provideLiquidity();
         deploySwapper();
         handoffGovernance();
-        provideLiquidity();
+        // provideLiquidity();
     }
 
     function handoffGovernance() public {
@@ -32,7 +31,8 @@ contract TestEnvironmentSetup is DeployResupply {
 
     function issueTokens() public {
         address _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
-        setTokenBalance(address(_stablecoin), dev, 100_000_000e18);
+        setTokenBalance(_stablecoin, dev, 100_000_000e18);
+        console.log("stablecoin balance of dev", IERC20(_stablecoin).balanceOf(dev));
         setTokenBalance(scrvusd, dev, 100_000_000e18);
         setTokenBalance(sfrxusd, dev, 100_000_000e18);
     }
@@ -89,8 +89,6 @@ contract TestEnvironmentSetup is DeployResupply {
     function provideLiquidity() public isBatch(dev) {
         // Add liquidity to reUSD/scrvUSD pool
         // TODO: Not yet able to figure out how to get tenderly API to fund dev account with `stablecoin`
-        crvusdPool = 0xE97b3271F812ff43522312705dbe58C8C6077B5f;
-        fraxPool = 0x3CEf1AFC0E8324b57293a6E7cE663781bbEFBB79;
         address _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
         // Approve tokens for both pools
         addToBatch(
@@ -112,6 +110,8 @@ contract TestEnvironmentSetup is DeployResupply {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 1_000_000e18;
         amounts[1] = 1_000_000e18;
+
+        // Add liquidity to reUSD/scrvUSD pool
         addToBatch(
             crvusdPool,
             abi.encodeWithSelector(ICurveExchange.add_liquidity.selector, amounts, 0, dev)
