@@ -9,12 +9,14 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { ICore } from "src/interfaces/ICore.sol";
+import { IVoter } from "src/interfaces/IVoter.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function run() public virtual {
-        deployMode = DeployMode.TENDERLY;
+        deployMode = DeployMode.FOUNDRY;
         deployAll();
     }
 
@@ -27,15 +29,58 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         configureProtocolContracts();
         (permaStaker1, permaStaker2) = deployPermaStakers();
         deployDefaultLendingPairs();
-        grantPermissionsToSetVoter();
+        setupEmissionsReceivers();
+        grantOperatorPermissions();
+    }
+
+    // Deploy incentives reUSD/RSUP incentives receivers and register all receivers with the emissions controller
+    function setupEmissionsReceivers() public {
+        address[] memory approvedClaimers = new address[](1);
+        approvedClaimers[0] = address(dev);
+        // Deploy the reUSD Incentives Receiver
+        bytes memory result = _executeCore(
+            address(receiverFactory), 
+            abi.encodeWithSelector(receiverFactory.deployNewReceiver.selector, "reUSD Incentives Receiver", approvedClaimers)
+        );
+        result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
+        address reusdIncentivesReceiver = abi.decode(result, (address)); // decode the bytes result to an address
+        console.log("reUSD Incentives Receiver deployed at", address(reusdIncentivesReceiver));
+        // Deploy the RSUP Incentives Receiver
+        result = _executeCore(
+            address(receiverFactory), 
+            abi.encodeWithSelector(receiverFactory.deployNewReceiver.selector, "RSUP Incentives Receiver", approvedClaimers)
+        );
+        result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
+        address rsupIncentivesReceiver = abi.decode(result, (address)); // decode the bytes result to an address
+        console.log("RSUP Incentives Receiver deployed at", address(rsupIncentivesReceiver));
+
+        // Register the receivers with the emissions controller
+        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(debtReceiver)));
+        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(insuranceEmissionsReceiver)));
+        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(reusdIncentivesReceiver)));
+        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(rsupIncentivesReceiver)));
+        
+        // Set the weights for the receivers
+        uint256[] memory receiverIds = new uint256[](4);
+        receiverIds[0] = 0;
+        receiverIds[1] = 1;
+        receiverIds[2] = 2;
+        receiverIds[3] = 3;
+        uint256[] memory weights = new uint256[](4);
+        weights[0] = DEBT_RECEIVER_WEIGHT;
+        weights[1] = INSURANCE_EMISSIONS_RECEIVER_WEIGHT;
+        weights[2] = REUSD_INCENTENIVES_RECEIVER_WEIGHT;
+        weights[3] = RSUP_INCENTENIVES_RECEIVER_WEIGHT;
+        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.setReceiverWeights.selector, receiverIds, weights));
     }
 
     function deployDefaultLendingPairs() public {
-        address pair;
-        pair = deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
-        console.log('pair deployed: fraxlend_sfrxeth_frax', pair);
-        pair = deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
-        console.log('pair deployed: curvelend_sfrax_crvusd', pair);
+        address pair1;
+        address pair2;
+        pair1 = deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        console.log('pair deployed: fraxlend_sfrxeth_frax', pair1);
+        pair2 = deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        console.log('pair deployed: curvelend_sfrax_crvusd', pair2);
     }
 
     function configurationStep1() public {
@@ -58,7 +103,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _executeCore(address(stablecoin), abi.encodeWithSelector(Stablecoin.setOperator.selector, address(registry), true));
     }
 
-    function grantPermissionsToSetVoter() public {
+    function grantOperatorPermissions() public {
         // During protocol launch phase, we grant the guardian multisig permissions to set the voter
         _executeCore(
             core, 
@@ -72,5 +117,18 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             )
         );
         console.log("Granted permissions to set voter");
+        // Allow the guardian multisig to update proposal descriptions
+        _executeCore(
+            core, 
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector, 
+                dev, 
+                address(voter),
+                IVoter.updateProposalDescription.selector,
+                true,
+                address(0)
+            )
+        );
+        console.log("Granted permissions to update proposal descriptions");
     }
 }

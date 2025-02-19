@@ -1,5 +1,5 @@
 import { VestManager } from "src/dao/tge/VestManager.sol";
-import { TenderlyHelper } from "script/utils/TenderlyHelper.s.sol";
+import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 
 contract InitVestManager is TenderlyHelper {
     address public constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;

@@ -30,6 +30,11 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     address internal constant PERMA_STAKER2_OWNER = address(2);
     string internal constant PERMA_STAKER1_NAME = "Convex";
     string internal constant PERMA_STAKER2_NAME = "Yearn";
+    uint256 internal constant DEBT_RECEIVER_WEIGHT = 4000; // pct of weekly emissions to debt receiver
+    uint256 internal constant INSURANCE_EMISSIONS_RECEIVER_WEIGHT = 4000; // pct of weekly emissions to insurance emissions receiver
+    uint256 internal constant REUSD_INCENTENIVES_RECEIVER_WEIGHT = 1000; // pct of weekly emissions to reUSD incentives receiver
+    uint256 internal constant RSUP_INCENTENIVES_RECEIVER_WEIGHT = 1000; // pct of weekly emissions to burn receiver
+
 
     // Configs: Protocol
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
@@ -37,6 +42,9 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
     uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
+    uint256 internal constant FEE_SPLIT_IP = 2500; // 25%
+    uint256 internal constant FEE_SPLIT_TREASURY = 500; // 5%
+    uint256 internal constant FEE_SPLIT_STAKERS = 7000; // 70%
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
