@@ -30,7 +30,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     IGovStaker public immutable staker;
 
-    Proposal[] proposalData;
+    Proposal[] public proposalData;
     // Proposal ID -> payload
     mapping(uint256 id => Action[] payload) public proposalPayload;
     // Proposal ID -> description
@@ -53,7 +53,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     );
     event ProposalExecuted(uint256 indexed proposalId);
     event ProposalCancelled(uint256 indexed proposalId);
-    event ProposalDescriptionUpdated(uint256 indexed proposalId);
+    event ProposalDescriptionUpdated(uint256 indexed proposalId, string description);
     event VoteCast(
         address indexed account,
         uint256 indexed id,
@@ -117,24 +117,20 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Gets information on a specific proposal
+        @dev Fetching the description can be expensive. 
+            On chain integrations should consider accessing proposalData directly.
      */
-    function getProposalData(
-        uint256 id
-    )
-        external
-        view
-        returns (
-            string memory description,
-            uint256 epoch,
-            uint256 createdAt,
-            uint256 quorumWeight,
-            uint256 weightYes,
-            uint256 weightNo,
-            bool processed,
-            bool executable,
-            Action[] memory payload
-        )
-    {
+    function getProposalData(uint256 id) external view returns (
+        string memory description,
+        uint256 epoch,
+        uint256 createdAt,
+        uint256 quorumWeight,
+        uint256 weightYes,
+        uint256 weightNo,
+        bool processed,
+        bool executable,
+        Action[] memory payload
+    ){
         Proposal memory proposal = proposalData[id];
         payload = proposalPayload[id];
         return (
@@ -368,6 +364,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         require(id < proposalData.length, "Invalid ID");
         require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
         proposalDescription[id] = description;
-        emit ProposalDescriptionUpdated(id);
+        emit ProposalDescriptionUpdated(id, description);
     }
 }
