@@ -535,6 +535,11 @@ contract GovStakerRewardsTest is Setup {
         uint startBalance = rewardToken.balanceOf(user1);
         staker.getReward(user1); // call from different address
         assertGt(rewardToken.balanceOf(user1), startBalance);
+
+        skip(1 weeks);
+        startBalance = rewardToken.balanceOf(user1);
+        staker.getOneReward(user1, address(rewardToken)); // call from different address
+        assertGt(rewardToken.balanceOf(user1), startBalance);
     }
 
     function test_Redirect() public {
@@ -546,6 +551,21 @@ contract GovStakerRewardsTest is Setup {
         uint startBalance = rewardToken.balanceOf(user2);
         staker.getReward(user1); // call from different address
         assertGt(rewardToken.balanceOf(user2), startBalance);
+
+        skip(1 weeks);
+        startBalance = rewardToken.balanceOf(user2);
+        staker.getOneReward(user1, address(rewardToken)); // call from different address
+        assertGt(rewardToken.balanceOf(user2), startBalance);
+
+        vm.prank(user1);
+        staker.setRewardRedirect(address(0)); // clear redirect
+
+        skip(1 weeks);
+        startBalance = rewardToken.balanceOf(user2);
+        uint user1Balance = rewardToken.balanceOf(user1);
+        staker.getOneReward(user1, address(rewardToken)); // call from different address
+        assertEq(rewardToken.balanceOf(user2), startBalance);
+        assertGt(rewardToken.balanceOf(user1), user1Balance);
     }
 
     function depositStake() public {
