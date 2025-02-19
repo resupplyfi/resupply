@@ -10,8 +10,8 @@ import { Swapper } from "src/protocol/Swapper.sol";
 contract TestEnvironmentSetup is DeployResupply {
     address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
     address public sfrxusd = Constants.Mainnet.SFRAX_ERC20;
-    address public crvusdPool;
-    address public fraxPool;
+    address public crvusdPool = 0x8005516831b4DC21aCdc34d5a413F189FC850948;
+    address public fraxPool = 0xd6891003c66371606d85a33f694768b0e7738291;
     Swapper public defaultSwapper;
 
 
@@ -22,7 +22,7 @@ contract TestEnvironmentSetup is DeployResupply {
         deployCurvePools();
         deploySwapper();
         handoffGovernance();
-        // provideLiquidity();
+        provideLiquidity();
     }
 
     function handoffGovernance() public {

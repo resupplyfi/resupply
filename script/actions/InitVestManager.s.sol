@@ -10,6 +10,7 @@ contract InitVestManager is TenderlyHelper {
     address public core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
     
     function run() public {
+        setEthBalance(core, 1e18);
         vm.startBroadcast(core);
         vestManager.setInitializationParams(
             150_000_000e18,             // _maxRedeemable

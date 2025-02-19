@@ -91,6 +91,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function configureProtocolContracts() public {
+        _executeCore(address(govToken), abi.encodeWithSelector(GovToken.setMinter.selector, address(emissionsController), true));
         _executeCore(address(feeDeposit), abi.encodeWithSelector(feeDeposit.setOperator.selector, address(feeDepositController)));
         _executeCore(address(staker), abi.encodeWithSelector(IGovStaker.addReward.selector, address(stablecoin), address(rewardHandler), uint256(7 days)));
         _executeCore(address(debtReceiver), abi.encodeWithSelector(SimpleReceiver.setApprovedClaimer.selector, address(rewardHandler), true));
