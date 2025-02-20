@@ -33,6 +33,7 @@ interface IResupplyPair {
 
     function mintFee() external view returns (uint256);
     function liquidationFee() external view returns (uint256);
+    function protocolRedemptionFee() external view returns (uint256);
 
     function collateral() external view returns (address);
     function underlying() external view returns (address);

@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
+import { IOracle } from "../interfaces/IOracle.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
 
@@ -174,6 +175,39 @@ contract RedemptionHandler is CoreOwnable{
         }
         
         return _returnedCollateral;
+    }
+
+    function previewRedeem(address _pair, uint256 _amount) external view returns(uint256 _returnedUnderlying, uint256 _returnedCollateral){
+        //get fee
+        (uint256 feePct, ) = _getRedemptionFee(_pair, _amount);
+
+        //value to redeem
+        uint256 valueToRedeem = _amount * (1e18 - feePct) / 1e18;
+
+        //add interest and check amount bounds
+        (,,, IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
+        uint256 protocolFee = (_amount - valueToRedeem) * IResupplyPair(_pair).protocolRedemptionFee() / 1e18;
+        uint256 debtReduction = _amount - protocolFee;
+
+        //return 0 if given amount is out of bounds
+        if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minLeftoverDebt ){
+            return (0,0);
+        }
+
+        //get exchange
+        (address oracle, , ) = IResupplyPair(_pair).exchangeRateInfo();
+        address collateralVault = IResupplyPair(_pair).collateral();
+
+        uint256 exchangeRate = IOracle(oracle).getPrices(collateralVault);
+        //convert price of collateral as debt is priced in terms of collateral amount (inverse)
+        exchangeRate = 1e36 / exchangeRate;
+
+        //calc collateral units
+        _returnedCollateral = ((valueToRedeem * exchangeRate) / 1e18);
+
+        //preview redeem of underlying
+        _returnedUnderlying = IERC4626(collateralVault).previewRedeem(_returnedCollateral);
     }
 
 }
