@@ -186,11 +186,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      */
     function setRewardsDuration(address _rewardsToken, uint256 _rewardsDuration) external {
         if (block.timestamp <= rewardData[_rewardsToken].periodFinish) revert RewardsStillActive();
-        if (rewardData[_rewardsToken].rewardsDistributor != msg.sender) revert Unauthorized();
+        if (msg.sender != rewardData[_rewardsToken].rewardsDistributor && msg.sender != owner()) revert Unauthorized();
         if (_rewardsDuration == 0) revert MustBeGreaterThanZero();
-
         rewardData[_rewardsToken].rewardsDuration = _rewardsDuration;
-
         emit RewardsDurationUpdated(_rewardsToken, _rewardsDuration);
     }
 
