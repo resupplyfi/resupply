@@ -26,23 +26,22 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
     uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
     uint256 public constant MAX_PCT = 10000;
+    uint256 public constant MAX_DESCRIPTION_BYTES = 384;
 
     IGovStaker public immutable staker;
 
-    Proposal[] proposalData;
-    // Proposal ID -> Action[]
-    mapping(uint256 => Action[]) proposalPayloads;
-
-    // Record of user's vote: account -> ID -> Vote
+    Proposal[] public proposalData;
+    // Proposal ID -> payload
+    mapping(uint256 id => Action[] payload) public proposalPayload;
+    // Proposal ID -> description
+    mapping(uint256 id => string description) public proposalDescription;
+    // Record of user's vote: account -> ID -> vote
     mapping(address account => mapping(uint256 id => Vote vote)) public accountVoteWeights;
-
     // Record of last created proposal timestamp for a given account: account -> timestamp
     mapping(address account => uint256 timestamp) public latestProposalTimestamp;
-
-    // Settable state variables
-    // percent of total weight required to create a new proposal
+    // Percent of total weight required to create a new proposal
     uint256 public minCreateProposalPct;
-    // percent of total weight that must vote for a proposal before it can be executed
+    // Percent of total weight that must vote for a proposal before it can be executed
     uint256 public passingPct;
 
     event ProposalCreated(
@@ -54,6 +53,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     );
     event ProposalExecuted(uint256 indexed proposalId);
     event ProposalCancelled(uint256 indexed proposalId);
+    event ProposalDescriptionUpdated(uint256 indexed proposalId, string description);
     event VoteCast(
         address indexed account,
         uint256 indexed id,
@@ -117,26 +117,24 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Gets information on a specific proposal
+        @dev Fetching the description can be expensive. 
+            On chain integrations should consider accessing proposalData directly.
      */
-    function getProposalData(
-        uint256 id
-    )
-        external
-        view
-        returns (
-            uint256 epoch,
-            uint256 createdAt,
-            uint256 quorumWeight,
-            uint256 weightYes,
-            uint256 weightNo,
-            bool processed,
-            bool executable,
-            Action[] memory payload
-        )
-    {
+    function getProposalData(uint256 id) external view returns (
+        string memory description,
+        uint256 epoch,
+        uint256 createdAt,
+        uint256 quorumWeight,
+        uint256 weightYes,
+        uint256 weightNo,
+        bool processed,
+        bool executable,
+        Action[] memory payload
+    ){
         Proposal memory proposal = proposalData[id];
-        payload = proposalPayloads[id];
+        payload = proposalPayload[id];
         return (
+            proposalDescription[id],
             proposal.epoch,
             proposal.createdAt,
             proposal.quorumWeight,
@@ -150,16 +148,18 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Create a new proposal
+        @param account Address of the account creating the proposal
         @param payload Tuple of [(target address, calldata), ... ] to be
                        executed if the proposal is passed.
+        @param description Description text for the proposal
      */
-    function createNewProposal(address account, Action[] calldata payload) external callerOrDelegated(account) returns (uint256) {
+    function createNewProposal(address account, Action[] calldata payload, string calldata description) external callerOrDelegated(account) returns (uint256) {
         require(payload.length > 0, "Empty payload");
-
         require(
             latestProposalTimestamp[account] + MIN_TIME_BETWEEN_PROPOSALS < block.timestamp,
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
+        require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
 
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
@@ -182,10 +182,10 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 results: Vote(0, 0)
             })
         );
-
         for (uint256 i = 0; i < payload.length; i++) {
-            proposalPayloads[proposalId].push(payload[i]);
+            proposalPayload[proposalId].push(payload[i]);
         }
+        proposalDescription[proposalId] = description;
         latestProposalTimestamp[account] = block.timestamp;
         emit ProposalCreated(account, proposalId, payload, epoch, quorumWeight);
         return proposalId;
@@ -194,6 +194,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Vote fully in favor of a proposal
         @dev Each account can vote once per proposal. Uses full weight.
+        @param account Address of the account voting
         @param id Proposal ID
      */
     function voteForProposal(address account, uint256 id) external callerOrDelegated(account) {
@@ -202,6 +203,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Vote in partial favor of a proposal
         @dev Each account can vote once per proposal. Uses full weight.
+        @param account Address of the account voting
         @param id Proposal ID
         @param pctYes Percent of account's total weight to vote for
         @param pctNo Percent of account's total weight to vote against
@@ -247,7 +249,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
-        require(!_containsProposalCancelerPayload(proposalPayloads[id]), "Contains canceler payload");
+        require(!_containsProposalCancelerPayload(proposalPayload[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
@@ -289,7 +291,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         require(_canExecute(proposal), "Proposal cannot be executed");
         proposalData[id].processed = true;
 
-        Action[] storage payload = proposalPayloads[id];
+        Action[] storage payload = proposalPayload[id];
         uint256 payloadLength = payload.length;
 
         for (uint256 i = 0; i < payloadLength; i++) {
@@ -350,5 +352,18 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         passingPct = pct;
         emit ProposalPassingPctSet(pct);
         return true;
+    }
+
+
+    /**
+        @notice Overwrite the description text for an existing proposal
+        @param id The ID of the proposal to update
+        @param description New description text for the proposal
+     */
+    function updateProposalDescription(uint256 id, string calldata description) external onlyOwner {
+        require(id < proposalData.length, "Invalid ID");
+        require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
+        proposalDescription[id] = description;
+        emit ProposalDescriptionUpdated(id, description);
     }
 }

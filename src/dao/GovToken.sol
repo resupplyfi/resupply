@@ -31,7 +31,7 @@ contract GovToken is OFT {
         globalSupply = _initialSupply;
     }
 
-    function core() external returns(address){
+    function core() external view returns(address) {
         return owner();
     }
 

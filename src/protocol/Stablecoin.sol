@@ -18,7 +18,7 @@ contract Stablecoin is OFT {
         _mint(msg.sender, 1e18);
     }
 
-    function core() external returns(address){
+    function core() external view returns(address) {
         return owner();
     }
 
