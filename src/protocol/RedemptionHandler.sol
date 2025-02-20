@@ -40,17 +40,11 @@ contract RedemptionHandler is CoreOwnable{
     /// @notice Estimates the maximum amount of debt that can be redeemed from a pair
     function getMaxRedeemableDebt(address _pair) external view returns(uint256){
         (,,,IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
+        
         uint256 minLeftoverDebt = IResupplyPair(_pair).minimumLeftoverDebt();
         if (_totalBorrow.amount < minLeftoverDebt) return 0;
 
-        uint256 redeemableDebt = _totalBorrow.amount - minLeftoverDebt;
-        uint256 minimumRedemption = IResupplyPair(_pair).minimumRedemption();
-
-        if(redeemableDebt < minimumRedemption){
-            return 0;
-        }
-
-        return redeemableDebt;
+        return _totalBorrow.amount - minLeftoverDebt;
     }
 
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
