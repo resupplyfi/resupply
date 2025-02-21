@@ -147,8 +147,6 @@ interface IResupplyPair {
 
     function toBorrowShares(uint256 _amount, bool _roundUp) external view returns (uint256);
 
-    function totalAsset() external view returns (uint128 amount, uint128 shares);
-
     function totalBorrow() external view returns (uint128 amount, uint128 shares);
 
     function totalCollateral() external view returns (uint256);

@@ -66,6 +66,9 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
         IERC20(_emissionToken).approve(pairEmissions, type(uint256).max);
         IERC20(_emissionToken).approve(insuranceEmissions, type(uint256).max);
+
+        //initial base minimum weight
+        baseMinimumWeight = 400 * 1e18 / uint256(7 days);
     }
 
     function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
