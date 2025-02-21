@@ -12,6 +12,7 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+import { GovToken } from "src/dao/GovToken.sol";
 
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
