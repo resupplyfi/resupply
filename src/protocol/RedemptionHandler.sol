@@ -177,12 +177,12 @@ contract RedemptionHandler is CoreOwnable{
         return _returnedCollateral;
     }
 
-    function previewRedeem(address _pair, uint256 _amount) external view returns(uint256 _returnedUnderlying, uint256 _returnedCollateral){
+    function previewRedeem(address _pair, uint256 _amount) external view returns(uint256 _returnedUnderlying, uint256 _returnedCollateral, uint256 _fee){
         //get fee
-        (uint256 feePct, ) = _getRedemptionFee(_pair, _amount);
+        (_fee, ) = _getRedemptionFee(_pair, _amount);
 
         //value to redeem
-        uint256 valueToRedeem = _amount * (1e18 - feePct) / 1e18;
+        uint256 valueToRedeem = _amount * (1e18 - _fee) / 1e18;
 
         //add interest and check amount bounds
         (,,, IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
@@ -192,7 +192,7 @@ contract RedemptionHandler is CoreOwnable{
 
         //return 0 if given amount is out of bounds
         if(debtReduction > _totalBorrow.amount || _totalBorrow.amount - debtReduction < minLeftoverDebt ){
-            return (0,0);
+            return (0,0, _fee);
         }
 
         //get exchange

@@ -104,6 +104,7 @@ contract PairTest is PairTestBase {
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
         uint256 nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
 
+        (uint256 previewUnderlying, uint256 previewCollateral, uint256 previewFee) = redemptionHandler.previewRedeem(address(pair),redeemAmount);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
@@ -120,11 +121,16 @@ contract PairTest is PairTestBase {
         assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
         uint256 feesPaid = redeemAmount - underlyingGain;
         assertGt(feesPaid, 0);
+        assertEq(collateralFreed, previewCollateral);
+        assertEq(underlyingGain, previewUnderlying);
         
 
         (uint256 totalDebtAfter, ) = pair.totalBorrow();
         uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
         uint256 amountToStakers = pair.claimableOtherFees() - otherFeesBefore;
+        console.log("previewUnderlying", previewUnderlying);
+        console.log("previewCollateral", previewCollateral);
+        console.log("previewFee", previewFee);
         console.log("nextFee", nextFee);
         console.log("real fee", totalFee);
         console.log("redeemAmount", redeemAmount);
