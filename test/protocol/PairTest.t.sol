@@ -105,14 +105,14 @@ contract PairTest is PairTestBase {
         uint256 nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
 
         (uint256 previewUnderlying, uint256 previewCollateral, uint256 previewFee) = redemptionHandler.previewRedeem(address(pair),redeemAmount);
-        uint256 collateralFreed = redemptionHandler.redeemFromPair(
+        bool useUnwrap = true;
+        uint256 returnedTokenAmount = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
             1e18,           // max fee
             address(this),  // return to
-            true           // unwrap
+            useUnwrap           // unwrap
         );
-        
 
         uint256 underlyingBalAfter = underlying.balanceOf(address(this));
         uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
@@ -121,7 +121,11 @@ contract PairTest is PairTestBase {
         assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
         uint256 feesPaid = redeemAmount - underlyingGain;
         assertGt(feesPaid, 0);
-        assertEq(collateralFreed, previewCollateral);
+        if(useUnwrap){
+            assertEq(returnedTokenAmount, underlyingGain);
+        }else{
+            assertEq(returnedTokenAmount, previewCollateral);
+        }
         assertEq(underlyingGain, previewUnderlying);
         
 
@@ -134,7 +138,7 @@ contract PairTest is PairTestBase {
         console.log("nextFee", nextFee);
         console.log("real fee", totalFee);
         console.log("redeemAmount", redeemAmount);
-        console.log("collateralFreed", collateralFreed);
+        console.log("returnedTokenAmount", returnedTokenAmount);
         console.log("collateralBefore", collateralBalBefore);
         console.log("collateralAfter", collateralBalAfter);
         console.log("debtWrittenOff", debtWrittenOff);
