@@ -22,7 +22,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
-    ProtocolData[] public protocols;
+    LendingProtocol[] public supportedProtocols;
     mapping(
         uint256 protocolId => mapping(
         address borrowToken => mapping(
@@ -34,13 +34,14 @@ contract ResupplyPairDeployer is CoreOwnable {
     address public immutable govToken;
     mapping(address => bool) public operators;
 
-    struct ProtocolData {
+    struct LendingProtocol {
         string protocolName;
         bytes4 borrowTokenSig;
         bytes4 collateralTokenSig;
     }
 
-    event ProtocolDataUpdated(
+    event LendingProtocolUpdated(
+        uint256 indexed protocolId,
         string protocolName, 
         bytes4 borrowTokenSig, 
         bytes4 collateralTokenSig
@@ -98,9 +99,9 @@ contract ResupplyPairDeployer is CoreOwnable {
         uint256 _protocolId,
         address _collateral
     ) public view returns (string memory _name, address _borrowToken, address _collateralToken) {
-        uint256 length = protocols.length;
+        uint256 length = supportedProtocols.length;
         if (_protocolId >= length) revert ProtocolNotFound();
-        ProtocolData memory pData = protocols[_protocolId];
+        LendingProtocol memory pData = supportedProtocols[_protocolId];
 
         // Get token addresses using protocol-specific function signatures
         (bool successBorrow, bytes memory borrowData) = _collateral.staticcall(abi.encodeWithSelector(pData.borrowTokenSig));
@@ -159,12 +160,12 @@ contract ResupplyPairDeployer is CoreOwnable {
         }
     }
 
-    /// @notice The `addProtocolData` function adds a new protocol configuration to the registry
+    /// @notice The `addSupportedProtocol` function adds a new protocol configuration to the registry
     /// @param _protocolName The name of the protocol to add
     /// @param _borrowTokenSig The function signature used to lookup the borrow token address
     /// @param _collateralTokenSig The function signature used to lookup the collateral token address
     /// @return The ID of the newly added protocol
-    function addProtocolData(
+    function addSupportedProtocol(
         string memory _protocolName,
         bytes4 _borrowTokenSig,
         bytes4 _collateralTokenSig
@@ -173,24 +174,22 @@ contract ResupplyPairDeployer is CoreOwnable {
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
         
         // Ensure protocol name is unique
-        uint256 length = protocols.length;
+        uint256 length = supportedProtocols.length;
         for (uint256 i = 0; i < length; i++) {
-            if (keccak256(bytes(protocols[i].protocolName)) == keccak256(bytes(_protocolName))) {
+            if (keccak256(bytes(supportedProtocols[i].protocolName)) == keccak256(bytes(_protocolName))) {
                 revert ProtocolAlreadyExists();
             }
         }
-        
-        // Add new protocol
-        protocols.push(ProtocolData({
+        supportedProtocols.push(LendingProtocol({
             protocolName: _protocolName,
             borrowTokenSig: _borrowTokenSig,
             collateralTokenSig: _collateralTokenSig
         }));
-        emit ProtocolDataUpdated(_protocolName, _borrowTokenSig, _collateralTokenSig);
+        emit LendingProtocolUpdated(length, _protocolName, _borrowTokenSig, _collateralTokenSig);
         return length;
     }
 
-    function updateProtocolData(
+    function updateSupportedProtocol(
         uint256 protocolId,
         string memory _protocolName,
         bytes4 _borrowTokenSig,
@@ -198,18 +197,18 @@ contract ResupplyPairDeployer is CoreOwnable {
     ) external onlyOwner returns (uint256) {
         if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
-        if (protocolId >= protocols.length) revert ProtocolNotFound();
-        protocols[protocolId].protocolName = _protocolName;
-        protocols[protocolId].borrowTokenSig = _borrowTokenSig;
-        protocols[protocolId].collateralTokenSig = _collateralTokenSig;
-        emit ProtocolDataUpdated(_protocolName, _borrowTokenSig, _collateralTokenSig);
+        if (protocolId >= supportedProtocols.length) revert ProtocolNotFound();
+        supportedProtocols[protocolId].protocolName = _protocolName;
+        supportedProtocols[protocolId].borrowTokenSig = _borrowTokenSig;
+        supportedProtocols[protocolId].collateralTokenSig = _collateralTokenSig;
+        emit LendingProtocolUpdated(protocolId, _protocolName, _borrowTokenSig, _collateralTokenSig);
         return protocolId;
     }
 
     function platformNameById(
         uint256 protocolId
     ) external view returns (string memory) {
-        return protocols[protocolId].protocolName;
+        return supportedProtocols[protocolId].protocolName;
     }
 
     // ============================================================================================

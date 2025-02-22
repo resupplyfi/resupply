@@ -155,8 +155,8 @@ contract Setup is Test {
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
-        deployer.addProtocolData("CurveLend", bytes4(keccak256("asset()")), bytes4(keccak256("collateral_token()")));
-        deployer.addProtocolData("Fraxlend", bytes4(keccak256("asset()")), bytes4(keccak256("collateralContract()")));
+        deployer.addSupportedProtocol("CurveLend", bytes4(keccak256("asset()")), bytes4(keccak256("collateral_token()")));
+        deployer.addSupportedProtocol("Fraxlend", bytes4(keccak256("asset()")), bytes4(keccak256("collateralContract()")));
         vm.stopPrank();
 
         rateCalculator = new InterestRateCalculator(
