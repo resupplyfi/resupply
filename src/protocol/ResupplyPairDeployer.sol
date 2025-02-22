@@ -22,17 +22,34 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
-    mapping(address => uint256) public collateralId;
+    ProtocolData[] public protocols;
+    mapping(
+        uint256 protocolId => mapping(
+        address borrowToken => mapping(
+        address collateralToken => uint256 id
+    ))) public collateralId;
 
     // immutable contracts
     address public immutable registry;
     address public immutable govToken;
     mapping(address => bool) public operators;
 
+    struct ProtocolData {
+        string protocolName;
+        bytes4 borrowTokenSig;
+        bytes4 collateralTokenSig;
+    }
+
+    event ProtocolDataUpdated(
+        string protocolName, 
+        bytes4 borrowTokenSig, 
+        bytes4 collateralTokenSig
+    );
+
     /// @notice Emits when a new pair is deployed
-    /// @notice The ```LogDeploy``` event is emitted when a new Pair is deployed
     /// @param address_ The address of the pair
     /// @param collateral The address of the Collateral Token contract
+    /// @param protocolId The ID of the lending protocol
     /// @param name The name of the Pair
     /// @param configData The config data of the Pair
     /// @param immutables The immutables of the Pair
@@ -40,6 +57,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     event LogDeploy(
         address indexed address_,
         address indexed collateral,
+        uint256 indexed protocolId,
         string name,
         bytes configData,
         bytes immutables,
@@ -65,19 +83,52 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Functions: View Functions
     // ============================================================================================
 
+    /**
+     * @notice Get the next name for a collateral
+     * @param _protocolId The protocol ID, which must be added
+     * @param _collateral The collateral address
+     * @return _name The next name for the collateral following the protocol naming convention
+     * @return _borrowToken The borrow token address
+     * @return _collateralToken The collateral token address
+     * @dev The naming convention is:
+     * - Resupply Pair (Protocol: BorrowTokenSymbol/CollateralTokenSymbol) - Collateral ID
+     */
+
     function getNextName(
+        uint256 _protocolId,
         address _collateral
-    ) public view returns (string memory _name) {
-        uint256 _collateralId = collateralId[_collateral] + 1;
-        string memory _baseName = string(
+    ) public view returns (string memory _name, address _borrowToken, address _collateralToken) {
+        uint256 length = protocols.length;
+        if (_protocolId >= length) revert ProtocolNotFound();
+        ProtocolData memory pData = protocols[_protocolId];
+
+        // Get token addresses using protocol-specific function signatures
+        (bool successBorrow, bytes memory borrowData) = _collateral.staticcall(abi.encodeWithSelector(pData.borrowTokenSig));
+        (bool successCollat, bytes memory collatData) = _collateral.staticcall(abi.encodeWithSelector(pData.collateralTokenSig));
+        
+        require(successBorrow && borrowData.length >= 32, "Borrow token lookup failed");
+        require(successCollat && collatData.length >= 32, "Collateral token lookup failed");
+        
+        _borrowToken = abi.decode(borrowData, (address));
+        _collateralToken = abi.decode(collatData, (address));
+        
+        string memory borrowSymbol = IERC20(_borrowToken).safeSymbol();
+        string memory collatSymbol = IERC20(_collateralToken).safeSymbol();
+
+        uint256 _collateralId = collateralId[_protocolId][_borrowToken][_collateralToken] + 1;
+
+        _name = string(
             abi.encodePacked(
-                "Resupply Pair ",
-                " (",
-                IERC20(_collateral).safeName(),
-                ")"
+                "Resupply Pair (",
+                pData.protocolName,
+                ": ",
+                borrowSymbol,
+                "/",
+                collatSymbol,
+                ") - ",
+                _collateralId.toString()
             )
         );
-        _name = string(abi.encodePacked(_baseName, " - ", _collateralId.toString()));
         if(IResupplyRegistry(registry).pairsByName(_name) != address(0)){
             revert NonUniqueName();
         }
@@ -106,6 +157,59 @@ contract ResupplyPairDeployer is CoreOwnable {
             contractAddress1 = SSTORE2.write(_creationCode);
             contractAddress2 = address(0);
         }
+    }
+
+    /// @notice The `addProtocolData` function adds a new protocol configuration to the registry
+    /// @param _protocolName The name of the protocol to add
+    /// @param _borrowTokenSig The function signature used to lookup the borrow token address
+    /// @param _collateralTokenSig The function signature used to lookup the collateral token address
+    /// @return The ID of the newly added protocol
+    function addProtocolData(
+        string memory _protocolName,
+        bytes4 _borrowTokenSig,
+        bytes4 _collateralTokenSig
+    ) external onlyOwner returns (uint256) {
+        if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
+        if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
+        
+        // Ensure protocol name is unique
+        uint256 length = protocols.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (keccak256(bytes(protocols[i].protocolName)) == keccak256(bytes(_protocolName))) {
+                revert ProtocolAlreadyExists();
+            }
+        }
+        
+        // Add new protocol
+        protocols.push(ProtocolData({
+            protocolName: _protocolName,
+            borrowTokenSig: _borrowTokenSig,
+            collateralTokenSig: _collateralTokenSig
+        }));
+        emit ProtocolDataUpdated(_protocolName, _borrowTokenSig, _collateralTokenSig);
+        return length;
+    }
+
+    function updateProtocolData(
+        uint256 protocolId,
+        string memory _protocolName,
+        bytes4 _borrowTokenSig,
+        bytes4 _collateralTokenSig
+    ) external onlyOwner returns (uint256) {
+        if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
+        if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
+        if (protocolId >= protocols.length) revert ProtocolNotFound();
+        protocols[protocolId].protocolName = _protocolName;
+        protocols[protocolId].borrowTokenSig = _borrowTokenSig;
+        protocols[protocolId].collateralTokenSig = _collateralTokenSig;
+        emit ProtocolDataUpdated(_protocolName, _borrowTokenSig, _collateralTokenSig);
+        return protocolId;
+    }
+
+    function platformNameById(
+        uint256 protocolId
+    ) external view returns (string memory) {
+        return protocols[protocolId].protocolName;
     }
 
     // ============================================================================================
@@ -152,27 +256,30 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
+    /// @param _lendingProtocolId The ID of the lending protocol
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _underlyingStaking The address of the underlying staking contract
+    /// @param _underlyingStakingId The ID of the underlying staking contract
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
+    function deploy(uint256 _lendingProtocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
         if (!operators[msg.sender]) {
             revert WhitelistedDeployersOnly();
         }
 
-        (address _collateral,,,,,,,) = abi.decode(
+        (address _collateral,,,,,,) = abi.decode(
             _configData,
-            (address, address, address, uint256, uint256, uint256, uint256, uint256)
+            (address, address, address, uint256, uint256, uint256, uint256)
         );
 
-        string memory _name = getNextName(_collateral);
-        collateralId[_collateral] += 1;
+        (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_lendingProtocolId, _collateral);
+        collateralId[_lendingProtocolId][_borrowToken][_collateralToken] += 1;
 
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
 
-        emit LogDeploy(_pairAddress, _collateral, _name, _configData, _immutables, _customConfigData);
+        emit LogDeploy(_pairAddress, _collateral, _lendingProtocolId, _name, _configData, _immutables, _customConfigData);
     }
 
     // ============================================================================================
@@ -182,4 +289,8 @@ contract ResupplyPairDeployer is CoreOwnable {
     error NonUniqueName();
     error WhitelistedDeployersOnly();
     error Create2Failed();
+    error ProtocolNotFound();
+    error ProtocolNameEmpty();
+    error ProtocolNameTooLong();
+    error ProtocolAlreadyExists();
 }

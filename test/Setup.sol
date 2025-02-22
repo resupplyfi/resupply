@@ -155,6 +155,8 @@ contract Setup is Test {
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
+        deployer.addProtocolData("CurveLend", bytes4(keccak256("asset()")), bytes4(keccak256("collateral_token()")));
+        deployer.addProtocolData("Fraxlend", bytes4(keccak256("asset()")), bytes4(keccak256("collateralContract()")));
         vm.stopPrank();
 
         rateCalculator = new InterestRateCalculator(
@@ -330,10 +332,11 @@ contract Setup is Test {
         vm.stopPrank();
     }
 
-    function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
+    function deployLendingPair(address _collateral, uint256 protocolId, address _staking, uint256 _stakingId) public returns(ResupplyPair){
         vm.startPrank(deployer.owner());
 
         address _pairAddress = deployer.deploy(
+            protocolId,
             abi.encode(
                 _collateral,
                 address(oracle),
@@ -358,8 +361,8 @@ contract Setup is Test {
     }
 
     function deployDefaultLendingPairs() public{
-        deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
-        deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), 1, address(0), 0);
+        deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), 0, address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
     }
 
     function deployCurvePools() public{

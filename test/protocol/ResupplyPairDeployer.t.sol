@@ -1,27 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import "src/Constants.sol" as Constants;
 import {Test} from "forge-std/Test.sol";
-import {PairNameHelper} from "src/protocol/PairNameHelper.sol";
+import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/Setup.sol";
 
-contract NameHelperTest is Setup {
-    PairNameHelper public pairNameHelper;
-    address public curveLendCollat;
-    address public fraxlendCollat;
+contract ResupplyPairDeployerTest is Setup {
+    ResupplyPairDeployer public resupplyPairDeployer;
+    address public curveLendCollat = Constants.Mainnet.CURVELEND_SFRAX_CRVUSD;
+    address public fraxlendCollat = Constants.Mainnet.FRAXLEND_SFRXETH_FRAX;
     
     function setUp() public override {
         super.setUp();
-        pairNameHelper = new PairNameHelper(address(core), address(registry));
-        curveLendCollat = 0xd0c183C9339e73D7c9146D48E1111d1FBEe2D6f9; // crvUSD/sFRAX
-        fraxlendCollat = 0x78bB3aEC3d855431bd9289fD98dA13F9ebB7ef15; // sFRAX/FRAX
+        resupplyPairDeployer = new ResupplyPairDeployer(address(core), address(registry), address(govToken), address(core));
         vm.startPrank(address(core));
-        pairNameHelper.addProtocolData(
+        resupplyPairDeployer.addProtocolData(
             "CurveLend",
             bytes4(keccak256("asset()")),           // borrowLookupSig
             bytes4(keccak256("collateral_token()")) // collateralLookupSig
         );
-        pairNameHelper.addProtocolData(
+        resupplyPairDeployer.addProtocolData(
             "Fraxlend",
             bytes4(keccak256("asset()")),           // borrowLookupSig
             bytes4(keccak256("collateralContract()")) // collateralLookupSig
@@ -32,35 +31,35 @@ contract NameHelperTest is Setup {
     function test_SetAndGetValidProtocolData() public {
         // Test setting valid protocol data
         vm.prank(address(core));
-        uint256 platformId = pairNameHelper.addProtocolData("TestProtocol", bytes4(0), bytes4(0));
+        uint256 platformId = resupplyPairDeployer.addProtocolData("TestProtocol", bytes4(0), bytes4(0));
         
         // Verify the data was set correctly
-        string memory name = pairNameHelper.platformNameById(platformId);
+        string memory name = resupplyPairDeployer.platformNameById(platformId);
         assertEq(name, "TestProtocol");
     }
 
     function test_SetInvalidProtocolData() public {
         // Test too long name (assuming there's a reasonable max length)
         string memory longName = "ThisIsAnExtremelyLongProtocolNameThatShouldDefinitelyExceedAnyReasonableLimit";
-        vm.expectRevert(abi.encodeWithSelector(PairNameHelper.ProtocolNameTooLong.selector));
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNameTooLong.selector));
         vm.prank(address(core));
-        pairNameHelper.addProtocolData(longName, bytes4(0), bytes4(0));
+        resupplyPairDeployer.addProtocolData(longName, bytes4(0), bytes4(0));
     }
 
     function test_ValidGetName() public {
         // Set protocol data
         string memory actualName;
-        vm.expectRevert(abi.encodeWithSelector(PairNameHelper.ProtocolNotFound.selector));
-        actualName = pairNameHelper.getNextName(12, curveLendCollat);
-        actualName = pairNameHelper.getNextName(0, curveLendCollat);
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNotFound.selector));
+        (actualName, , ) = resupplyPairDeployer.getNextName(12, curveLendCollat);
+        (actualName, , ) = resupplyPairDeployer.getNextName(0, curveLendCollat);
         // string memory expectedName = "Resupply Pair (TestProtocol) - 1";
         // assertEq(actualName, expectedName);
     }
 
     function test_updateProtocolData() public {
         vm.prank(address(core));
-        uint256 platformId = pairNameHelper.addProtocolData("TestProtocol", bytes4(0), bytes4(0));
+        uint256 protocolId = resupplyPairDeployer.addProtocolData("TestProtocol", bytes4(0), bytes4(0));
         vm.prank(address(core));
-        pairNameHelper.updateProtocolData(platformId, "TestProtocol2", bytes4(0), bytes4(0));
+        resupplyPairDeployer.updateProtocolData(protocolId, "TestProtocol2", bytes4(0), bytes4(0));
     }
 }
