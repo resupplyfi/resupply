@@ -15,7 +15,7 @@ contract ResupplyPairDeployerTest is Setup {
     
     function setUp() public override {
         super.setUp();
-        resupplyPairDeployer = new ResupplyPairDeployer(address(core), address(registry), address(govToken), address(core));
+        resupplyPairDeployer = new ResupplyPairDeployer(address(core), address(govToken), address(core));
         vm.startPrank(address(core));
         resupplyPairDeployer.addSupportedProtocol(
             "CurveLend",
