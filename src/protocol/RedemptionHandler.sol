@@ -79,7 +79,8 @@ contract RedemptionHandler is CoreOwnable{
         (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
         
         //determine the weight of this current redemption by dividing by pair's total borrow
-        uint256 weightOfRedeem = _amount * 1e18 / _totalBorrow.amount;
+        uint256 weightOfRedeem;
+        if (_totalBorrow.amount != 0) weightOfRedeem = _amount * PRECISION / _totalBorrow.amount;
 
         //update current data with decay rate
         RedeemptionRateInfo memory rdata = ratingData[_pair];
@@ -118,11 +119,11 @@ contract RedemptionHandler is CoreOwnable{
         //convert the above value to a percentage with precision 1e18
         //if halfway is 8 units of usage then discount is 2 (10-8)
         //thus below should convert to 20%  (2 is 20% of the max usage 10)
-        discount = (discount * 1e18 / _maxusage); //discount is now a 1e18 percision % 
+        discount = (discount * PRECISION / _maxusage); //discount is now a 1e18 precision % 
         
         //take above percentage of maxDiscount as our final discount
         //above example is 20% so a 0.2 max discount * 20% will be 0.04 discount (2e15 * 20% = 4e14)
-        discount = (maxDiscount * discount / 1e18);// get % of maxDiscount
+        discount = (maxDiscount * discount / PRECISION);// get % of maxDiscount
         
         //remove from base fee the discount and return
         //above example will be 1.0 - 0.04 = 0.96% fee (1e16 - 4e14)
