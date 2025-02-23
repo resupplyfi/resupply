@@ -5,6 +5,8 @@ import "src/Constants.sol" as Constants;
 import {Test} from "forge-std/Test.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/Setup.sol";
+import {console2} from "forge-std/console2.sol";
+import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     ResupplyPairDeployer public resupplyPairDeployer;
@@ -39,7 +41,6 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_SetInvalidProtocolData() public {
-        // Test too long name (assuming there's a reasonable max length)
         string memory longName = "ThisIsAnExtremelyLongProtocolNameThatShouldDefinitelyExceedAnyReasonableLimit";
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNameTooLong.selector));
         vm.prank(address(core));
@@ -47,13 +48,12 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_ValidGetName() public {
-        // Set protocol data
         string memory actualName;
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNotFound.selector));
         (actualName, , ) = resupplyPairDeployer.getNextName(12, curveLendCollat);
         (actualName, , ) = resupplyPairDeployer.getNextName(0, curveLendCollat);
-        // string memory expectedName = "Resupply Pair (TestProtocol) - 1";
-        // assertEq(actualName, expectedName);
+        string memory expectedName = "Resupply Pair (CurveLend: crvUSD/sFRAX) - 1";
+        assertEq(actualName, expectedName);
     }
 
     function test_updateProtocolData() public {
@@ -61,5 +61,18 @@ contract ResupplyPairDeployerTest is Setup {
         uint256 protocolId = resupplyPairDeployer.addSupportedProtocol("TestProtocol", bytes4(0), bytes4(0));
         vm.prank(address(core));
         resupplyPairDeployer.updateSupportedProtocol(protocolId, "TestProtocol2", bytes4(0), bytes4(0));
+    }
+
+    function test_deployLendingPair() public {
+        ResupplyPair pair = deployLendingPair(
+            Constants.Mainnet.CURVELEND_SFRAX_CRVUSD,
+            0,
+            Constants.Mainnet.CONVEX_BOOSTER,
+            uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID)
+        );
+        assertGt(pair.protocolRedemptionFee(), 0);
+        assertGt(bytes(pair.name()).length, 5);
+        console2.log("Name: ", pair.name());
+        console2.log("Redemption Fee: ", pair.protocolRedemptionFee());
     }
 }

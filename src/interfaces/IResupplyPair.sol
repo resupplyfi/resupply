@@ -172,4 +172,5 @@ interface IResupplyPair {
         uint256 amount;
     }
     function earned(address _account) external returns(EarnedData[] memory claimable);
+    function protocolRedemptionFee() external view returns (uint256);
 }

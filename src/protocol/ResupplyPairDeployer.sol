@@ -22,7 +22,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
-    LendingProtocol[] public supportedProtocols;
+    Protocol[] public supportedProtocols;
     mapping(
         uint256 protocolId => mapping(
         address borrowToken => mapping(
@@ -34,13 +34,13 @@ contract ResupplyPairDeployer is CoreOwnable {
     address public immutable govToken;
     mapping(address => bool) public operators;
 
-    struct LendingProtocol {
+    struct Protocol {
         string protocolName;
         bytes4 borrowTokenSig;
         bytes4 collateralTokenSig;
     }
 
-    event LendingProtocolUpdated(
+    event ProtocolUpdated(
         uint256 indexed protocolId,
         string protocolName, 
         bytes4 borrowTokenSig, 
@@ -50,7 +50,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @notice Emits when a new pair is deployed
     /// @param address_ The address of the pair
     /// @param collateral The address of the Collateral Token contract
-    /// @param protocolId The ID of the lending protocol
+    /// @param protocolId The ID of the supported lending protocol
     /// @param name The name of the Pair
     /// @param configData The config data of the Pair
     /// @param immutables The immutables of the Pair
@@ -101,7 +101,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     ) public view returns (string memory _name, address _borrowToken, address _collateralToken) {
         uint256 length = supportedProtocols.length;
         if (_protocolId >= length) revert ProtocolNotFound();
-        LendingProtocol memory pData = supportedProtocols[_protocolId];
+        Protocol memory pData = supportedProtocols[_protocolId];
 
         // Get token addresses using protocol-specific function signatures
         (bool successBorrow, bytes memory borrowData) = _collateral.staticcall(abi.encodeWithSelector(pData.borrowTokenSig));
@@ -180,12 +180,12 @@ contract ResupplyPairDeployer is CoreOwnable {
                 revert ProtocolAlreadyExists();
             }
         }
-        supportedProtocols.push(LendingProtocol({
+        supportedProtocols.push(Protocol({
             protocolName: _protocolName,
             borrowTokenSig: _borrowTokenSig,
             collateralTokenSig: _collateralTokenSig
         }));
-        emit LendingProtocolUpdated(length, _protocolName, _borrowTokenSig, _collateralTokenSig);
+        emit ProtocolUpdated(length, _protocolName, _borrowTokenSig, _collateralTokenSig);
         return length;
     }
 
@@ -201,7 +201,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         supportedProtocols[protocolId].protocolName = _protocolName;
         supportedProtocols[protocolId].borrowTokenSig = _borrowTokenSig;
         supportedProtocols[protocolId].collateralTokenSig = _collateralTokenSig;
-        emit LendingProtocolUpdated(protocolId, _protocolName, _borrowTokenSig, _collateralTokenSig);
+        emit ProtocolUpdated(protocolId, _protocolName, _borrowTokenSig, _collateralTokenSig);
         return protocolId;
     }
 
@@ -255,30 +255,31 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
-    /// @param _lendingProtocolId The ID of the lending protocol
+    /// @param _protocolId The ID of the supported protocol
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
     /// @param _underlyingStaking The address of the underlying staking contract
     /// @param _underlyingStakingId The ID of the underlying staking contract
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(uint256 _lendingProtocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
+    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
         if (!operators[msg.sender]) {
             revert WhitelistedDeployersOnly();
         }
 
-        (address _collateral,,,,,,) = abi.decode(
+        (address _collateral,,,,,,,) = abi.decode(
             _configData,
-            (address, address, address, uint256, uint256, uint256, uint256)
+            (address, address, address, uint256, uint256, uint256, uint256, uint256)
         );
 
-        (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_lendingProtocolId, _collateral);
-        collateralId[_lendingProtocolId][_borrowToken][_collateralToken] += 1;
+        (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_protocolId, _collateral);
+        
+        collateralId[_protocolId][_borrowToken][_collateralToken]++;
 
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
 
-        emit LogDeploy(_pairAddress, _collateral, _lendingProtocolId, _name, _configData, _immutables, _customConfigData);
+        emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
     }
 
     // ============================================================================================
