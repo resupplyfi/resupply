@@ -46,6 +46,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("AutoStakeCallback deployed to", predictedAddress);
+        writeAddressToJson("AUTO_STAKE_CALLBACK", predictedAddress);
         return predictedAddress;
     }
 
@@ -60,6 +61,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("Stablecoin deployed to", predictedAddress);
+        writeAddressToJson("STABLECOIN", predictedAddress);
         return predictedAddress;
     }
 
@@ -74,6 +76,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("Registry deployed to", predictedAddress);
+        writeAddressToJson("REGISTRY", predictedAddress);
         return predictedAddress;
     }
 
@@ -95,6 +98,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("Core deployed to", predictedAddress);
+        writeAddressToJson("CORE", predictedAddress);
         return predictedAddress;
     }
 
@@ -118,6 +122,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("GovToken deployed to", predictedAddress);
+        writeAddressToJson("GOV_TOKEN", predictedAddress);
         return predictedAddress;
     }
 
@@ -145,6 +150,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("VestManager deployed to", predictedAddress);
+        writeAddressToJson("VEST_MANAGER", predictedAddress);
         return predictedAddress;
     }
 
@@ -163,6 +169,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("GovStaker deployed to", predictedAddress);
+        writeAddressToJson("GOV_STAKER", predictedAddress);
         return predictedAddress;
     }
 
@@ -177,6 +184,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("Voter deployed to", predictedAddress);
+        writeAddressToJson("VOTER", predictedAddress);
         return predictedAddress;
     }
 
@@ -198,6 +206,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("EmissionsController deployed to", predictedAddress);
+        writeAddressToJson("EMISSIONS_CONTROLLER", predictedAddress);
         return predictedAddress;
     }
 
@@ -212,6 +221,7 @@ contract DeployResupplyDao is BaseDeploy {
             encodeCREATE3Deployment(salt, bytecode)
         );
         console.log("Treasury deployed to", predictedAddress);
+        writeAddressToJson("TREASURY", predictedAddress);
         return predictedAddress;
     }
 
@@ -237,7 +247,7 @@ contract DeployResupplyDao is BaseDeploy {
             );
         }
         console.log("PermaStaker Convex deployed to", predictedAddress1);
-
+        writeAddressToJson("PERMA_STAKER_CONVEX", predictedAddress1);
         constructorArgs = abi.encode(
             address(core), 
             PERMA_STAKER2_OWNER, 
@@ -260,6 +270,7 @@ contract DeployResupplyDao is BaseDeploy {
         }
         
         console.log("PermaStaker Yearn deployed to", predictedAddress2);
+        writeAddressToJson("PERMA_STAKER_YEARN", predictedAddress2);
         return (predictedAddress1, predictedAddress2);
     }
 

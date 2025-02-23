@@ -80,8 +80,10 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         address pair2;
         pair1 = deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
         console.log('pair deployed: fraxlend_sfrxeth_frax', pair1);
+        writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRAX", pair1);
         pair2 = deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
         console.log('pair deployed: curvelend_sfrax_crvusd', pair2);
+        writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair2);
     }
 
     function configurationStep1() public {

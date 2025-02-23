@@ -8,15 +8,18 @@ FORGE ?= forge
 # Default to not broadcasting
 BROADCAST ?= false
 
+# Allow RPC override from command line, fallback to .env value
+RPC ?= ${RPC_URL}
+
 # Split flags into basic and broadcast-specific
-BASIC_FLAGS = --rpc-url ${TENDERLY_URL}
+BASIC_FLAGS = --rpc-url ${RPC}
 
 # Conditional broadcast flags
 ifeq ($(BROADCAST),true)
     BROADCAST_FLAGS = --slow \
                      --broadcast \
                      --verify \
-                     --verifier-url ${TENDERLY_VERIFIER_URL} \
+                     --verifier-url ${TENDERLY_URL}/verify/etherscan \
                      --etherscan-api-key ${TENDERLY_ACCESS_TOKEN}
 else
     BROADCAST_FLAGS =
@@ -39,4 +42,4 @@ deploy:
 		echo "Error: SCRIPT parameter is required. Usage: make deploy SCRIPT=path/to/script.sol"; \
 		exit 1; \
 	fi
-	${FORGE} script ${SCRIPT} ${BASIC_FLAGS} ${BROADCAST_FLAGS} 
+	${FORGE} script script/deploy/${SCRIPT} ${BASIC_FLAGS} ${BROADCAST_FLAGS} 

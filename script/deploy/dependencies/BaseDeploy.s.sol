@@ -156,4 +156,54 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
             )
         );
     }
+
+    function writeAddressToJson(string memory name, address addr) internal {
+        // Format: data/chainId_YYYYMMDD.json
+        string memory dateStr = vm.toString(block.timestamp / 86400 * 86400); // Round to start of day
+        string memory deploymentPath = string.concat(
+            vm.projectRoot(), 
+            "/data/", 
+            vm.toString(block.chainid),
+            "_",
+            dateStr,
+            ".json"
+        );
+        
+        string memory existingContent;
+        try vm.readFile(deploymentPath) returns (string memory content) {
+            existingContent = content;
+        } catch {
+            existingContent = "{}";
+            vm.writeFile(deploymentPath, existingContent);
+        }
+
+        // Parse existing content and add new entry
+        string memory newContent;
+        if (bytes(existingContent).length <= 2) { // If empty or just "{}"
+            newContent = string(abi.encodePacked(
+                "{\n",
+                '    "', name, '": "', vm.toString(addr), '"',
+                "\n}"
+            ));
+        } else {
+            // Remove the closing brace, add comma and new entry
+            newContent = string(abi.encodePacked(
+                substring(existingContent, 0, bytes(existingContent).length - 2), // Remove final \n}
+                ',\n',
+                '    "', name, '": "', vm.toString(addr), '"',
+                "\n}"
+            ));
+        }
+        
+        vm.writeFile(deploymentPath, newContent);
+    }
+
+    function substring(string memory str, uint256 startIndex, uint256 endIndex) private pure returns (string memory) {
+        bytes memory strBytes = bytes(str);
+        bytes memory result = new bytes(endIndex - startIndex);
+        for (uint256 i = startIndex; i < endIndex; i++) {
+            result[i - startIndex] = strBytes[i];
+        }
+        return string(result);
+    }
 }

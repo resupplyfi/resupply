@@ -44,7 +44,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         pairDeployer = ResupplyPairDeployer(predictedAddress);
         console.log("pairDeployer deployed at", address(pairDeployer));
-
+        writeAddressToJson("PAIR_DEPLOYER", predictedAddress);
         // ============================================
         // ====== Deploy InterestRateCalculator =======
         // ============================================
@@ -69,7 +69,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         rateCalculator = InterestRateCalculator(predictedAddress);
         console.log("InterestRateCalculator deployed at", address(rateCalculator));
-
+        writeAddressToJson("INTEREST_RATE_CALCULATOR", predictedAddress);
         // ============================================
         // ====== Deploy BasicVaultOracle =============
         // ============================================
@@ -92,6 +92,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         oracle = BasicVaultOracle(predictedAddress);
         console.log("BasicVaultOracle deployed at", address(oracle));
+        writeAddressToJson("BASIC_VAULT_ORACLE", predictedAddress);
 
         // ============================================
         // ====== Deploy RedemptionHandler ============
@@ -115,6 +116,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         redemptionHandler = RedemptionHandler(predictedAddress);
         console.log("RedemptionHandler deployed at", address(redemptionHandler));
+        writeAddressToJson("REDEMPTION_HANDLER", predictedAddress);
     }
 
     function deployRewardsContracts() public {
@@ -146,6 +148,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             );
         }
         console.log("SimpleReceiver implementation deployed at", address(predictedAddress));
+        writeAddressToJson("SIMPLE_RECEIVER_IMPLEMENTATION", predictedAddress);
 
         // ============================================
         // ====== Deploy SimpleReceiverFactory ========
@@ -171,6 +174,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         receiverFactory = SimpleReceiverFactory(predictedAddress);
         console.log("SimpleReceiverFactory deployed at", address(receiverFactory));
+        writeAddressToJson("SIMPLE_RECEIVER_FACTORY", predictedAddress);
 
         // ============================================
         // ====== Deploy DebtReceiver =================
@@ -182,6 +186,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         debtReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
         console.log("Debt Receiver deployed at", address(debtReceiver));
+        writeAddressToJson("DEBT_RECEIVER", predictedAddress);
 
         // ============================================
         // ====== Deploy InsurancePoolReceiver =============
@@ -193,6 +198,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         insuranceEmissionsReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
         console.log("Insurance Pool Receiver deployed at", address(insuranceEmissionsReceiver));
+        writeAddressToJson("INSURANCE_POOL_RECEIVER", predictedAddress);
 
         // ============================================
         // ====== Deploy InsurancePool ================
@@ -219,7 +225,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         insurancePool = InsurancePool(predictedAddress);
         console.log("Insurance Pool deployed at", address(insurancePool));
-
+        writeAddressToJson("INSURANCE_POOL", predictedAddress);
         // ============================================
         // ====== Deploy LiquidationHandler ============
         // ============================================
@@ -243,6 +249,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         liquidationHandler = LiquidationHandler(predictedAddress);
         console.log("Liquidation Handler deployed at", address(liquidationHandler));
+        writeAddressToJson("LIQUIDATION_HANDLER", predictedAddress);
 
         // ============================================
         // ====== Deploy IPStableStream ===============
@@ -268,6 +275,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         ipStableStream = SimpleRewardStreamer(predictedAddress);
         console.log("IP Stable Stream deployed at", address(ipStableStream));
+        writeAddressToJson("IP_STABLE_STREAM", predictedAddress);
 
         // ============================================
         // ====== Deploy IP Emission Stream ===============
@@ -293,8 +301,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         ipEmissionStream = SimpleRewardStreamer(predictedAddress);
         console.log("IP Emission Stream deployed at", address(ipEmissionStream));
-
-        //todo queue rewards to pools   
+        writeAddressToJson("EMISSION_STREAM_INSURANCE_POOL", predictedAddress);
 
         // ============================================
         // ====== Deploy PairEmissionStream =========
@@ -320,6 +327,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         pairEmissionStream = SimpleRewardStreamer(predictedAddress);
         console.log("Pair Emission Stream deployed at", address(pairEmissionStream));
+        writeAddressToJson("EMISSIONS_STREAM_PAIR", predictedAddress);
 
         // ============================================     
         // ====== Deploy FeeDeposit ==================
@@ -344,7 +352,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         feeDeposit = FeeDeposit(predictedAddress);
         console.log("FeeDeposit deployed at", address(feeDeposit));
-
+        writeAddressToJson("FEE_DEPOSIT", predictedAddress);
         // ============================================
         // ====== Deploy FeeDepositController ========
         // ============================================
@@ -370,6 +378,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         feeDepositController = FeeDepositController(predictedAddress);
         console.log("FeeDepositController deployed at", address(feeDepositController));
+        writeAddressToJson("FEE_DEPOSIT_CONTROLLER", predictedAddress);
 
         // ============================================
         // ====== Deploy RewardHandler ================
@@ -398,6 +407,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         rewardHandler = RewardHandler(predictedAddress);
         console.log("RewardHandler deployed at", address(rewardHandler));
+        writeAddressToJson("REWARD_HANDLER", predictedAddress);
     }
 
     function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(address){

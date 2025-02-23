@@ -36,7 +36,7 @@ abstract contract SafeHelper is Script, Test {
 
     // Hash constants
     // Safe version for this script, hashes below depend on this
-    string private constant VERSION = "1.3.0";
+    string private constant VERSION = "1.4.1";
 
     // keccak256("EIP712Domain(uint256 chainId,address verifyingContract)");
     bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH =
