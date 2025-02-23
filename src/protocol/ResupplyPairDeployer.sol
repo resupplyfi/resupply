@@ -256,7 +256,7 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
     /// @param _protocolId The ID of the supported protocol
-    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _initialBorrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
     /// @param _underlyingStaking The address of the underlying staking contract
     /// @param _underlyingStakingId The ID of the underlying staking contract
     /// @return _pairAddress The address to which the Pair was deployed
