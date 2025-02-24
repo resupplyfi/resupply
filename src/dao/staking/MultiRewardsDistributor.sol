@@ -76,11 +76,16 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     /**
      * @notice Claim any (and all) earned reward tokens.
      * @dev Can claim rewards even if no tokens still staked.
+     * @param _account Address of the account to claim rewards for.
      */
     function getReward(address _account) external nonReentrant updateReward(_account) {
         _getRewardFor(_account);
     }
 
+    /**
+     * @notice Claim any (and all) earned reward tokens for the caller.
+     * @dev Can claim rewards even if no tokens still staked.
+     */
     function getReward() external nonReentrant updateReward(msg.sender) {
         _getRewardFor(msg.sender);
     }
@@ -88,6 +93,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     /**
      * @notice Claim any one earned reward token.
      * @dev Can claim rewards even if no tokens still staked.
+     * @param _account Address of the account to claim rewards for.
      * @param _rewardsToken Address of the rewards token to claim.
      */
     function getOneReward(address _account, address _rewardsToken) external nonReentrant updateReward(_account) {
