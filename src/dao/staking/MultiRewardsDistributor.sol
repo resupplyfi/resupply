@@ -13,6 +13,7 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     mapping(address => Reward) public rewardData;
     mapping(address => mapping(address => uint256)) public rewards;
     mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
+    mapping(address => address) public rewardRedirect;
 
     uint256 public constant PRECISION = 1e18;
 
@@ -45,8 +46,9 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     event RewardAdded(address indexed rewardToken, uint256 amount);
     event RewardTokenAdded(address indexed rewardsToken, address indexed rewardsDistributor, uint256 rewardsDuration);
     event RewardsDurationUpdated(address indexed rewardsToken, uint256 duration);
-    event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
+    event RewardPaid(address indexed user, address indexed rewardToken, address indexed recipient, uint256 reward);
     event RewardsDistributorSet(address indexed rewardsToken, address indexed rewardsDistributor);
+    event RewardRedirected(address indexed user, address indexed redirect);
 
     /* ========== MODIFIERS ========== */
 
@@ -75,6 +77,10 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @notice Claim any (and all) earned reward tokens.
      * @dev Can claim rewards even if no tokens still staked.
      */
+    function getReward(address _account) external nonReentrant updateReward(_account) {
+        _getRewardFor(_account);
+    }
+
     function getReward() external nonReentrant updateReward(msg.sender) {
         _getRewardFor(msg.sender);
     }
@@ -84,12 +90,13 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      * @dev Can claim rewards even if no tokens still staked.
      * @param _rewardsToken Address of the rewards token to claim.
      */
-    function getOneReward(address _rewardsToken) external nonReentrant updateReward(msg.sender) {
-        uint256 reward = rewards[msg.sender][_rewardsToken];
+    function getOneReward(address _account, address _rewardsToken) external nonReentrant updateReward(_account) {
+        uint256 reward = rewards[_account][_rewardsToken];
         if (reward > 0) {
-            rewards[msg.sender][_rewardsToken] = 0;
-            IERC20(_rewardsToken).safeTransfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, _rewardsToken, reward);
+            rewards[_account][_rewardsToken] = 0;
+            address _recipient = rewardRedirect[_account] != address(0) ? rewardRedirect[_account] : _account;
+            IERC20(_rewardsToken).safeTransfer(_recipient, reward);
+            emit RewardPaid(_account, _rewardsToken, _recipient, reward);
         }
     }
 
@@ -222,15 +229,16 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     /* ========== INTERNAL FUNCTIONS ========== */
 
     // internal function to get rewards.
-    function _getRewardFor(address _recipient) internal {
+    function _getRewardFor(address _account) internal {
         uint256 length = rewardTokens.length;
         for (uint256 i; i < length; ++i) {
             address _rewardsToken = rewardTokens[i];
-            uint256 reward = rewards[_recipient][_rewardsToken];
+            uint256 reward = rewards[_account][_rewardsToken];
             if (reward > 0) {
-                rewards[_recipient][_rewardsToken] = 0;
+                address _recipient = rewardRedirect[_account] != address(0) ? rewardRedirect[_account] : _account;
+                rewards[_account][_rewardsToken] = 0;
                 IERC20(_rewardsToken).safeTransfer(_recipient, reward);
-                emit RewardPaid(_recipient, _rewardsToken, reward);
+                emit RewardPaid(_account, _rewardsToken, _recipient, reward);
             }
         }
     }
@@ -310,5 +318,14 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
      */
     function getRewardForDuration(address _rewardsToken) external view returns (uint256) {
         return rewardData[_rewardsToken].rewardRate * rewardData[_rewardsToken].rewardsDuration;
+    }
+
+    /**
+     * @notice Sets new target address for staker's rewards.
+     * @param _to Address to redirect rewards to. Set to address(0) to clear redirect.
+     */
+    function setRewardRedirect(address _to) external nonReentrant{
+        rewardRedirect[msg.sender] = _to;
+        emit RewardRedirected(msg.sender, _to);
     }
 }
