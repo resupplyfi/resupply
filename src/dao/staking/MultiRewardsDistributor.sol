@@ -100,7 +100,8 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
         uint256 reward = rewards[_account][_rewardsToken];
         if (reward > 0) {
             rewards[_account][_rewardsToken] = 0;
-            address _recipient = rewardRedirect[_account] != address(0) ? rewardRedirect[_account] : _account;
+            address _recipient = rewardRedirect[_account];
+            _recipient = _recipient != address(0) ? _recipient : _account;
             IERC20(_rewardsToken).safeTransfer(_recipient, reward);
             emit RewardPaid(_account, _rewardsToken, _recipient, reward);
         }
@@ -237,11 +238,12 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     // internal function to get rewards.
     function _getRewardFor(address _account) internal {
         uint256 length = rewardTokens.length;
+        address _recipient = rewardRedirect[_account];
+        _recipient = _recipient != address(0) ? _recipient : _account;
         for (uint256 i; i < length; ++i) {
             address _rewardsToken = rewardTokens[i];
             uint256 reward = rewards[_account][_rewardsToken];
             if (reward > 0) {
-                address _recipient = rewardRedirect[_account] != address(0) ? rewardRedirect[_account] : _account;
                 rewards[_account][_rewardsToken] = 0;
                 IERC20(_rewardsToken).safeTransfer(_recipient, reward);
                 emit RewardPaid(_account, _rewardsToken, _recipient, reward);
