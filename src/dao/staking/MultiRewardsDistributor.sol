@@ -76,11 +76,16 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     /**
      * @notice Claim any (and all) earned reward tokens.
      * @dev Can claim rewards even if no tokens still staked.
+     * @param _account Address of the account to claim rewards for.
      */
     function getReward(address _account) external nonReentrant updateReward(_account) {
         _getRewardFor(_account);
     }
 
+    /**
+     * @notice Claim any (and all) earned reward tokens for the caller.
+     * @dev Can claim rewards even if no tokens still staked.
+     */
     function getReward() external nonReentrant updateReward(msg.sender) {
         _getRewardFor(msg.sender);
     }
@@ -88,13 +93,15 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     /**
      * @notice Claim any one earned reward token.
      * @dev Can claim rewards even if no tokens still staked.
+     * @param _account Address of the account to claim rewards for.
      * @param _rewardsToken Address of the rewards token to claim.
      */
     function getOneReward(address _account, address _rewardsToken) external nonReentrant updateReward(_account) {
         uint256 reward = rewards[_account][_rewardsToken];
         if (reward > 0) {
             rewards[_account][_rewardsToken] = 0;
-            address _recipient = rewardRedirect[_account] != address(0) ? rewardRedirect[_account] : _account;
+            address _recipient = rewardRedirect[_account];
+            _recipient = _recipient != address(0) ? _recipient : _account;
             IERC20(_rewardsToken).safeTransfer(_recipient, reward);
             emit RewardPaid(_account, _rewardsToken, _recipient, reward);
         }
@@ -231,11 +238,12 @@ abstract contract MultiRewardsDistributor is ReentrancyGuard, CoreOwnable {
     // internal function to get rewards.
     function _getRewardFor(address _account) internal {
         uint256 length = rewardTokens.length;
+        address _recipient = rewardRedirect[_account];
+        _recipient = _recipient != address(0) ? _recipient : _account;
         for (uint256 i; i < length; ++i) {
             address _rewardsToken = rewardTokens[i];
             uint256 reward = rewards[_account][_rewardsToken];
             if (reward > 0) {
-                address _recipient = rewardRedirect[_account] != address(0) ? rewardRedirect[_account] : _account;
                 rewards[_account][_rewardsToken] = 0;
                 IERC20(_rewardsToken).safeTransfer(_recipient, reward);
                 emit RewardPaid(_account, _rewardsToken, _recipient, reward);
