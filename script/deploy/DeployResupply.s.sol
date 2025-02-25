@@ -17,7 +17,7 @@ import { GovToken } from "src/dao/GovToken.sol";
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function run() public virtual {
-        deployMode = DeployMode.FOUNDRY;
+        deployMode = DeployMode.TENDERLY;
         deployAll();
     }
 
@@ -76,12 +76,28 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function deployDefaultLendingPairs() public {
-        address pair1;
-        address pair2;
-        pair1 = deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        _executeCore(
+            address(pairDeployer), 
+            abi.encodeWithSelector(
+                ResupplyPairDeployer.addSupportedProtocol.selector, 
+                "CurveLend", 
+                bytes4(keccak256("asset()")), 
+                bytes4(keccak256("collateral_token()"))
+            )
+        );
+        _executeCore(
+            address(pairDeployer), 
+            abi.encodeWithSelector(
+                ResupplyPairDeployer.addSupportedProtocol.selector, 
+                "Fraxlend", 
+                bytes4(keccak256("asset()")), 
+                bytes4(keccak256("collateralContract()"))
+            )
+        );
+        address pair1 = deployLendingPair(1, Constants.Mainnet.FRAXLEND_SFRXETH_FRAX, address(0), 0);
         console.log('pair deployed: fraxlend_sfrxeth_frax', pair1);
         writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRAX", pair1);
-        pair2 = deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        address pair2 = deployLendingPair(0, Constants.Mainnet.CURVELEND_SFRAX_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID);
         console.log('pair deployed: curvelend_sfrax_crvusd', pair2);
         writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair2);
     }

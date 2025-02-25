@@ -10,23 +10,25 @@ import { Swapper } from "src/protocol/Swapper.sol";
 contract TestEnvironmentSetup is DeployResupply {
     address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
     address public sfrxusd = Constants.Mainnet.SFRAX_ERC20;
-    address public crvusdPool = 0x8005516831b4DC21aCdc34d5a413F189FC850948;
-    address public fraxPool = 0xd6891003c66371606d85a33f694768b0e7738291;
+    address public crvusdPool = 0x7fd04C3eb261308154789db3A363dF789B53644f;
+    address public fraxPool = 0xf431263dD7bc0A5b49A43b2fbbC77129E7220349;
     Swapper public defaultSwapper;
 
 
     function run() public override {
         deployMode = DeployMode.TENDERLY;
-        super.deployAll();
+        // super.deployAll();
         issueTokens();
-        deployCurvePools();
-        deploySwapper();
-        handoffGovernance();
+        // deployCurvePools();
+        // deploySwapper();
+        // handoffGovernance();
         provideLiquidity();
     }
 
     function handoffGovernance() public {
-        _executeCore(address(core), abi.encodeWithSelector(ICore.setVoter.selector, address(voter)));
+        core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
+        address _voter = 0x111111110d3e18e73CC2227A40B565043266DaC1;
+        _executeCore(address(core), abi.encodeWithSelector(ICore.setVoter.selector, _voter));
     }
 
     function issueTokens() public {

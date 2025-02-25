@@ -410,12 +410,13 @@ contract DeployResupplyProtocol is BaseDeploy {
         writeAddressToJson("REWARD_HANDLER", predictedAddress);
     }
 
-    function deployLendingPair(address _collateral, address _staking, uint256 _stakingId) public returns(address){
+    function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){
         require(address(pairDeployer).code.length > 0, "ResupplyPairDeployer has no code");
         bytes memory result;
         result = _executeCore(
             address(pairDeployer),
             abi.encodeWithSelector(ResupplyPairDeployer.deploy.selector,
+                _protocolId,
                 abi.encode(
                     _collateral,
                     address(oracle),
