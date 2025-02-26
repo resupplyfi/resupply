@@ -41,10 +41,12 @@ contract Utilities is ResupplyPairConstants{
                 //assume if i is 0 we want to withdraw
                 //assume if i is anything else we want to deposit
 
-                swappool = _path[i+1]; //use next index as the 4626 vault to withdraw/deposit
+                
                 if(i==0){
+                    swappool = _path[i]; //use current index as the 4626 vault to withdraw from
                     swaptype = TYPE_WITHDRAW;
                 }else{
+                    swappool = _path[i+1]; //use next index as the 4626 vault to deposit to
                     swaptype = TYPE_DEPOSIT;
                 }
             }
