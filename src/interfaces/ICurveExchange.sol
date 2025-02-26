@@ -11,6 +11,7 @@ interface ICurveExchange {
         address
     ) external returns (uint256);
 
+    function get_dy(int128 i, int128 j, uint256 amount) external view returns(uint256);
     function calc_token_amount(uint256[2] calldata _amounts, bool _isDeposit) external view returns(uint256);
     function calc_token_amount(uint256[2] calldata _amounts) external view returns(uint256);
     function calc_withdraw_one_coin(uint256 _amount, int128 _index) external view returns(uint256);
