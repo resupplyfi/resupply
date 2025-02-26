@@ -31,6 +31,7 @@ contract Utilities is ResupplyPairConstants{
         registry = _registry;
     }
 
+    //get swap amount out of a given route
     function getSwapRouteAmountOut(uint256 _amount, address _swapper, address[] calldata _path) public view returns(uint256 _returnAmount){
         _returnAmount = _amount;
         for(uint256 i=0; i < _path.length-1;){
@@ -39,7 +40,8 @@ contract Utilities is ResupplyPairConstants{
             if(swaptype == TYPE_UNDEFINED){
                 //assume if i is 0 we want to withdraw
                 //assume if i is anything else we want to deposit
-                swappool = _path[i];
+
+                swappool = _path[i+1]; //use next index as the 4626 vault to withdraw/deposit
                 if(i==0){
                     swaptype = TYPE_WITHDRAW;
                 }else{
@@ -90,6 +92,7 @@ contract Utilities is ResupplyPairConstants{
         return _ltv <= _maxLTV;
     }
 
+    //check if a user is solvent after a theoretical leveraged borrow 
     function isSolventAfterLeverage(address _pair, address _account, uint256 _addUnderlying, uint256 _borrowAmount, uint256 _slippage, address _swapper, address[] calldata _path) external returns(bool, uint256, uint256, uint256){
         uint256 _maxLTV = IResupplyPair(_pair).maxLTV();
 
@@ -121,10 +124,10 @@ contract Utilities is ResupplyPairConstants{
 
         //get exchange rate of the amount borrowed to collateral amount
         uint256 collateralReceived = getSwapRouteAmountOut(_borrowAmount, _swapper, _path);
-        //assume a reduciton of the returned amount defined by slippage
+        //assume a reduction of the returned amount defined by slippage
         collateralReceived = collateralReceived * _slippage / 1e18;
 
-        //add to collateral amouont
+        //add to collateral amount
         collateralAmount += collateralReceived;
 
         uint256 _ltv = ((borrowerAmount * exchangeRate * LTV_PRECISION) / EXCHANGE_PRECISION) / collateralAmount;
