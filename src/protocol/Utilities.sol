@@ -90,10 +90,10 @@ contract Utilities is ResupplyPairConstants{
         return _ltv <= _maxLTV;
     }
 
-    function isSolventAfterLeverage(address _pair, address _account, uint256 _addUnderlying, uint256 _borrowAmount, uint256 _slippage, address _swapper, address[] calldata _path) external returns(bool){
+    function isSolventAfterLeverage(address _pair, address _account, uint256 _addUnderlying, uint256 _borrowAmount, uint256 _slippage, address _swapper, address[] calldata _path) external returns(bool, uint256, uint256, uint256){
         uint256 _maxLTV = IResupplyPair(_pair).maxLTV();
 
-        if (_maxLTV == 0) return true;
+        if (_maxLTV == 0) return (true,0,0,0);
         
         IResupplyPair(_pair).previewAddInterest();
 
@@ -128,7 +128,7 @@ contract Utilities is ResupplyPairConstants{
         collateralAmount += collateralReceived;
 
         uint256 _ltv = ((borrowerAmount * exchangeRate * LTV_PRECISION) / EXCHANGE_PRECISION) / collateralAmount;
-        return _ltv <= _maxLTV;
+        return (_ltv <= _maxLTV, _ltv, borrowerAmount, collateralAmount);
     }
 
 
