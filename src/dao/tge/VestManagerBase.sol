@@ -89,6 +89,7 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     /**
      * @notice Claims all available vested tokens for an account, and calls a callback to handle the tokens
      * @dev Important: the claimed tokens are transferred to the callback contract for handling, not the recipient
+     * @dev Restricted to the account or a delegated caller
      * @param _account Address to claim tokens for
      * @param _callback Address of the callback contract to use
      * @return _claimed Total amount of tokens claimed
@@ -119,8 +120,6 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
             }
         }
     }
-
-
 
     function _enforceClaimSettings(address _account) internal view returns (address) {
         ClaimSettings memory settings = claimSettings[_account];
