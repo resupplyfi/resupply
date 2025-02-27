@@ -12,6 +12,7 @@ import { Setup } from "test/Setup.sol";
 import "src/Constants.sol" as Constants;
 
 contract ResupplyAccountingTest is Setup {
+    uint256 public PRECISION;
     ResupplyPair pair1;
     ResupplyPair pair2;
 
@@ -26,6 +27,7 @@ contract ResupplyAccountingTest is Setup {
         pair1 = ResupplyPair(_pairs[0]); 
         pair2 = ResupplyPair(_pairs[1]);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
+        PRECISION = redemptionHandler.PRECISION();
     }
 
     // ############################################
@@ -211,7 +213,7 @@ contract ResupplyAccountingTest is Setup {
             vm.stopPrank();
             return;
         }
-        
+        uint256 feePct = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
         redemptionHandler.redeemFromPair(
             address(pair), 
             amountToRedeem, 
@@ -222,7 +224,7 @@ contract ResupplyAccountingTest is Setup {
         vm.stopPrank();
 
         assertApproxEqAbs(
-            (amountToRedeem * 99) / 100, // Fee schema
+            (amountToRedeem * (PRECISION - feePct)) / PRECISION, // Fee schema
             pair.underlying().balanceOf(userToRedeem) - underlyingBalanceBefore,
             0.001e18
         );

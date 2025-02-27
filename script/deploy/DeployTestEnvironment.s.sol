@@ -209,9 +209,9 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[5].contractName = "BasicVaultOracle";
 
         address _resupplypairAddress = _pairDeployer.deploy(
+            1, // lending protocol id: Fraxlend
             abi.encode(
                 address(Constants.Mainnet.FRAX_ERC20),
-                address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX),
                 address(_oracle),
                 address(_rateCalc),
                 DEFAULT_MAX_LTV,
@@ -229,9 +229,9 @@ contract DeployTestEnvironment is TenderlyHelper {
         _return[6].contractName = "Resupply Pair SFRXETH FRAX";
 
         address _curvelendpairAddress = _pairDeployer.deploy(
+            0, // lending protocol id: CurveLend
             abi.encode(
                 address(Constants.Mainnet.CURVE_USD_ERC20),
-                address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD),
                 address(_oracle),
                 address(_rateCalc),
                 DEFAULT_MAX_LTV,
