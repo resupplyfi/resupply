@@ -13,8 +13,8 @@ import { FeeDeposit } from "src/protocol/FeeDeposit.sol";
 import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { console } from "forge-std/console.sol";
-import { ICore } from "src/interfaces/ICore.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
+import { Utilities } from "src/protocol/Utilities.sol";
 
 contract DeployResupplyProtocol is BaseDeploy {
 
@@ -45,6 +45,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         pairDeployer = ResupplyPairDeployer(predictedAddress);
         console.log("pairDeployer deployed at", address(pairDeployer));
         writeAddressToJson("PAIR_DEPLOYER", predictedAddress);
+        
         // ============================================
         // ====== Deploy InterestRateCalculator =======
         // ============================================
@@ -408,6 +409,30 @@ contract DeployResupplyProtocol is BaseDeploy {
         rewardHandler = RewardHandler(predictedAddress);
         console.log("RewardHandler deployed at", address(rewardHandler));
         writeAddressToJson("REWARD_HANDLER", predictedAddress);
+
+        // ============================================
+        // ====== Utilities ================
+        // ============================================
+        constructorArgs = abi.encode(
+            address(registry)
+        );
+        bytecode = abi.encodePacked(vm.getCode("Utilities.sol:Utilities"), constructorArgs);
+        salt = buildGuardedSalt(
+            dev, 
+            true,   // enablePermissionedDeploy
+            false,  // enableCrossChain Protection
+            uint88(uint256(keccak256(bytes("Utilities"))))
+        );
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        if (!addressHasCode(predictedAddress)) {
+            addToBatch(
+                address(createXFactory),
+                encodeCREATE3Deployment(salt, bytecode)
+            );
+        }
+        utilities = Utilities(predictedAddress);
+        console.log("Utilities deployed at", address(rewardHandler));
+        writeAddressToJson("UTILITIES", predictedAddress);
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){

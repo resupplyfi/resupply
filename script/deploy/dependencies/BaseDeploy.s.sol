@@ -1,3 +1,4 @@
+import "src/Constants.sol" as Constants;
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { console } from "forge-std/console.sol";
@@ -18,6 +19,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { ICore } from "src/interfaces/ICore.sol";
+import { Utilities } from "src/protocol/Utilities.sol";
+import { Swapper } from "src/protocol/Swapper.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
     // Configs: DAO
@@ -45,6 +48,8 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant FEE_SPLIT_IP = 2500; // 25%
     uint256 internal constant FEE_SPLIT_TREASURY = 500; // 5%
     uint256 internal constant FEE_SPLIT_STAKERS = 7000; // 70%
+    address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
+    address public sfrxusd = Constants.Mainnet.SFRAX_ERC20;
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
@@ -82,8 +87,10 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     SimpleReceiverFactory public receiverFactory;
     SimpleReceiver public debtReceiver;
     SimpleReceiver public insuranceEmissionsReceiver;
+    Utilities public utilities;
     IERC20 public fraxToken;
     IERC20 public crvusdToken;
+    Swapper public defaultSwapper;
 
 
     // TODO: Guardiant things
