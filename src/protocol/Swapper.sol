@@ -74,14 +74,25 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
 
                 address collateral = IResupplyPair(msg.sender).collateral();
                 address underlying = IResupplyPair(msg.sender).underlying();
-                if(collateral != path[i+1]) revert();
-                if(underlying != path[i]) revert();
-                swapinfo.swappool = collateral;
-                swapinfo.swaptype = TYPE_DEPOSIT;
-                //approve
-                IERC20(underlying).forceApprove(collateral, type(uint256).max);
-                //write
-                swapPools[underlying][collateral] = swapinfo;
+                if(collateral == path[i+1] && underlying == path[i]){
+                    //add deposit
+                    swapinfo.swappool = collateral;
+                    swapinfo.swaptype = TYPE_DEPOSIT;
+                    //approve
+                    IERC20(underlying).forceApprove(collateral, type(uint256).max);
+                    //write, underlying to collateral
+                    swapPools[underlying][collateral] = swapinfo;
+                }else if(collateral == path[i] && underlying == path[i+1]){
+                    //add withdraw
+                    swapinfo.swappool = collateral;
+                    swapinfo.swaptype = TYPE_WITHDRAW;
+                    //write, collateral to underlying
+                    swapPools[collateral][underlying] = swapinfo;
+                }else{
+                    revert();
+                }
+                
+                
 
                 emit PairAdded(underlying, collateral, swapinfo);
             }

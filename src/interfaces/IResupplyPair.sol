@@ -33,6 +33,7 @@ interface IResupplyPair {
 
     function mintFee() external view returns (uint256);
     function liquidationFee() external view returns (uint256);
+    function protocolRedemptionFee() external view returns (uint256);
 
     function collateral() external view returns (address);
     function underlying() external view returns (address);
@@ -142,9 +143,9 @@ interface IResupplyPair {
 
     function symbol() external view returns (string memory);
 
-    function toBorrowAmount(uint256 _shares, bool _roundUp) external view returns (uint256);
+    function toBorrowAmount(uint256 _shares, bool _roundUp, bool _previewInterest) external view returns (uint256);
 
-    function toBorrowShares(uint256 _amount, bool _roundUp) external view returns (uint256);
+    function toBorrowShares(uint256 _amount, bool _roundUp, bool _previewInterest) external view returns (uint256);
 
     function totalBorrow() external view returns (uint128 amount, uint128 shares);
 

@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import "src/Constants.sol" as Constants;
-import { console } from "forge-std/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { RewardDistributorMultiEpoch } from "src/protocol/RewardDistributorMultiEpoch.sol";
@@ -72,9 +72,20 @@ contract PairTestSwaps is PairTestBase {
         printPairInfo(fraxresupply);
         printUserInfo(fraxresupply, address(this));
 
+        console.log("check utilities and solvency..");
+        uint256 maxltv = fraxresupply.maxLTV();
+        uint256 toborrow = 100_000e18;
+        uint256 slippage = 999e15;
+        uint256 minout = utilities.getSwapRouteAmountOut(toborrow, defaultswapper, fraxpath);
+        (bool issolvent, uint256 ltv, uint256 willborrow, uint256 finalcollateral) = utilities.isSolventAfterLeverage(address(fraxresupply), maxltv, address(this), 10_000e18, toborrow, slippage, defaultswapper, fraxpath);
+        console.log("issolvent", issolvent);
+        console.log("ltv", ltv);
+        console.log("willborrow", willborrow);
+        console.log("finalcollateral", finalcollateral);
+        console.log("minout", minout);
 
         console.log("\ntry leverage...\n");
-        uint256 toborrow = 100_000e18;
+        
         // uint256 startingfraxCollateral = frxcollateral.balanceOf(address(this));
         // uint256 startingcrvusdCollateral = crvcollateral.balanceOf(address(this));
         fraxresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, fraxpath);
@@ -82,7 +93,24 @@ contract PairTestSwaps is PairTestBase {
         printPairInfo(fraxresupply);
         printUserInfo(fraxresupply, address(this));
 
-        console.log("\ncurve pair\n");
+        console.log("\nrepay with collateral..\n");
+        address[] memory fraxRepayPath = new address[](4);
+        fraxRepayPath[0] = address(fraxresupply.collateral());
+        fraxRepayPath[1] = address(fraxresupply.underlying());
+        fraxRepayPath[2] = address(sfrax);
+        fraxRepayPath[3] = address(stablecoin);
+
+        console.log("reusd before: ", stablecoin.balanceOf(address(this)));
+        uint256 currentCollateral = fraxresupply.userCollateralBalance(address(this));
+        minout = utilities.getSwapRouteAmountOut(currentCollateral, defaultswapper, fraxRepayPath);
+        console.log("minout: ", minout);
+
+        fraxresupply.repayWithCollateral(defaultswapper, currentCollateral, minout, fraxRepayPath);
+        printPairInfo(fraxresupply);
+        printUserInfo(fraxresupply, address(this));
+        console.log("leftover reusd: ", stablecoin.balanceOf(address(this)));
+
+        console.log("\n\ncurve pair\n");
         printPairInfo(curveresupply);
         printUserInfo(curveresupply, address(this));
 

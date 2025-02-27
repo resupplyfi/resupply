@@ -2,7 +2,8 @@
 pragma solidity 0.8.28;
 
 import "src/Constants.sol" as Constants;
-import { console } from "forge-std/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
+import { Utilities } from "src/protocol/Utilities.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { Setup } from "test/Setup.sol";
@@ -14,6 +15,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
     ResupplyPair pair;
     IERC20 collateral;
     IERC20 underlying;
+    Utilities utilities;
 
     function setUp() public virtual override {
         super.setUp();
@@ -28,6 +30,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         collateral.approve(address(pair), type(uint256).max);
         underlying.approve(address(pair), type(uint256).max);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
+        utilities = new Utilities(address(registry));
     }
 
     function addSwapLiquidity() public{

@@ -70,12 +70,10 @@ contract Utilities is ResupplyPairConstants{
         uint256 _maxLTV = IResupplyPair(_pair).maxLTV();
 
         if (_maxLTV == 0) return true;
-        
-        IResupplyPair(_pair).previewAddInterest();
 
         //get borrow shares/amount
         uint256 userBorrowShares = IResupplyPair(_pair).userBorrowShares(_account);
-        uint256 borrowerAmount = IResupplyPair(_pair).toBorrowAmount(userBorrowShares, true);
+        uint256 borrowerAmount = IResupplyPair(_pair).toBorrowAmount(userBorrowShares, true, true);
 
         if (borrowerAmount == 0) return true;
         
@@ -94,30 +92,20 @@ contract Utilities is ResupplyPairConstants{
         return _ltv <= _maxLTV;
     }
 
-    //check if a user is solvent after a theoretical leveraged borrow 
-    function isSolventAfterLeverage(address _pair, address _account, uint256 _addUnderlying, uint256 _borrowAmount, uint256 _slippage, address _swapper, address[] calldata _path) external returns(bool, uint256, uint256, uint256){
-        uint256 _maxLTV = IResupplyPair(_pair).maxLTV();
-
-        if (_maxLTV == 0) return (true,0,0,0);
-        
-        IResupplyPair(_pair).previewAddInterest();
+    //check if a user is solvent after a theoretical leveraged borrow
+    //maxltv passed in to simulate enforcing a certain CR
+    function isSolventAfterLeverage(address _pair, uint256 _maxLTV, address _account, uint256 _addUnderlying, uint256 _borrowAmount, uint256 _slippage, address _swapper, address[] calldata _path) external returns(bool, uint256, uint256, uint256){
 
         //get borrow shares/amount
         uint256 userBorrowShares = IResupplyPair(_pair).userBorrowShares(_account);
-        uint256 borrowerAmount = IResupplyPair(_pair).toBorrowAmount(userBorrowShares, true);
+        uint256 borrowerAmount = IResupplyPair(_pair).toBorrowAmount(userBorrowShares, true, true);
 
         //add the new borrow amount
         borrowerAmount += _borrowAmount;
         
         //get collateral
         uint256 collateralAmount = IResupplyPair(_pair).userCollateralBalance(_account);
-
-        //get exchange rate
-        (address oracle, , ) = IResupplyPair(_pair).exchangeRateInfo();
         address collateralVault = IResupplyPair(_pair).collateral();
-        uint256 exchangeRate = IOracle(oracle).getPrices(collateralVault);
-        //convert price of collateral as debt is priced in terms of collateral amount (inverse)
-        exchangeRate = 1e36 / exchangeRate;
 
         //add underlying
         if(_addUnderlying > 0){
@@ -131,6 +119,13 @@ contract Utilities is ResupplyPairConstants{
 
         //add to collateral amount
         collateralAmount += collateralReceived;
+
+
+        //get exchange rate
+        (address oracle, , ) = IResupplyPair(_pair).exchangeRateInfo();
+        uint256 exchangeRate = IOracle(oracle).getPrices(collateralVault);
+        //convert price of collateral as debt is priced in terms of collateral amount (inverse)
+        exchangeRate = 1e36 / exchangeRate;
 
         uint256 _ltv = ((borrowerAmount * exchangeRate * LTV_PRECISION) / EXCHANGE_PRECISION) / collateralAmount;
         return (_ltv <= _maxLTV, _ltv, borrowerAmount, collateralAmount);
