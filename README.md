@@ -2,7 +2,7 @@
 
 ## Overview
 
-Resupply is a CDP-based stablecoin protocol that enables users to maximize yield on their stablecoin lending positions. Users can deposit crvUSD or frxUSD as collateral to mint reUSD while their collateral continues earning yield from Curve Lend or Frax Lend.
+Resupply is a CDP-based stablecoin protocol that enables users to maximize yield on their stablecoin lending positions.
 
 ## Development Setup
 
