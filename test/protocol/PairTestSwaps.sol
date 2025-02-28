@@ -35,7 +35,7 @@ contract PairTestSwaps is PairTestBase {
         deal(address(frxusd), address(this), 10_000e18);
         
         IERC20 scrvusd = IERC20(Constants.Mainnet.CURVE_SCRVUSD);
-        IERC20 sfrax = IERC20(Constants.Mainnet.SFRAX_ERC20);
+        IERC20 sfrxusd = IERC20(Constants.Mainnet.SFRXUSD_ERC20);
 
         crvusd.approve(address(curveresupply), 999_999_999e18);
         frxusd.approve(address(fraxresupply), 999_999_999e18);
@@ -59,7 +59,7 @@ contract PairTestSwaps is PairTestBase {
 
         address[] memory fraxpath = new address[](4);
         fraxpath[0] = address(stablecoin);
-        fraxpath[1] = address(sfrax);
+        fraxpath[1] = address(sfrxusd);
         fraxpath[2] = address(fraxresupply.underlying());
         fraxpath[3] = address(fraxresupply.collateral());
 
@@ -97,7 +97,7 @@ contract PairTestSwaps is PairTestBase {
         address[] memory fraxRepayPath = new address[](4);
         fraxRepayPath[0] = address(fraxresupply.collateral());
         fraxRepayPath[1] = address(fraxresupply.underlying());
-        fraxRepayPath[2] = address(sfrax);
+        fraxRepayPath[2] = address(sfrxusd);
         fraxRepayPath[3] = address(stablecoin);
 
         console.log("reusd before: ", stablecoin.balanceOf(address(this)));
