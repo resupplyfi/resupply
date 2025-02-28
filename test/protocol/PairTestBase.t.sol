@@ -68,6 +68,8 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         console.log("address", address(_pair));
         console.log("collateral", address(_pair.collateral()));
         console.log("underlying", address(_pair.underlying()));
+        (uint256 _borrowAmount, ) = _pair.totalBorrow();
+        console.log("totalBorrowAmount: ", _borrowAmount);
     }
 
     function printUserInfo(ResupplyPair _pair, address _user) public {
