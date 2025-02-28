@@ -10,8 +10,8 @@ import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     ResupplyPairDeployer public resupplyPairDeployer;
-    address public curveLendCollat = Constants.Mainnet.CURVELEND_SFRAX_CRVUSD;
-    address public fraxlendCollat = Constants.Mainnet.FRAXLEND_SFRXETH_FRAX;
+    address public curveLendCollat = Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD;
+    // address public fraxlendCollat = Constants.Mainnet.FRAXLEND_SFRXETH_FRAX;
     
     function setUp() public override {
         super.setUp();
@@ -52,7 +52,7 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNotFound.selector));
         (actualName, , ) = resupplyPairDeployer.getNextName(12, curveLendCollat);
         (actualName, , ) = resupplyPairDeployer.getNextName(0, curveLendCollat);
-        string memory expectedName = "Resupply Pair (CurveLend: crvUSD/sFRAX) - 1";
+        string memory expectedName = "Resupply Pair (CurveLend: crvUSD/sfrxUSD) - 1";
         assertEq(actualName, expectedName);
     }
 
@@ -65,10 +65,10 @@ contract ResupplyPairDeployerTest is Setup {
 
     function test_deployLendingPair() public {
         ResupplyPair pair = deployLendingPair(
-            Constants.Mainnet.CURVELEND_SFRAX_CRVUSD,
             0,
+            Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             Constants.Mainnet.CONVEX_BOOSTER,
-            uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID)
+            uint256(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertGt(pair.protocolRedemptionFee(), 0);
         assertGt(bytes(pair.name()).length, 5);

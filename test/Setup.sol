@@ -96,11 +96,11 @@ contract Setup is Test {
     SimpleReceiver public debtReceiver;
     SimpleReceiver public insuranceEmissionsReceiver;
     Swapper public defaultSwapper;
-    IERC20 public fraxToken;
+    IERC20 public frxusdToken;
     IERC20 public crvusdToken;
 
     ICurveExchange public swapPoolsCrvUsd;
-    ICurveExchange public swapPoolsFrax;
+    ICurveExchange public swapPoolsFrxusd;
 
     constructor() {
         _THIS = address(this);
@@ -117,7 +117,7 @@ contract Setup is Test {
         vm.prank(user1);
         govToken.approve(address(staker), type(uint256).max);
 
-        fraxToken = IERC20(address(Constants.Mainnet.FRAX_ERC20));
+        frxusdToken = IERC20(address(Constants.Mainnet.FRXUSD_ERC20));
         crvusdToken = IERC20(address(Constants.Mainnet.CURVE_USD_ERC20));
 
 
@@ -155,8 +155,16 @@ contract Setup is Test {
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
-        deployer.addSupportedProtocol("CurveLend", bytes4(keccak256("asset()")), bytes4(keccak256("collateral_token()")));
-        deployer.addSupportedProtocol("Fraxlend", bytes4(keccak256("asset()")), bytes4(keccak256("collateralContract()")));
+        deployer.addSupportedProtocol(
+            "CurveLend",
+            bytes4(keccak256("asset()")),           // borrowLookupSig
+            bytes4(keccak256("collateral_token()")) // collateralLookupSig
+        );
+        deployer.addSupportedProtocol(
+            "Fraxlend",
+            bytes4(keccak256("asset()")),           // borrowLookupSig
+            bytes4(keccak256("collateralContract()")) // collateralLookupSig
+        );
         vm.stopPrank();
 
         rateCalculator = new InterestRateCalculator(
@@ -173,7 +181,7 @@ contract Setup is Test {
     function deployRewardsContracts() public {
         address[] memory rewards = new address[](3);
         rewards[0] = address(govToken);
-        rewards[1] = address(fraxToken);
+        rewards[1] = address(frxusdToken);
         rewards[2] = address(crvusdToken);
 
 
@@ -332,11 +340,11 @@ contract Setup is Test {
         vm.stopPrank();
     }
 
-    function deployLendingPair(address _collateral, uint256 protocolId, address _staking, uint256 _stakingId) public returns(ResupplyPair){
+    function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
         vm.startPrank(deployer.owner());
 
         address _pairAddress = deployer.deploy(
-            protocolId,
+            _protocolId,
             abi.encode(
                 _collateral,
                 address(oracle),
@@ -361,8 +369,15 @@ contract Setup is Test {
     }
 
     function deployDefaultLendingPairs() public{
-        deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), 1, address(0), 0);
-        deployLendingPair(address(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD), 0, address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID));
+        //todo: add fraxlend pairs
+        // deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
     }
 
     function deployCurvePools() public{
@@ -389,8 +404,7 @@ contract Setup is Test {
         );
         swapPoolsCrvUsd = ICurveExchange(crvusdAmm);
 
-        //TODO, update to sfrxusd from sfrax
-        coins[1] = Constants.Mainnet.SFRAX_ERC20;
+        coins[1] = Constants.Mainnet.SFRXUSD_ERC20;
         address fraxAmm = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
             "reUSD/sfrxUSD", //name
             "reusdsfrx", //symbol
@@ -404,7 +418,7 @@ contract Setup is Test {
             methods, //method ids
             oracles //oracles
         );
-        swapPoolsFrax = ICurveExchange(fraxAmm);
+        swapPoolsFrxusd = ICurveExchange(fraxAmm);
 
 
         //deploy swapper
@@ -466,7 +480,7 @@ contract Setup is Test {
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             address(stablecoin),
-            Constants.Mainnet.SFRAX_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
             swapinfo
         );
 
@@ -476,30 +490,30 @@ contract Setup is Test {
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SFRAX_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
             address(stablecoin),
             swapinfo
         );
 
         //sfrxusd withdraw to frxusd
-        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 3;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SFRAX_ERC20,
-            Constants.Mainnet.FRAX_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
+            Constants.Mainnet.FRXUSD_ERC20,
             swapinfo
         );
 
         //frxusd deposit to sfrxusd
-        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 2;
         defaultSwapper.addPairing(
-            Constants.Mainnet.FRAX_ERC20,
-            Constants.Mainnet.SFRAX_ERC20,
+            Constants.Mainnet.FRXUSD_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
             swapinfo
         );
 
@@ -529,7 +543,7 @@ contract Setup is Test {
         console.log("rewardHandler: ", address(rewardHandler));
         console.log("debtReceiver: ", address(debtReceiver));
         console.log("swap scrvusd: ", address(swapPoolsCrvUsd));
-        console.log("swap sfrxusd: ", address(swapPoolsFrax));
+        console.log("swap sfrxusd: ", address(swapPoolsFrxusd));
     }
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {

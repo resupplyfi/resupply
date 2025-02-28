@@ -53,7 +53,7 @@ contract ResupplyAccountingTest is Setup {
             pair1,
             user7,
             collateralAmount,
-            Constants.Mainnet.FRAX_ERC20
+            Constants.Mainnet.FRXUSD_ERC20
         );
         uint256 collateral = pair1.userCollateralBalance(user7);
         uint256 ltv = pair1.maxLTV();
@@ -132,14 +132,14 @@ contract ResupplyAccountingTest is Setup {
     }
 
     function test_fuzz_addCollateral(uint96 amount) public {
-        addCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
+        addCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRXUSD_ERC20);
     }
 
     function test_fuzz_removeCollateral(uint64 amount) public {
         uint256 amountToDeposit = uint(amount) * 2;
         amountToDeposit = uint128(bound(amountToDeposit, 0, type(uint128).max - 10));
-        addCollateralFlow(pair1, user9, amountToDeposit, Constants.Mainnet.FRAX_ERC20);
-        removeCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
+        addCollateralFlow(pair1, user9, amountToDeposit, Constants.Mainnet.FRXUSD_ERC20);
+        removeCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRXUSD_ERC20);
     }
 
     // ############################################

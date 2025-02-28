@@ -10,7 +10,7 @@ import { IStakedFrax } from "../interfaces/IStakedFrax.sol";
 contract InterestRateCalculator is IRateCalculator {
     using Strings for uint256;
 
-    address public constant sfrax = address(0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32);
+    address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
 
     /// @notice The name suffix for the interest rate calculator
     string public suffix;
@@ -50,17 +50,17 @@ contract InterestRateCalculator is IRateCalculator {
         _patch = 0;
     }
 
-    function sfraxRates() public view returns(uint256 fraxPerSecond){
-        //on fraxtal need to get pricefeed, on mainnet check directly on sfrax
-        IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(sfrax).rewardsCycleData();
-        uint256 sfraxtotal = IStakedFrax(sfrax).storedTotalAssets();
-        if(sfraxtotal == 0){
-            sfraxtotal = 1;
+    function sfrxusdRates() public view returns(uint256 fraxPerSecond){
+        //on fraxtal need to get pricefeed, on mainnet check directly on sfrxusd
+        IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(sfrxusd).rewardsCycleData();
+        uint256 sfrxusdtotal = IStakedFrax(sfrxusd).storedTotalAssets();
+        if(sfrxusdtotal == 0){
+            sfrxusdtotal = 1;
         }
-        uint256 maxsfraxDistro = IStakedFrax(sfrax).maxDistributionPerSecondPerAsset();
+        uint256 maxsfrxusdDistro = IStakedFrax(sfrxusd).maxDistributionPerSecondPerAsset();
         fraxPerSecond = rdata.rewardCycleAmount / (rdata.cycleEnd - rdata.lastSync);
-        fraxPerSecond = fraxPerSecond * 1e18 / sfraxtotal;
-        fraxPerSecond = fraxPerSecond > maxsfraxDistro ? maxsfraxDistro : fraxPerSecond;
+        fraxPerSecond = fraxPerSecond * 1e18 / sfrxusdtotal;
+        fraxPerSecond = fraxPerSecond > maxsfrxusdDistro ? maxsfrxusdDistro : fraxPerSecond;
     }
 
     /// @notice The ```getNewRate``` function calculates interest rates using underlying rates and minimums
@@ -89,9 +89,9 @@ contract InterestRateCalculator is IRateCalculator {
         //take ratio of the difference
         difference /= rateRatio;
 
-        //take ratio of sfrax rate and compare to our hard minimum, take higher as our minimum
+        //take ratio of sfrxusd rate and compare to our hard minimum, take higher as our minimum
         //this lets us base our minimum rates on a "risk free rate" product
-        uint256 floorRate = sfraxRates() / rateRatio;
+        uint256 floorRate = sfrxusdRates() / rateRatio;
         floorRate = floorRate > minimumRate ? floorRate : minimumRate;
 
         //if difference is over some minimum, return difference
