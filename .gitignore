@@ -18,6 +18,9 @@
 out
 data
 tenderly/
+abis
+snapshots
+
 # files
 *.env
 *.log
