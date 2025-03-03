@@ -19,7 +19,9 @@ library Mainnet {
     address internal constant CURVE_STABLE_FACTORY = 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf;
 
     //fraxlend
-    // address internal constant FRAXLEND_SFRXETH_FRXUSD = 0x78bB3aEC3d855431bd9289fD98dA13F9ebB7ef15;
+    address internal constant FRAXLEND_SFRXETH_FRXUSD = 0xaB3cb84c310186B2Fa4B4503624A5D90b5DcB22D;
+    address internal constant FRAXLEND_SUSDE_FRXUSD = 0x28Cdf6Ce79702AAeFbF217cF98cbD11f5639B9f1;
+    address internal constant FRAXLEND_WBTC_FRXUSD = 0x37110563E3856D413B821f07C7E3991c4493673D;
 
     //curvelend
     address internal constant CURVELEND_SDOLA_CRVUSD = 0x14361C243174794E2207296a6AD59bb0Dec1d388;

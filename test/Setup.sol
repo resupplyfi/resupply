@@ -369,8 +369,7 @@ contract Setup is Test {
     }
 
     function deployDefaultLendingPairs() public{
-        //todo: add fraxlend pairs
-        // deployLendingPair(address(Constants.Mainnet.FRAXLEND_SFRXETH_FRAX), address(0), 0);
+        //curve lend
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
@@ -378,6 +377,11 @@ contract Setup is Test {
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
+        
+        //fraxlend
+        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD), address(0), uint256(0));
+        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SUSDE_FRXUSD), address(0), uint256(0));
+        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
     }
 
     function deployCurvePools() public{
