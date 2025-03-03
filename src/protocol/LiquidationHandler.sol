@@ -21,14 +21,27 @@ contract LiquidationHandler is CoreOwnable{
     address public immutable insurancePool;
     mapping(address => uint256) public debtByCollateral;
 
+    uint256 public liquidateIncentive;
+    address transient _liquidationCaller;
+
     event CollateralProccessed(address indexed _collateral, uint256 _debtBurned, uint256 _amountWithdrawn);
     event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
     event CollateralMigrated(address indexed _collateral, uint256 _collateralAmount, address _newHandler);
+    event SetLiquidationIncentive(uint256 _incentive);
 
     constructor(address _core, address _registry, address _insurancePool) CoreOwnable(_core){
         registry = _registry;
         insurancePool = _insurancePool;
+        liquidateIncentive = 25e18;
     }
+
+    /// @notice Sets Liquidation incentive
+    /// @param _incentive the incentive to call liquidate()
+    function setLiquidationIncentive(uint256 _incentive) external onlyOwner{
+        liquidateIncentive = _incentive;
+        emit SetLiquidationIncentive(_incentive);
+    }
+
 
     //allow protocol to migrate collateral left in this handler if an update is required
     //registry must point to a different handler to ensure this contract is no longer being used
@@ -96,6 +109,7 @@ contract LiquidationHandler is CoreOwnable{
         address _borrower
     ) external returns (uint256 _collateralForLiquidator){
         require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(_pair).name()) == _pair, "!registered");
+        _liquidationCaller = msg.sender;
         _collateralForLiquidator = IResupplyPair(_pair).liquidate(_borrower);
     }
 
@@ -106,6 +120,19 @@ contract LiquidationHandler is CoreOwnable{
 
         //add to debt needed to burn
         debtByCollateral[_collateral] += _debtAmount;
+
+        //reward caller
+        uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
+        if(withdrawable >= liquidateIncentive){
+            try IERC4626(_collateral).withdraw(liquidateIncentive, _liquidationCaller, address(this)){}catch{}
+        }else{
+            uint256 incentiveShares = IERC4626(_collateral).convertToShares(liquidateIncentive);
+            incentiveShares = incentiveShares > _collateralAmount ? _collateralAmount : incentiveShares;
+            if(incentiveShares > 0){
+                IERC20(_collateral).safeTransfer(_liquidationCaller, incentiveShares);
+            }
+        }
+        _liquidationCaller = address(0);
 
         //process
         processCollateral(_collateral);

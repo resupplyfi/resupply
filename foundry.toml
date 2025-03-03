@@ -9,7 +9,7 @@ libs = ["node_modules", "lib"]
 
 # Compiler settings
 auto_detect_solc = true
-evm_version = "shanghai"
+evm_version = "cancun"
 bytecode_hash = "none"
 optimizer = true
 optimizer_runs = 200

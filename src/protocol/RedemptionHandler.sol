@@ -30,7 +30,7 @@ contract RedemptionHandler is CoreOwnable{
     mapping(address => RedeemptionRateInfo) public ratingData;
     uint256 public usageDecayRate = 1e17 / uint256(7 days); //10% per week
     uint256 public maxUsage = 3e17; //max usage of 30%. any thing above 30% will be 0 discount.  linearly scale between 0 and maxusage
-    uint256 public maxDiscount = 1e15; //up to 0.1% discount
+    uint256 public maxDiscount = 5e14; //up to 0.05% discount
 
     event SetBaseRedemptionFee(uint256 _fee);
     event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);

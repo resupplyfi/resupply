@@ -41,12 +41,18 @@ contract LiquidationManagerTest is PairTestBase {
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         uint256 ipTotalSupply = insurancePool.totalSupply();
         uint256 ipTotalAssets = insurancePool.totalAssets();
-        uint256 pairCollateralBalance = collateral.balanceOf(address(pair));
+        uint256 pairCollateralBalance = pair.totalCollateral();
 
+        printPairInfo(pair);
+        printUserInfo(pair, address(this));
+        vm.prank(address(core));
+        pair.setMaxLTV(1);
 
         vm.expectEmit(true, false, false, false, address(liquidationHandler));
         emit LiquidationHandler.CollateralProccessed(address(collateral), 0, 0);
         liquidationHandler.liquidate(address(pair), address(this));
+        uint256 gascost = vm.snapshotGasLastCall("Liquidate");
+        console.log("liquidate gas: ", gascost);
 
         assertEq(collateral.balanceOf(address(liquidationHandler)), 0);
         assertEq(underlying.balanceOf(address(liquidationHandler)), 0);
@@ -54,7 +60,7 @@ contract LiquidationManagerTest is PairTestBase {
         assertGt(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'underlying balance should increase');
         assertEq(insurancePool.totalSupply(), ipTotalSupply, 'total supply should not change');
         assertLt(insurancePool.totalAssets(), ipTotalAssets, 'total assets should decrease');
-        assertLt(collateral.balanceOf(address(pair)), pairCollateralBalance, 'pair collateral balance should decrease');
+        assertLt(pair.totalCollateral(), pairCollateralBalance, 'pair collateral balance should decrease');
     }
 
     function test_LiquidateSolventBorrowerFails() public {
@@ -158,7 +164,7 @@ contract LiquidationManagerTest is PairTestBase {
     function buildLiquidatablePosition() public {
         uint256 borrowAmount = pair.minimumBorrowAmount();
         borrow(pair, borrowAmount, calculateMinUnderlyingNeededForBorrow(borrowAmount)); // borrow while adding collateral
-        setOraclePrice(1e17);
+        setOraclePrice(1e16);
     }
 
     function withdrawLiquidityFromMarket() public {
