@@ -127,8 +127,7 @@ contract LiquidationHandler is CoreOwnable{
             try IERC4626(_collateral).withdraw(liquidateIncentive, _liquidationCaller, address(this)){}catch{}
         }else{
             uint256 incentiveShares = IERC4626(_collateral).convertToShares(liquidateIncentive);
-            uint256 holdingShares = IERC20(_collateral).balanceOf(address(this));
-            incentiveShares = incentiveShares > holdingShares ? holdingShares : incentiveShares;
+            incentiveShares = incentiveShares > _collateralAmount ? _collateralAmount : incentiveShares;
             if(incentiveShares > 0){
                 IERC20(_collateral).safeTransfer(_liquidationCaller, incentiveShares);
             }
