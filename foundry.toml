@@ -53,6 +53,7 @@ optimizer = false
 build_info = false
 extra_output = []
 verbosity = 3
+isolate = true
 
 # Network configurations
 [rpc_endpoints]

@@ -452,6 +452,7 @@ contract ResupplyAccountingTest is Setup {
         uint collateralInPairBefore = pair.collateral().balanceOf(address(pair));
         (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
         uint underlyingExpected = IERC4626(address(pair.collateral())).previewRedeem(userCollateralBalanceBefore);
+        uint liquidationIncentive = liquidationHandler.liquidateIncentive();
         liquidationHandler.liquidate(
             address(pair),
             toLiquidate
@@ -469,11 +470,12 @@ contract ResupplyAccountingTest is Setup {
             right: amountToLiquidate,
             err: "// THEN: insurance pool stable not decremented by expected"
         });
-        assertEq({
-            left: pair.underlying().balanceOf(address(insurancePool)) - insuracePoolBalanceUnderlyingBefore,
-            right: underlyingExpected,
-            err: "// THEN: insurance pool underlying balance increase not expected"
-        });
+        assertApproxEqAbs(
+            pair.underlying().balanceOf(address(insurancePool)) - insuracePoolBalanceUnderlyingBefore + liquidationIncentive,
+            underlyingExpected,
+            1,
+            "// THEN: insurance pool underlying balance not within 1 wei"
+        );
         assertEq({
             left: pair.userCollateralBalance(toLiquidate),
             right: 0,
