@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { MultiRewardsDistributor } from './MultiRewardsDistributor.sol';
+import { MultiRewardsDistributor } from 'src/dao/staking/MultiRewardsDistributor.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { EpochTracker } from '../../dependencies/EpochTracker.sol';
-import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
-import { GovStakerEscrow } from './GovStakerEscrow.sol';
-import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
-import { IGovStaker } from "../../interfaces/IGovStaker.sol";
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { DelegatedOps } from 'src/dependencies/DelegatedOps.sol';
+import { GovStakerEscrow } from 'src/dao/staking/GovStakerEscrow.sol';
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 
 contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     using SafeERC20 for IERC20;

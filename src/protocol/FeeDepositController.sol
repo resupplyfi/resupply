@@ -8,9 +8,6 @@ import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
 
-
-
-//FeeDeposit controller to handle distribution of funds
 contract FeeDepositController is CoreOwnable{
     using SafeERC20 for IERC20;
 
@@ -50,27 +47,17 @@ contract FeeDepositController is CoreOwnable{
     }
 
     function distribute() external{
-        //pull fees
+        // Pull fees. Reverts when called multiple times in single epoch.
         IFeeDeposit(feeDeposit).distributeFees();
-        
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
-        //insurance pool amount
         Splits memory _splits = splits;
         uint256 ipAmount =  balance * _splits.insurance / BPS;
         uint256 treasuryAmount =  balance * _splits.treasury / BPS;
-
-        //send to treasury
         IERC20(feeToken).safeTransfer(treasury, treasuryAmount);
-
         address rewardHandler = IResupplyRegistry(registry).rewardHandler();
-        //send to handler
         IERC20(feeToken).safeTransfer(rewardHandler, ipAmount);
-        //process insurance rewards
         IRewardHandler(rewardHandler).queueInsuranceRewards();
-
-        //send rest to platform (via reward handler again)
         IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount);
-        //process platform rewards
         IRewardHandler(rewardHandler).queueStakingRewards();
     }
 
@@ -84,7 +71,5 @@ contract FeeDepositController is CoreOwnable{
         splits.treasury = uint80(_treasurySplit);
         splits.platform = uint80(_platformSplit);
         emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), uint80(_platformSplit));
-    }
-
-    
+    }   
 }

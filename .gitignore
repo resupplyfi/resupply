@@ -20,6 +20,7 @@ data
 tenderly/
 abis
 snapshots
+abis/
 
 # files
 *.env

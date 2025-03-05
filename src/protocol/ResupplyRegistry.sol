@@ -26,6 +26,7 @@ contract ResupplyRegistry is CoreOwnable{
     string public constant TREASURY = "TREASURY";
     string public constant STAKER = "STAKER";
     string public constant L2_MANAGER = "L2_MANAGER";
+    string public constant VEST_MANAGER = "VEST_MANAGER";
 
     address public immutable token;
     address public immutable govToken;
@@ -39,7 +40,7 @@ contract ResupplyRegistry is CoreOwnable{
     address public staker;
     address public treasury;
     address public l2manager;
-
+    address public vestManager;
     address[] public registeredPairs;
     address[] public defaultSwappers;
     string[] private keys; // Registry keys
@@ -117,6 +118,11 @@ contract ResupplyRegistry is CoreOwnable{
     function setTreasury(address _newAddress) external onlyOwner{
         treasury = _newAddress;
         _setAddress(_newAddress, TREASURY, keccak256(bytes(TREASURY)));
+    }
+
+    function setVestManager(address _newAddress) external onlyOwner{
+        vestManager = _newAddress;
+        _setAddress(_newAddress, VEST_MANAGER, keccak256(bytes(VEST_MANAGER)));
     }
 
     /// @notice The ```addPair``` function adds a pair to the registry and ensures a unique name
@@ -207,6 +213,7 @@ contract ResupplyRegistry is CoreOwnable{
         _protectedKeys[5] = TREASURY;
         _protectedKeys[6] = STAKER;
         _protectedKeys[7] = L2_MANAGER;
+        _protectedKeys[8] = VEST_MANAGER;
         return _protectedKeys;
     }
 

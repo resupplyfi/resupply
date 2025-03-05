@@ -37,7 +37,8 @@ interface IVoter {
     );
     event ProposalCreationMinPctSet(uint256 weight);
     event ProposalPassingPctSet(uint256 pct);
-
+    event ProposalDescriptionUpdated(uint256 indexed proposalId, string description);
+    
     function TOKEN_DECIMALS() external view returns (uint256);
     function VOTING_PERIOD() external view returns (uint256);
     function EXECUTION_DELAY() external view returns (uint256);
@@ -75,4 +76,5 @@ interface IVoter {
     function quorumReached(uint256 id) external view returns (bool);
     function setMinCreateProposalPct(uint256 pct) external returns (bool);
     function setPassingPct(uint256 pct) external returns (bool);
-} 
+    function updateProposalDescription(uint256 id, string calldata description) external;
+}

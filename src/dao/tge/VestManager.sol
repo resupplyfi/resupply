@@ -46,7 +46,7 @@ contract VestManager is VestManagerBase {
         address[3] memory _redemptionTokens // PRISMA, yPRISMA, cvxPRISMA
     ) VestManagerBase(_core, _token) {
         INITIAL_SUPPLY = IGovToken(_token).INITIAL_SUPPLY();
-        require(IERC20(_token).balanceOf(address(this)) == INITIAL_SUPPLY, "invalid initial supply");
+        require(IERC20(_token).balanceOf(address(this)) == INITIAL_SUPPLY, "VestManager not funded");
         BURN_ADDRESS = _burnAddress;
         prisma = _redemptionTokens[0];
         yprisma = _redemptionTokens[1];
