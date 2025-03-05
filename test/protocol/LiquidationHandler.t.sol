@@ -9,7 +9,7 @@ import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { MockOracle } from "test/mocks/MockOracle.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-contract LiquidationManagerTest is PairTestBase {
+contract LiquidationHandlerTest is PairTestBase {
 
     MockOracle mockOracle;
 
@@ -74,7 +74,6 @@ contract LiquidationManagerTest is PairTestBase {
     function test_LiquidationCollateralArrivesInIP() public {
         buildLiquidatablePosition();
         liquidationHandler.liquidate(address(pair), address(this));
-
     }
 
     function test_LiquidationWithIlliquidCollateral() public {
@@ -123,7 +122,7 @@ contract LiquidationManagerTest is PairTestBase {
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         uint256 ipTotalSupply = insurancePool.totalSupply();
         uint256 ipTotalAssets = insurancePool.totalAssets();
-        uint256 pairCollateralBalance = collateral.balanceOf(address(pair));
+        uint256 pairCollateralBalance = pair.totalCollateral();
         uint256 ipCollateralBalance = collateral.balanceOf(address(insurancePool));
 
         vm.startPrank(address(core));
@@ -140,7 +139,7 @@ contract LiquidationManagerTest is PairTestBase {
         assertEq(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'underlying balance should not change');
         assertEq(insurancePool.totalSupply(), ipTotalSupply, 'total supply should not change');
         assertLt(insurancePool.totalAssets(), ipTotalAssets, 'total assets should decrease');
-        assertLt(collateral.balanceOf(address(pair)), pairCollateralBalance, 'pair collateral balance should decrease');
+        assertLt(pair.totalCollateral(), pairCollateralBalance, 'pair collateral balance should decrease');
         assertGt(collateral.balanceOf(address(insurancePool)), ipCollateralBalance, 'IP collateral balance should increase');
         vm.stopPrank();
     }
@@ -162,9 +161,10 @@ contract LiquidationManagerTest is PairTestBase {
     }
 
     function buildLiquidatablePosition() public {
-        uint256 borrowAmount = pair.minimumBorrowAmount();
+        uint256 DEFAULT_BORROW_AMOUNT = 5_000e18;
+        uint256 borrowAmount = pair.minimumBorrowAmount() > DEFAULT_BORROW_AMOUNT ? pair.minimumBorrowAmount() : DEFAULT_BORROW_AMOUNT;
         borrow(pair, borrowAmount, calculateMinUnderlyingNeededForBorrow(borrowAmount)); // borrow while adding collateral
-        setOraclePrice(1e16);
+        setOraclePrice(1e10);
     }
 
     function withdrawLiquidityFromMarket() public {
