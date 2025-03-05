@@ -36,9 +36,7 @@ optimizer = false
 [profile.script]
 src = "_"
 test = "_"
-optimizer = true
-optimizer_runs = 200
-via_ir = true
+optimizer = false
 
 [profile.deploy]
 src = "_"
