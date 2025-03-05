@@ -29,6 +29,7 @@ import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
+import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
@@ -81,6 +82,7 @@ contract Setup is Test {
     PermaStaker public permaStaker2;
     Stablecoin public stablecoin;
     BasicVaultOracle public oracle;
+    UnderlyingOracle public underlyingoracle;
     InterestRateCalculator public rateCalculator;
     ResupplyPairDeployer public deployer;
     RedemptionHandler public redemptionHandler;
@@ -166,8 +168,9 @@ contract Setup is Test {
         );
 
         oracle = new BasicVaultOracle("Basic Vault Oracle");
+        underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
 
-        redemptionHandler = new RedemptionHandler(address(core),address(registry));
+        redemptionHandler = new RedemptionHandler(address(core),address(registry), address(underlyingoracle));
     }
 
     function deployRewardsContracts() public {
