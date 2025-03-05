@@ -100,7 +100,7 @@ contract Setup is Test {
     Swapper public defaultSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
-
+    ResupplyPair public testPair;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
 
@@ -376,7 +376,7 @@ contract Setup is Test {
 
     function deployDefaultLendingPairs() public{
         //curve lend
-        ResupplyPair pair = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
+        testPair = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));

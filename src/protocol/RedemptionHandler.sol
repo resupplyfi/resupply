@@ -49,14 +49,14 @@ contract RedemptionHandler is CoreOwnable{
     /// @dev This fee is not the effective fee. The effective fee is calculated at time of redemption via ``getRedemptionFeePct``.
     /// @param _fee The new base redemption fee, must be <= 1e18 (100%)
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
-        require(_fee <= 1e18, "!fee");
-        require(_fee >= maxDiscount, "!discount");
+        require(_fee <= 1e18, "fee too high");
+        require(_fee >= maxDiscount, "fee higher than max discount");
         baseRedemptionFee = _fee;
         emit SetBaseRedemptionFee(_fee);
     }
 
     function setDiscountInfo(uint256 _rate, uint256 _maxUsage, uint256 _maxDiscount) external onlyOwner{
-        require(_maxDiscount <= baseRedemptionFee, "!discount");
+        require(_maxDiscount <= baseRedemptionFee, "max discount exceeds base redemption fee");
         usageDecayRate = _rate;
         maxUsage = _maxUsage;
         maxDiscount = _maxDiscount;
