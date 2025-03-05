@@ -25,8 +25,8 @@ contract PairTestSwaps is PairTestBase {
         addSwapLiquidity();
 
         address[] memory _pairs = registry.getAllPairAddresses();
-        ResupplyPair fraxresupply = ResupplyPair(_pairs[0]); 
-        ResupplyPair curveresupply = ResupplyPair(_pairs[1]); 
+        ResupplyPair fraxresupply = ResupplyPair(_pairs[_pairs.length - 1]); 
+        ResupplyPair curveresupply = ResupplyPair(_pairs[0]); 
         
         IERC20 crvusd = curveresupply.underlying();
         IERC20 frxusd = fraxresupply.underlying();

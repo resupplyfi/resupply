@@ -24,8 +24,8 @@ contract ResupplyAccountingTest is Setup {
         super.setUp();
         deployDefaultLendingPairs();
         address[] memory _pairs = registry.getAllPairAddresses();
-        pair1 = ResupplyPair(_pairs[0]); 
-        pair2 = ResupplyPair(_pairs[1]);
+        pair1 = ResupplyPair(_pairs[_pairs.length - 1]); 
+        pair2 = ResupplyPair(_pairs[0]);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
         PRECISION = redemptionHandler.PRECISION();
     }
@@ -197,12 +197,38 @@ contract ResupplyAccountingTest is Setup {
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
         uint256 debtReduction = amountToRedeem - platformFee;
+        uint256 minimumRedeem = pair.minimumRedemption();
 
         if (
             totalBorrowAmount <= debtReduction ||
             totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
         ) {
-            vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+            if (amountToRedeem < minimumRedeem) {
+                vm.expectRevert(ResupplyPairConstants.MinimumRedemption.selector);
+                redemptionHandler.redeemFromPair(
+                    address(pair), 
+                    amountToRedeem, 
+                    _fee, 
+                    userToRedeem,
+                    true // _redeemToUnderlying
+                );
+            }
+            else{
+                vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+                redemptionHandler.redeemFromPair(
+                    address(pair), 
+                    amountToRedeem, 
+                    _fee, 
+                    userToRedeem,
+                    true // _redeemToUnderlying
+                );
+            }
+            vm.stopPrank();
+            return;
+        }
+        uint256 feePct = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
+        if (amountToRedeem < minimumRedeem) {
+            vm.expectRevert(ResupplyPairConstants.MinimumRedemption.selector);
             redemptionHandler.redeemFromPair(
                 address(pair), 
                 amountToRedeem, 
@@ -210,17 +236,18 @@ contract ResupplyAccountingTest is Setup {
                 userToRedeem,
                 true // _redeemToUnderlying
             );
-            vm.stopPrank();
-            return;
+            amountToRedeem = 0;
         }
-        uint256 feePct = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
-        redemptionHandler.redeemFromPair(
-            address(pair), 
-            amountToRedeem, 
-            _fee, 
-            userToRedeem,
-            true // _redeemToUnderlying
-        );
+        else {
+            vm.expectRevert(ResupplyPairConstants.MinimumRedemption.selector);
+            redemptionHandler.redeemFromPair(
+                address(pair), 
+                amountToRedeem, 
+                _fee, 
+                userToRedeem,
+                true // _redeemToUnderlying
+            );
+        }
         vm.stopPrank();
 
         assertApproxEqAbs(

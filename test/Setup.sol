@@ -340,7 +340,7 @@ contract Setup is Test {
         vm.stopPrank();
     }
 
-    function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair){
+    function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair p){
         vm.startPrank(deployer.owner());
 
         address _pairAddress = deployer.deploy(
@@ -358,19 +358,22 @@ contract Setup is Test {
             _staking,
             _stakingId
         );
-        ResupplyPair pair = ResupplyPair(_pairAddress);
         vm.stopPrank();
 
         vm.startPrank(address(core));
         registry.addPair(_pairAddress);
         vm.stopPrank();
-
-        return pair;
+        p = ResupplyPair(_pairAddress);
+        // ensure default state is written
+        assertGt(p.minimumBorrowAmount(), 0);
+        assertGt(p.minimumRedemption(), 0);
+        assertGt(p.minimumLeftoverDebt(), 0);
+        return p;
     }
 
     function deployDefaultLendingPairs() public{
         //curve lend
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
+        ResupplyPair pair = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
