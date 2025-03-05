@@ -36,22 +36,22 @@ contract PairTestBase is Setup, ResupplyPairConstants {
 
     function addSwapLiquidity() public{
         deal(address(stablecoin), address(this), 200_000_000e18);
-        deal(address(fraxToken), address(this), 100_000_000e18);
+        deal(address(frxusdToken), address(this), 100_000_000e18);
         deal(address(crvusdToken), address(this), 100_000_000e18);
         IERC4626 scrvusdvault = IERC4626(Constants.Mainnet.CURVE_SCRVUSD);
-        IERC4626 sfraxvault = IERC4626(Constants.Mainnet.SFRAX_ERC20);
-        fraxToken.approve(address(sfraxvault), type(uint256).max);
+        IERC4626 sfrxusdvault = IERC4626(Constants.Mainnet.SFRXUSD_ERC20);
+        frxusdToken.approve(address(sfrxusdvault), type(uint256).max);
         crvusdToken.approve(address(scrvusdvault), type(uint256).max);
         scrvusdvault.deposit(100_000_000e18, address(this));
-        sfraxvault.deposit(100_000_000e18, address(this));
+        sfrxusdvault.deposit(100_000_000e18, address(this));
 
         IERC20 scrvusd = IERC20(Constants.Mainnet.CURVE_SCRVUSD);
-        IERC20 sfrax = IERC20(Constants.Mainnet.SFRAX_ERC20);
+        IERC20 sfrxusd = IERC20(Constants.Mainnet.SFRXUSD_ERC20);
 
         scrvusd.approve(address(swapPoolsCrvUsd), type(uint256).max);
         stablecoin.approve(address(swapPoolsCrvUsd), type(uint256).max);
-        sfrax.approve(address(swapPoolsFrax), type(uint256).max);
-        stablecoin.approve(address(swapPoolsFrax), type(uint256).max);
+        sfrxusd.approve(address(swapPoolsFrxusd), type(uint256).max);
+        stablecoin.approve(address(swapPoolsFrxusd), type(uint256).max);
 
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 100_000_000e18;
@@ -59,8 +59,8 @@ contract PairTestBase is Setup, ResupplyPairConstants {
 
         swapPoolsCrvUsd.add_liquidity(amounts,0,address(this));
 
-        amounts[1] = sfrax.balanceOf(address(this));
-        swapPoolsFrax.add_liquidity(amounts,0,address(this));
+        amounts[1] = sfrxusd.balanceOf(address(this));
+        swapPoolsFrxusd.add_liquidity(amounts,0,address(this));
     }
 
     function printPairInfo(ResupplyPair _pair) public view {
