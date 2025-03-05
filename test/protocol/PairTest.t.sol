@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import "src/Constants.sol" as Constants;
 import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { Setup } from "test/Setup.sol";
@@ -103,6 +104,25 @@ contract PairTest is PairTestBase {
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
         uint256 nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+
+        uint256 crvusdprice = underlyingoracle.getPrices(Constants.Mainnet.CURVE_USD_ERC20);
+        uint256 gascost = vm.snapshotGasLastCall("curvePriceGas");
+        console.log("curve price gas: ", gascost);
+        console.log("crvusd price: ", crvusdprice);
+
+        // underlyingoracle.getAggPrice();
+        // gascost = vm.snapshotGasLastCall("curvePriceGasAgg");
+        // console.log("curve agg price gas: ", gascost);
+
+        // underlyingoracle.getAggPriceWrite();
+        // gascost = vm.snapshotGasLastCall("curvePriceGasAggWrite");
+        // console.log("curve agg write price gas: ", gascost);
+        uint256 frxusdprice = underlyingoracle.getPrices(address(0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29));
+        gascost = vm.snapshotGasLastCall("fraxPriceGas");
+        console.log("frxusd price gas: ", gascost);
+        console.log("frxusdprice price: ", frxusdprice);
+
+        console.log("underlying oracle: ", redemptionHandler.underlyingOracle());
 
         (uint256 previewUnderlying, uint256 previewCollateral, uint256 previewFee) = redemptionHandler.previewRedeem(address(pair),redeemAmount);
         bool useUnwrap = true;

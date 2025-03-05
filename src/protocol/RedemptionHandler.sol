@@ -32,30 +32,40 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public maxUsage = 3e17; //max usage of 30%. any thing above 30% will be 0 discount.  linearly scale between 0 and maxusage
     uint256 public maxDiscount = 5e14; //up to 0.05% discount
 
+    address public underlyingOracle;
+
     event SetBaseRedemptionFee(uint256 _fee);
     event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);
+    event SetUnderlyingOracle(address indexed _oracle);
 
-    constructor(address _core, address _registry) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _underlyingOracle) CoreOwnable(_core){
         registry = _registry;
         debtToken = IResupplyRegistry(_registry).token();
+        underlyingOracle = _underlyingOracle;
+        emit SetUnderlyingOracle(_underlyingOracle);
     }
 
     /// @notice Sets the base redemption fee.
     /// @dev This fee is not the effective fee. The effective fee is calculated at time of redemption via ``getRedemptionFeePct``.
     /// @param _fee The new base redemption fee, must be <= 1e18 (100%)
     function setBaseRedemptionFee(uint256 _fee) external onlyOwner{
-        require(_fee <= 1e18, "!fee");
-        require(_fee >= maxDiscount, "!discount");
+        require(_fee <= 1e18, "fee too high");
+        require(_fee >= maxDiscount, "fee higher than max discount");
         baseRedemptionFee = _fee;
         emit SetBaseRedemptionFee(_fee);
     }
 
     function setDiscountInfo(uint256 _rate, uint256 _maxUsage, uint256 _maxDiscount) external onlyOwner{
-        require(_maxDiscount <= baseRedemptionFee, "!discount");
+        require(_maxDiscount <= baseRedemptionFee, "max discount exceeds base redemption fee");
         usageDecayRate = _rate;
         maxUsage = _maxUsage;
         maxDiscount = _maxDiscount;
         emit SetDiscountInfo(_rate, _maxUsage, _maxDiscount);
+    }
+
+    function setUnderlyingOracle(address _oracle) external onlyOwner{
+        underlyingOracle = _oracle;
+        emit SetUnderlyingOracle(_oracle);
     }
 
     /// @notice Estimates the maximum amount of debt that can be redeemed from a pair
@@ -127,7 +137,18 @@ contract RedemptionHandler is CoreOwnable{
         
         //remove from base fee the discount and return
         //above example will be 1.0 - 0.04 = 0.96% fee (1e16 - 4e14)
-        return (baseRedemptionFee - discount, rdata);
+        uint256 redemptionfee = baseRedemptionFee - discount;
+
+        //check if underlying being redeemed is overly priced
+        if(underlyingOracle != address(0)){
+            uint256 price = IOracle(underlyingOracle).getPrices(IResupplyPair(_pair).underlying());
+            if(price > 1e18){
+                //if overly priced then add on to fee
+                redemptionfee += (price - 1e18);
+            }
+        }
+
+        return (redemptionfee, rdata);
     }
 
 
