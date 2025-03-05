@@ -8,7 +8,6 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { CoreOwnable } from 'src/dependencies/CoreOwnable.sol';
 import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
-import { ICore } from "src/interfaces/ICore.sol";
 
 //Fee deposit to collect/track fees and distribute
 contract FeeDeposit is CoreOwnable, EpochTracker {
@@ -25,8 +24,8 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
     event ReceivedRevenue(address indexed _address, uint256 _fees, uint256 _otherFees);
     event SetOperator(address oldAddress, address newAddress);
 
-    constructor(address _core, address _feeToken) CoreOwnable(_core) EpochTracker(_core){
-        registry = ICore(_core).registry();
+    constructor(address _core, address _registry, address _feeToken) CoreOwnable(_core) EpochTracker(_core){
+        registry = _registry;
         feeToken = _feeToken;
     }
 

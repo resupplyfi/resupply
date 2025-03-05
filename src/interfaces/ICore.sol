@@ -17,7 +17,6 @@ interface ICore {
     function epochLength() external view returns (uint256);
     function startTime() external view returns (uint256);
     function voter() external view returns (address);
-    function registry() external view returns (address);
     function ownershipTransferDeadline() external view returns (uint256);
     function pendingOwner() external view returns (address);
     function setOperatorPermissions(
