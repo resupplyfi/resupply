@@ -49,7 +49,7 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant FEE_SPLIT_TREASURY = 500; // 5%
     uint256 internal constant FEE_SPLIT_STAKERS = 7000; // 70%
     address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
-    address public sfrxusd = Constants.Mainnet.SFRAX_ERC20;
+    address public sfrxusd = Constants.Mainnet.SFRXUSD_ERC20;
 
     // Base
     uint88 public randomness; // CREATEX uses the last 88 bits used for randomness

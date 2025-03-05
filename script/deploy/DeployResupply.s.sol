@@ -100,10 +100,10 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
                 bytes4(keccak256("collateralContract()"))
             )
         );
-        address pair1 = deployLendingPair(1, Constants.Mainnet.FRAXLEND_SFRXETH_FRAX, address(0), 0);
+        address pair1 = deployLendingPair(1, Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD, address(0), 0);
         console.log('pair deployed: fraxlend_sfrxeth_frax', pair1);
         writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRAX", pair1);
-        address pair2 = deployLendingPair(0, Constants.Mainnet.CURVELEND_SFRAX_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SFRAX_CRVUSD_ID);
+        address pair2 = deployLendingPair(0, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID);
         console.log('pair deployed: curvelend_sfrax_crvusd', pair2);
         writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair2);
     }
@@ -261,28 +261,28 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 1;
         swapinfo.swaptype = 1;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, address(stablecoin), Constants.Mainnet.SFRAX_ERC20, swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, address(stablecoin), Constants.Mainnet.SFRXUSD_ERC20, swapinfo));
 
         //sfrxusd to reusd
         swapinfo.swappool = fraxPool;
         swapinfo.tokenInIndex = 1;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 1;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SFRAX_ERC20, address(stablecoin), swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SFRXUSD_ERC20, address(stablecoin), swapinfo));
 
         //sfrxusd withdraw to frxusd
-        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 3;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SFRAX_ERC20, Constants.Mainnet.FRAX_ERC20, swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SFRXUSD_ERC20, Constants.Mainnet.FRXUSD_ERC20, swapinfo));
 
         //frxusd deposit to sfrxusd
-        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 2;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.FRAX_ERC20, Constants.Mainnet.SFRAX_ERC20, swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.FRXUSD_ERC20, Constants.Mainnet.SFRXUSD_ERC20, swapinfo));
 
 
         //set swapper to registry

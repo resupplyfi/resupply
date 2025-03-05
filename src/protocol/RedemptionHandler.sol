@@ -9,7 +9,6 @@ import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
-import { ICore } from "../interfaces/ICore.sol";
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.

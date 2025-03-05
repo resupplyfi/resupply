@@ -11,7 +11,6 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { ICore } from "../interfaces/ICore.sol";
 
 contract Swapper is CoreOwnable, ReentrancyGuard{
     using SafeERC20 for IERC20;
@@ -35,8 +34,8 @@ contract Swapper is CoreOwnable, ReentrancyGuard{
     event PairAdded(address indexed _tokenIn, address indexed _tokenOut, SwapInfo _info);
 
 
-    constructor(address _core) CoreOwnable(_core){
-        registry = ICore(_core).registry();
+    constructor(address _core, address _registry) CoreOwnable(_core){
+        registry = _registry;
     }
 
     function addPairing(address _tokenIn, address _tokenOut, SwapInfo calldata _swapInfo) external onlyOwner{

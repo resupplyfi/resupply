@@ -11,7 +11,7 @@ contract DeployPools is TenderlyHelper {
     address public dev = address(0xc4ad);
     address public stablecoin;
     address public swapPoolsCrvUsd;
-    address public swapPoolsFrax;
+    address public swapPoolsFrxusd;
     address public scrvusd;
     address public sfrxusd;
 
@@ -23,7 +23,7 @@ contract DeployPools is TenderlyHelper {
         stablecoin = abi.decode(vm.parseJson(json, ".STABLECOIN"), (address));
 
         scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
-        sfrxusd = Constants.Mainnet.SFRAX_ERC20;
+        sfrxusd = Constants.Mainnet.SFRXUSD_ERC20;
     }
 
     function run() public {
@@ -57,9 +57,8 @@ contract DeployPools is TenderlyHelper {
         );
         swapPoolsCrvUsd = crvusdAmm;
         console.log("reUSD/scrvUSD Pool deployed at", crvusdAmm);
-        //TODO, update to sfrxusd from sfrax
         coins[1] = sfrxusd;
-        address fraxAmm = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
+        address frxusdAmm = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
             "reUSD/sfrxUSD",    //name
             "reusdsfrx",        //symbol
             coins,              //coins
@@ -72,8 +71,8 @@ contract DeployPools is TenderlyHelper {
             methods,            //method ids
             oracles             //oracles
         );
-        swapPoolsFrax = fraxAmm;
-        console.log("reUSD/sfrxUSD Pool deployed at", fraxAmm);
+        swapPoolsFrxusd = frxusdAmm;
+        console.log("reUSD/sfrxUSD Pool deployed at", frxusdAmm);
     }
 
     function issueTokens() public {
@@ -86,8 +85,8 @@ contract DeployPools is TenderlyHelper {
         // Approve tokens for both pools
         IERC20(stablecoin).approve(swapPoolsCrvUsd, type(uint256).max);
         IERC20(scrvusd).approve(swapPoolsCrvUsd, type(uint256).max);
-        IERC20(stablecoin).approve(swapPoolsFrax, type(uint256).max);
-        IERC20(sfrxusd).approve(swapPoolsFrax, type(uint256).max);
+        IERC20(stablecoin).approve(swapPoolsFrxusd, type(uint256).max);
+        IERC20(sfrxusd).approve(swapPoolsFrxusd, type(uint256).max);
 
         // Add liquidity to reUSD/scrvUSD pool
         uint256[] memory amounts = new uint256[](2);
@@ -97,7 +96,7 @@ contract DeployPools is TenderlyHelper {
         console.log("Added liquidity to reUSD/scrvUSD pool");
 
         // Add liquidity to reUSD/sfrxUSD pool
-        ICurveExchange(swapPoolsFrax).add_liquidity(amounts, 0, dev);
+        ICurveExchange(swapPoolsFrxusd).add_liquidity(amounts, 0, dev);
         console.log("Added liquidity to reUSD/sfrxUSD pool");
     }
 }

@@ -9,10 +9,11 @@ contract MockGovStaker is GovStaker {
     
     constructor(
         address _core,
+        address _registry,
         address _stakeToken, 
         uint24 _cooldownEpochs, 
         address _previousStaker
-    ) GovStaker(_core, _stakeToken, _cooldownEpochs) {
+    ) GovStaker(_core, _registry, _stakeToken, _cooldownEpochs) {
         previousStaker = _previousStaker;
     }
 

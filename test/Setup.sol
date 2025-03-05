@@ -144,6 +144,7 @@ contract Setup is Test {
     function deployProtocolContracts() public {
         deployer = new ResupplyPairDeployer(
             address(core),
+            address(registry),
             address(govToken),
             dev
         );
@@ -198,36 +199,48 @@ contract Setup is Test {
         insuranceEmissionsReceiver = SimpleReceiver(receiverFactory.deployNewReceiver("Insurance Receiver", new address[](0)));
         
         insurancePool = new InsurancePool(
-            address(core), //core
+            address(core),
+            address(registry),
             address(stablecoin),
             rewards,
-            address(registry),
             address(insuranceEmissionsReceiver)
         );
-        liquidationHandler = new LiquidationHandler(address(core), address(insurancePool));
+        liquidationHandler = new LiquidationHandler(
+            address(core), 
+            address(registry), 
+            address(insurancePool)
+        );
 
         //seed insurance pool
         stablecoin.transfer(address(insurancePool),1e18);
 
-        ipStableStream = new SimpleRewardStreamer(address(stablecoin), 
-            address(core), 
+        ipStableStream = new SimpleRewardStreamer(
+            address(stablecoin), 
+            address(core),
+            address(registry),
             address(insurancePool)
         );
 
-        ipEmissionStream = new SimpleRewardStreamer(address(stakingToken),
+        ipEmissionStream = new SimpleRewardStreamer(
+            address(stakingToken),
             address(core),
+            address(registry),
             address(insurancePool)
         );
 
         //todo queue rewards to pools
 
-        pairEmissionStream = new SimpleRewardStreamer(address(stakingToken), 
+        pairEmissionStream = new SimpleRewardStreamer(
+            address(stakingToken), 
+            address(registry),
             address(core), 
             address(0)
         );
         
         feeDeposit = new FeeDeposit(address(core), address(stablecoin));
-        feeDepositController = new FeeDepositController(address(core), 
+        feeDepositController = new FeeDepositController(
+            address(core), 
+            address(registry), 
             address(feeDeposit), 
             1500, 
             500
@@ -238,6 +251,7 @@ contract Setup is Test {
 
         rewardHandler = new RewardHandler(
             address(core),
+            address(registry),
             address(insurancePool), 
             address(debtReceiver),
             address(pairEmissionStream),
@@ -292,7 +306,7 @@ contract Setup is Test {
         stablecoin = new Stablecoin(address(core));
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
-        staker = new GovStaker(address(core), address(govToken), 2);
+        staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         vestManager = new VestManager(
             address(core), 
             address(govToken),
@@ -322,8 +336,8 @@ contract Setup is Test {
         treasury = new Treasury(address(core));
         vm.prank(address(core));
         registry.setStaker(address(staker));
-        permaStaker1 = new PermaStaker(address(core), user1, address(vestManager), "Yearn");
-        permaStaker2 = new PermaStaker(address(core), user2, address(vestManager), "Convex");
+        permaStaker1 = new PermaStaker(address(core), address(registry), user1, address(vestManager), "Yearn");
+        permaStaker2 = new PermaStaker(address(core), address(registry), user2, address(vestManager), "Convex");
         assertEq(permaStaker1.owner(), user1);
         assertEq(permaStaker2.owner(), user2);
 
@@ -424,7 +438,7 @@ contract Setup is Test {
 
 
         //deploy swapper
-        defaultSwapper = new Swapper(address(core));
+        defaultSwapper = new Swapper(address(core), address(registry));
 
         //set routes
         vm.startPrank(address(core));

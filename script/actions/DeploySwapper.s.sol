@@ -39,7 +39,7 @@ contract DeploySwapper is TenderlyHelper {
 
     function deploySwapper() public {
         //deploy swapper
-        defaultSwapper = new Swapper(address(core));
+        defaultSwapper = new Swapper(address(core), address(registry));
 
         Swapper.SwapInfo memory swapinfo;
 
@@ -94,7 +94,7 @@ contract DeploySwapper is TenderlyHelper {
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             address(stablecoin),
-            Constants.Mainnet.SFRAX_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
             swapinfo
         );
 
@@ -104,30 +104,30 @@ contract DeploySwapper is TenderlyHelper {
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SFRAX_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
             address(stablecoin),
             swapinfo
         );
 
         //sfrxusd withdraw to frxusd
-        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 3;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SFRAX_ERC20,
-            Constants.Mainnet.FRAX_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
+            Constants.Mainnet.FRXUSD_ERC20,
             swapinfo
         );
 
         //frxusd deposit to sfrxusd
-        swapinfo.swappool = Constants.Mainnet.SFRAX_ERC20;
+        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 2;
         defaultSwapper.addPairing(
-            Constants.Mainnet.FRAX_ERC20,
-            Constants.Mainnet.SFRAX_ERC20,
+            Constants.Mainnet.FRXUSD_ERC20,
+            Constants.Mainnet.SFRXUSD_ERC20,
             swapinfo
         );
 

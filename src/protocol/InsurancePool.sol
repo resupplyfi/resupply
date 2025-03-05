@@ -7,7 +7,6 @@ import { IMintable } from "../interfaces/IMintable.sol";
 import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { ICore } from "../interfaces/ICore.sol";
 
 contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     using SafeERC20 for IERC20;
@@ -50,9 +49,9 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     event WithdrawTimersUpdated(uint256 withdrawTime, uint256 withdrawWindow);
     event MinimumHeldAssetsUpdated(uint256 minimumAssets);
 
-    constructor(address _core, address _asset, address[] memory _rewards, address _emissionsReceiver) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _asset, address[] memory _rewards, address _emissionsReceiver) CoreOwnable(_core){
         asset = _asset;
-        registry = ICore(_core).registry();
+        registry = _registry;
         emissionsReceiver = _emissionsReceiver;
         //initialize rewards list with passed in reward tokens
         //NOTE: slot 0 should be emission based extra reward

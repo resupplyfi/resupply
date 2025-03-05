@@ -36,7 +36,7 @@ contract TestEnvironmentSetup is DeployResupply {
                 ResupplyPairDeployer.deploy.selector,
                 0,
                 abi.encode(
-                    Constants.Mainnet.CURVELEND_CRV_CRVUSD,
+                    Constants.Mainnet.CURVELEND_SDOLA_CRVUSD,
                     address(oracle),
                     address(rateCalculator),
                     DEFAULT_MAX_LTV, //max ltv 75%
@@ -46,7 +46,7 @@ contract TestEnvironmentSetup is DeployResupply {
                     DEFAULT_PROTOCOL_REDEMPTION_FEE
                 ),
                 Constants.Mainnet.CONVEX_BOOSTER,
-                Constants.Mainnet.CURVELEND_CRV_CRVUSD_ID
+                Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID
             )
         );
         result = abi.decode(result, (bytes));
@@ -56,7 +56,7 @@ contract TestEnvironmentSetup is DeployResupply {
             abi.encodeWithSelector(IResupplyRegistry.addPair.selector, pair)
         );
         console.log("Pair deployed at", pair);
-        writeAddressToJson("PAIR_CURVELEND_CRV_CRVUSD", pair);
+        writeAddressToJson("CURVELEND_SDOLA_CRVUSD", pair);
     }
 
     function handoffGovernance() public {

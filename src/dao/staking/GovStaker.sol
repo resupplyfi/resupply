@@ -69,13 +69,14 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
     */
     constructor(
         address _core,
+        address _registry,
         address _token,
         uint24 _cooldownEpochs
     ) MultiRewardsDistributor(_core) EpochTracker(_core) {
         escrow = new GovStakerEscrow(address(this), _token);
         _stakeToken = _token;
         cooldownEpochs = _cooldownEpochs;
-        registry = IResupplyRegistry(ICore(_core).registry());
+        registry = IResupplyRegistry(_registry);
         emit CooldownEpochsUpdated(_cooldownEpochs);
     }
 
