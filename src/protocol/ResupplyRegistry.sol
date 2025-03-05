@@ -204,7 +204,7 @@ contract ResupplyRegistry is CoreOwnable{
     }
 
     function getProtectedKeys() public pure returns (string[] memory) {
-        string[] memory _protectedKeys = new string[](8);
+        string[] memory _protectedKeys = new string[](9);
         _protectedKeys[0] = LIQUIDATION_HANDLER;
         _protectedKeys[1] = FEE_DEPOSIT;
         _protectedKeys[2] = REDEMPTION_HANDLER;
