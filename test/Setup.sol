@@ -57,9 +57,6 @@ contract Setup is Test {
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
     uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
-    uint64 internal constant FIFTY_BPS = 158_247_046;
-    uint64 internal constant ONE_PERCENT = FIFTY_BPS * 2;
-    uint64 internal constant ONE_BPS = FIFTY_BPS / 50;
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
     address internal constant BURN_ADDRESS = address(0xdead);
@@ -146,8 +143,6 @@ contract Setup is Test {
     }
 
     function deployProtocolContracts() public {
-        // stablecoin = new Stablecoin(address(core));
-        // registry = new ResupplyRegistry(address(core), address(stablecoin), address(stakingToken));
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
@@ -205,11 +200,11 @@ contract Setup is Test {
         insuranceEmissionsReceiver = SimpleReceiver(receiverFactory.deployNewReceiver("Insurance Receiver", new address[](0)));
         
         insurancePool = new InsurancePool(
-                address(core), //core
-                address(stablecoin),
-                rewards,
-                address(registry),
-                address(insuranceEmissionsReceiver)
+            address(core), //core
+            address(stablecoin),
+            rewards,
+            address(registry),
+            address(insuranceEmissionsReceiver)
         );
         liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
 

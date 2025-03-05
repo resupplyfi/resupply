@@ -1,12 +1,12 @@
 pragma solidity ^0.8.22;
 
-import { Setup } from "../../Setup.sol";
-import { VestManager } from "../../../src/dao/tge/VestManager.sol";
+import { Setup } from "test/Setup.sol";
+import { VestManager } from "src/dao/tge/VestManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { console } from "../../../lib/forge-std/src/console.sol";
-import { MockToken } from "../../mocks/MockToken.sol";
-import { VestManagerInitParams } from "../../helpers/VestManagerInitParams.sol";
-import { AutoStakeCallback } from "../../mocks/AutoStakeCallback.sol";
+import { console } from "lib/forge-std/src/console.sol";
+import { MockToken } from "test/mocks/MockToken.sol";
+import { VestManagerInitParams } from "test/helpers/VestManagerInitParams.sol";
+import { AutoStakeCallback } from "src/dao/staking/AutoStakeCallback.sol";
 
 
 contract VestManagerHarness is Setup {
