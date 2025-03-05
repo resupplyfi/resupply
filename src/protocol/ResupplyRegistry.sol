@@ -213,6 +213,7 @@ contract ResupplyRegistry is CoreOwnable{
         _protectedKeys[5] = TREASURY;
         _protectedKeys[6] = STAKER;
         _protectedKeys[7] = L2_MANAGER;
+        _protectedKeys[8] = VEST_MANAGER;
         return _protectedKeys;
     }
 
