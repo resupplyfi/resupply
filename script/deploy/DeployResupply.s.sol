@@ -212,7 +212,13 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     function deploySwapper() public {
         //deploy swapper
         bytes32 salt = buildGuardedSalt(dev, true, false, uint88(uint256(keccak256(bytes("Swapper")))));
-        bytes memory bytecode = abi.encodePacked(vm.getCode("Swapper.sol:Swapper"), abi.encode(address(core)));
+        bytes memory bytecode = abi.encodePacked(
+            vm.getCode("Swapper.sol:Swapper"),
+            abi.encode(
+                address(core), 
+                address(registry)
+            )
+        );
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) revert("Swapper already deployed");
         addToBatch(

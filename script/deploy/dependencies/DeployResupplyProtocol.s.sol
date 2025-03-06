@@ -15,16 +15,17 @@ import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { console } from "forge-std/console.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { Utilities } from "src/protocol/Utilities.sol";
+import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
 
 contract DeployResupplyProtocol is BaseDeploy {
 
     function deployProtocolContracts() public {
-
         // ============================================
         // ======= Deploy ResupplyPairDeployer ========
         // ============================================
         bytes memory constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(govToken),
             dev
         );
@@ -71,6 +72,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         rateCalculator = InterestRateCalculator(predictedAddress);
         console.log("InterestRateCalculator deployed at", address(rateCalculator));
         writeAddressToJson("INTEREST_RATE_CALCULATOR", predictedAddress);
+
         // ============================================
         // ====== Deploy BasicVaultOracle =============
         // ============================================
@@ -96,18 +98,39 @@ contract DeployResupplyProtocol is BaseDeploy {
         writeAddressToJson("BASIC_VAULT_ORACLE", predictedAddress);
 
         // ============================================
-        // ====== Deploy RedemptionHandler ============
+        // ====== Deploy UnderlyingOracle ============
         // ============================================
         constructorArgs = abi.encode(
-            address(core)
+            "Underlying Token Oracle"
         );
-        bytecode = abi.encodePacked(vm.getCode("RedemptionHandler.sol:RedemptionHandler"), constructorArgs);
+        bytecode = abi.encodePacked(vm.getCode("UnderlyingOracle.sol:UnderlyingOracle"), constructorArgs);
         salt = buildGuardedSalt(
             dev, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("RedemptionHandler"))))
+            uint88(uint256(keccak256(bytes("UnderlyingOracle"))))
         );
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        if (!addressHasCode(predictedAddress)) {
+            addToBatch(
+                address(createXFactory),
+                encodeCREATE3Deployment(salt, bytecode)
+            );
+        }
+        underlyingOracle = UnderlyingOracle(predictedAddress);
+        console.log("UnderlyingOracle deployed at", address(underlyingOracle));
+        writeAddressToJson("UNDERLYING_ORACLE", predictedAddress);
+
+        // ============================================
+        // ====== Deploy RedemptionHandler ============
+        // ============================================
+        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6002dd74d21d97b27032aca93;
+        constructorArgs = abi.encode(
+            address(core),
+            address(registry),
+            address(underlyingOracle)
+        );
+        bytecode = abi.encodePacked(vm.getCode("RedemptionHandler.sol:RedemptionHandler"), constructorArgs);
         predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
@@ -175,7 +198,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         }
         receiverFactory = SimpleReceiverFactory(predictedAddress);
         console.log("SimpleReceiverFactory deployed at", address(receiverFactory));
-        writeAddressToJson("SIMPLE_RECEIVER_FACTORY", predictedAddress);
+        writeAddressToJson("SIMPLE_RECEIVER_FACTORY", address(receiverFactory));
 
         // ============================================
         // ====== Deploy DebtReceiver =================
@@ -187,10 +210,10 @@ contract DeployResupplyProtocol is BaseDeploy {
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         debtReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
         console.log("Debt Receiver deployed at", address(debtReceiver));
-        writeAddressToJson("DEBT_RECEIVER", predictedAddress);
+        writeAddressToJson("DEBT_RECEIVER", address(debtReceiver));
 
         // ============================================
-        // ====== Deploy InsurancePoolReceiver =============
+        // ====== Deploy InsurancePoolReceiver ========
         // ============================================
         result = _executeCore(
             address(receiverFactory), 
@@ -199,24 +222,20 @@ contract DeployResupplyProtocol is BaseDeploy {
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         insuranceEmissionsReceiver = SimpleReceiver(abi.decode(result, (address))); // decode the bytes result to an address
         console.log("Insurance Pool Receiver deployed at", address(insuranceEmissionsReceiver));
-        writeAddressToJson("INSURANCE_POOL_RECEIVER", predictedAddress);
+        writeAddressToJson("INSURANCE_POOL_RECEIVER", address(insuranceEmissionsReceiver));
 
         // ============================================
         // ====== Deploy InsurancePool ================
         // ============================================
+        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600bd0b20142b743201bee438;
         constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(stablecoin),
             rewards,
             address(insuranceEmissionsReceiver)
         );
         bytecode = abi.encodePacked(vm.getCode("InsurancePool.sol:InsurancePool"), constructorArgs);
-        salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("InsurancePool"))))
-        );
         predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
@@ -227,20 +246,17 @@ contract DeployResupplyProtocol is BaseDeploy {
         insurancePool = InsurancePool(predictedAddress);
         console.log("Insurance Pool deployed at", address(insurancePool));
         writeAddressToJson("INSURANCE_POOL", predictedAddress);
+
         // ============================================
-        // ====== Deploy LiquidationHandler ============
+        // ====== Deploy LiquidationHandler ===========
         // ============================================
+        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600574340f6003cec01964db0;
         constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(insurancePool)
         );
         bytecode = abi.encodePacked(vm.getCode("LiquidationHandler.sol:LiquidationHandler"), constructorArgs);
-        salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("LiquidationHandler"))))
-        );
         predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
@@ -257,6 +273,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(stablecoin),
+            address(registry),
             address(core),
             address(insurancePool)
         );
@@ -279,11 +296,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         writeAddressToJson("IP_STABLE_STREAM", predictedAddress);
 
         // ============================================
-        // ====== Deploy IP Emission Stream ===============
+        // ====== Deploy IP Emission Stream ===========
         // ============================================
         constructorArgs = abi.encode(
             address(govToken),
-            address(core), 
+            address(registry),
+            address(core),
             address(insurancePool)
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);
@@ -305,10 +323,11 @@ contract DeployResupplyProtocol is BaseDeploy {
         writeAddressToJson("EMISSION_STREAM_INSURANCE_POOL", predictedAddress);
 
         // ============================================
-        // ====== Deploy PairEmissionStream =========
+        // ======= Deploy PairEmissionStream ==========
         // ============================================
         constructorArgs = abi.encode(
             address(govToken),
+            address(registry),
             address(core), 
             address(0)
         );
@@ -335,6 +354,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(stablecoin)
         );
         bytecode = abi.encodePacked(vm.getCode("FeeDeposit.sol:FeeDeposit"), constructorArgs);
@@ -354,11 +374,13 @@ contract DeployResupplyProtocol is BaseDeploy {
         feeDeposit = FeeDeposit(predictedAddress);
         console.log("FeeDeposit deployed at", address(feeDeposit));
         writeAddressToJson("FEE_DEPOSIT", predictedAddress);
+
         // ============================================
         // ====== Deploy FeeDepositController ========
         // ============================================
         constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(feeDeposit), 
             FEE_SPLIT_IP,       // 15%
             FEE_SPLIT_TREASURY // 5%
@@ -386,6 +408,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(insurancePool), 
             address(debtReceiver),
             address(pairEmissionStream),
@@ -411,7 +434,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         writeAddressToJson("REWARD_HANDLER", predictedAddress);
 
         // ============================================
-        // ====== Utilities ================
+        // =============== Utilities ==================
         // ============================================
         constructorArgs = abi.encode(
             address(registry)

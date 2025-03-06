@@ -83,15 +83,7 @@ contract DeployResupplyDao is BaseDeploy {
     function deployCore() public returns (address) {
         bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af60075182fe1eff89e02ce3cff;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
-        bytes32 registrySalt = 0xfe11a5009f2121622271e7dd0fd470264e076af60035199030be4b0602635825;
-        address predictedRegistryAddress = computeCreate3AddressFromSaltPreimage(
-            registrySalt,
-            dev, 
-            true, 
-            false
-        );
-        if (addressHasCode(predictedAddress)) return predictedAddress;
-        bytes memory constructorArgs = abi.encode(dev, predictedRegistryAddress, EPOCH_LENGTH);
+        bytes memory constructorArgs = abi.encode(dev, EPOCH_LENGTH);
         bytes memory bytecode = abi.encodePacked(vm.getCode("Core.sol:Core"), constructorArgs);
         addToBatch(
             address(createXFactory),
@@ -105,12 +97,11 @@ contract DeployResupplyDao is BaseDeploy {
     function deployGovToken() public returns (address) {
         bytes32 vmSalt = 0xfe11a5009f2121622271e7dd0fd470264e076af6000cc7db37bf283f00158d19;
         address _vestManagerAddress = computeCreate3AddressFromSaltPreimage(vmSalt, dev, true, false);
-        
         bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6007817270164e1790196c4f0;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
-            address(core), 
+            address(core),
             _vestManagerAddress,
             GOV_TOKEN_INITIAL_SUPPLY,
             "Resupply", 
@@ -131,7 +122,7 @@ contract DeployResupplyDao is BaseDeploy {
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
-            address(core), 
+            address(core),
             address(govToken), 
             address(BURN_ADDRESS), 
             [
@@ -160,6 +151,7 @@ contract DeployResupplyDao is BaseDeploy {
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
             address(core),
+            address(registry),
             address(govToken), 
             uint24(STAKER_COOLDOWN_EPOCHS)
         );
@@ -226,19 +218,16 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployPermaStakers() public returns (address, address) {
+        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600847421d8997e1100819f27;
         bytes memory constructorArgs = abi.encode(
-            address(core), 
+            address(core),
+            address(registry),
             PERMA_STAKER1_OWNER,
             address(vestManager),
             PERMA_STAKER1_NAME
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
-        bytes32 salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("Permastaker Convex"))))
-        );
+        
         address predictedAddress1 = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress1)) {
             addToBatch(
@@ -249,7 +238,8 @@ contract DeployResupplyDao is BaseDeploy {
         console.log("PermaStaker Convex deployed to", predictedAddress1);
         writeAddressToJson("PERMA_STAKER_CONVEX", predictedAddress1);
         constructorArgs = abi.encode(
-            address(core), 
+            address(core),
+            address(registry),
             PERMA_STAKER2_OWNER, 
             address(vestManager),
             PERMA_STAKER2_NAME

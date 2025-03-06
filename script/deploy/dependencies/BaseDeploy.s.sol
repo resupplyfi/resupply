@@ -21,6 +21,7 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { Utilities } from "src/protocol/Utilities.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
+import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
     // Configs: DAO
@@ -91,7 +92,7 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     IERC20 public fraxToken;
     IERC20 public crvusdToken;
     Swapper public defaultSwapper;
-
+    UnderlyingOracle public underlyingOracle;
 
     // TODO: Guardiant things
     bytes32 salt; // Use same empty salt for all contracts
