@@ -33,11 +33,11 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         deployRewardsContracts();
         configureProtocolContracts();
         (permaStaker1, permaStaker2) = deployPermaStakers();
+        deploySwapper();
         deployDefaultLendingPairs();
         setupEmissionsReceivers();
         grantOperatorPermissions();
         deployCurvePools();
-        deploySwapper();
     }
 
     // Deploy incentives reUSD/RSUP incentives receivers and register all receivers with the emissions controller
@@ -290,11 +290,5 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         swappers[0] = address(defaultSwapper);
         _executeCore(address(registry), abi.encodeWithSelector(registry.setDefaultSwappers.selector, swappers));
         console.log("Swapper configured");
-
-        // whitelist swapper on all pairs
-        address[] memory pairs = registry.getAllPairAddresses();
-        for (uint256 i = 0; i < pairs.length; i++) {
-            _executeCore(pairs[i], abi.encodeWithSelector(IPair.setSwapper.selector, address(defaultSwapper), true));
-        }
     }
 }
