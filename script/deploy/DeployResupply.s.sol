@@ -33,11 +33,11 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         deployRewardsContracts();
         configureProtocolContracts();
         (permaStaker1, permaStaker2) = deployPermaStakers();
-        deploySwapper();
-        deployDefaultLendingPairs();
         setupEmissionsReceivers();
         grantOperatorPermissions();
         deployCurvePools();
+        deploySwapper();
+        deployDefaultLendingPairs();
     }
 
     // Deploy incentives reUSD/RSUP incentives receivers and register all receivers with the emissions controller
