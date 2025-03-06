@@ -245,12 +245,7 @@ contract DeployResupplyDao is BaseDeploy {
             PERMA_STAKER2_NAME
         );
         bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
-        salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("Permastaker Yearn"))))
-        );
+        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6005045c04e56a6ce00770772;
         address predictedAddress2 = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress2)) {
             addToBatch(
