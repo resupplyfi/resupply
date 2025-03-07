@@ -42,7 +42,7 @@ library Mainnet {
     uint256 internal constant CURVELEND_WETH_CRVUSD_ID = 365;
     uint256 internal constant CURVELEND_WSTETH_CRVUSD_ID = 364;
     uint256 internal constant CURVELEND_YNETH_CRVUSD_ID = 415;
-    uint256 internal constant CURVELEND_SFRXUSD_CRVUSD_ID = 0; //todo: set once created
+    uint256 internal constant CURVELEND_SFRXUSD_CRVUSD_ID = 438;
 }
 
 abstract contract Helper is TestBase {
