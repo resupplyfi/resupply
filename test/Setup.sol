@@ -237,7 +237,7 @@ contract Setup is Test {
             address(0)
         );
         
-        feeDeposit = new FeeDeposit(address(core), address(stablecoin));
+        feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(
             address(core), 
             address(registry), 
@@ -294,7 +294,7 @@ contract Setup is Test {
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
         address registryAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+3);
-        core = new Core(tempGov, registryAddress, epochLength);
+        core = new Core(tempGov, epochLength);
         address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+4);
         govToken = new GovToken(
             address(core), 

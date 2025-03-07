@@ -26,6 +26,11 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function deployAll() isBatch(dev) public {
+        if (deployMode == DeployMode.TENDERLY){
+            //set a default borrow limit on test net
+            DEFAULT_BORROW_LIMIT = 50_000_000 * 1e18;
+        }
+        
         setEthBalance(dev, 10e18);
         deployDaoContracts();
         deployProtocolContracts();
@@ -50,34 +55,23 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             abi.encodeWithSelector(receiverFactory.deployNewReceiver.selector, "reUSD Incentives Receiver", approvedClaimers)
         );
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
-        address reusdIncentivesReceiver = abi.decode(result, (address)); // decode the bytes result to an address
-        console.log("reUSD Incentives Receiver deployed at", address(reusdIncentivesReceiver));
-        // Deploy the RSUP Incentives Receiver
-        result = _executeCore(
-            address(receiverFactory), 
-            abi.encodeWithSelector(receiverFactory.deployNewReceiver.selector, "RSUP Incentives Receiver", approvedClaimers)
-        );
-        result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
-        address rsupIncentivesReceiver = abi.decode(result, (address)); // decode the bytes result to an address
-        console.log("RSUP Incentives Receiver deployed at", address(rsupIncentivesReceiver));
+        address reusdLPIncentivesReceiver = abi.decode(result, (address)); // decode the bytes result to an address
+        console.log("reUSD LP Incentives Receiver deployed at", address(reusdLPIncentivesReceiver));
 
         // Register the receivers with the emissions controller
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(debtReceiver)));
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(insuranceEmissionsReceiver)));
-        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(reusdIncentivesReceiver)));
-        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(rsupIncentivesReceiver)));
-        
+        _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(reusdLPIncentivesReceiver)));
+
         // Set the weights for the receivers
         uint256[] memory receiverIds = new uint256[](4);
         receiverIds[0] = 0;
         receiverIds[1] = 1;
         receiverIds[2] = 2;
-        receiverIds[3] = 3;
         uint256[] memory weights = new uint256[](4);
         weights[0] = DEBT_RECEIVER_WEIGHT;
         weights[1] = INSURANCE_EMISSIONS_RECEIVER_WEIGHT;
-        weights[2] = REUSD_INCENTENIVES_RECEIVER_WEIGHT;
-        weights[3] = RSUP_INCENTENIVES_RECEIVER_WEIGHT;
+        weights[2] = REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT;
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.setReceiverWeights.selector, receiverIds, weights));
     }
 
@@ -100,12 +94,48 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
                 bytes4(keccak256("collateralContract()"))
             )
         );
-        address pair1 = deployLendingPair(1, Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD, address(0), 0);
-        console.log('pair deployed: fraxlend_sfrxeth_frax', pair1);
-        writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRAX", pair1);
-        address pair2 = deployLendingPair(0, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID);
-        console.log('pair deployed: curvelend_sfrax_crvusd', pair2);
-        writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair2);
+
+        //curve pairs
+        address pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID);
+        console.log('pair deployed: curvelend_sfrax_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SDOLA_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID);
+        console.log('pair deployed: curvelend_sfrax_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_SDOLA_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SUSDE_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID);
+        console.log('pair deployed: curvelend_susde_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_SUSDE_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_USDE_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID);
+        console.log('pair deployed: curvelend_usde_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_USDE_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_TBTC_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID);
+        console.log('pair deployed: curvelend_tbtc_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_TBTC_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_WBTC_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID);
+        console.log('pair deployed: curvelend_wbtc_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_WBTC_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_WETH_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID);
+        console.log('pair deployed: curvelend_weth_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_WETH_CRVUSD", pair);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_WSTETH_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID);
+        console.log('pair deployed: curvelend_wsteth_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_WSTETH_CRVUSD", pair);
+
+
+        //fraxlend pairs
+        pair = deployLendingPair(1, Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD, address(0), 0);
+        console.log('pair deployed: fraxlend_sfrxeth_frax', pair);
+        writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRAX", pair);
+        
+        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SUSDE_FRXUSD), address(0), uint256(0));
+        console.log('pair deployed: fraxlend_susde_frax', pair);
+        writeAddressToJson("PAIR_FRAXLEND_SUSDE_FRAX", pair);
+        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
+        console.log('pair deployed: fraxlend_wbtc_frax', pair);
+        writeAddressToJson("PAIR_FRAXLEND_WBTC_FRAX", pair);
+        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), address(0), uint256(0));
+        console.log('pair deployed: fraxlend_scrvusd_frax', pair);
+        writeAddressToJson("PAIR_FRAXLEND_SCRVUSD_FRAX", pair);
     }
 
     function configurationStep1() public {

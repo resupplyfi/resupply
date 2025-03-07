@@ -469,7 +469,7 @@ contract DeployResupplyProtocol is BaseDeploy {
                     _collateral,
                     address(oracle),
                     address(rateCalculator),
-                    DEFAULT_MAX_LTV, //max ltv 75%
+                    DEFAULT_MAX_LTV,
                     DEFAULT_BORROW_LIMIT,
                     DEFAULT_LIQ_FEE,
                     DEFAULT_MINT_FEE,
