@@ -215,28 +215,24 @@ contract Setup is Test {
         stablecoin.transfer(address(insurancePool),1e18);
 
         ipStableStream = new SimpleRewardStreamer(
-            address(stablecoin), 
             address(core),
             address(registry),
+            address(stablecoin), 
             address(insurancePool)
         );
 
         ipEmissionStream = new SimpleRewardStreamer(
-            address(stakingToken),
             address(core),
             address(registry),
+            address(stakingToken),
             address(insurancePool)
         );
-
-        //todo queue rewards to pools
-
         pairEmissionStream = new SimpleRewardStreamer(
-            address(stakingToken), 
+            address(core),
             address(registry),
-            address(core), 
+            address(stakingToken), 
             address(0)
         );
-        
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(
             address(core), 

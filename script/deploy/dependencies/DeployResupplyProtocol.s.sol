@@ -272,9 +272,9 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ====== Deploy IPStableStream ===============
         // ============================================
         constructorArgs = abi.encode(
-            address(stablecoin),
-            address(registry),
             address(core),
+            address(registry),
+            address(stablecoin),
             address(insurancePool)
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);
@@ -299,9 +299,9 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ====== Deploy IP Emission Stream ===========
         // ============================================
         constructorArgs = abi.encode(
-            address(govToken),
-            address(registry),
             address(core),
+            address(registry),
+            address(govToken),
             address(insurancePool)
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);
@@ -326,9 +326,9 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ======= Deploy PairEmissionStream ==========
         // ============================================
         constructorArgs = abi.encode(
+            address(core),
+            address(registry), 
             address(govToken),
-            address(registry),
-            address(core), 
             address(0)
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);

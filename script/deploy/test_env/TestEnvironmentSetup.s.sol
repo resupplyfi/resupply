@@ -14,8 +14,8 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 contract TestEnvironmentSetup is DeployResupply {
 
     function run() public override isBatch(dev) {
-        crvusdPool = 0x7fd04C3eb261308154789db3A363dF789B53644f;
-        fraxPool = 0xf431263dD7bc0A5b49A43b2fbbC77129E7220349;
+        crvusdPool = 0xB6aF437ceEa0DBeA524115eFC905F0F44fd1eBAF;
+        fraxPool = 0xA6d9F4f3A67B35E81DFa560b0FcDE9B0751F1f53;
         core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
         oracle = BasicVaultOracle(0xcb7E25fbbd8aFE4ce73D7Dac647dbC3D847F3c82);
         rateCalculator = InterestRateCalculator(0x3b7AbCB8E1d7E2F1ba89BF5Eec037F07F2ed2CCF);
