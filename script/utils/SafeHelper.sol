@@ -100,10 +100,30 @@ abstract contract SafeHelper is Script, Test {
         bytes signature;
     }
 
-    bytes[] public encodedTxns;
+    // New struct to track a batch and its gas
+    struct BatchData {
+        bytes[] encodedTxns; // Array to store encoded transactions
+        uint256 totalGas;    // Total gas used by the batch
+    }
+
+    // Replace single array with array of batches
+    BatchData[] public batches;
+    
+    // Current batch index
+    uint256 private currentBatchIndex;
+    
+    // Maximum gas per batch (6.5M)
+    uint256 private constant MAX_GAS_PER_BATCH = 6_500_000;
+
+    constructor() {
+        // Initialize first batch
+        batches.push(BatchData({
+            encodedTxns: new bytes[](0),
+            totalGas: 0
+        }));
+    }
 
     // Modifiers
-
     modifier isBatch(address safe_) {
         // Set the chain ID
         Chain memory chain = getChain(vm.envString("CHAIN"));
@@ -160,70 +180,88 @@ abstract contract SafeHelper is Script, Test {
         uint256 value_,
         bytes memory data_
     ) internal returns (bytes memory) {
-        // Add transaction to batch array
         if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
         if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
-        // Add transaction to batch array
-        encodedTxns.push(abi.encodePacked(Operation.CALL, to_, value_, data_.length, data_));
-        // Simulate transaction and get return value
-        (bool success, bytes memory data) = to_.call{value: value_}(data_);
+
+        // Simulate transaction to get gas used
+        uint256 gasStart = gasleft();
+        (bool success, bytes memory returnData) = to_.call{value: value_}(data_);
+        uint256 gasUsed = gasStart - gasleft();
         if (deployMode == DeployMode.TENDERLY) vm.stopBroadcast();
+
+        // Check if adding this transaction would exceed our max gas limit
+        uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
+        if (gasInCurrentBatch + gasUsed > MAX_GAS_PER_BATCH) {
+            // Create a new batch
+            currentBatchIndex++;
+            console2.log("Safe transaction batch %d: finalized with %d gas", currentBatchIndex, gasInCurrentBatch);
+            batches.push(BatchData({
+                encodedTxns: new bytes[](0),
+                totalGas: 0
+            }));
+        }
+
+        // Encode the transaction and add it to the current batch
+        bytes memory encodedTxn = abi.encodePacked(Operation.CALL, to_, value_, data_.length, data_);
+        batches[currentBatchIndex].encodedTxns.push(encodedTxn);
+        batches[currentBatchIndex].totalGas += gasUsed;
+
         if (success) {
-            return data;
+            return returnData;
         } else {
-            revert(string(data));
+            revert(string(returnData));
         }
     }
 
-    // Convenience funtion to add an encoded transaction to the batch, but passes
-    // 0 as the `value` (equivalent to msg.value) field.
-    function addToBatch(address to_, bytes memory data_) internal returns (bytes memory) {
-        if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
-        if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
-        // Add transaction to batch array and simulate simulate the txn with return value
-        encodedTxns.push(abi.encodePacked(Operation.CALL, to_, uint256(0), data_.length, data_));
-        (bool success, bytes memory data) = to_.call(data_);
-        if (deployMode == DeployMode.TENDERLY) vm.stopBroadcast();
-        if (success) {
-            return data;
-        } else {
-            revert(string(data));
-        }
+    // Helper to call `addToBatch` with implied 0 value.
+    function addToBatch(
+        address to_,
+        bytes memory data_
+    ) internal returns (bytes memory) {
+        return addToBatch(to_, 0, data_);
     }
 
-    // Simulate then send the batch to the Safe API. If `send_` is `false`, the
-    // batch will only be simulated.
+    // Executes all batches, sending each to the Safe API
     function executeBatch(bool send_) internal {
-        Batch memory batch = _createBatch(safe);
-        // _simulateBatch(safe, batch);
-        if (send_) {
-            batch = _signBatch(safe, batch);
-            _sendBatch(safe, batch);
+        for (uint256 i = 0; i <= currentBatchIndex; i++) {
+            Batch memory batch = _createBatchFromIndex(i);
+            if (send_) {
+                batch = _signBatch(safe, batch);
+                _sendBatch(safe, batch);
+            }
         }
     }
 
-    // Private functions
-
-    // Encodes the stored encoded transactions into a single Multisend transaction
-    function _createBatch(address safe_) private returns (Batch memory batch) {
-        // Set initial batch fields
+    // Creates a batch from the transactions at the specified index
+    function _createBatchFromIndex(uint256 batchIndex) private returns (Batch memory batch) {
         batch.to = SAFE_MULTISEND_ADDRESS;
         batch.value = 0;
         batch.operation = Operation.DELEGATECALL;
 
-        // Encode the batch calldata. The list of transactions is tightly packed.
+        // Concatenate all encoded transactions into a single data payload
         bytes memory data;
-        uint256 len = encodedTxns.length;
+        uint256 len = batches[batchIndex].encodedTxns.length;
         for (uint256 i; i < len; ++i) {
-            data = bytes.concat(data, encodedTxns[i]);
+            data = bytes.concat(data, batches[batchIndex].encodedTxns[i]);
         }
         batch.data = abi.encodeWithSignature("multiSend(bytes)", data);
+        batch.nonce = _getNonce(safe);
+        batch.txHash = _getTransactionHash(safe, batch);
+        return batch;
+    }
 
-        // Get the safe nonce
-        batch.nonce = _getNonce(safe_);
+    // Returns information about a specific batch
+    function getBatchInfo(uint256 batchIndex) external view returns (uint256 txCount, uint256 gasUsed) {
+        require(batchIndex <= currentBatchIndex, "Invalid batch index");
+        return (
+            batches[batchIndex].encodedTxns.length,
+            batches[batchIndex].totalGas
+        );
+    }
 
-        // Get the transaction hash
-        batch.txHash = _getTransactionHash(safe_, batch);
+    // Returns the total number of batches
+    function getTotalBatches() external view returns (uint256) {
+        return currentBatchIndex + 1;
     }
 
     function _signBatch(
