@@ -30,10 +30,10 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
     address internal constant BURN_ADDRESS = address(0xdead);
-    address internal constant PERMA_STAKER1_OWNER = address(1);
-    address internal constant PERMA_STAKER2_OWNER = address(2);
-    string internal constant PERMA_STAKER1_NAME = "Convex";
-    string internal constant PERMA_STAKER2_NAME = "Yearn";
+    address internal constant PERMA_STAKER_CONVEX_OWNER = 0xa3C5A1e09150B75ff251c1a7815A07182c3de2FB;
+    address internal constant PERMA_STAKER_YEARN_OWNER = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
+    string internal constant PERMA_STAKER_CONVEX_NAME = "Convex";
+    string internal constant PERMA_STAKER_YEARN_NAME = "Yearn";
     uint256 internal constant DEBT_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to debt receiver
     uint256 internal constant INSURANCE_EMISSIONS_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to insurance emissions receiver
     uint256 internal constant REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT = 5000; // pct of weekly emissions to reUSD lp incentives receiver

@@ -222,9 +222,9 @@ contract DeployResupplyDao is BaseDeploy {
         bytes memory constructorArgs = abi.encode(
             address(core),
             address(registry),
-            PERMA_STAKER1_OWNER,
+            PERMA_STAKER_CONVEX_OWNER,
             address(vestManager),
-            PERMA_STAKER1_NAME
+            PERMA_STAKER_CONVEX_NAME
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
         
@@ -240,9 +240,9 @@ contract DeployResupplyDao is BaseDeploy {
         constructorArgs = abi.encode(
             address(core),
             address(registry),
-            PERMA_STAKER2_OWNER, 
+            PERMA_STAKER_YEARN_OWNER, 
             address(vestManager),
-            PERMA_STAKER2_NAME
+            PERMA_STAKER_YEARN_NAME
         );
         bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
         salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6005045c04e56a6ce00770772;
