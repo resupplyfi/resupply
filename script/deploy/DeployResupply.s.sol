@@ -62,17 +62,19 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(debtReceiver)));
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(insuranceEmissionsReceiver)));
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.registerReceiver.selector, address(reusdLPIncentivesReceiver)));
+        console.log("Receivers registered with the emissions controller");
 
         // Set the weights for the receivers
-        uint256[] memory receiverIds = new uint256[](4);
+        uint256[] memory receiverIds = new uint256[](3);
         receiverIds[0] = 0;
         receiverIds[1] = 1;
         receiverIds[2] = 2;
-        uint256[] memory weights = new uint256[](4);
+        uint256[] memory weights = new uint256[](3);
         weights[0] = DEBT_RECEIVER_WEIGHT;
         weights[1] = INSURANCE_EMISSIONS_RECEIVER_WEIGHT;
         weights[2] = REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT;
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.setReceiverWeights.selector, receiverIds, weights));
+        console.log("Receiver weights set");
     }
 
     function deployDefaultLendingPairs() public {
