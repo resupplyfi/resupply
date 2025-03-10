@@ -373,8 +373,8 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(core),
             address(registry),
             address(feeDeposit), 
-            FEE_SPLIT_IP,       // 15%
-            FEE_SPLIT_TREASURY // 5%
+            FEE_SPLIT_IP,
+            FEE_SPLIT_TREASURY
         );
         bytecode = abi.encodePacked(vm.getCode("FeeDepositController.sol:FeeDepositController"), constructorArgs);
         salt = buildGuardedSalt(
