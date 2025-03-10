@@ -165,11 +165,11 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     }
 
     function writeAddressToJson(string memory name, address addr) internal {
-        // Format: data/chainId_YYYYMMDD.json
-        string memory dateStr = vm.toString(block.timestamp / 86400 * 86400); // Round to start of day
+        // Format: data/chainId_MM-DD-YYYY.json
+        string memory dateStr = formatDate(block.timestamp);
         string memory deploymentPath = string.concat(
             vm.projectRoot(), 
-            "/data/", 
+            "/data/deploy_", 
             vm.toString(block.chainid),
             "_",
             dateStr,
@@ -212,5 +212,75 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
             result[i - startIndex] = strBytes[i];
         }
         return string(result);
+    }
+
+    function formatDate(uint256 timestamp) internal pure returns (string memory) {
+        uint256 year;
+        uint256 month;
+        uint256 day;
+
+        // Calculate the number of days since unix ts = 0
+        uint256 daysSinceEpoch = timestamp / 86400;
+
+        // Calculate the year
+        year = 1970;
+        while (daysSinceEpoch >= 365) {
+            if (isLeapYear(year)) {
+                if (daysSinceEpoch >= 366) {
+                    daysSinceEpoch -= 366;
+                    year++;
+                }
+            } else {
+                daysSinceEpoch -= 365;
+                year++;
+            }
+        }
+
+        // Calculate the month and day
+        uint256[12] memory monthDays = [uint256(31), 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        if (isLeapYear(year)) {
+            monthDays[1] = 29; // February has 29 days in a leap year
+        }
+
+        month = 1;
+        for (uint256 i = 0; i < 12; i++) {
+            if (daysSinceEpoch < monthDays[i]) {
+                day = daysSinceEpoch + 1;
+                break;
+            } else {
+                daysSinceEpoch -= monthDays[i];
+                month++;
+            }
+        }
+
+        // Format date
+        return string(abi.encodePacked(
+            month < 10 ? "0" : "", uintToString(month), "-",
+            day < 10 ? "0" : "", uintToString(day), "-",
+            uintToString(year)
+        ));
+    }
+
+    function isLeapYear(uint256 year) internal pure returns (bool) {
+        return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    }
+
+    function uintToString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
     }
 }

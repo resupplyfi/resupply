@@ -113,7 +113,6 @@ contract EmissionsControllerTest is Setup {
 
         vm.prank(address(core));
         emissionsController.registerReceiver(address(mockReceiver3));
-
         weights[0] = 2_001; // Exceeds 100% by 1 BPS
         vm.expectRevert("Total weight must be 100%");
         setNewWeights(receiverIds, weights);

@@ -255,6 +255,27 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         fraxPool = abi.decode(result, (address));
         console.log("reUSD/sfrxUSD Pool deployed at", fraxPool);
         writeAddressToJson("REUSD_SFRXUSD_POOL", fraxPool);
+
+        // deploy gauges
+        result = addToBatch(
+            address(Constants.Mainnet.CURVE_STABLE_FACTORY),
+            abi.encodeWithSelector(ICurveExchange.deploy_gauge.selector,
+                crvusdPool
+            )
+        );
+        address crvusdGauge = abi.decode(result, (address));
+        console.log("reUSD/scrvUSD Gauge deployed at", crvusdGauge);
+        writeAddressToJson("REUSD_SCRVUSD_GAUGE", crvusdGauge);
+
+        result = addToBatch(
+            address(Constants.Mainnet.CURVE_STABLE_FACTORY),
+            abi.encodeWithSelector(ICurveExchange.deploy_gauge.selector,
+                fraxPool
+            )
+        );
+        address fraxGauge = abi.decode(result, (address));
+        console.log("reUSD/sfrxUSD Gauge deployed at", fraxGauge);
+        writeAddressToJson("REUSD_SFRXUSD_GAUGE", fraxGauge);
     }
 
     function deploySwapper() public {
