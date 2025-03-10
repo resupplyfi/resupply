@@ -38,13 +38,12 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant INSURANCE_EMISSIONS_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to insurance emissions receiver
     uint256 internal constant REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT = 5000; // pct of weekly emissions to reUSD lp incentives receiver
 
-
     // Configs: Protocol
-    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
-    uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 5% with 1e5 precision
-    uint256 internal DEFAULT_BORROW_LIMIT = 0;//5_000_000 * 1e18;
-    uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
-    uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
+    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision
+    uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 1e5 precision
+    uint256 internal constant DEFAULT_MINT_FEE = 0; // 1e5 precision
+    uint256 internal DEFAULT_BORROW_LIMIT = 0;
+    uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; // 1e18 portion of 
     uint256 internal constant FEE_SPLIT_IP = 2500; // 25%
     uint256 internal constant FEE_SPLIT_TREASURY = 500; // 5%
     uint256 internal constant FEE_SPLIT_STAKERS = 7000; // 70%
