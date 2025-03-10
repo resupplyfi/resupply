@@ -281,12 +281,30 @@ contract EmissionsControllerTest is Setup {
         
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
         vm.stopPrank();
+        uint256 startEpoch = getEpoch();
+        uint256 epochsUntilTail = rates.length * epochsPer;
         for (uint256 i = 0; i < 10; i++) {
             skip(epochLength);
             vm.prank(address(mockReceiver1));
             emissionsController.fetchEmissions();
             console.log(getEpoch(), emissionsController.emissionsRate());
+            if (getEpoch() - startEpoch >= epochsUntilTail) {
+                assertEq(emissionsController.emissionsRate(), tailRate);
+            }
         }
+    }
+
+    function test_TailEmissionsPersist() public {
+        vm.startPrank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        uint256[] memory rates = new uint256[](2);
+        rates[0] = 99;
+        rates[1] = 100;
+        uint256 epochsPer = 1;
+        uint256 tailRate = 1;
+        emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
+        vm.stopPrank();
+        
     }
 
     function test_AddMultipleReceivers() public {

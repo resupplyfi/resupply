@@ -112,8 +112,8 @@ abstract contract SafeHelper is Script, Test {
     // Current batch index
     uint256 private currentBatchIndex;
     
-    // Maximum gas per batch (6.5M)
-    uint256 private constant MAX_GAS_PER_BATCH = 6_500_000;
+    // Maximum gas per batch
+    uint256 public MAX_GAS_PER_BATCH = 6_500_000;
 
     constructor() {
         // Initialize first batch
@@ -123,7 +123,6 @@ abstract contract SafeHelper is Script, Test {
         }));
     }
 
-    // Modifiers
     modifier isBatch(address safe_) {
         // Set the chain ID
         Chain memory chain = getChain(vm.envString("CHAIN"));
@@ -145,11 +144,16 @@ abstract contract SafeHelper is Script, Test {
         } else if (chainId == 43114) {
             SAFE_API_BASE_URL = "https://safe-transaction-avalanche.safe.global/api/v1/safes/";
             SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
+        } else if (chainId == 11155111) {
+            SAFE_API_BASE_URL = "https://safe-transaction-sepolia.safe.global/api/v1/safes/";
+            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
+        } else if (chainId == 252) {
+            SAFE_API_BASE_URL = "https://safe-gateway.mainnet.frax.com/v1/chains/252/safes";
+            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
         } else {
             revert("Unsupported chain");
         }
 
-        // Store the provided safe address
         safe = safe_;
 
         // Load wallet information
@@ -161,12 +165,8 @@ abstract contract SafeHelper is Script, Test {
         } else {
             revert("Unsupported wallet type");
         }
-
-        // Run batch
         _;
     }
-
-    // Functions to consume in a script
 
     // Adds an encoded transaction to the batch.
     // Encodes the transaction as packed bytes of:
@@ -189,12 +189,10 @@ abstract contract SafeHelper is Script, Test {
         uint256 gasUsed = gasStart - gasleft();
         if (deployMode == DeployMode.TENDERLY) vm.stopBroadcast();
 
-        // Check if adding this transaction would exceed our max gas limit
         uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
+        // Check if adding this transaction would exceed our max gas limit. If so create a new batch.
         if (gasInCurrentBatch + gasUsed > MAX_GAS_PER_BATCH) {
-            // Create a new batch
             currentBatchIndex++;
-            console2.log("Safe transaction batch %d: finalized with %d gas", currentBatchIndex, gasInCurrentBatch);
             batches.push(BatchData({
                 encodedTxns: new bytes[](0),
                 totalGas: 0
@@ -251,7 +249,7 @@ abstract contract SafeHelper is Script, Test {
     }
 
     // Returns information about a specific batch
-    function getBatchInfo(uint256 batchIndex) external view returns (uint256 txCount, uint256 gasUsed) {
+    function getBatchInfo(uint256 batchIndex) public view returns (uint256 txCount, uint256 gasUsed) {
         require(batchIndex <= currentBatchIndex, "Invalid batch index");
         return (
             batches[batchIndex].encodedTxns.length,
@@ -260,7 +258,7 @@ abstract contract SafeHelper is Script, Test {
     }
 
     // Returns the total number of batches
-    function getTotalBatches() external view returns (uint256) {
+    function getTotalBatches() public view returns (uint256) {
         return currentBatchIndex + 1;
     }
 

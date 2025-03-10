@@ -1,5 +1,6 @@
 import "src/Constants.sol" as Constants;
 import { console } from "forge-std/console.sol";
+import { console2 } from "forge-std/console2.sol";
 import { DeployResupplyDao } from "./dependencies/DeployResupplyDao.s.sol";
 import { DeployResupplyProtocol } from "./dependencies/DeployResupplyProtocol.s.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -43,6 +44,21 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         deployCurvePools();
         deploySwapper();
         deployDefaultLendingPairs();
+        printBatchGasUsage();
+    }
+
+    function printBatchGasUsage() public {
+        uint256 totalBatches = getTotalBatches();
+        console2.log(unicode"-------- ⛽ Gas Analysis ⛽ ------------");
+        console2.log("Total batches:", totalBatches);
+        uint256 totalGas = 0;
+        for (uint256 i = 0; i < totalBatches; i++) {
+            (uint256 txCount, uint256 batchGas) = getBatchInfo(i);
+            console2.log("  -batch %d: %d", i+1, batchGas);
+            totalGas += batchGas;
+        }
+        console2.log("-Total gas used:", totalGas);
+        
     }
 
     // Deploy incentives reUSD/RSUP incentives receivers and register all receivers with the emissions controller
