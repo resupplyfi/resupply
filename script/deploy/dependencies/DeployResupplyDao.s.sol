@@ -1,3 +1,4 @@
+import { CreateX } from "src/Constants.sol";
 import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { IGovStakerEscrow } from "src/interfaces/IGovStakerEscrow.sol";
@@ -52,7 +53,7 @@ contract DeployResupplyDao is BaseDeploy {
 
     function deployStablecoin() public returns (address) {
         bytes memory constructorArgs = abi.encode(address(core));
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6007d4a011e1aea8d0220315d;
+        bytes32 salt = CreateX.SALT_STABLECOIN;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory bytecode = abi.encodePacked(vm.getCode("Stablecoin.sol:Stablecoin"), constructorArgs);
@@ -66,7 +67,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployRegistry() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af60035199030be4b0602635825;
+        bytes32 salt = CreateX.SALT_REGISTRY;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(address(core), address(stablecoin), address(govToken));
@@ -81,7 +82,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployCore() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af60075182fe1eff89e02ce3cff;
+        bytes32 salt = CreateX.SALT_CORE;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         bytes memory constructorArgs = abi.encode(dev, EPOCH_LENGTH);
         bytes memory bytecode = abi.encodePacked(vm.getCode("Core.sol:Core"), constructorArgs);
@@ -95,9 +96,9 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployGovToken() public returns (address) {
-        bytes32 vmSalt = 0xfe11a5009f2121622271e7dd0fd470264e076af6000cc7db37bf283f00158d19;
+        bytes32 vmSalt = CreateX.SALT_VEST_MANAGER;
         address _vestManagerAddress = computeCreate3AddressFromSaltPreimage(vmSalt, dev, true, false);
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6007817270164e1790196c4f0;
+        bytes32 salt = CreateX.SALT_GOV_TOKEN;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
@@ -118,7 +119,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployVestManager() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6000cc7db37bf283f00158d19;
+        bytes32 salt = CreateX.SALT_VEST_MANAGER;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
@@ -146,7 +147,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployGovStaker() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600ac101fb2686a8c0015ef91;
+        bytes32 salt = CreateX.SALT_GOV_STAKER;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
@@ -166,7 +167,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployVoter() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af60067a2e41ad02c1700e3f506;
+        bytes32 salt = CreateX.SALT_VOTER;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(address(core), IGovStaker(address(staker)), 100, 3000);
@@ -181,7 +182,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployEmissionsController() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af60045a2b62cd5fec002054177;
+        bytes32 salt = CreateX.SALT_EMISSIONS_CONTROLLER;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
@@ -203,7 +204,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployTreasury() public returns (address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6006bbac7a598ad55036e9c9c;
+        bytes32 salt = CreateX.SALT_TREASURY;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(address(core));
@@ -218,7 +219,7 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployPermaStakers() public returns (address, address) {
-        bytes32 salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600847421d8997e1100819f27;
+        bytes32 salt = CreateX.SALT_PERMA_STAKER_CONVEX;
         bytes memory constructorArgs = abi.encode(
             address(core),
             address(registry),
@@ -245,7 +246,7 @@ contract DeployResupplyDao is BaseDeploy {
             PERMA_STAKER_YEARN_NAME
         );
         bytecode = abi.encodePacked(vm.getCode("PermaStaker.sol:PermaStaker"), constructorArgs);
-        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6005045c04e56a6ce00770772;
+        salt = CreateX.SALT_PERMA_STAKER_YEARN;
         address predictedAddress2 = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress2)) {
             addToBatch(

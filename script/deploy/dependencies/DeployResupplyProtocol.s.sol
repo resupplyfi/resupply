@@ -1,3 +1,4 @@
+import { CreateX } from "src/Constants.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -30,12 +31,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             dev
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("ResupplyPairDeployer.sol:ResupplyPairDeployer"), constructorArgs);
-        bytes32 salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("ResupplyPairDeployer"))))
-        );
+        bytes32 salt = CreateX.SALT_PAIR_DEPLOYER;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
@@ -56,12 +52,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             2
         );
         bytecode = abi.encodePacked(vm.getCode("InterestRateCalculator.sol:InterestRateCalculator"), constructorArgs);
-        salt = buildGuardedSalt(
-            dev, 
-            true,   // enablePermissionedDeploy
-            false,  // enableCrossChainProtection
-            uint88(uint256(keccak256(bytes("InterestRateCalculator"))))
-        );
+        salt = CreateX.SALT_INTEREST_RATE_CALCULATOR;
         predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
@@ -124,7 +115,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         // ====== Deploy RedemptionHandler ============
         // ============================================
-        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af6002dd74d21d97b27032aca93;
+        salt = CreateX.SALT_REDEMPTION_HANDLER;
         constructorArgs = abi.encode(
             address(core),
             address(registry),
@@ -227,7 +218,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         // ====== Deploy InsurancePool ================
         // ============================================
-        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600bd0b20142b743201bee438;
+        salt = CreateX.SALT_INSURANCE_POOL;
         constructorArgs = abi.encode(
             address(core),
             address(registry),
@@ -250,7 +241,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         // ============================================
         // ====== Deploy LiquidationHandler ===========
         // ============================================
-        salt = 0xfe11a5009f2121622271e7dd0fd470264e076af600574340f6003cec01964db0;
+        salt = CreateX.SALT_LIQUIDATION_HANDLER;
         constructorArgs = abi.encode(
             address(core),
             address(registry),
