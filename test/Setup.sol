@@ -296,10 +296,11 @@ contract Setup is Test {
             address(core), 
             vestManagerAddress,
             GOV_TOKEN_INITIAL_SUPPLY,
+            Constants.Mainnet.LAYERZERO_ENDPOINTV2,
             "Resupply", 
             "RSUP"
         );
-        stablecoin = new Stablecoin(address(core));
+        stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);

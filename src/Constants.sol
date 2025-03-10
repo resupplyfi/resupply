@@ -4,6 +4,8 @@ pragma solidity 0.8.28;
 import { TestBase } from "forge-std/Test.sol";
 
 library Mainnet {
+    uint256 internal constant CHAIN_ID = 1;
+    
     address internal constant CORE = address(0);
     address internal constant STABLE_TOKEN = address(0);
     address internal constant CONVEX_DEPLOYER = 0x947B7742C403f20e5FaCcDAc5E092C943E7D0277;
@@ -41,6 +43,14 @@ library Mainnet {
     uint256 internal constant CURVELEND_WSTETH_CRVUSD_ID = 364;
     uint256 internal constant CURVELEND_YNETH_CRVUSD_ID = 415;
     uint256 internal constant CURVELEND_SFRXUSD_CRVUSD_ID = 438;
+
+    // LayerZero
+    address internal constant LAYERZERO_ENDPOINTV2 = 0x1a44076050125825900e736c501f859c50fE728c;
+}
+
+library Sepolia {
+    uint256 internal constant CHAIN_ID = 11155111;
+    address internal constant LAYERZERO_ENDPOINTV2 = 0x6EDCE65403992e310A62460808c4b910D972f10f;
 }
 
 library CreateX {
@@ -89,6 +99,8 @@ abstract contract Helper is TestBase {
 }
 
 library Fraxtal {
+    uint256 internal constant CHAIN_ID = 252;
+
     address internal constant WFRXETH_ERC20 = 0xFC00000000000000000000000000000000000006;
     address internal constant SFRXETH_ERC20 = 0xFC00000000000000000000000000000000000005;
     address internal constant FPIS_ERC20 = 0xfc00000000000000000000000000000000000004;
@@ -97,4 +109,7 @@ library Fraxtal {
     address internal constant FRXUSD_ERC20 = 0xFc00000000000000000000000000000000000001;
     address internal constant SFRXUSD_ERC20 = 0xfc00000000000000000000000000000000000008;
     address internal constant FRXBTC_ERC20 = 0xfC00000000000000000000000000000000000007;
+
+    // LayerZero
+    address internal constant LAYERZERO_ENDPOINTV2 = 0x1a44076050125825900e736c501f859c50fE728c;
 }

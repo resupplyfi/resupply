@@ -9,8 +9,8 @@ contract Stablecoin is OFT {
     mapping(address => bool) public operators;
     event SetOperator(address indexed _op, bool _valid);
 
-    constructor(address _core)
-        OFT("Resupply USD", "reUSD", address(0x1a44076050125825900e736c501f859c50fE728c), _core)
+    constructor(address _core, address _endpoint)
+        OFT("Resupply USD", "reUSD", _endpoint, _core)
         Ownable(_core)
     {
         //premint a small amount to deployer so that it can be used in the full deployment sequence

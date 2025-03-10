@@ -41,9 +41,11 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         (permaStaker1, permaStaker2) = deployPermaStakers();
         setupEmissionsReceivers();
         grantOperatorPermissions();
-        deployCurvePools();
-        deploySwapper();
-        deployDefaultLendingPairs();
+        if (block.chainid == Constants.Mainnet.CHAIN_ID) {
+            deployCurvePools();
+            deploySwapper();
+            deployDefaultLendingPairs();
+        }
         printBatchGasUsage();
     }
 

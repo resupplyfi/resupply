@@ -2,6 +2,7 @@ pragma solidity ^0.8.22;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
+import "src/Constants.sol" as Constants;
 import { Setup } from "../Setup.sol";
 import { GovTokenHarness } from "../mocks/GovTokenHarness.sol";
 
@@ -46,7 +47,7 @@ contract TreasuryTest is Setup {
     function test_GlobalSupplyNotReducedByBurns() public {
         // this harness implements a public `burn` function, to mimic the OFT
         // we want to ensure that, unlike `totalSupply`, the `globalSupply` is not reduced by burns
-        GovTokenHarness token = new GovTokenHarness(address(core), address(user1), 1_000_000e18, "Test", "TEST");
+        GovTokenHarness token = new GovTokenHarness(address(core), address(user1), 1_000_000e18, Constants.Mainnet.LAYERZERO_ENDPOINTV2, "Test", "TEST");
         uint256 amount = 1_000_000e18;
         deal(address(token), address(this), amount);
         uint256 startSupply = token.totalSupply();

@@ -1,3 +1,4 @@
+import "src/Constants.sol" as Constants;
 import { CreateX } from "src/Constants.sol";
 import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
@@ -12,28 +13,17 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
 
 contract DeployResupplyDao is BaseDeploy {
-    bool constant DEBUG = false;
     function deployDaoContracts() public {
         core = deployCore();
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
-        govToken = deployGovToken(); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
-        vestManager = deployVestManager(); // WARNING: DO NOT MOVE! Otherwise the address calculated will be wrong.
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
+        govToken = deployGovToken();
+        vestManager = deployVestManager();
         stablecoin = Stablecoin(deployStablecoin());
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
         registry = IResupplyRegistry(deployRegistry());
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
         staker = deployGovStaker();
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
         autoStakeCallback = deployAutoStakeCallback();
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
         voter = deployVoter();
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
         emissionsController = deployEmissionsController();
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
         treasury = deployTreasury();
-        if (DEBUG) console2.log("Gas used", totalGasUsed);
     }
 
     function deployAutoStakeCallback() public returns (address) {
@@ -52,7 +42,9 @@ contract DeployResupplyDao is BaseDeploy {
     }
 
     function deployStablecoin() public returns (address) {
-        bytes memory constructorArgs = abi.encode(address(core));
+        address lzEndpoint = Constants.Mainnet.LAYERZERO_ENDPOINTV2;
+        if (block.chainid == Constants.Sepolia.CHAIN_ID) lzEndpoint = Constants.Sepolia.LAYERZERO_ENDPOINTV2;
+        bytes memory constructorArgs = abi.encode(address(core), lzEndpoint);
         bytes32 salt = CreateX.SALT_STABLECOIN;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
@@ -100,11 +92,14 @@ contract DeployResupplyDao is BaseDeploy {
         address _vestManagerAddress = computeCreate3AddressFromSaltPreimage(vmSalt, dev, true, false);
         bytes32 salt = CreateX.SALT_GOV_TOKEN;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        address lzEndpoint = Constants.Mainnet.LAYERZERO_ENDPOINTV2;
+        if (block.chainid == Constants.Sepolia.CHAIN_ID) lzEndpoint = Constants.Sepolia.LAYERZERO_ENDPOINTV2;
         if (addressHasCode(predictedAddress)) return predictedAddress;
         bytes memory constructorArgs = abi.encode(
             address(core),
             _vestManagerAddress,
             GOV_TOKEN_INITIAL_SUPPLY,
+            lzEndpoint,
             "Resupply", 
             "RSUP"
         );
