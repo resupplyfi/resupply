@@ -97,7 +97,6 @@ contract EmissionsControllerTest is Setup {
             (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
             vm.prank(receiver);
             uint256 amount = emissionsController.fetchEmissions();
-            console.log(MockReceiver(receiver).name(), getEpoch(), weight, amount);
         }
 
         skip(epochLength); // enter epoch 1
@@ -108,7 +107,6 @@ contract EmissionsControllerTest is Setup {
             (bool active, address receiver, uint256 weight) = emissionsController.idToReceiver(i);
             vm.prank(receiver);
             uint256 amount = emissionsController.fetchEmissions();
-            console.log(MockReceiver(receiver).name(), getEpoch(), weight, amount);
         }
 
         skip(epochLength); // enter epoch 2
@@ -183,7 +181,6 @@ contract EmissionsControllerTest is Setup {
             
             vm.prank(address(mockReceiver1));
             uint256 amount = emissionsController.fetchEmissions();
-            console.log(getEpoch(), emissionsController.emissionsRate());
             if (i != 0) assertEq(expected, amount);
             else assertGt(amount, expected); // First iteration will mint multiple epochs worth
         }
@@ -287,10 +284,12 @@ contract EmissionsControllerTest is Setup {
             skip(epochLength);
             vm.prank(address(mockReceiver1));
             emissionsController.fetchEmissions();
-            console.log(getEpoch(), emissionsController.emissionsRate());
             // if schedule is exhausted, assert that tail rate is active
             if (getEpoch() - (startEpoch + 1) >= epochsUntilTail) {
                 assertEq(emissionsController.emissionsRate(), tailRate);
+            }
+            else {
+                assertGt(emissionsController.emissionsRate(), tailRate);
             }
         }
     }
@@ -336,9 +335,7 @@ contract EmissionsControllerTest is Setup {
             vm.prank(receiver);
             uint256 amount = emissionsController.fetchEmissions();
             (, allocatedAfter) = emissionsController.allocated(receiver);
-            console.log(receiver, 'diff', allocatedAfter - allocatedBefore);
             totalAmount += allocatedAfter;
-            console.log(receiver, getEpoch(), weight, allocatedAfter);
         }
         assertApproxEqAbs(totalAmount, govToken.balanceOf(address(emissionsController)), DUST);
     }
