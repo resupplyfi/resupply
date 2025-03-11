@@ -198,14 +198,23 @@ contract ResupplyAccountingTest is Setup {
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
         uint256 debtReduction = amountToRedeem - platformFee;
         uint256 minimumRedeem = pair.minimumRedemption();
-        bytes4 selector = ResupplyPairConstants.InsufficientDebtToRedeem.selector;
 
+        if (amountToRedeem < minimumRedeem) {
+            vm.expectRevert(ResupplyPairConstants.MinimumRedemption.selector);
+            redemptionHandler.redeemFromPair(
+                address(pair), 
+                amountToRedeem, 
+                _fee, 
+                userToRedeem,
+                true // _redeemToUnderlying
+            );
+            return;
+        }
         if (
             totalBorrowAmount <= debtReduction ||
             totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
         ) {
-            if (amountToRedeem < minimumRedeem) selector = ResupplyPairConstants.MinimumRedemption.selector;
-            vm.expectRevert(selector);
+            vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
             redemptionHandler.redeemFromPair(
                 address(pair), 
                 amountToRedeem, 
@@ -216,20 +225,7 @@ contract ResupplyAccountingTest is Setup {
             vm.stopPrank();
             return;
         }
-        if (amountToRedeem < minimumRedeem) {
-            selector = ResupplyPairConstants.MinimumRedemption.selector;
-            vm.expectRevert(selector);
-            redemptionHandler.redeemFromPair(
-                address(pair), 
-                amountToRedeem, 
-                _fee, 
-                userToRedeem,
-                true // _redeemToUnderlying
-            );
-            return;
-        }
         uint256 feePct = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
-        vm.expectRevert(selector);
         redemptionHandler.redeemFromPair(
             address(pair), 
             amountToRedeem, 
