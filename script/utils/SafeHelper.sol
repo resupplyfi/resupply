@@ -69,7 +69,7 @@ abstract contract SafeHelper is Script, Test {
     // Address to send transaction from
     address private safe;
 
-    DeployMode public deployMode = DeployMode.FOUNDRY;
+    DeployMode public deployMode = DeployMode.MAINNET;
 
     // Gas tracking
     uint256 public totalGasUsed;
@@ -81,8 +81,7 @@ abstract contract SafeHelper is Script, Test {
 
     enum DeployMode {
         MAINNET,
-        TENDERLY,
-        FOUNDRY
+        TENDERLY
     }
 
     struct Batch {
@@ -124,42 +123,16 @@ abstract contract SafeHelper is Script, Test {
     }
 
     modifier isBatch(address safe_) {
-        // Set the chain ID
-        Chain memory chain = getChain(vm.envString("CHAIN"));
-        chainId = chain.chainId;
-
         // Set the Safe API base URL and multisend address based on chain
-        if (chainId == 1) {
-            SAFE_API_BASE_URL = "https://safe-transaction-mainnet.safe.global/api/v1/safes/";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else if (chainId == 5) {
-            SAFE_API_BASE_URL = "https://safe-transaction-goerli.safe.global/api/v1/safes/";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else if (chainId == 8453) {
-            SAFE_API_BASE_URL = "https://safe-transaction-base.safe.global/api/v1/safes/";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else if (chainId == 42161) {
-            SAFE_API_BASE_URL = "https://safe-transaction-arbitrum.safe.global/api/v1/safes/";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else if (chainId == 43114) {
-            SAFE_API_BASE_URL = "https://safe-transaction-avalanche.safe.global/api/v1/safes/";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else if (chainId == 11155111) {
-            SAFE_API_BASE_URL = "https://safe-transaction-sepolia.safe.global/api/v1/safes/";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else if (chainId == 252) {
-            SAFE_API_BASE_URL = "https://safe-gateway.mainnet.frax.com/v1/chains/252/safes";
-            SAFE_MULTISEND_ADDRESS = 0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761;
-        } else {
-            revert("Unsupported chain");
-        }
-
+        chainId = block.chainid;
+        SAFE_API_BASE_URL = string.concat("https://safe-client.safe.global/v1/chains/", vm.toString(chainId), "/");
+        SAFE_MULTISEND_ADDRESS = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
         safe = safe_;
 
         // Load wallet information
         walletType = keccak256(abi.encodePacked(vm.envString("WALLET_TYPE")));
         if (walletType == LOCAL) {
-            privateKey = vm.envBytes32("PRIVATE_KEY");
+            privateKey = vm.envBytes32("SAFE_PROPOSER_PRIVATE_KEY");
         } else if (walletType == LEDGER) {
             mnemonicIndex = vm.envUint("MNEMONIC_INDEX");
         } else {
@@ -243,7 +216,7 @@ abstract contract SafeHelper is Script, Test {
             data = bytes.concat(data, batches[batchIndex].encodedTxns[i]);
         }
         batch.data = abi.encodeWithSignature("multiSend(bytes)", data);
-        batch.nonce = _getNonce(safe);
+        batch.nonce = batchIndex;// _getNonce(safe);
         batch.txHash = _getTransactionHash(safe, batch);
         return batch;
     }
@@ -325,24 +298,30 @@ abstract contract SafeHelper is Script, Test {
     }
 
     function _sendBatch(address safe_, Batch memory batch_) private {
-        string memory endpoint = _getSafeAPIEndpoint(safe_);
+        string memory endpoint = _getSafeTransactionAPIEndpoint(safe_);
 
         // Create json payload for API call to Gnosis transaction service
         string memory placeholder = "";
         placeholder.serialize("safe", safe_);
         placeholder.serialize("to", batch_.to);
-        placeholder.serialize("value", batch_.value);
+        placeholder.serialize("value", vm.toString(batch_.value));
         placeholder.serialize("data", batch_.data);
         placeholder.serialize("operation", uint256(batch_.operation));
-        placeholder.serialize("safeTxGas", batch_.safeTxGas);
-        placeholder.serialize("baseGas", batch_.baseGas);
-        placeholder.serialize("gasPrice", batch_.gasPrice);
-        placeholder.serialize("nonce", batch_.nonce);
         placeholder.serialize("gasToken", address(0));
+        placeholder.serialize("safeTxGas", vm.toString(batch_.safeTxGas));
+        placeholder.serialize("baseGas", vm.toString(batch_.baseGas));
+        placeholder.serialize("gasPrice", vm.toString(batch_.gasPrice));
+        string memory txnHash = vm.toString(batch_.txHash);
+        string memory sig = bytesToHexString(batch_.signature);
+        placeholder.serialize("contractTransactionHash", txnHash);
+        console2.log('txnHash',txnHash);
+        console2.log('signer',_getSignerAddress());
+        console2.log('signature',sig);
+        placeholder.serialize("safeTxHash", txnHash);
         placeholder.serialize("refundReceiver", address(0));
-        placeholder.serialize("contractTransactionHash", batch_.txHash);
-        placeholder.serialize("signature", batch_.signature);
-        string memory payload = placeholder.serialize("sender", _getSignerAddress());
+        placeholder.serialize("nonce", vm.toString(batch_.nonce));
+        placeholder.serialize("signature", sig);
+        string memory payload = placeholder.serialize("sender", vm.toString(_getSignerAddress()));
 
         // Send batch
         (uint256 status, bytes memory data) = endpoint.post(
@@ -350,10 +329,10 @@ abstract contract SafeHelper is Script, Test {
             payload
         );
 
-        if (status == 201) {
+        if (status == 200 || status == 201) {
             console2.log("Batch sent successfully");
         } else {
-            console2.log(string(data));
+            // console2.log(string(data));
             revert("Send batch failed!");
         }
     }
@@ -503,29 +482,39 @@ abstract contract SafeHelper is Script, Test {
 
     function _getNonce(address safe_) private returns (uint256) {
         string memory endpoint = string.concat(
-            _getSafeAPIEndpoint(safe_),
-            "?limit=1"
+            _getSafeNonceAPIEndpoint(safe_)
         );
+        console2.log(endpoint);
         (uint256 status, bytes memory data) = endpoint.get();
         if (status == 200) {
             string memory resp = string(data);
-            string[] memory results;
-            results = resp.readStringArray(".results");
-            if (results.length == 0) return 0;
-            return resp.readUint(".results[0].nonce") + 1;
+            return resp.readUint(".recommendedNonce");
         } else {
-            revert("Get nonce failed!");
+            revert(string(abi.encodePacked("Error fetching nonce: ", vm.toString(status), ", ", string(data))));
         }
     }
 
-    function _getSafeAPIEndpoint(
+    function _getSafeTransactionAPIEndpoint(
         address safe_
     ) private view returns (string memory) {
         return
             string.concat(
                 SAFE_API_BASE_URL,
+                'transactions/',
                 vm.toString(safe_),
-                SAFE_API_MULTISIG_SEND
+                '/propose'
+            );
+    }
+
+    function _getSafeNonceAPIEndpoint(
+        address safe_
+    ) private view returns (string memory) {
+        return
+            string.concat(
+                SAFE_API_BASE_URL,
+                'safes/',
+                vm.toString(safe_),
+                '/nonces'
             );
     }
 
@@ -533,5 +522,18 @@ abstract contract SafeHelper is Script, Test {
         string[] memory headers = new string[](1);
         headers[0] = "Content-Type: application/json";
         return headers;
+    }
+
+    // Signatures need to be converted to hex strings with 0x prefix
+    function bytesToHexString(bytes memory data) internal pure returns (string memory) {
+        bytes memory hexChars = "0123456789abcdef";
+        bytes memory hexString = new bytes(data.length * 2);
+
+        for (uint256 i = 0; i < data.length; i++) {
+            hexString[i * 2] = hexChars[uint8(data[i] >> 4)];
+            hexString[i * 2 + 1] = hexChars[uint8(data[i] & 0x0f)];
+        }
+
+        return string(abi.encodePacked("0x", hexString));
     }
 }
