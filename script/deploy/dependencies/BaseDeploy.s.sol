@@ -37,6 +37,8 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant DEBT_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to debt receiver
     uint256 internal constant INSURANCE_EMISSIONS_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to insurance emissions receiver
     uint256 internal constant REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT = 5000; // pct of weekly emissions to reUSD lp incentives receiver
+    uint256 internal constant VOTER_MIN_CREATE_PROPOSAL_PCT = 100; // 1e4 precision
+    uint256 internal constant VOTER_QUORUM_PCT = 3000; // 1e4 precision
 
     // Configs: Protocol
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision

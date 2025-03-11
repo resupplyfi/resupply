@@ -42,7 +42,7 @@ contract VoterTest is Setup {
         string memory longInvalidDescription = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.here is a very long string that repeats.";
         // String size: 368 bytes
         string memory longValidDescrition = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.";
-        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.passingPct() / 10_000);
+        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.quorumPct() / 10_000);
         vm.expectRevert("Description too long");
         vm.prank(user1);
         proposalId = voter.createNewProposal(
@@ -299,18 +299,18 @@ contract VoterTest is Setup {
         vm.stopPrank();
     }
 
-    function test_setPassingPct() public {
+    function test_SetQuorumPct() public {
         vm.expectRevert("!core");
-        voter.setPassingPct(5000);
+        voter.setQuorumPct(5000);
 
         vm.startPrank(address(core));
-        voter.setPassingPct(5000);
+        voter.setQuorumPct(5000);
 
         vm.expectRevert("Too low");
-        voter.setPassingPct(0);
+        voter.setQuorumPct(0);
 
         vm.expectRevert("Invalid value");
-        voter.setPassingPct(MAX_PCT+1);
+        voter.setQuorumPct(MAX_PCT+1);
         vm.stopPrank();
     }
 

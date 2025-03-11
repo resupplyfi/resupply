@@ -165,7 +165,12 @@ contract DeployResupplyDao is BaseDeploy {
         bytes32 salt = CreateX.SALT_VOTER;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
         if (addressHasCode(predictedAddress)) return predictedAddress;
-        bytes memory constructorArgs = abi.encode(address(core), IGovStaker(address(staker)), 100, 3000);
+        bytes memory constructorArgs = abi.encode(
+            address(core), 
+            IGovStaker(address(staker)), 
+            VOTER_MIN_CREATE_PROPOSAL_PCT, 
+            VOTER_QUORUM_PCT
+        );
         bytes memory bytecode = abi.encodePacked(vm.getCode("Voter.sol:Voter"), constructorArgs);
         addToBatch(
             address(createXFactory),
