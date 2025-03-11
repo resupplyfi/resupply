@@ -100,8 +100,8 @@ contract DeployResupplyDao is BaseDeploy {
             _vestManagerAddress,
             GOV_TOKEN_INITIAL_SUPPLY,
             lzEndpoint,
-            "Resupply", 
-            "RSUP"
+            GOV_TOKEN_NAME, 
+            GOV_TOKEN_SYMBOL
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("GovToken.sol:GovToken"), constructorArgs);
         addToBatch(
@@ -149,7 +149,7 @@ contract DeployResupplyDao is BaseDeploy {
             address(core),
             address(registry),
             address(govToken), 
-            uint24(STAKER_COOLDOWN_EPOCHS)
+            STAKER_COOLDOWN_EPOCHS
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("GovStaker.sol:GovStaker"), constructorArgs);
         addToBatch(
@@ -189,9 +189,9 @@ contract DeployResupplyDao is BaseDeploy {
             address(core), 
             address(govToken), 
             getEmissionsSchedule(), 
-            3,       // epochs per
-            2e16,    // tail rate 2%
-            2        // Bootstrap epochs
+            EMISSIONS_CONTROLLER_EPOCHS_PER,       // epochs per
+            EMISSIONS_CONTROLLER_TAIL_RATE,    // tail rate 2%
+            EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS        // Bootstrap epochs
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("EmissionsController.sol:EmissionsController"), constructorArgs);
         addToBatch(

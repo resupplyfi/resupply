@@ -22,7 +22,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     address public fraxPool;
 
     function run() public virtual {
-        deployMode = DeployMode.TENDERLY;
+        deployMode = DeployMode.MAINNET;
         deployAll();
     }
 
@@ -31,7 +31,6 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             //set a default borrow limit on test net
             DEFAULT_BORROW_LIMIT = 50_000_000 * 1e18;
         }
-        
         setEthBalance(dev, 10e18);
         deployDaoContracts();
         deployProtocolContracts();
@@ -58,9 +57,9 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             (uint256 txCount, uint256 batchGas) = getBatchInfo(i);
             console2.log("  -batch %d: %d", i+1, batchGas);
             totalGas += batchGas;
+            executeBatch(true);
         }
         console2.log("-Total gas used:", totalGas);
-        
     }
 
     // Deploy incentives reUSD/RSUP incentives receivers and register all receivers with the emissions controller

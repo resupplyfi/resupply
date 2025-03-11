@@ -26,7 +26,7 @@ import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
     // Configs: DAO
     uint256 public constant EPOCH_LENGTH = 1 weeks;
-    uint256 public constant STAKER_COOLDOWN_EPOCHS = 2;
+    uint24 public constant STAKER_COOLDOWN_EPOCHS = 2;
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
     address internal constant BURN_ADDRESS = address(0xdead);
@@ -39,6 +39,12 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     uint256 internal constant REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT = 5000; // pct of weekly emissions to reUSD lp incentives receiver
     uint256 internal constant VOTER_MIN_CREATE_PROPOSAL_PCT = 100; // 1e4 precision
     uint256 internal constant VOTER_QUORUM_PCT = 3000; // 1e4 precision
+    string internal constant GOV_TOKEN_NAME = "Resupply";
+    string internal constant GOV_TOKEN_SYMBOL = "RSUP";
+    uint256 internal constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
+    uint256 internal constant EMISSIONS_CONTROLLER_EPOCHS_PER = 52;
+    uint256 internal constant EMISSIONS_CONTROLLER_EPOCHS_PER_YEAR = 2;
+    uint256 internal constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
 
     // Configs: Protocol
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision
@@ -89,8 +95,8 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     SimpleReceiver public debtReceiver;
     SimpleReceiver public insuranceEmissionsReceiver;
     Utilities public utilities;
-    IERC20 public fraxToken;
-    IERC20 public crvusdToken;
+    IERC20 public fraxToken = IERC20(address(Constants.Mainnet.FRXUSD_ERC20));
+    IERC20 public crvusdToken = IERC20(address(Constants.Mainnet.CURVE_USD_ERC20));
     Swapper public defaultSwapper;
     UnderlyingOracle public underlyingOracle;
 
