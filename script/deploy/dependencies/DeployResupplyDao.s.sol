@@ -262,11 +262,11 @@ contract DeployResupplyDao is BaseDeploy {
 
     function getEmissionsSchedule() public pure returns (uint256[] memory) {
         uint256[] memory schedule = new uint256[](5);
-        schedule[0] = 4 * 10 ** 16;     // 2%
-        schedule[1] = 6 * 10 ** 16;     // 4%
-        schedule[2] = 8 * 10 ** 16;     // 6%
-        schedule[3] = 10 * 10 ** 16;     // 8%
-        schedule[4] = 12 * 10 ** 16;    // 10%
+        schedule[0] = 4 * 10 ** 16;     // 4%
+        schedule[1] = 6 * 10 ** 16;     // 6%
+        schedule[2] = 8 * 10 ** 16;     // 8%
+        schedule[3] = 10 * 10 ** 16;    // 10%
+        schedule[4] = 12 * 10 ** 16;    // 12%
         return schedule;
     }
 }
