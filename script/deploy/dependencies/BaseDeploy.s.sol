@@ -44,7 +44,6 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     string internal constant GOV_TOKEN_SYMBOL = "RSUP";
     uint256 internal constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
     uint256 internal constant EMISSIONS_CONTROLLER_EPOCHS_PER = 52;
-    uint256 internal constant EMISSIONS_CONTROLLER_EPOCHS_PER_YEAR = 2;
     uint256 internal constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
 
     // Configs: Protocol

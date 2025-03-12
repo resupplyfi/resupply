@@ -189,9 +189,9 @@ contract DeployResupplyDao is BaseDeploy {
             address(core), 
             address(govToken), 
             getEmissionsSchedule(), 
-            EMISSIONS_CONTROLLER_EPOCHS_PER,       // epochs per
-            EMISSIONS_CONTROLLER_TAIL_RATE,    // tail rate 2%
-            EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS        // Bootstrap epochs
+            EMISSIONS_CONTROLLER_EPOCHS_PER,        // epochs per
+            EMISSIONS_CONTROLLER_TAIL_RATE,         // tail rate 2%
+            EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS   // Bootstrap epochs
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("EmissionsController.sol:EmissionsController"), constructorArgs);
         addToBatch(
@@ -262,11 +262,11 @@ contract DeployResupplyDao is BaseDeploy {
 
     function getEmissionsSchedule() public pure returns (uint256[] memory) {
         uint256[] memory schedule = new uint256[](5);
-        schedule[0] = 2 * 10 ** 16;     // 2%
-        schedule[1] = 4 * 10 ** 16;     // 4%
-        schedule[2] = 6 * 10 ** 16;     // 6%
-        schedule[3] = 8 * 10 ** 16;     // 8%
-        schedule[4] = 10 * 10 ** 16;    // 10%
+        schedule[0] = 4 * 10 ** 16;     // 2%
+        schedule[1] = 6 * 10 ** 16;     // 4%
+        schedule[2] = 8 * 10 ** 16;     // 6%
+        schedule[3] = 10 * 10 ** 16;     // 8%
+        schedule[4] = 12 * 10 ** 16;    // 10%
         return schedule;
     }
 }

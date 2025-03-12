@@ -21,9 +21,9 @@ contract EmissionsControllerTest is Setup {
             address(core), // core
             address(govToken), // govtoken
             getEmissionsSchedule(), // emissions
-            1, // epochs per
-            0, // tail rate
-            0 // bootstrap epochs
+            52,     // epochs per
+            2e16,   // tail rate
+            0       // bootstrap epochs
         );
         govToken.setMinter(address(emissionsController));
 
@@ -32,6 +32,23 @@ contract EmissionsControllerTest is Setup {
         mockReceiver3 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 3");
 
         vm.stopPrank();
+    }
+
+    function test_EmissionsTotalSupplyAfterFiveYears() public { 
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+
+        uint256 startSupply = govToken.globalSupply();
+        assertEq(startSupply, 60_000_000e18); // Amount minted at genesis
+        uint256 fiveYears = 5 * 365 * 24 * 60 * 60;
+        skip(fiveYears);
+
+        vm.prank(address(mockReceiver1));
+        uint256 amount = emissionsController.fetchEmissions();
+        console.log("amount: ", amount);
+
+        uint256 expectedSupply = 100_000_000e18;
+        assertEq(govToken.globalSupply(), expectedSupply);
     }
 
     function test_DefaultEmissionsSchedule() public {
