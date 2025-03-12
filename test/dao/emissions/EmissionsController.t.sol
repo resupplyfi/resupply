@@ -1,11 +1,12 @@
 pragma solidity ^0.8.22;
 
-import { console } from "../../../lib/forge-std/src/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Setup } from "../../Setup.sol";
-import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
-import { GovToken } from "../../../src/dao/GovToken.sol";
-import { MockReceiver } from "../../mocks/MockReceiver.sol";
+import { Setup } from "test/Setup.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+import { GovToken } from "src/dao/GovToken.sol";
+import { MockReceiver } from "test/mocks/MockReceiver.sol";
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 
 contract EmissionsControllerTest is Setup {
 
@@ -21,9 +22,9 @@ contract EmissionsControllerTest is Setup {
             address(core), // core
             address(govToken), // govtoken
             getEmissionsSchedule(), // emissions
-            52,         // epochs per
-            2e16,      // tail rate
-            0           // bootstrap epochs
+            DeploymentConfig.EMISSIONS_CONTROLLER_EPOCHS_PER,       // epochs per
+            DeploymentConfig.EMISSIONS_CONTROLLER_TAIL_RATE,        // tail rate
+            DeploymentConfig.EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS  // bootstrap epochs
         );
         govToken.setMinter(address(emissionsController));
 

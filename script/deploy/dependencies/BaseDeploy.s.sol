@@ -27,6 +27,7 @@ import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.so
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
     address public deployer = DeploymentConfig.DEPLOYER;
     uint256 public defaultBorrowLimit = DeploymentConfig.DEFAULT_BORROW_LIMIT;
+    
     // DAO Contracts
     address public core;
     address public escrow;

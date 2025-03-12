@@ -269,12 +269,11 @@ contract DeployResupplyDao is BaseDeploy {
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {
         uint256[] memory schedule = new uint256[](5);
-        // tail rate 2%
-        schedule[0] = 41385000000000000;
-        schedule[1] = 65475000000000000;
-        schedule[2] = 93715000000000000;
-        schedule[3] = 131270000000000000;
-        schedule[4] = 184170000000000000;
+        schedule[0] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_5;
+        schedule[1] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_4;
+        schedule[2] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_3;
+        schedule[3] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_2;
+        schedule[4] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_1;
         return schedule;
     }
 }
