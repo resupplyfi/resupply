@@ -16,6 +16,7 @@ contract TestEnvironmentSetup is DeployResupply {
 
     function run() public override isBatch(deployer) {
         deployMode = DeployMode.FORK;
+        maxGasPerBatch = DeploymentConfig.MAX_GAS_PER_BATCH;
         crvusdPool = 0x3f3FA55cb5a9908efB10aC018C9f631789d87198;
         fraxPool = 0xDd6B8c4a3b0dCE4B5b554d9b0CBFD6dfAE83e86F;
         core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
@@ -24,7 +25,7 @@ contract TestEnvironmentSetup is DeployResupply {
         pairDeployer = ResupplyPairDeployer(0x5555555524De7C56C1B20128dbEAace47d2C0417);
         registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
         issueTokens();
-        // deployExtraPair();
+        deployExtraPair();
         provideLiquidity();
         handoffGovernance();
     }

@@ -112,7 +112,7 @@ abstract contract SafeHelper is Script, Test {
     uint256 private currentBatchIndex;
     
     // Maximum gas per batch
-    uint256 public MAX_GAS_PER_BATCH = 6_500_000;
+    uint256 public maxGasPerBatch = 12_000_000;
 
     constructor() {
         // Initialize first batch
@@ -164,7 +164,7 @@ abstract contract SafeHelper is Script, Test {
 
         uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
         // Check if adding this transaction would exceed our max gas limit. If so create a new batch.
-        if (gasInCurrentBatch + gasUsed > MAX_GAS_PER_BATCH) {
+        if (gasInCurrentBatch + gasUsed > maxGasPerBatch) {
             currentBatchIndex++;
             batches.push(BatchData({
                 encodedTxns: new bytes[](0),

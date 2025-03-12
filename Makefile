@@ -18,6 +18,7 @@ BASIC_FLAGS = --rpc-url ${RPC}
 ifeq ($(BROADCAST),true)
     BROADCAST_FLAGS = --slow \
                      --broadcast \
+					 --unlocked \
                      --verify \
                      --verifier-url ${TENDERLY_URL}/verify/etherscan \
                      --etherscan-api-key ${TENDERLY_ACCESS_TOKEN}

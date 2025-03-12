@@ -28,10 +28,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function deployAll() isBatch(deployer) public {
-        if (deployMode == DeployMode.FORK){
-            //set a default borrow limit on test net
-            defaultBorrowLimit = 50_000_000 * 1e18;
-        }
+        if (deployMode == DeployMode.FORK) defaultBorrowLimit = 50_000_000 * 1e18; // default for testnets
         setEthBalance(deployer, 10e18);
         deployDaoContracts();
         deployProtocolContracts();

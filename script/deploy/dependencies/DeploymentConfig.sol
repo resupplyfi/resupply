@@ -31,11 +31,11 @@ library DeploymentConfig {
     uint256 constant VOTER_QUORUM_PCT = 3000;
 
     // Emissions controller configuration (rates are 1e18 precision)
-    uint256 constant EMISSIONS_SCHEDULE_YEAR_1 = 184170000000000000;
-    uint256 constant EMISSIONS_SCHEDULE_YEAR_2 = 131270000000000000;
-    uint256 constant EMISSIONS_SCHEDULE_YEAR_3 = 93715000000000000;
-    uint256 constant EMISSIONS_SCHEDULE_YEAR_4 = 65475000000000000;
-    uint256 constant EMISSIONS_SCHEDULE_YEAR_5 = 41385000000000000;
+    uint256 constant EMISSIONS_SCHEDULE_YEAR_1 = 183143319640535100;
+    uint256 constant EMISSIONS_SCHEDULE_YEAR_2 = 130573632743654969;
+    uint256 constant EMISSIONS_SCHEDULE_YEAR_3 = 93429770042296321;
+    uint256 constant EMISSIONS_SCHEDULE_YEAR_4 = 64756001614012807;
+    uint256 constant EMISSIONS_SCHEDULE_YEAR_5 = 40950214498301975;
     uint256 constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
     uint256 constant EMISSIONS_CONTROLLER_EPOCHS_PER = 52;
     uint256 constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
@@ -54,6 +54,9 @@ library DeploymentConfig {
     address constant SCRVUSD = Constants.Mainnet.CURVE_SCRVUSD;
     address constant SFRXUSD = Constants.Mainnet.SFRXUSD_ERC20;
     address constant CURVE_STABLE_FACTORY = Constants.Mainnet.CURVE_STABLE_FACTORY;
+
+    // SafeHelper
+    uint256 constant MAX_GAS_PER_BATCH = 15_000_000;
 }
 
 library CreateX {
