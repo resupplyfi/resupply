@@ -223,7 +223,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
                 "reusdscrv",        // symbol
                 coins,              // coins
                 200,                // A
-                4000000,            // fee
+                2000000,            // fee
                 50000000000,        // off peg multi
                 866,                // ma exp time
                 0,                  // implementation index
@@ -244,7 +244,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
                 "reusdsfrx",        //symbol
                 coins,              //coins
                 200,                //A
-                4000000,            //fee
+                2000000,            //fee
                 50000000000,        //off peg multi
                 866,                //ma exp time
                 0,                  //implementation index

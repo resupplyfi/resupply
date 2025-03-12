@@ -66,6 +66,17 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
         _mint(address(this), 1e18);
     }
 
+    function name() external pure returns (string memory){
+        return "Resupply Insurance Pool";
+    }
+
+    function symbol() external pure returns (string memory){
+        return "reIP";
+    }
+
+    function decimals() external pure returns (uint8){
+        return 18;
+    }
 
     /// @notice set unlock length and withdraw window
     /// @param _withdrawLength time to unlock
