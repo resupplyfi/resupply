@@ -18,7 +18,7 @@ BASIC_FLAGS = --rpc-url ${RPC}
 ifeq ($(BROADCAST),true)
     BROADCAST_FLAGS = --slow \
                      --broadcast \
-					 --unlocked \
+                     --unlocked \
                      --verify \
                      --verifier-url ${TENDERLY_URL}/verify/etherscan \
                      --etherscan-api-key ${TENDERLY_ACCESS_TOKEN}
@@ -43,4 +43,4 @@ deploy:
 		echo "Error: SCRIPT parameter is required. Usage: make deploy SCRIPT=path/to/script.sol"; \
 		exit 1; \
 	fi
-	${FORGE} script script/deploy/${SCRIPT} ${BASIC_FLAGS} ${BROADCAST_FLAGS} 
+	${FORGE} script script/deploy/${SCRIPT} ${BASIC_FLAGS} ${BROADCAST_FLAGS}
