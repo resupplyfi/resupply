@@ -129,7 +129,7 @@ contract DeployResupplyDao is BaseDeploy {
             ]
         );
         bytes memory bytecode = (
-            deployMode != DeployMode.MAINNET ?
+            deployMode != DeployMode.PRODUCTION ?
                 abi.encodePacked(vm.getCode("VestManagerHarness.sol:VestManagerHarness"), constructorArgs) :
                 abi.encodePacked(vm.getCode("VestManager.sol:VestManager"), constructorArgs)
         );

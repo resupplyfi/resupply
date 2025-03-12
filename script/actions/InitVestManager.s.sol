@@ -20,8 +20,8 @@ contract InitVestManager is TenderlyHelper {
                 bytes32(0) // We set this one later
             ],
             [   // _nonUserTargets
-                CONVEX_PERMA_STAKER,
-                YEARN_PERMA_STAKER,
+                PERMA_STAKER_CONVEX,
+                PERMA_STAKER_YEARN,
                 DeploymentConfig.FRAX_VEST_TARGET,
                 TREASURY
             ],

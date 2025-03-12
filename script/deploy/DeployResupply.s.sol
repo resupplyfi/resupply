@@ -23,12 +23,12 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     address public fraxPool;
 
     function run() public virtual {
-        deployMode = DeployMode.TENDERLY;
+        deployMode = DeployMode.FORK;
         deployAll();
     }
 
     function deployAll() isBatch(deployer) public {
-        if (deployMode == DeployMode.TENDERLY){
+        if (deployMode == DeployMode.FORK){
             //set a default borrow limit on test net
             defaultBorrowLimit = 50_000_000 * 1e18;
         }
@@ -58,7 +58,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             (uint256 txCount, uint256 batchGas) = getBatchInfo(i);
             console2.log("  -batch %d: %d", i+1, batchGas);
             totalGas += batchGas;
-            executeBatch(deployMode != DeployMode.TENDERLY);
+            executeBatch(deployMode == DeployMode.PRODUCTION);
         }
         console2.log("-Total gas used:", totalGas);
     }

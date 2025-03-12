@@ -15,7 +15,7 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 contract TestEnvironmentSetup is DeployResupply {
 
     function run() public override isBatch(deployer) {
-        deployMode = DeployMode.TENDERLY;
+        deployMode = DeployMode.FORK;
         crvusdPool = 0x3f3FA55cb5a9908efB10aC018C9f631789d87198;
         fraxPool = 0xDd6B8c4a3b0dCE4B5b554d9b0CBFD6dfAE83e86F;
         core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
