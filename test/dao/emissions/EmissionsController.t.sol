@@ -42,18 +42,22 @@ contract EmissionsControllerTest is Setup {
         uint256 startSupply = govToken.globalSupply();
         assertEq(startSupply, 60_000_000e18); // Amount minted at genesis
         uint256 year = 52 weeks;
+        uint256 amount;
 
+        skipToFirstEmissionsEpoch();
+        
         for (uint256 i = 0; i < 5; i++) {
-            skip(year);
+            skip(year - 1);
             vm.prank(address(mockReceiver1));
-            uint256 amount = emissionsController.fetchEmissions();
-            console.log("year %d supply: %d", i+1, govToken.globalSupply()/1e18);
+            amount += emissionsController.fetchEmissions();
+            console.log("end of year %d supply: %d", i+1, govToken.globalSupply()/1e18);
+            // console.log("minted a total of: %d", amount);
         }
 
-        uint256 expectedSupply = 100_000_000e18;
+        uint256 EXPECTED_SUPPLY_AFTER_5_YEARS = 100_000_000e18;
         assertApproxEqAbs(
             govToken.globalSupply(), 
-            expectedSupply, 
+            EXPECTED_SUPPLY_AFTER_5_YEARS, 
             10000e18,  // maximum absolute difference allowed
             "Global supply outside acceptable range"
         );
@@ -88,6 +92,8 @@ contract EmissionsControllerTest is Setup {
         rates[1] = 101;
         uint256 epochsPer = 1;
         uint256 tailRate = 98;
+
+        skipToFirstEmissionsEpoch();
 
         // Make sure emissions cannot mint without receivers
         skip(epochLength*5);
@@ -302,14 +308,18 @@ contract EmissionsControllerTest is Setup {
         
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
         vm.stopPrank();
-        uint256 startEpoch = getEpoch();
+        
         uint256 epochsUntilTail = rates.length * epochsPer;
+
+        skipToFirstEmissionsEpoch();
+        uint256 startEpoch = getEpoch();
+
         for (uint256 i = 0; i < 100; i++) {
             skip(epochLength);
             vm.prank(address(mockReceiver1));
             emissionsController.fetchEmissions();
             // if schedule is exhausted, assert that tail rate is active
-            if (getEpoch() - (startEpoch + 1) >= epochsUntilTail) {
+            if (getEpoch() - startEpoch > epochsUntilTail) {
                 assertEq(emissionsController.emissionsRate(), tailRate);
             }
             else {
@@ -384,5 +394,14 @@ contract EmissionsControllerTest is Setup {
 
     function getEpoch() public view returns (uint256) {
         return emissionsController.getEpoch();
+    }
+
+    function skipToFirstEmissionsEpoch() internal {
+        uint256 timeSinceStart = block.timestamp - core.startTime();
+        uint256 epochLength = core.epochLength();
+        skip(
+            (epochLength - timeSinceStart) + 
+            (emissionsController.BOOTSTRAP_EPOCHS() * epochLength)
+        );
     }
 }
