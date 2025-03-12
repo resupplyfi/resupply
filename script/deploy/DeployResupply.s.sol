@@ -87,9 +87,9 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         receiverIds[1] = 1;
         receiverIds[2] = 2;
         uint256[] memory weights = new uint256[](3);
-        weights[0] = DEBT_RECEIVER_WEIGHT;
-        weights[1] = INSURANCE_EMISSIONS_RECEIVER_WEIGHT;
-        weights[2] = REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT;
+        weights[0] = INITIAL_EMISSIONS_WEIGHT_DEBT;
+        weights[1] = INITIAL_EMISSIONS_WEIGHT_INSURANCE_POOL;
+        weights[2] = INITIAL_EMISSIONS_WEIGHT_LP;
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.setReceiverWeights.selector, receiverIds, weights));
         console.log("Receiver weights set");
     }

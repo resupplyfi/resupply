@@ -120,7 +120,7 @@ contract DeployResupplyDao is BaseDeploy {
         bytes memory constructorArgs = abi.encode(
             address(core),
             address(govToken), 
-            address(BURN_ADDRESS), 
+            address(PRISMA_TOKENS_BURN_ADDRESS), 
             [
                 0xdA47862a83dac0c112BA89c6abC2159b95afd71C, // prisma 
                 0xe3668873D944E4A949DA05fc8bDE419eFF543882, // yprisma
