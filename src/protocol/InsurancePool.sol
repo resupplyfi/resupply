@@ -8,7 +8,6 @@ import { RewardDistributorMultiEpoch } from "./RewardDistributorMultiEpoch.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 
-
 contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     using SafeERC20 for IERC20;
 
@@ -50,7 +49,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     event WithdrawTimersUpdated(uint256 withdrawTime, uint256 withdrawWindow);
     event MinimumHeldAssetsUpdated(uint256 minimumAssets);
 
-    constructor(address _core, address _asset, address[] memory _rewards, address _registry, address _emissionsReceiver) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _asset, address[] memory _rewards, address _emissionsReceiver) CoreOwnable(_core){
         asset = _asset;
         registry = _registry;
         emissionsReceiver = _emissionsReceiver;

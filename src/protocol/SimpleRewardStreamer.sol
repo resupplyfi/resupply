@@ -46,7 +46,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IERC20Decimals } from "../interfaces/IERC20Decimals.sol";
-
 /*
  a managed single reward contract which can set weights for any account address
 */
@@ -77,11 +76,10 @@ contract SimpleRewardStreamer is CoreOwnable {
     event RewardPaid(address indexed user, uint256 reward);
     event RewardRedirected(address indexed user, address redirect);
 
-    constructor(address _rewardToken, address _registry, address _core, address _initialWeightAddress) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _rewardToken, address _initialWeightAddress) CoreOwnable(_core){
+        registry = _registry;
         rewardToken = IERC20(_rewardToken);
         require(IERC20Decimals(_rewardToken).decimals() == 18, "18 decimals required"); // Guard against precision loss.
-        registry = _registry;
-
         //set an initial target address weight
         if(_initialWeightAddress != address(0)){
             _setWeight(_initialWeightAddress, 1e18);

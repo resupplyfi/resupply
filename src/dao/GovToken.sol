@@ -22,9 +22,10 @@ contract GovToken is OFT {
         address _core,
         address _vesting,
         uint256 _initialSupply,
+        address _endpoint,
         string memory _name,
         string memory _symbol
-    ) OFT(_name, _symbol, address(0x1a44076050125825900e736c501f859c50fE728c), _core)
+    ) OFT(_name, _symbol, _endpoint, _core)
       Ownable(_core) {
         INITIAL_SUPPLY = _initialSupply;
         _mint(_vesting, _initialSupply);

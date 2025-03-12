@@ -14,7 +14,6 @@ import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 
-
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
     using SafeERC20 for IERC20;
@@ -67,7 +66,7 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     event SetOperator(address indexed _op, bool _valid);
 
-    constructor(address _core,address _registry, address _govToken, address _initialoperator) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _govToken, address _initialoperator) CoreOwnable(_core){
         registry = _registry;
         govToken = _govToken;
         operators[_initialoperator] = true;

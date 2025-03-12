@@ -24,15 +24,15 @@ contract PermaStaker is Ownable2Step {
     }
 
     constructor(
-        address _core, 
-        address _owner, 
-        address _registry, 
+        address _core,
+        address _registry,
+        address _owner,
         address _vestManager,
         string memory _name
     ) Ownable(_owner) {
         core = _core;
-        name = _name;
         registry = IResupplyRegistry(_registry);
+        name = _name;
         IGovStaker _staker = _getStaker();
         require(address(_staker) != address(0), "Staker not set");
         _staker.irreversiblyCommitAccountAsPermanentStaker(address(this));

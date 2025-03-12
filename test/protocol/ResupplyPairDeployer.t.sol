@@ -11,7 +11,6 @@ import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
 contract ResupplyPairDeployerTest is Setup {
     ResupplyPairDeployer public resupplyPairDeployer;
     address public curveLendCollat = Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD;
-    // address public fraxlendCollat = Constants.Mainnet.FRAXLEND_SFRXETH_FRAX;
     
     function setUp() public override {
         super.setUp();

@@ -11,7 +11,6 @@ import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 
-
 //Receive collateral from pairs during liquidations and process
 //send underlying to insurance pool while burning debt to compensate
 contract LiquidationHandler is CoreOwnable{

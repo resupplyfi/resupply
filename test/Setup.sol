@@ -48,14 +48,13 @@ import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
 
 
 contract Setup is Test {
-
+    address public immutable _THIS;
     // Deployer constants
     uint256 public constant epochLength = 1 weeks;
-    address public immutable _THIS;
-    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 95% with 1e5 precision
-    uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 5% with 1e5 precision
+    uint256 internal constant DEFAULT_MAX_LTV = 95_000;     // 95% with 1e5 precision
+    uint256 internal constant DEFAULT_LIQ_FEE = 5_000;      // 5% with 1e5 precision
     uint256 internal constant DEFAULT_BORROW_LIMIT = 5_000_000 * 1e18;
-    uint256 internal constant DEFAULT_MINT_FEE = 0; //1e5 prevision
+    uint256 internal constant DEFAULT_MINT_FEE = 0;         //1e5 precision
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
@@ -200,39 +199,43 @@ contract Setup is Test {
         insuranceEmissionsReceiver = SimpleReceiver(receiverFactory.deployNewReceiver("Insurance Receiver", new address[](0)));
         
         insurancePool = new InsurancePool(
-            address(core), //core
+            address(core),
+            address(registry),
             address(stablecoin),
             rewards,
-            address(registry),
             address(insuranceEmissionsReceiver)
         );
-        liquidationHandler = new LiquidationHandler(address(core), address(registry), address(insurancePool));
+        liquidationHandler = new LiquidationHandler(
+            address(core), 
+            address(registry), 
+            address(insurancePool)
+        );
 
         //seed insurance pool
         stablecoin.transfer(address(insurancePool),1e18);
 
-        ipStableStream = new SimpleRewardStreamer(address(stablecoin), 
-            address(registry), 
-            address(core), 
-            address(insurancePool)
-        );
-
-        ipEmissionStream = new SimpleRewardStreamer(address(stakingToken),
-            address(registry),
+        ipStableStream = new SimpleRewardStreamer(
             address(core),
+            address(registry),
+            address(stablecoin), 
             address(insurancePool)
         );
 
-        //todo queue rewards to pools
-
-        pairEmissionStream = new SimpleRewardStreamer(address(stakingToken), 
-            address(registry), 
-            address(core), 
+        ipEmissionStream = new SimpleRewardStreamer(
+            address(core),
+            address(registry),
+            address(stakingToken),
+            address(insurancePool)
+        );
+        pairEmissionStream = new SimpleRewardStreamer(
+            address(core),
+            address(registry),
+            address(stakingToken), 
             address(0)
         );
-        
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
-        feeDepositController = new FeeDepositController(address(core), 
+        feeDepositController = new FeeDepositController(
+            address(core), 
             address(registry), 
             address(feeDeposit), 
             1500, 
@@ -286,17 +289,20 @@ contract Setup is Test {
         redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
+        address registryAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+3);
         core = new Core(tempGov, epochLength);
         address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+4);
         govToken = new GovToken(
             address(core), 
             vestManagerAddress,
             GOV_TOKEN_INITIAL_SUPPLY,
+            Constants.Mainnet.LAYERZERO_ENDPOINTV2,
             "Resupply", 
             "RSUP"
         );
-        stablecoin = new Stablecoin(address(core));
+        stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
+        assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         vestManager = new VestManager(
             address(core), 
@@ -327,8 +333,8 @@ contract Setup is Test {
         treasury = new Treasury(address(core));
         vm.prank(address(core));
         registry.setStaker(address(staker));
-        permaStaker1 = new PermaStaker(address(core), user1, address(registry), address(vestManager), "Yearn");
-        permaStaker2 = new PermaStaker(address(core), user2, address(registry), address(vestManager), "Convex");
+        permaStaker1 = new PermaStaker(address(core), address(registry), user1, address(vestManager), "Yearn");
+        permaStaker2 = new PermaStaker(address(core), address(registry), user2, address(vestManager), "Convex");
         assertEq(permaStaker1.owner(), user1);
         assertEq(permaStaker2.owner(), user2);
 

@@ -18,7 +18,6 @@
 out
 data
 tenderly/
-abis
 snapshots
 abis/
 
@@ -34,6 +33,7 @@ yarn-error.log*
 lcov.info
 .vscode
 package-lock.json
+abis
 
 # factories
 !src/types/factories

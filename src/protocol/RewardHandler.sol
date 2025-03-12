@@ -37,8 +37,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
     constructor(
-        address _core, 
-        address _registry, 
+        address _core,
+        address _registry,
         address _insurancepool, 
         address _debtEmissionsReceiver, 
         address _pairEmissions, 

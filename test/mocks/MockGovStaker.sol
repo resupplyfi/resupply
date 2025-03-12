@@ -8,8 +8,8 @@ contract MockGovStaker is GovStaker {
     address immutable previousStaker;
     
     constructor(
-        address _core, 
-        address _registry, 
+        address _core,
+        address _registry,
         address _stakeToken, 
         uint24 _cooldownEpochs, 
         address _previousStaker

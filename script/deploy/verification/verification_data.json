@@ -1,0 +1,357 @@
+{
+  "contracts": [
+    {
+      "name": "Core",
+      "address": "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+      "constructorArgs": {
+        "types": ["address", "uint256"],
+        "values": ["0xFE11a5009f2121622271e7dd0FD470264e076af6", 604800]
+      }
+    },
+    {
+      "name": "GovToken",
+      "address": "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+      "constructorArgs": {
+        "types": ["address", "address", "uint256", "address", "string", "string"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x6666666677B06CB55EbF802BB12f8876360f919c",
+          "60000000000000000000000000",
+          "0x6EDCE65403992e310A62460808c4b910D972f10f",
+          "Resupply",
+          "RSUP"
+        ]
+      }
+    },
+    {
+      "name": "VestManager",
+      "address": "0x6666666677B06CB55EbF802BB12f8876360f919c",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address[3]"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+          "0x000000000000000000000000000000000000dEaD",
+          [
+            "0xdA47862a83dac0c112BA89c6abC2159b95afd71C",
+            "0xe3668873D944E4A949DA05fc8bDE419eFF543882",
+            "0x34635280737b5BFe6c7DC2FC3065D60d66e78185"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Stablecoin",
+      "address": "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x6EDCE65403992e310A62460808c4b910D972f10f"]
+      }
+    },
+    {
+      "name": "ResupplyRegistry",
+      "address": "0x10101010E0C3171D894B71B3400668aF311e7D94",
+      "constructorArgs": {
+        "types": ["address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726"
+        ]
+      }
+    },
+    {
+      "name": "GovStaker",
+      "address": "0x22222222E9fE38F6f1FC8C61b25228adB4D8B953",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "uint24"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+          "2"
+        ]
+      }
+    },
+    {
+      "name": "AutoStakeCallback",
+      "address": "0x4888205F02df9832274d470C685baA728f128745",
+      "constructorArgs": {
+        "types": ["address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x22222222E9fE38F6f1FC8C61b25228adB4D8B953",
+          "0x6666666677B06CB55EbF802BB12f8876360f919c"
+        ]
+      }
+    },
+    {
+      "name": "Voter",
+      "address": "0x111111110d3e18e73CC2227A40B565043266DaC1",
+      "constructorArgs": {
+        "types": ["address", "address", "uint256", "uint256"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x22222222E9fE38F6f1FC8C61b25228adB4D8B953",
+          "100",
+          "3000"
+        ]
+      }
+    },
+    {
+      "name": "Treasury",
+      "address": "0x44444444DBdC03c7D8291c4f4a093cb200A918FA",
+      "constructorArgs": {
+        "types": ["address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d"]
+      }
+    },
+    {
+      "name": "ResupplyPairDeployer",
+      "address": "0x5555555524De7C56C1B20128dbEAace47d2C0417",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+          "0xFE11a5009f2121622271e7dd0FD470264e076af6"
+        ]
+      }
+    },
+    {
+      "name": "InterestRateCalculator",
+      "address": "0x77777777729C405efB6Ac823493e6111F0070D67",
+      "constructorArgs": {
+        "types": ["string", "uint256", "uint256"],
+        "values": ["Base", "634195839", "2"]
+      }
+    },
+    {
+      "name": "BasicVaultOracle",
+      "address": "0xcb7E25fbbd8aFE4ce73D7Dac647dbC3D847F3c82",
+      "constructorArgs": {
+        "types": ["string"],
+        "values": ["Basic Vault Oracle"]
+      }
+    },
+    {
+      "name": "UnderlyingOracle",
+      "address": "0x414CFAFa12FeE1260114BCd22058D5293da27c94",
+      "constructorArgs": {
+        "types": ["string"],
+        "values": ["Underlying Token Oracle"]
+      }
+    },
+    {
+      "name": "RedemptionHandler",
+      "address": "0x99999999BeaAE496551793313a7653553d1e0B3A",
+      "constructorArgs": {
+        "types": ["address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x414CFAFa12FeE1260114BCd22058D5293da27c94"
+        ]
+      }
+    },
+    {
+      "name": "EmissionsController",
+      "address": "0x33333333df05b0D52edD13D230461E5A0f5a4706",
+      "constructorArgs": {
+        "types": ["address", "address", "uint256[]", "uint256", "uint256", "uint256"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+          [20000000000000000, 40000000000000000, 60000000000000000, 80000000000000000, 100000000000000000],
+          "3",
+          "20000000000000000",
+          "0"
+        ]
+      }
+    },
+    {
+      "name": "SimpleReceiver",
+      "address": "0x2D4e8Bff0c23571016d7b329b9Fd76441f4a37c9",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x33333333df05b0D52edD13D230461E5A0f5a4706"]
+      }
+    },
+    {
+      "name": "SimpleReceiverFactory",
+      "address": "0x20d55f2bb72ebDe67A4325FB757348ea3d9014D8",
+      "constructorArgs": {
+        "types": ["address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x33333333df05b0D52edD13D230461E5A0f5a4706",
+          "0x2D4e8Bff0c23571016d7b329b9Fd76441f4a37c9"
+        ]
+      }
+    },
+    {
+      "name": "SimpleReceiver",
+      "address": "0x70a1879aEeA28072E321d52427f0aC88603dF61b",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x33333333df05b0D52edD13D230461E5A0f5a4706"]
+      }
+    },
+    {
+      "name": "SimpleReceiver",
+      "address": "0x8b36aD6A6605745529908C90cCC90F05901155b4",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x33333333df05b0D52edD13D230461E5A0f5a4706"]
+      }
+    },
+    {
+      "name": "InsurancePool",
+      "address": "0x00000000efe883b3304aFf71eaCf72Dbc3e1b577",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address[]", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
+          [
+            "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+            "0x0000000000000000000000000000000000000000",
+            "0x0000000000000000000000000000000000000000"
+          ],
+          "0x8b36aD6A6605745529908C90cCC90F05901155b4"
+        ]
+      }
+    },
+    {
+      "name": "LiquidationHandler",
+      "address": "0x88888888c227c36401493Ed9F3e3Dcc3800B2634",
+      "constructorArgs": {
+        "types": ["address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x00000000efe883b3304aFf71eaCf72Dbc3e1b577"
+        ]
+      }
+    },
+    {
+      "name": "SimpleRewardStreamer",
+      "address": "0xCd32c9bf38AbfEEc2F5691Dcb39cbc9aC55f0685",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
+          "0x00000000efe883b3304aFf71eaCf72Dbc3e1b577"
+        ]
+      }
+    },
+    {
+      "name": "SimpleRewardStreamer",
+      "address": "0xB96699a960A2b6300889b4FB789A58B506F144Ca",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+          "0x00000000efe883b3304aFf71eaCf72Dbc3e1b577"
+        ]
+      }
+    },
+    {
+      "name": "SimpleRewardStreamer",
+      "address": "0x11D5Bc6175E416ECCe06d7c94F232E6c7330fDd3",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+          "0x0000000000000000000000000000000000000000"
+        ]
+      }
+    },
+    {
+      "name": "FeeDeposit",
+      "address": "0x07Ad4630985ADe5B5307806C43E57e0A9A932C52",
+      "constructorArgs": {
+        "types": ["address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x57aB1E0003F623289CD798B1824Be09a793e4Bec"
+        ]
+      }
+    },
+    {
+      "name": "FeeDepositController",
+      "address": "0x4AA05D9eDb6d838E0f7fDA523B2Da29b1f337e1D",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "uint256", "uint256"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x07Ad4630985ADe5B5307806C43E57e0A9A932C52",
+          "2500",
+          "500"
+        ]
+      }
+    },
+    {
+      "name": "RewardHandler",
+      "address": "0xdBF41092e1E310a2B48B0895095EfF6d341D8F00",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address", "address", "address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x00000000efe883b3304aFf71eaCf72Dbc3e1b577",
+          "0x70a1879aEeA28072E321d52427f0aC88603dF61b",
+          "0x11D5Bc6175E416ECCe06d7c94F232E6c7330fDd3",
+          "0xB96699a960A2b6300889b4FB789A58B506F144Ca",
+          "0xCd32c9bf38AbfEEc2F5691Dcb39cbc9aC55f0685"
+        ]
+      }
+    },
+    {
+      "name": "Utilities",
+      "address": "0x38EaD0a5448FAcdCadFE72BEda766E8cd8371074",
+      "constructorArgs": {
+        "types": ["address"],
+        "values": ["0x10101010E0C3171D894B71B3400668aF311e7D94"]
+      }
+    },
+    {
+      "name": "PermaStaker",
+      "address": "0xCCCCCccc94bFeCDd365b4Ee6B86108fC91848901",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address", "string"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0xa3C5A1e09150B75ff251c1a7815A07182c3de2FB",
+          "0x6666666677B06CB55EbF802BB12f8876360f919c",
+          "Convex"
+        ]
+      }
+    },
+    {
+      "name": "PermaStaker",
+      "address": "0x12341234B35c8a48908c716266db79CAeA0100E8",
+      "constructorArgs": {
+        "types": ["address", "address", "address", "address", "string"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52",
+          "0x6666666677B06CB55EbF802BB12f8876360f919c",
+          "Yearn"
+        ]
+      }
+    }
+  ]
+}

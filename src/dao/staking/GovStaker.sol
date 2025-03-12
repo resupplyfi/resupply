@@ -64,7 +64,7 @@ contract GovStaker is MultiRewardsDistributor, EpochTracker, DelegatedOps {
 
     /**
         @param _core            Core contract address.
-        @param _registry        ResupplyRegistry contract address.
+        @param _registry        Registry contract address.
         @param _token           Token to be staked.
         @param _cooldownEpochs  Number of epochs to cooldown for.
     */

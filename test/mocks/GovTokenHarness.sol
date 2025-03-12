@@ -8,9 +8,10 @@ contract GovTokenHarness is GovToken {
         address _core,
         address _vesting,
         uint256 _initialSupply,
+        address _endpoint,
         string memory _name,
         string memory _symbol
-    ) GovToken(_core, _vesting, _initialSupply, _name, _symbol) {}
+    ) GovToken(_core, _vesting, _initialSupply, _endpoint, _name, _symbol) {}
 
     /**
         @notice TEST FUNCTION only to burn tokens
