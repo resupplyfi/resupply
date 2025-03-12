@@ -30,25 +30,25 @@ library DeploymentConfig {
     uint256 constant VOTER_MIN_CREATE_PROPOSAL_PCT = 100;
     uint256 constant VOTER_QUORUM_PCT = 3000;
 
-    // Emissions controller configuration
-    uint256 constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
-    uint256 constant EMISSIONS_CONTROLLER_EPOCHS_PER = 52;
-    uint256 constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
+    // Emissions controller configuration (rates are 1e18 precision)
     uint256 constant EMISSIONS_SCHEDULE_YEAR_1 = 184170000000000000;
     uint256 constant EMISSIONS_SCHEDULE_YEAR_2 = 131270000000000000;
     uint256 constant EMISSIONS_SCHEDULE_YEAR_3 = 93715000000000000;
     uint256 constant EMISSIONS_SCHEDULE_YEAR_4 = 65475000000000000;
     uint256 constant EMISSIONS_SCHEDULE_YEAR_5 = 41385000000000000;
+    uint256 constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
+    uint256 constant EMISSIONS_CONTROLLER_EPOCHS_PER = 52;
+    uint256 constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
 
     // Configs: Protocol
+    uint256 constant DEFAULT_BORROW_LIMIT = 0;
     uint256 constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision
     uint256 constant DEFAULT_LIQ_FEE = 5_000;  // 1e5 precision
     uint256 constant DEFAULT_MINT_FEE = 0;     // 1e5 precision
-    uint256 constant DEFAULT_BORROW_LIMIT = 0;
-    uint256 constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; // 1e18 portion of 
-    uint256 constant FEE_SPLIT_IP = 2500;      // 25%
-    uint256 constant FEE_SPLIT_TREASURY = 500; // 5%
-    uint256 constant FEE_SPLIT_STAKERS = 7000; // 70%
+    uint256 constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; // portion of fee for stakers (1e18 precision)
+    uint256 constant FEE_SPLIT_IP = 2500;      // 1e4 precision
+    uint256 constant FEE_SPLIT_TREASURY = 500; // 1e4 precision
+    uint256 constant FEE_SPLIT_STAKERS = 7000; // 1e4 precision
 
     // Tokens
     address constant SCRVUSD = Constants.Mainnet.CURVE_SCRVUSD;
