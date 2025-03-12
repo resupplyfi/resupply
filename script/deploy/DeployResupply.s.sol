@@ -1,5 +1,5 @@
 import "src/Constants.sol" as Constants;
-import { DeploymentConfig } from "./dependencies/DeploymentConfig.sol";
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 import { console } from "forge-std/console.sol";
 import { console2 } from "forge-std/console2.sol";
 import { DeployResupplyDao } from "./dependencies/DeployResupplyDao.s.sol";
