@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import "src/Constants.sol" as Constants;
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 
 // DAO Contracts
 import { Test } from "lib/forge-std/src/Test.sol";
@@ -561,11 +562,12 @@ contract Setup is Test {
 
     function getEmissionsSchedule() public view returns (uint256[] memory) {
         uint256[] memory schedule = new uint256[](5);
-        schedule[0] = 4 * 10 ** 16;     // 4%
-        schedule[1] = 6 * 10 ** 16;     // 6%
-        schedule[2] = 8 * 10 ** 16;     // 8%
-        schedule[3] = 10 * 10 ** 16;    // 10%
-        schedule[4] = 12 * 10 ** 16;    // 12%
+        // tail rate 2%
+        schedule[0] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_5;
+        schedule[1] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_4;
+        schedule[2] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_3;
+        schedule[3] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_2;
+        schedule[4] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_1;
         return schedule;
     }
 

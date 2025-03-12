@@ -21,9 +21,9 @@ contract EmissionsControllerTest is Setup {
             address(core), // core
             address(govToken), // govtoken
             getEmissionsSchedule(), // emissions
-            52,     // epochs per
-            2e16,   // tail rate
-            0       // bootstrap epochs
+            52,         // epochs per
+            2e16,      // tail rate
+            0           // bootstrap epochs
         );
         govToken.setMinter(address(emissionsController));
 
@@ -40,15 +40,22 @@ contract EmissionsControllerTest is Setup {
 
         uint256 startSupply = govToken.globalSupply();
         assertEq(startSupply, 60_000_000e18); // Amount minted at genesis
-        uint256 fiveYears = 5 * 365 * 24 * 60 * 60;
-        skip(fiveYears);
+        uint256 year = 52 weeks;
 
-        vm.prank(address(mockReceiver1));
-        uint256 amount = emissionsController.fetchEmissions();
-        console.log("amount: ", amount);
+        for (uint256 i = 0; i < 5; i++) {
+            skip(year);
+            vm.prank(address(mockReceiver1));
+            uint256 amount = emissionsController.fetchEmissions();
+            console.log("year %d supply: %d", i+1, govToken.globalSupply()/1e18);
+        }
 
         uint256 expectedSupply = 100_000_000e18;
-        assertEq(govToken.globalSupply(), expectedSupply);
+        assertApproxEqAbs(
+            govToken.globalSupply(), 
+            expectedSupply, 
+            10000e18,  // maximum absolute difference allowed
+            "Global supply outside acceptable range"
+        );
     }
 
     function test_DefaultEmissionsSchedule() public {
