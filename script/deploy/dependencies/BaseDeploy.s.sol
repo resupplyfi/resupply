@@ -24,21 +24,22 @@ import { Swapper } from "src/protocol/Swapper.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
+    address public dev = 0xFE11a5009f2121622271e7dd0FD470264e076af6; // Deployer
     // Configs: DAO
     uint256 public constant EPOCH_LENGTH = 1 weeks;
     uint24 public constant STAKER_COOLDOWN_EPOCHS = 2;
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
-    address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
-    address internal constant BURN_ADDRESS = address(0xdead);
+    address internal constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;
+    address internal constant PRISMA_TOKENS_BURN_ADDRESS = address(0xdead);
     address internal constant PERMA_STAKER_CONVEX_OWNER = 0xa3C5A1e09150B75ff251c1a7815A07182c3de2FB;
     address internal constant PERMA_STAKER_YEARN_OWNER = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
-    string internal constant PERMA_STAKER_CONVEX_NAME = "Convex";
-    string internal constant PERMA_STAKER_YEARN_NAME = "Yearn";
-    uint256 internal constant DEBT_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to debt receiver
-    uint256 internal constant INSURANCE_EMISSIONS_RECEIVER_WEIGHT = 2500; // pct of weekly emissions to insurance emissions receiver
-    uint256 internal constant REUSD_LP_INCENTENIVES_RECEIVER_WEIGHT = 5000; // pct of weekly emissions to reUSD lp incentives receiver
-    uint256 internal constant VOTER_MIN_CREATE_PROPOSAL_PCT = 100; // 1e4 precision
-    uint256 internal constant VOTER_QUORUM_PCT = 3000; // 1e4 precision
+    string internal constant PERMA_STAKER_CONVEX_NAME = "Resupply Permastaker: Convex";
+    string internal constant PERMA_STAKER_YEARN_NAME = "Resupply Permastaker: Yearn";
+    uint256 internal constant INITIAL_EMISSIONS_WEIGHT_DEBT = 2500;             // 1e4 precision
+    uint256 internal constant INITIAL_EMISSIONS_WEIGHT_INSURANCE_POOL = 2500;   // 1e4 precision
+    uint256 internal constant INITIAL_EMISSIONS_WEIGHT_LP = 5000;               // 1e4 precision
+    uint256 internal constant VOTER_MIN_CREATE_PROPOSAL_PCT = 100;              // 1e4 precision
+    uint256 internal constant VOTER_QUORUM_PCT = 3000;                          // 1e4 precision
     string internal constant GOV_TOKEN_NAME = "Resupply";
     string internal constant GOV_TOKEN_SYMBOL = "RSUP";
     uint256 internal constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
@@ -48,20 +49,15 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
 
     // Configs: Protocol
     uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision
-    uint256 internal constant DEFAULT_LIQ_FEE = 5_000; // 1e5 precision
-    uint256 internal constant DEFAULT_MINT_FEE = 0; // 1e5 precision
+    uint256 internal constant DEFAULT_LIQ_FEE = 5_000;  // 1e5 precision
+    uint256 internal constant DEFAULT_MINT_FEE = 0;     // 1e5 precision
     uint256 internal DEFAULT_BORROW_LIMIT = 0;
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; // 1e18 portion of 
-    uint256 internal constant FEE_SPLIT_IP = 2500; // 25%
+    uint256 internal constant FEE_SPLIT_IP = 2500;      // 25%
     uint256 internal constant FEE_SPLIT_TREASURY = 500; // 5%
     uint256 internal constant FEE_SPLIT_STAKERS = 7000; // 70%
     address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
     address public sfrxusd = Constants.Mainnet.SFRXUSD_ERC20;
-
-    // Base
-    uint88 public randomness; // CREATEX uses the last 88 bits used for randomness
-    // address public dev = address(0xc4ad);
-    address public dev = address(0xFE11a5009f2121622271e7dd0FD470264e076af6);
 
     // DAO Contracts
     address public core;
@@ -99,68 +95,6 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     IERC20 public crvusdToken = IERC20(address(Constants.Mainnet.CURVE_USD_ERC20));
     Swapper public defaultSwapper;
     UnderlyingOracle public underlyingOracle;
-
-    // TODO: Guardiant things
-    bytes32 salt; // Use same empty salt for all contracts
-
-
-    modifier doBroadcast(address _sender) {
-        vm.startBroadcast(_sender);
-        _;
-        vm.stopBroadcast();
-    }
-
-    enum DeployType {
-        CREATE1,
-        CREATE2,
-        CREATE3
-    }
-
-    function deployContract(
-        DeployType _deployType,
-        bytes32 _salt,
-        bytes memory _bytecode,
-        string memory _contractName
-    ) internal returns (address) {
-        address computedAddress;
-        bytes32 computedSalt;
-        console.log("Deploying contract:", _contractName, " .... ");
-        if (_deployType == DeployType.CREATE1) {
-            uint256 nonce = vm.getNonce(address(createXFactory));
-            computedAddress = createXFactory.computeCreateAddress(nonce);
-            if (address(computedAddress).code.length == 0) {
-                computedAddress = createXFactory.deployCreate(_bytecode);
-                console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
-            } else {
-                console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
-            }
-        } 
-        else if (_deployType == DeployType.CREATE2) {
-            computedSalt = keccak256(abi.encode(_salt));
-            computedAddress = createXFactory.computeCreate2Address(computedSalt, keccak256(_bytecode));
-            if (address(computedAddress).code.length == 0) {
-                computedAddress = createXFactory.deployCreate2(_salt, _bytecode);
-                console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
-            } else {
-                console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
-            }
-        } 
-        else if (_deployType == DeployType.CREATE3) {
-            randomness = uint88(uint256(keccak256(abi.encode(_contractName))));
-            // dev address in first 20 bytes, 1 zero byte, then 11 bytes of randomness
-            _salt = bytes32(uint256(uint160(dev)) << 96) | bytes32(uint256(0x00)) << 88| bytes32(uint256(randomness));
-            console.logBytes32(_salt);
-            computedSalt = keccak256(abi.encode(_salt));
-            computedAddress = createXFactory.computeCreate3Address(computedSalt);
-            if (address(computedAddress).code.length == 0) {
-                computedAddress = createXFactory.deployCreate3(_salt, _bytecode);
-                console.log(string(abi.encodePacked(_contractName, " deployed to:")), address(computedAddress));
-            } else {
-                console.log(string(abi.encodePacked(_contractName, " already deployed at:")), address(computedAddress));
-            }
-        } 
-        return computedAddress;
-    }
 
     function _executeCore(address _target, bytes memory _data) internal returns (bytes memory) {
         return addToBatch(

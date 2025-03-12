@@ -139,7 +139,8 @@ contract DeployResupplyProtocol is BaseDeploy {
         rewards[0] = address(govToken);
         rewards[1] = address(fraxToken);
         rewards[2] = address(crvusdToken);
-        bytes memory result;    
+        bytes memory result;
+        bytes32 salt;
 
         // ============================================
         // ====== Deploy SimpleReceiver =================

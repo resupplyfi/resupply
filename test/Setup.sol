@@ -58,7 +58,7 @@ contract Setup is Test {
     uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; //half
     uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
     address internal constant FRAX_VEST_TARGET = address(0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27);
-    address internal constant BURN_ADDRESS = address(0xdead);
+    address internal constant PRISMA_TOKENS_BURN_ADDRESS = address(0xdead);
 
     Core public core;
     GovStaker public staker;
@@ -307,7 +307,7 @@ contract Setup is Test {
         vestManager = new VestManager(
             address(core), 
             address(govToken),
-            BURN_ADDRESS,   // Burn address
+            PRISMA_TOKENS_BURN_ADDRESS,   // Burn address
             redemptionTokens  // Redemption tokens
         );
         assertEq(address(vestManager), vestManagerAddress);
