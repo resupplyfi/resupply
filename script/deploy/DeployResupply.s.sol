@@ -22,7 +22,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     address public fraxPool;
 
     function run() public virtual {
-        deployMode = DeployMode.MAINNET;
+        deployMode = DeployMode.TENDERLY;
         deployAll();
     }
 
@@ -57,7 +57,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             (uint256 txCount, uint256 batchGas) = getBatchInfo(i);
             console2.log("  -batch %d: %d", i+1, batchGas);
             totalGas += batchGas;
-            executeBatch(true);
+            executeBatch(deployMode != DeployMode.TENDERLY);
         }
         console2.log("-Total gas used:", totalGas);
     }
@@ -119,7 +119,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         console.log('pair deployed: curvelend_sfrax_crvusd', pair);
         writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair);
         pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SDOLA_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID);
-        console.log('pair deployed: curvelend_sfrax_crvusd', pair);
+        console.log('pair deployed: curvelend_sdola_crvusd', pair);
         writeAddressToJson("PAIR_CURVELEND_SDOLA_CRVUSD", pair);
         pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SUSDE_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID);
         console.log('pair deployed: curvelend_susde_crvusd', pair);
