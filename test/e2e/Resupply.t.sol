@@ -457,13 +457,14 @@ contract ResupplyAccountingTest is Setup {
         deal(address(stablecoin), address(insurancePool), 10_000e18 + amountToLiquidate, true);
 
         /// Values to derive state change from
+        IERC4626 collateral = IERC4626(address(pair.collateral()));
         uint stableTSBefore = stablecoin.totalSupply();
         uint stableBalanceInsuranceBefore = stablecoin.balanceOf(address(insurancePool));
-        uint insuracePoolBalanceUnderlyingBefore = pair.underlying().balanceOf(address(insurancePool));
+        uint insurancePoolBalanceUnderlyingBefore = pair.underlying().balanceOf(address(insurancePool));
         uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
-        uint collateralInPairBefore = pair.collateral().balanceOf(address(pair));
         (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
-        uint underlyingExpected = IERC4626(address(pair.collateral())).previewRedeem(userCollateralBalanceBefore);
+        uint userCollateralValueBefore = collateral.previewRedeem(userCollateralBalanceBefore);
+        uint debtToLiquidate = pair.toBorrowAmount(pair.userBorrowShares(toLiquidate), true, true);
         uint liquidationIncentive = liquidationHandler.liquidateIncentive();
         liquidationHandler.liquidate(
             address(pair),
@@ -471,7 +472,10 @@ contract ResupplyAccountingTest is Setup {
         );
 
         (uint totalBorrowAmountAfter, ) =  pair.totalBorrow();
-        
+        uint256 ipUnderlyingDiff = pair.underlying().balanceOf(address(insurancePool)) - insurancePoolBalanceUnderlyingBefore;
+        uint userCollateralValueAfter = collateral.previewRedeem(pair.userCollateralBalance(toLiquidate));
+        uint256 liquidationFeeAmount = (amountToLiquidate * pair.liquidationFee()) / 1e5;
+
         assertEq({
             left: stableTSBefore - stablecoin.totalSupply(),
             right: amountToLiquidate,
@@ -483,14 +487,14 @@ contract ResupplyAccountingTest is Setup {
             err: "// THEN: insurance pool stable not decremented by expected"
         });
         assertApproxEqAbs(
-            pair.underlying().balanceOf(address(insurancePool)) - insuracePoolBalanceUnderlyingBefore + liquidationIncentive,
-            underlyingExpected,
+            ipUnderlyingDiff,
+            debtToLiquidate + liquidationFeeAmount - liquidationIncentive,
             1,
             "// THEN: insurance pool underlying balance not within 1 wei"
         );
         assertEq({
-            left: pair.userCollateralBalance(toLiquidate),
-            right: 0,
+            left: userCollateralValueBefore - liquidationFeeAmount - debtToLiquidate,
+            right: userCollateralValueAfter,
             err: "// THEN: All collateral is not awarded"
         });
         assertEq({

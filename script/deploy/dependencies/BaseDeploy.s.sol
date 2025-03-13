@@ -22,43 +22,12 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { Utilities } from "src/protocol/Utilities.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
-    address public dev = 0xFE11a5009f2121622271e7dd0FD470264e076af6; // Deployer
-    // Configs: DAO
-    uint256 public constant EPOCH_LENGTH = 1 weeks;
-    uint24 public constant STAKER_COOLDOWN_EPOCHS = 2;
-    uint256 internal constant GOV_TOKEN_INITIAL_SUPPLY = 60_000_000e18;
-    address internal constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;
-    address internal constant PRISMA_TOKENS_BURN_ADDRESS = address(0xdead);
-    address internal constant PERMA_STAKER_CONVEX_OWNER = 0xa3C5A1e09150B75ff251c1a7815A07182c3de2FB;
-    address internal constant PERMA_STAKER_YEARN_OWNER = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
-    string internal constant PERMA_STAKER_CONVEX_NAME = "Resupply Permastaker: Convex";
-    string internal constant PERMA_STAKER_YEARN_NAME = "Resupply Permastaker: Yearn";
-    uint256 internal constant INITIAL_EMISSIONS_WEIGHT_DEBT = 2500;             // 1e4 precision
-    uint256 internal constant INITIAL_EMISSIONS_WEIGHT_INSURANCE_POOL = 2500;   // 1e4 precision
-    uint256 internal constant INITIAL_EMISSIONS_WEIGHT_LP = 5000;               // 1e4 precision
-    uint256 internal constant VOTER_MIN_CREATE_PROPOSAL_PCT = 100;              // 1e4 precision
-    uint256 internal constant VOTER_QUORUM_PCT = 3000;                          // 1e4 precision
-    string internal constant GOV_TOKEN_NAME = "Resupply";
-    string internal constant GOV_TOKEN_SYMBOL = "RSUP";
-    uint256 internal constant EMISSIONS_CONTROLLER_TAIL_RATE = 2e16;
-    uint256 internal constant EMISSIONS_CONTROLLER_EPOCHS_PER = 52;
-    uint256 internal constant EMISSIONS_CONTROLLER_EPOCHS_PER_YEAR = 2;
-    uint256 internal constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
-
-    // Configs: Protocol
-    uint256 internal constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision
-    uint256 internal constant DEFAULT_LIQ_FEE = 5_000;  // 1e5 precision
-    uint256 internal constant DEFAULT_MINT_FEE = 0;     // 1e5 precision
-    uint256 internal DEFAULT_BORROW_LIMIT = 0;
-    uint256 internal constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; // 1e18 portion of 
-    uint256 internal constant FEE_SPLIT_IP = 2500;      // 25%
-    uint256 internal constant FEE_SPLIT_TREASURY = 500; // 5%
-    uint256 internal constant FEE_SPLIT_STAKERS = 7000; // 70%
-    address public scrvusd = Constants.Mainnet.CURVE_SCRVUSD;
-    address public sfrxusd = Constants.Mainnet.SFRXUSD_ERC20;
-
+    address public deployer = DeploymentConfig.DEPLOYER;
+    uint256 public defaultBorrowLimit = DeploymentConfig.DEFAULT_BORROW_LIMIT;
+    
     // DAO Contracts
     address public core;
     address public escrow;

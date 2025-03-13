@@ -1,4 +1,5 @@
 import "src/Constants.sol" as Constants;
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 import { console } from "forge-std/console.sol";
 import { console2 } from "forge-std/console2.sol";
 import { DeployResupplyDao } from "./dependencies/DeployResupplyDao.s.sol";
@@ -22,16 +23,13 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     address public fraxPool;
 
     function run() public virtual {
-        deployMode = DeployMode.TENDERLY;
+        deployMode = DeployMode.FORK;
         deployAll();
     }
 
-    function deployAll() isBatch(dev) public {
-        if (deployMode == DeployMode.TENDERLY){
-            //set a default borrow limit on test net
-            DEFAULT_BORROW_LIMIT = 50_000_000 * 1e18;
-        }
-        setEthBalance(dev, 10e18);
+    function deployAll() isBatch(deployer) public {
+        if (deployMode == DeployMode.FORK) defaultBorrowLimit = 50_000_000 * 1e18; // default for testnets
+        setEthBalance(deployer, 10e18);
         deployDaoContracts();
         deployProtocolContracts();
         configurationStep1();
@@ -57,7 +55,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             (uint256 txCount, uint256 batchGas) = getBatchInfo(i);
             console2.log("  -batch %d: %d", i+1, batchGas);
             totalGas += batchGas;
-            executeBatch(deployMode != DeployMode.TENDERLY);
+            executeBatch(deployMode == DeployMode.PRODUCTION);
         }
         console2.log("-Total gas used:", totalGas);
     }
@@ -65,7 +63,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     // Deploy incentives reUSD/RSUP incentives receivers and register all receivers with the emissions controller
     function setupEmissionsReceivers() public {
         address[] memory approvedClaimers = new address[](1);
-        approvedClaimers[0] = address(dev);
+        approvedClaimers[0] = deployer;
         // Deploy the reUSD Incentives Receiver
         bytes memory result = _executeCore(
             address(receiverFactory), 
@@ -87,9 +85,9 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         receiverIds[1] = 1;
         receiverIds[2] = 2;
         uint256[] memory weights = new uint256[](3);
-        weights[0] = INITIAL_EMISSIONS_WEIGHT_DEBT;
-        weights[1] = INITIAL_EMISSIONS_WEIGHT_INSURANCE_POOL;
-        weights[2] = INITIAL_EMISSIONS_WEIGHT_LP;
+        weights[0] = DeploymentConfig.INITIAL_EMISSIONS_WEIGHT_DEBT;
+        weights[1] = DeploymentConfig.INITIAL_EMISSIONS_WEIGHT_INSURANCE_POOL;
+        weights[2] = DeploymentConfig.INITIAL_EMISSIONS_WEIGHT_LP;
         _executeCore(address(emissionsController), abi.encodeWithSelector(EmissionsController.setReceiverWeights.selector, receiverIds, weights));
         console.log("Receiver weights set");
     }
@@ -184,7 +182,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             core, 
             abi.encodeWithSelector(
                 ICore.setOperatorPermissions.selector, 
-                dev, 
+                deployer, 
                 address(core),
                 ICore.setVoter.selector,
                 true,
@@ -197,7 +195,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
             core, 
             abi.encodeWithSelector(
                 ICore.setOperatorPermissions.selector, 
-                dev, 
+                deployer, 
                 address(voter),
                 IVoter.updateProposalDescription.selector,
                 true,
@@ -210,7 +208,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     function deployCurvePools() public{
         address[] memory coins = new address[](2);
         coins[0] = address(stablecoin);
-        coins[1] = scrvusd;
+        coins[1] = DeploymentConfig.SCRVUSD;
         uint8[] memory assetTypes = new uint8[](2);
         assetTypes[1] = 3; //second coin is erc4626
         bytes4[] memory methods = new bytes4[](2);
@@ -236,7 +234,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         console.log("reUSD/scrvUSD Pool deployed at", crvusdPool);
         writeAddressToJson("REUSD_SCRVUSD_POOL", crvusdPool);
         //TODO, update to sfrxusd from sfrax
-        coins[1] = sfrxusd;
+        coins[1] = DeploymentConfig.SFRXUSD;
         result = addToBatch(
             address(Constants.Mainnet.CURVE_STABLE_FACTORY),
             abi.encodeWithSelector(ICurveExchange.deploy_plain_pool.selector,
@@ -281,7 +279,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
     function deploySwapper() public {
         //deploy swapper
-        bytes32 salt = buildGuardedSalt(dev, true, false, uint88(uint256(keccak256(bytes("Swapper")))));
+        bytes32 salt = buildGuardedSalt(deployer, true, false, uint88(uint256(keccak256(bytes("Swapper")))));
         bytes memory bytecode = abi.encodePacked(
             vm.getCode("Swapper.sol:Swapper"),
             abi.encode(
@@ -289,7 +287,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
                 address(registry)
             )
         );
-        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (addressHasCode(predictedAddress)) revert("Swapper already deployed");
         addToBatch(
             address(createXFactory),

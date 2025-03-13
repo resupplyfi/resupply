@@ -1,4 +1,5 @@
-import { CreateX } from "src/Constants.sol";
+import { CreateX } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -28,11 +29,11 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(core),
             address(registry),
             address(govToken),
-            dev
+            deployer
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("ResupplyPairDeployer.sol:ResupplyPairDeployer"), constructorArgs);
         bytes32 salt = CreateX.SALT_PAIR_DEPLOYER;
-        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -53,7 +54,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("InterestRateCalculator.sol:InterestRateCalculator"), constructorArgs);
         salt = CreateX.SALT_INTEREST_RATE_CALCULATOR;
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -72,12 +73,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("BasicVaultOracle.sol:BasicVaultOracle"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("BasicVaultOracle"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -96,12 +97,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("UnderlyingOracle.sol:UnderlyingOracle"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("UnderlyingOracle"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -122,7 +123,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(underlyingOracle)
         );
         bytecode = abi.encodePacked(vm.getCode("RedemptionHandler.sol:RedemptionHandler"), constructorArgs);
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -151,12 +152,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("SimpleReceiver.sol:SimpleReceiver"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("SimpleReceiver"))))
         );
-        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -176,12 +177,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleReceiverFactory.sol:SimpleReceiverFactory"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("SimpleReceiverFactory"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -228,7 +229,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(insuranceEmissionsReceiver)
         );
         bytecode = abi.encodePacked(vm.getCode("InsurancePool.sol:InsurancePool"), constructorArgs);
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -249,7 +250,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(insurancePool)
         );
         bytecode = abi.encodePacked(vm.getCode("LiquidationHandler.sol:LiquidationHandler"), constructorArgs);
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -271,12 +272,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("IPStableStream"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);   
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);   
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -298,12 +299,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("IPEmissionStream"))))
         );  
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -325,12 +326,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("SimpleRewardStreamer.sol:SimpleRewardStreamer"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChainProtection
             uint88(uint256(keccak256(bytes("PairEmissionStream"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -351,12 +352,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("FeeDeposit.sol:FeeDeposit"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChain Protection
             uint88(uint256(keccak256(bytes("FeeDeposit"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -374,17 +375,17 @@ contract DeployResupplyProtocol is BaseDeploy {
             address(core),
             address(registry),
             address(feeDeposit), 
-            FEE_SPLIT_IP,
-            FEE_SPLIT_TREASURY
+            DeploymentConfig.FEE_SPLIT_IP,
+            DeploymentConfig.FEE_SPLIT_TREASURY
         );
         bytecode = abi.encodePacked(vm.getCode("FeeDepositController.sol:FeeDepositController"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChain Protection
             uint88(uint256(keccak256(bytes("FeeDepositController"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),    
@@ -409,12 +410,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("RewardHandler.sol:RewardHandler"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChain Protection
             uint88(uint256(keccak256(bytes("RewardHandler"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -433,12 +434,12 @@ contract DeployResupplyProtocol is BaseDeploy {
         );
         bytecode = abi.encodePacked(vm.getCode("Utilities.sol:Utilities"), constructorArgs);
         salt = buildGuardedSalt(
-            dev, 
+            deployer, 
             true,   // enablePermissionedDeploy
             false,  // enableCrossChain Protection
             uint88(uint256(keccak256(bytes("Utilities"))))
         );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, dev, true, false);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(
                 address(createXFactory),
@@ -461,11 +462,11 @@ contract DeployResupplyProtocol is BaseDeploy {
                     _collateral,
                     address(oracle),
                     address(rateCalculator),
-                    DEFAULT_MAX_LTV,
-                    DEFAULT_BORROW_LIMIT,
-                    DEFAULT_LIQ_FEE,
-                    DEFAULT_MINT_FEE,
-                    DEFAULT_PROTOCOL_REDEMPTION_FEE
+                    DeploymentConfig.DEFAULT_MAX_LTV,
+                    defaultBorrowLimit,
+                    DeploymentConfig.DEFAULT_LIQ_FEE,
+                    DeploymentConfig.DEFAULT_MINT_FEE,
+                    DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
                 ),
                 _staking,
                 _stakingId

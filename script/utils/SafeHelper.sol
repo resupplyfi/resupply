@@ -69,7 +69,7 @@ abstract contract SafeHelper is Script, Test {
     // Address to send transaction from
     address private safe;
 
-    DeployMode public deployMode = DeployMode.MAINNET;
+    DeployMode public deployMode = DeployMode.PRODUCTION;
 
     // Gas tracking
     uint256 public totalGasUsed;
@@ -80,8 +80,8 @@ abstract contract SafeHelper is Script, Test {
     }
 
     enum DeployMode {
-        MAINNET,
-        TENDERLY
+        PRODUCTION,
+        FORK
     }
 
     struct Batch {
@@ -112,7 +112,7 @@ abstract contract SafeHelper is Script, Test {
     uint256 private currentBatchIndex;
     
     // Maximum gas per batch
-    uint256 public MAX_GAS_PER_BATCH = 6_500_000;
+    uint256 public maxGasPerBatch = 12_000_000;
 
     constructor() {
         // Initialize first batch
@@ -153,18 +153,18 @@ abstract contract SafeHelper is Script, Test {
         uint256 value_,
         bytes memory data_
     ) internal returns (bytes memory) {
-        if (deployMode == DeployMode.TENDERLY) vm.startBroadcast(safe);
-        if (deployMode != DeployMode.TENDERLY) vm.prank(safe);
+        if (deployMode == DeployMode.FORK) vm.startBroadcast(safe);
+        if (deployMode != DeployMode.FORK) vm.prank(safe);
 
         // Simulate transaction to get gas used
         uint256 gasStart = gasleft();
         (bool success, bytes memory returnData) = to_.call{value: value_}(data_);
         uint256 gasUsed = gasStart - gasleft();
-        if (deployMode == DeployMode.TENDERLY) vm.stopBroadcast();
+        if (deployMode == DeployMode.FORK) vm.stopBroadcast();
 
         uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
         // Check if adding this transaction would exceed our max gas limit. If so create a new batch.
-        if (gasInCurrentBatch + gasUsed > MAX_GAS_PER_BATCH) {
+        if (gasInCurrentBatch + gasUsed > maxGasPerBatch) {
             currentBatchIndex++;
             batches.push(BatchData({
                 encodedTxns: new bytes[](0),

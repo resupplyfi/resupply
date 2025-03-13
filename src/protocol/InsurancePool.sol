@@ -191,7 +191,8 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
     function maxBurnableAssets() public view returns(uint256){
         uint256 minimumHeld = minimumHeldAssets;
-        return totalAssets() > minimumHeld ? totalAssets() - minimumHeld : 0;
+        uint256 _totalAssets = totalAssets();
+        return _totalAssets > minimumHeld ? _totalAssets - minimumHeld : 0;
     }
 
     /// @notice burn underlying, liquidationHandler will send rewards in exchange

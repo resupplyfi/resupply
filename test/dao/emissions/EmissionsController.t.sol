@@ -1,11 +1,12 @@
 pragma solidity ^0.8.22;
 
-import { console } from "../../../lib/forge-std/src/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Setup } from "../../Setup.sol";
-import { EmissionsController } from "../../../src/dao/emissions/EmissionsController.sol";
-import { GovToken } from "../../../src/dao/GovToken.sol";
-import { MockReceiver } from "../../mocks/MockReceiver.sol";
+import { Setup } from "test/Setup.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+import { GovToken } from "src/dao/GovToken.sol";
+import { MockReceiver } from "test/mocks/MockReceiver.sol";
+import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 
 contract EmissionsControllerTest is Setup {
 
@@ -21,9 +22,9 @@ contract EmissionsControllerTest is Setup {
             address(core), // core
             address(govToken), // govtoken
             getEmissionsSchedule(), // emissions
-            1, // epochs per
-            0, // tail rate
-            0 // bootstrap epochs
+            DeploymentConfig.EMISSIONS_CONTROLLER_EPOCHS_PER,       // epochs per
+            DeploymentConfig.EMISSIONS_CONTROLLER_TAIL_RATE,        // tail rate
+            DeploymentConfig.EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS  // bootstrap epochs
         );
         govToken.setMinter(address(emissionsController));
 
@@ -32,6 +33,34 @@ contract EmissionsControllerTest is Setup {
         mockReceiver3 = new MockReceiver(address(core), address(emissionsController), "Mock Receiver 3");
 
         vm.stopPrank();
+    }
+
+    function test_EmissionsTotalSupplyAfterFiveYears() public { 
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+
+        uint256 startSupply = govToken.globalSupply();
+        assertEq(startSupply, 60_000_000e18); // Amount minted at genesis
+        uint256 year = 52 weeks;
+        uint256 amount;
+
+        skipToFirstEmissionsEpoch();
+        
+        for (uint256 i = 0; i < 5; i++) {
+            skip(year - 1);
+            vm.prank(address(mockReceiver1));
+            amount += emissionsController.fetchEmissions();
+            console.log("end of year %d supply: %d", i+1, govToken.globalSupply()/1e18);
+            // console.log("minted a total of: %d", amount);
+        }
+
+        uint256 EXPECTED_SUPPLY_AFTER_5_YEARS = 100_000_000e18;
+        assertApproxEqAbs(
+            govToken.globalSupply(), 
+            EXPECTED_SUPPLY_AFTER_5_YEARS, 
+            10000e18,  // maximum absolute difference allowed
+            "Global supply outside acceptable range"
+        );
     }
 
     function test_DefaultEmissionsSchedule() public {
@@ -63,6 +92,8 @@ contract EmissionsControllerTest is Setup {
         rates[1] = 101;
         uint256 epochsPer = 1;
         uint256 tailRate = 98;
+
+        skipToFirstEmissionsEpoch();
 
         // Make sure emissions cannot mint without receivers
         skip(epochLength*5);
@@ -277,14 +308,18 @@ contract EmissionsControllerTest is Setup {
         
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
         vm.stopPrank();
-        uint256 startEpoch = getEpoch();
+        
         uint256 epochsUntilTail = rates.length * epochsPer;
+
+        skipToFirstEmissionsEpoch();
+        uint256 startEpoch = getEpoch();
+
         for (uint256 i = 0; i < 100; i++) {
             skip(epochLength);
             vm.prank(address(mockReceiver1));
             emissionsController.fetchEmissions();
             // if schedule is exhausted, assert that tail rate is active
-            if (getEpoch() - (startEpoch + 1) >= epochsUntilTail) {
+            if (getEpoch() - startEpoch > epochsUntilTail) {
                 assertEq(emissionsController.emissionsRate(), tailRate);
             }
             else {
@@ -359,5 +394,14 @@ contract EmissionsControllerTest is Setup {
 
     function getEpoch() public view returns (uint256) {
         return emissionsController.getEpoch();
+    }
+
+    function skipToFirstEmissionsEpoch() internal {
+        uint256 timeSinceStart = block.timestamp - core.startTime();
+        uint256 epochLength = core.epochLength();
+        skip(
+            (epochLength - timeSinceStart) + 
+            (emissionsController.BOOTSTRAP_EPOCHS() * epochLength)
+        );
     }
 }
