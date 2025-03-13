@@ -377,37 +377,43 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
     }
 
     function convertToShares(uint256 _assets) public view returns (uint256 shares){
-        if (totalSupply() == 0) {
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
             shares = _assets;
         } else {
-            shares = _assets * totalSupply() / totalAssets();
+            shares = _assets * _totalSupply / totalAssets();
         }
     }
 
     function convertToAssets(uint256 _shares) public view returns (uint256 assets){
-        if(totalSupply() > 0){
-            assets = totalAssets() * _shares / totalSupply();
-        }else{
+        uint256 _totalSupply = totalSupply();
+        if(_totalSupply > 0){
+            assets = totalAssets() * _shares / _totalSupply;
+        } else{
             assets = _shares;
         }
     }
 
     function convertToSharesRoundUp(uint256 _assets) internal view returns (uint256 shares){
-        if (totalSupply() == 0) {
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
             shares = _assets;
         } else {
-            shares = _assets * totalSupply() / totalAssets();
-            if ( shares * totalAssets() / totalSupply() < _assets) {
-                shares = shares+1;
+            uint256 _totalAssets = totalAssets();
+            shares = _assets * _totalSupply / _totalAssets;
+            if ( shares * _totalAssets / _totalSupply < _assets) {
+                shares = shares + 1;
             }
         }
     }
 
     function convertToAssetsRoundUp(uint256 _shares) internal view returns (uint256 assets){
-        if(totalSupply() > 0){
-            assets = totalAssets() * _shares / totalSupply();
-            if ( assets * totalSupply() / totalAssets() < _shares) {
-                assets = assets+1;
+        uint256 _totalSupply = totalSupply();
+        if(_totalSupply > 0){
+            uint256 _totalAssets = totalAssets();
+            assets = _totalAssets * _shares / _totalSupply;
+            if ( assets * _totalSupply / _totalAssets < _shares) {
+                assets = assets + 1;
             }
         }else{
             assets = _shares;

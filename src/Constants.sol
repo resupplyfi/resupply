@@ -5,9 +5,6 @@ import { TestBase } from "forge-std/Test.sol";
 
 library Mainnet {
     uint256 internal constant CHAIN_ID = 1;
-    
-    address internal constant CORE = address(0);
-    address internal constant STABLE_TOKEN = address(0);
     address internal constant CONVEX_DEPLOYER = 0x947B7742C403f20e5FaCcDAc5E092C943E7D0277;
     address internal constant CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
     address internal constant CRV_ERC20 = 0xD533a949740bb3306d119CC777fa900bA034cd52;
@@ -53,27 +50,6 @@ library Sepolia {
     address internal constant LAYERZERO_ENDPOINTV2 = 0x6EDCE65403992e310A62460808c4b910D972f10f;
 }
 
-library CreateX {
-    address internal constant CREATEX_DEPLOYER = 0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed;
-    // Salts
-    bytes32 internal constant SALT_GOV_TOKEN = 0xfe11a5009f2121622271e7dd0fd470264e076af6007817270164e1790196c4f0; // 0x419905
-    bytes32 internal constant SALT_STABLECOIN = 0xfe11a5009f2121622271e7dd0fd470264e076af6007d4a011e1aea8d0220315d; // 0x57ab1e
-    bytes32 internal constant SALT_CORE = 0xfe11a5009f2121622271e7dd0fd470264e076af60075182fe1eff89e02ce3cff; // 0xc07e0000
-    bytes32 internal constant SALT_REGISTRY = 0xfe11a5009f2121622271e7dd0fd470264e076af60035199030be4b0602635825; // 0x1010101
-    bytes32 internal constant SALT_INSURANCE_POOL = 0xfe11a5009f2121622271e7dd0fd470264e076af600bd0b20142b743201bee438; // 0x000000
-    bytes32 internal constant SALT_VOTER = 0xfe11a5009f2121622271e7dd0fd470264e076af60067a2e41ad02c1700e3f506; // 0x11111
-    bytes32 internal constant SALT_GOV_STAKER = 0xfe11a5009f2121622271e7dd0fd470264e076af600ac101fb2686a8c0015ef91; // 0x22222
-    bytes32 internal constant SALT_EMISSIONS_CONTROLLER = 0xfe11a5009f2121622271e7dd0fd470264e076af60045a2b62cd5fec002054177; // 0x3333
-    bytes32 internal constant SALT_TREASURY = 0xfe11a5009f2121622271e7dd0fd470264e076af6006bbac7a598ad55036e9c9c; // 0x44444
-    bytes32 internal constant SALT_PAIR_DEPLOYER = 0xfe11a5009f2121622271e7dd0fd470264e076af6005ae1044d7cd9aa0200df43; // 0x55555
-    bytes32 internal constant SALT_VEST_MANAGER = 0xfe11a5009f2121622271e7dd0fd470264e076af6000cc7db37bf283f00158d19; // 0x66666
-    bytes32 internal constant SALT_INTEREST_RATE_CALCULATOR = 0xfe11a5009f2121622271e7dd0fd470264e076af6005763a7460bd2b7038a032e; // 0x77777
-    bytes32 internal constant SALT_LIQUIDATION_HANDLER = 0xfe11a5009f2121622271e7dd0fd470264e076af600574340f6003cec01964db0; // 0x88888
-    bytes32 internal constant SALT_REDEMPTION_HANDLER = 0xfe11a5009f2121622271e7dd0fd470264e076af6002dd74d21d97b27032aca93; // 0x99999
-    bytes32 internal constant SALT_PERMA_STAKER_CONVEX = 0xfe11a5009f2121622271e7dd0fd470264e076af600847421d8997e1100819f27; // 0xCCCCC
-    bytes32 internal constant SALT_PERMA_STAKER_YEARN = 0xfe11a5009f2121622271e7dd0fd470264e076af6005045c04e56a6ce00770772; // 0x12341234
-}
-
 abstract contract Helper is TestBase {
     constructor() {
         labelConstants();
@@ -100,7 +76,6 @@ abstract contract Helper is TestBase {
 
 library Fraxtal {
     uint256 internal constant CHAIN_ID = 252;
-
     address internal constant WFRXETH_ERC20 = 0xFC00000000000000000000000000000000000006;
     address internal constant SFRXETH_ERC20 = 0xFC00000000000000000000000000000000000005;
     address internal constant FPIS_ERC20 = 0xfc00000000000000000000000000000000000004;
@@ -109,7 +84,6 @@ library Fraxtal {
     address internal constant FRXUSD_ERC20 = 0xFc00000000000000000000000000000000000001;
     address internal constant SFRXUSD_ERC20 = 0xfc00000000000000000000000000000000000008;
     address internal constant FRXBTC_ERC20 = 0xfC00000000000000000000000000000000000007;
-
     // LayerZero
     address internal constant LAYERZERO_ENDPOINTV2 = 0x1a44076050125825900e736c501f859c50fE728c;
 }
