@@ -17,7 +17,7 @@
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x6666666677B06CB55EbF802BB12f8876360f919c",
           "60000000000000000000000000",
-          "0x6EDCE65403992e310A62460808c4b910D972f10f",
+          "0x1a44076050125825900e736c501f859c50fE728c",
           "Resupply",
           "RSUP"
         ]
@@ -45,7 +45,7 @@
       "address": "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
       "constructorArgs": {
         "types": ["address", "address"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x6EDCE65403992e310A62460808c4b910D972f10f"]
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x1a44076050125825900e736c501f859c50fE728c"]
       }
     },
     {
