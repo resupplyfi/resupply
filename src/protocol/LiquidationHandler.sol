@@ -32,7 +32,7 @@ contract LiquidationHandler is CoreOwnable{
         registry = _registry;
         insurancePool = _insurancePool;
         liquidateIncentive = 25e18;
-        emit SetLiquidationIncentive(25e18);
+        emit SetLiquidationIncentive(liquidateIncentive);
     }
 
     /// @notice Sets Liquidation incentive

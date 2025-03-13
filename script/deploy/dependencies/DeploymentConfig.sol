@@ -57,6 +57,9 @@ library DeploymentConfig {
 
     // SafeHelper
     uint256 constant MAX_GAS_PER_BATCH = 15_000_000;
+
+    // LayerZero
+    address internal constant LAYERZERO_ENDPOINTV2 = 0x1a44076050125825900e736c501f859c50fE728c;
 }
 
 library CreateX {

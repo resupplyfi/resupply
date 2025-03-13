@@ -44,10 +44,10 @@ contract EmissionsControllerTest is Setup {
         uint256 year = 52 weeks;
         uint256 amount;
 
-        skipToFirstEmissionsEpoch();
+        skip(emissionsController.BOOTSTRAP_EPOCHS() * epochLength);
         
         for (uint256 i = 0; i < 5; i++) {
-            skip(year - 1);
+            skip(year);
             vm.prank(address(mockReceiver1));
             amount += emissionsController.fetchEmissions();
             console.log("end of year %d supply: %d", i+1, govToken.globalSupply()/1e18);
@@ -55,12 +55,23 @@ contract EmissionsControllerTest is Setup {
         }
 
         uint256 EXPECTED_SUPPLY_AFTER_5_YEARS = 100_000_000e18;
+        uint256 MAX_ALLOWED_DIFFERENCE = 1e18;
         assertApproxEqAbs(
             govToken.globalSupply(), 
             EXPECTED_SUPPLY_AFTER_5_YEARS, 
-            10000e18,  // maximum absolute difference allowed
+            MAX_ALLOWED_DIFFERENCE,  // maximum absolute difference allowed
             "Global supply outside acceptable range"
         );
+    }
+
+    function test_EmissionsAvailableOnFirstEpoch() public { 
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+        skip(epochLength); // enter epoch 1
+        vm.prank(address(mockReceiver1));
+        uint256 amount = emissionsController.fetchEmissions();
+        console.log("amount minted: %d", amount);
+        assertGt(amount, 0);
     }
 
     function test_DefaultEmissionsSchedule() public {
@@ -396,6 +407,7 @@ contract EmissionsControllerTest is Setup {
         return emissionsController.getEpoch();
     }
 
+    /// @notice Skips to the first emissions epoch
     function skipToFirstEmissionsEpoch() internal {
         uint256 timeSinceStart = block.timestamp - core.startTime();
         uint256 epochLength = core.epochLength();
