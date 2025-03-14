@@ -217,8 +217,8 @@
           "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
           [
             "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
-            "0x0000000000000000000000000000000000000000",
-            "0x0000000000000000000000000000000000000000"
+            "0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29",
+            "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"
           ],
           "0x8b36aD6A6605745529908C90cCC90F05901155b4"
         ]
@@ -351,6 +351,22 @@
           "0x6666666677B06CB55EbF802BB12f8876360f919c",
           "Resupply PermaStaker: Yearn"
         ]
+      }
+    },
+    {
+      "name": "Swapper",
+      "address": "0x042f48346be16Be381190a7397A80808243f3b2e",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x10101010E0C3171D894B71B3400668aF311e7D94"]
+      }
+    },
+    {
+      "name": "ResupplyPair",
+      "address": "0xC5184cccf85b81EDdc661330acB3E41bd89F34A1",
+      "constructorArgs": {
+        "types": ["address", "bytes", "bytes", "bytes"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x", "0x", "0x"]
       }
     }
   ]
