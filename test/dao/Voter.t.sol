@@ -193,11 +193,9 @@ contract VoterTest is Setup {
         voter.cancelProposal(propId);
     }
 
-    function test_CannotCancelProposalWithCancelerPayloadAsNonFirstAction() public {
-        uint256 propId = createProposalDataWithCancelerAsNonFirstAction();
-        vm.prank(address(core));
-        vm.expectRevert("Contains canceler payload");
-        voter.cancelProposal(propId);
+    function test_CannotCreateMultiActionProposalWithCanceler() public {
+        vm.expectRevert("Payload length not 1");
+        createProposalDataWithCancelerAsNonFirstAction();
     }
 
     function test_CannotCancelProposalWithCancelerPayloadAndTargetIsZeroAddress() public {

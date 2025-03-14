@@ -152,6 +152,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param payload Tuple of [(target address, calldata), ... ] to be
                        executed if the proposal is passed.
         @param description Description text for the proposal
+        @dev A proposal containing a proposal canceler action is required to be an independent single-action proposal.
      */
     function createNewProposal(address account, Action[] calldata payload, string calldata description) external callerOrDelegated(account) returns (uint256) {
         require(payload.length > 0, "Empty payload");
@@ -160,6 +161,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
         require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
+        if (_containsProposalCancelerPayload(payload)) require(payload.length == 1, "Payload length not 1");
 
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
@@ -249,7 +251,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
-        require(!_containsProposalCancelerPayload(proposalPayload[id]), "Contains canceler payload");
+        if (proposalPayload[id].length == 1) require(!_containsProposalCancelerPayload(proposalPayload[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
