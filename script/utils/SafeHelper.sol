@@ -484,7 +484,6 @@ abstract contract SafeHelper is Script, Test {
         string memory endpoint = string.concat(
             _getSafeNonceAPIEndpoint(safe_)
         );
-        console2.log(endpoint);
         (uint256 status, bytes memory data) = endpoint.get();
         if (status == 200) {
             string memory resp = string(data);
