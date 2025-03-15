@@ -7,7 +7,7 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
-  MAINNET_URL: https://ethereum-rpc.publicnode.com
+  MAINNET_URL: ${{ secrets.MAINNET_URL }}
 
 jobs:
   check:
