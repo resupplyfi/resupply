@@ -53,7 +53,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         uint256 totalGas = 0;
         for (uint256 i = 0; i < totalBatches; i++) {
             (uint256 txCount, uint256 batchGas) = getBatchInfo(i);
-            console2.log("  -batch %d: %d", i+1, batchGas);
+            console2.log("  -batch %d , %d txns: %d gas", i+1, txCount, batchGas);
             totalGas += batchGas;
             executeBatch(deployMode == DeployMode.PRODUCTION);
         }

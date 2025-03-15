@@ -45,7 +45,8 @@ for ((i=0; i<$num_contracts; i++)); do
     forge verify-contract $address $name \
         --constructor-args "$constructor_args" \
         --etherscan-api-key $ETHERSCAN_API_KEY \
-        --verifier-url $SEPOLIA_ETHERSCAN_API \
+        --verifier-url "$ETHERSCAN_API" \
         --compiler-version $COMPILER_VERSION \
+        --chain-id 1 \
         --watch
 done
