@@ -155,7 +155,9 @@ contract Utilities is ResupplyPairConstants{
             totalBorrow = 1;
         }
         uint256 cbRatio = totalCollateral * 1e36 / uint256(totalBorrow);
-
+        if(cbRatio == 0){
+            cbRatio = 1e18; //if no collateal yet, just pad by 1e18
+        }
         uint256 rlength = rates.length;
         for(uint256 i = 0; i < rlength; i++){
             //leave an extra 1e18 of precision by not dividing by 1e18 and let UI do the rest
