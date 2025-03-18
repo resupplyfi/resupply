@@ -23,11 +23,14 @@ contract BaseAction is TenderlyHelper {
     }
 
     function _executeTreasury(address _target, bytes memory _data) internal returns (bytes memory) {
-        return addToBatch(
-            address(Protocol.TREASURY),
+        bytes memory result = _executeCore(
+            Protocol.TREASURY,
             abi.encodeWithSelector(
-                ITreasury.safeExecute.selector, address(_target), _data
+                ITreasury.safeExecute.selector, 
+                _target, 
+                _data
             )
         );
+        return abi.decode(result, (bytes));
     }
 }

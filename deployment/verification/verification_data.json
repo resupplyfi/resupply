@@ -318,7 +318,7 @@
     },
     {
       "name": "FeeDepositController",
-      "address": "0x4AA05D9eDb6d838E0f7fDA523B2Da29b1f337e1D",
+      "address": "0x7E3D2F480AbbA95863040D763DDe8F30D100C6F5",
       "constructorArgs": {
         "types": ["address", "address", "uint256", "uint256"],
         "values": [

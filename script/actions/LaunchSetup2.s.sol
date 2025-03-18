@@ -4,7 +4,7 @@ import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
-import { console } from "forge-std/console.sol";
+import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 
@@ -17,25 +17,12 @@ contract LaunchSetup2 is BaseAction {
     IFeeDepositController public constant feeDepositController = IFeeDepositController(Protocol.FEE_DEPOSIT_CONTROLLER);
 
     function run() public isBatch(deployer) {
-        skip(epochLength);
         deployMode = DeployMode.FORK;
         setBorrowLimits();
-        withdrawFees();
-        // initVestManager();
-        // uint256 amount = updateVestSettingsAndClaim();
+        initVestManager();
+        uint256 amount = updateVestSettingsAndClaim();
         // createLP(amount);
-    }
-
-    function withdrawFees() public {
-        feeDepositController.distribute();
-        address[] memory pairs = getPairs();
-        for (uint256 i = 0; i < pairs.length; i++) {
-            // Doesn't require Core permission
-            addToBatch(
-                pairs[i],
-                abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
-            );
-        }
+        // withdrawFees();
     }
         
     function setBorrowLimits() public {
@@ -61,14 +48,15 @@ contract LaunchSetup2 is BaseAction {
         uint256 amount0 = amount * price / 1e18;
         uint256 amount1 = amount;
         
-        console.log("amount0: %s", amount0);
-        console.log("amount1: %s", amount1);
+        console2.log("amount0: %s", amount0);
+        console2.log("amount1: %s", amount1);
         _executeCore(token0, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
         _executeCore(token1, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
     }
 
     function updateVestSettingsAndClaim() public returns (uint256) {
-        _executeCore(
+        // Update vest settings
+        _executeTreasury(
             address(vestManager),
             abi.encodeWithSelector(
                 IVestManager.setClaimSettings.selector, 
@@ -76,14 +64,16 @@ contract LaunchSetup2 is BaseAction {
                 address(0)  // default recipient
             )
         );
-        bytes memory result = _executeCore(
-            address(Protocol.TREASURY),
+        
+        // Claim vested tokens
+        bytes memory result = addToBatch(
+            address(vestManager),
             abi.encodeWithSelector(
                 IVestManager.claim.selector, 
-                Protocol.TREASURY
+                address(Protocol.TREASURY)
             )
         );
-        return uint256(bytes32(abi.decode(result, (bytes))));
+        return uint256(bytes32(result));//uint256(bytes32(abi.decode(result, (bytes))));
     }
 
     function initVestManager() public {
@@ -125,6 +115,19 @@ contract LaunchSetup2 is BaseAction {
                 ]
             )
         );
+    }
+
+    function withdrawFees() public {
+        skip(epochLength);
+        feeDepositController.distribute();
+        address[] memory pairs = getPairs();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            // Doesn't require Core permission
+            addToBatch(
+                pairs[i],
+                abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
+            );
+        }
     }
 
     function getPairs() public view returns (address[] memory) {
