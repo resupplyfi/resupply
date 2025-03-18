@@ -8,6 +8,7 @@ import { DeploymentConfig, CreateX } from "script/deploy/dependencies/Deployment
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
+import { console } from "forge-std/console.sol";
 
 contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -17,7 +18,7 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
     address public newFeeDepositController;
 
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
         maxGasPerBatch = 15_000_000;
         uint256 customNonce = 13;
 
@@ -31,7 +32,12 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
         setOperatorPermissions();
         returnTokens();
 
-        executeBatch(true, customNonce);
+        console.log("newVoter: %s", newVoter);
+        console.log("newUtils: %s", newUtils);
+        console.log("newTreasury: %s", newTreasury);
+        console.log("newFeeDepositController: %s", newFeeDepositController);
+
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, customNonce);
     }
 
     function updateRegistry() internal {
@@ -123,7 +129,9 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
-        return computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        address deployedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(deployedAddress.code.length > 0, "deployment failed");
+        return deployedAddress;
     }
 
     function deployUtilities() public returns (address) {
@@ -141,7 +149,9 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
-        return computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        address deployedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(deployedAddress.code.length > 0, "deployment failed");
+        return deployedAddress;
     }
 
     function deployTreasury() public returns (address) {
@@ -152,7 +162,9 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
-        return computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        address deployedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(deployedAddress.code.length > 0, "deployment failed");
+        return deployedAddress;
     }
 
     function deployFeeDepositController() public returns (address) {
@@ -174,7 +186,9 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
-        return computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        address deployedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(deployedAddress.code.length > 0, "deployment failed");
+        return deployedAddress;
     }
 
     function returnTokens() public {
