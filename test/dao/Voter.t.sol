@@ -31,7 +31,6 @@ contract VoterTest is Setup {
         vm.prank(user1);
         staker.stake(user1, 100e18);
         skip(staker.epochLength() * 2); // We skip 2, so that the stake can be registered (first epoch) and finalized (second epoch).
-        
     }
 
     function test_createProposal() public {

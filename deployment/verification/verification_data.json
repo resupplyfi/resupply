@@ -12,7 +12,14 @@
       "name": "GovToken",
       "address": "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
       "constructorArgs": {
-        "types": ["address", "address", "uint256", "address", "string", "string"],
+        "types": [
+          "address",
+          "address",
+          "uint256",
+          "address",
+          "string",
+          "string"
+        ],
         "values": [
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x6666666677B06CB55EbF802BB12f8876360f919c",
@@ -45,7 +52,10 @@
       "address": "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
       "constructorArgs": {
         "types": ["address", "address"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x1a44076050125825900e736c501f859c50fE728c"]
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x1a44076050125825900e736c501f859c50fE728c"
+        ]
       }
     },
     {
@@ -159,11 +169,21 @@
       "name": "EmissionsController",
       "address": "0x33333333df05b0D52edD13D230461E5A0f5a4706",
       "constructorArgs": {
-        "types": ["address", "address", "uint256[]", "uint256", "uint256", "uint256"],
+        "types": [
+          "address",
+          "address",
+          "uint256[]",
+          "uint256",
+          "uint256",
+          "uint256"
+        ],
         "values": [
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
-          [40950214498301975, 64756001614012807, 93429770042296321, 130573632743654969, 183143319640535100],
+          [
+            40950214498301975, 64756001614012807, 93429770042296321,
+            130573632743654969, 183143319640535100
+          ],
           "52",
           "19860811573103551",
           "0"
@@ -175,7 +195,10 @@
       "address": "0x2D4e8Bff0c23571016d7b329b9Fd76441f4a37c9",
       "constructorArgs": {
         "types": ["address", "address"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x33333333df05b0D52edD13D230461E5A0f5a4706"]
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x33333333df05b0D52edD13D230461E5A0f5a4706"
+        ]
       }
     },
     {
@@ -195,7 +218,10 @@
       "address": "0x70a1879aEeA28072E321d52427f0aC88603dF61b",
       "constructorArgs": {
         "types": ["address", "address"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x33333333df05b0D52edD13D230461E5A0f5a4706"]
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x33333333df05b0D52edD13D230461E5A0f5a4706"
+        ]
       }
     },
     {
@@ -203,7 +229,10 @@
       "address": "0x8b36aD6A6605745529908C90cCC90F05901155b4",
       "constructorArgs": {
         "types": ["address", "address"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x33333333df05b0D52edD13D230461E5A0f5a4706"]
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x33333333df05b0D52edD13D230461E5A0f5a4706"
+        ]
       }
     },
     {
@@ -291,11 +320,10 @@
       "name": "FeeDepositController",
       "address": "0x4AA05D9eDb6d838E0f7fDA523B2Da29b1f337e1D",
       "constructorArgs": {
-        "types": ["address", "address", "address", "uint256", "uint256"],
+        "types": ["address", "address", "uint256", "uint256"],
         "values": [
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x10101010E0C3171D894B71B3400668aF311e7D94",
-          "0x07Ad4630985ADe5B5307806C43E57e0A9A932C52",
           "2500",
           "500"
         ]
@@ -305,7 +333,15 @@
       "name": "RewardHandler",
       "address": "0xdBF41092e1E310a2B48B0895095EfF6d341D8F00",
       "constructorArgs": {
-        "types": ["address", "address", "address", "address", "address", "address", "address"],
+        "types": [
+          "address",
+          "address",
+          "address",
+          "address",
+          "address",
+          "address",
+          "address"
+        ],
         "values": [
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x10101010E0C3171D894B71B3400668aF311e7D94",
@@ -358,7 +394,10 @@
       "address": "0x042f48346be16Be381190a7397A80808243f3b2e",
       "constructorArgs": {
         "types": ["address", "address"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x10101010E0C3171D894B71B3400668aF311e7D94"]
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94"
+        ]
       }
     },
     {
@@ -366,7 +405,12 @@
       "address": "0xC5184cccf85b81EDdc661330acB3E41bd89F34A1",
       "constructorArgs": {
         "types": ["address", "bytes", "bytes", "bytes"],
-        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d", "0x", "0x", "0x"]
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x",
+          "0x",
+          "0x"
+        ]
       }
     }
   ]

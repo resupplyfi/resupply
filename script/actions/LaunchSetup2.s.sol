@@ -2,9 +2,11 @@ import { IVestManager } from "src/interfaces/IVestManager.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
 import { console } from "forge-std/console.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 
 contract LaunchSetup2 is BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -12,31 +14,32 @@ contract LaunchSetup2 is BaseAction {
     IVestManager public constant vestManager = IVestManager(Protocol.VEST_MANAGER);
     ICurveExchange public constant pool = ICurveExchange(Protocol.WETH_RSUP_POOL);
     uint256 public constant DEFAULT_BORROW_LIMIT = 25_000_000e18;
-    
+    IFeeDepositController public constant feeDepositController = IFeeDepositController(Protocol.FEE_DEPOSIT_CONTROLLER);
+
     function run() public isBatch(deployer) {
+        skip(epochLength);
         deployMode = DeployMode.FORK;
-        initVestManager();
-        uint256 amount = claimVest();
-        createLP(amount);
         setBorrowLimits();
+        withdrawFees();
+        // initVestManager();
+        // uint256 amount = updateVestSettingsAndClaim();
+        // createLP(amount);
+    }
+
+    function withdrawFees() public {
+        feeDepositController.distribute();
+        address[] memory pairs = getPairs();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            // Doesn't require Core permission
+            addToBatch(
+                pairs[i],
+                abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
+            );
+        }
     }
         
     function setBorrowLimits() public {
-        address[12] memory pairs = [
-            address(Protocol.PAIR_CURVELEND_SFRXUSD_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_SDOLA_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_SUSDE_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_USDE_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_TBTC_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_WBTC_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_WETH_CRVUSD),
-            address(Protocol.PAIR_CURVELEND_WSTETH_CRVUSD),
-            address(Protocol.PAIR_FRAXLEND_SFRXETH_FRXUSD),
-            address(Protocol.PAIR_FRAXLEND_SUSDE_FRXUSD),
-            address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD),
-            address(Protocol.PAIR_FRAXLEND_SCRVUSD_FRXUSD)
-        ];
-
+        address[] memory pairs = getPairs();
         for (uint256 i = 0; i < pairs.length; i++) {
             uint256 limit = DEFAULT_BORROW_LIMIT;
             if (pairs[i] == address(Protocol.PAIR_CURVELEND_SFRXUSD_CRVUSD)) limit = 50_000_000e18;
@@ -55,7 +58,7 @@ contract LaunchSetup2 is BaseAction {
         address token0 = pool.coins(0);
         address token1 = pool.coins(1);
         uint256 price = pool.price_scale();
-        uint256 amount0 = amount / price / 1e18;
+        uint256 amount0 = amount * price / 1e18;
         uint256 amount1 = amount;
         
         console.log("amount0: %s", amount0);
@@ -64,7 +67,15 @@ contract LaunchSetup2 is BaseAction {
         _executeCore(token1, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
     }
 
-    function claimVest() public returns (uint256) {
+    function updateVestSettingsAndClaim() public returns (uint256) {
+        _executeCore(
+            address(vestManager),
+            abi.encodeWithSelector(
+                IVestManager.setClaimSettings.selector, 
+                true,       // enable permissionless claims
+                address(0)  // default recipient
+            )
+        );
         bytes memory result = _executeCore(
             address(Protocol.TREASURY),
             abi.encodeWithSelector(
@@ -114,5 +125,9 @@ contract LaunchSetup2 is BaseAction {
                 ]
             )
         );
+    }
+
+    function getPairs() public view returns (address[] memory) {
+        return IResupplyRegistry(Protocol.REGISTRY).getAllPairAddresses();
     }
 }
