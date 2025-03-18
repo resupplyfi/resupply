@@ -1,51 +1,53 @@
 import { VestManager } from "src/dao/tge/VestManager.sol";
-import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { BaseAction } from "script/actions/BaseAction.s.sol";
+import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
 
-contract InitVestManager is TenderlyHelper {
-    address public constant PERMA_STAKER_CONVEX = 0xCCCCCccc94bFeCDd365b4Ee6B86108fC91848901;
-    address public constant PERMA_STAKER_YEARN = 0x12341234B35c8a48908c716266db79CAeA0100E8;
-    address public constant TREASURY = 0x44444444DBdC03c7D8291c4f4a093cb200A918FA;
-    VestManager public vestManager = VestManager(0x6666666677B06CB55EbF802BB12f8876360f919c);
-    address public core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
+contract InitVestManager is BaseAction {
+    address public constant PERMA_STAKER_CONVEX = Protocol.PERMA_STAKER_CONVEX;
+    address public constant PERMA_STAKER_YEARN = Protocol.PERMA_STAKER_YEARN;
+    address public constant TREASURY = Protocol.TREASURY;
+    VestManager public vestManager = VestManager(Protocol.VEST_MANAGER);
+    address public deployer = Protocol.DEPLOYER;
     
-    function run() public {
-        setEthBalance(core, 1e18);
-        vm.startBroadcast(core);
-        vestManager.setInitializationParams(
-            150_000_000e18,             // _maxRedeemable
-            [
-                bytes32(0x64feeba695e9074a9ffba7755be2733319de2ed77aa6b6bee2a18a0a17ff2a7f),
-                bytes32(0x64feeba695e9074a9ffba7755be2733319de2ed77aa6b6bee2a18a0a17ff2a7f),
-                bytes32(0) // We set this one later
-            ],
-            [   // _nonUserTargets
-                PERMA_STAKER_CONVEX,
-                PERMA_STAKER_YEARN,
-                DeploymentConfig.FRAX_VEST_TARGET,
-                TREASURY
-            ],
-            [   // _durations
-                uint256(365 days * 5),  // PERMA_STAKER: Convex
-                uint256(365 days * 5),  // PERMA_STAKER: Yearn
-                uint256(365 days * 1),  // LICENSING: FRAX
-                uint256(365 days * 5),  // TREASURY
-                uint256(365 days * 3),  // REDEMPTIONS
-                uint256(365 days * 1),  // AIRDROP_TEAM
-                uint256(365 days * 2),  // AIRDROP_VICTIMS
-                uint256(365 days * 5)   // AIRDROP_LOCK_PENALTY
-            ],
-            [ // _allocPercentages
-                uint256(333333333333333333),  // 33.33% PERMA_STAKER: Convex
-                uint256(166666666666666666),  // 16.67% PERMA_STAKER: Yearn
-                uint256(8333333333333334),    // 0.833% LICENSING: FRAX
-                uint256(175000000000000000),  // 17.50% TREASURY
-                uint256(250000000000000000),  // 25.00% REDEMPTIONS
-                uint256(33333333333333333),   // 3.33% AIRDROP_TEAM
-                uint256(33333333333333334),   // 3.33% AIRDROP_VICTIMS
-                uint256(0)                    // 0%   AIRDROP_LOCK_PENALTY
-            ]
+    function run() public isBatch(deployer) {
+        deployMode = DeployMode.FORK;
+        _executeCore(
+            address(vestManager),
+            abi.encodeWithSelector(
+                VestManager.setInitializationParams.selector,
+                VMConstants.MAX_REDEEMABLE, // _maxRedeemable
+                [
+                    VMConstants.TEAM_MERKLE_ROOT, // Team
+                    VMConstants.VICTIMS_MERKLE_ROOT, // Victims
+                    bytes32(0) // Lock Penalty: We set this one later
+                ],
+                [   // _nonUserTargets
+                    Protocol.PERMA_STAKER_CONVEX,
+                    Protocol.PERMA_STAKER_YEARN,
+                    VMConstants.FRAX_VEST_TARGET,
+                    Protocol.TREASURY
+                ],
+                [   // _durations
+                    VMConstants.DURATION_PERMA_STAKER,         // PERMA_STAKER: Convex
+                    VMConstants.DURATION_PERMA_STAKER,         // PERMA_STAKER: Yearn
+                    VMConstants.DURATION_LICENSING,            // LICENSING: FRAX
+                    VMConstants.DURATION_TREASURY,             // TREASURY
+                    VMConstants.DURATION_REDEMPTIONS,          // REDEMPTIONS
+                    VMConstants.DURATION_AIRDROP_TEAM,         // AIRDROP_TEAM
+                    VMConstants.DURATION_AIRDROP_VICTIMS,      // AIRDROP_VICTIMS
+                    VMConstants.DURATION_AIRDROP_LOCK_PENALTY  // AIRDROP_LOCK_PENALTY
+                ],
+                [ // _allocPercentages
+                    VMConstants.ALLOC_PERMA_STAKER_1,       // 33.33% PERMA_STAKER: Convex
+                    VMConstants.ALLOC_PERMA_STAKER_2,       // 16.67% PERMA_STAKER: Yearn
+                    VMConstants.ALLOC_LICENSING,            // 0.833% LICENSING: FRAX
+                    VMConstants.ALLOC_TREASURY,             // 17.50% TREASURY
+                    VMConstants.ALLOC_REDEMPTIONS,          // 25.00% REDEMPTIONS
+                    VMConstants.ALLOC_AIRDROP_TEAM,         // 3.33% AIRDROP_TEAM
+                    VMConstants.ALLOC_AIRDROP_VICTIMS,      // 3.33% AIRDROP_VICTIMS
+                    VMConstants.ALLOC_AIRDROP_LOCK_PENALTY  // 0%   AIRDROP_LOCK_PENALTY
+                ]
+            )
         );
-        vm.stopBroadcast();
     }
 }
