@@ -114,8 +114,8 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
         //curve pairs
         address pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID);
-        console.log('pair deployed: curvelend_sfrax_crvusd', pair);
-        writeAddressToJson("PAIR_CURVELEND_SFRAX_CRVUSD", pair);
+        console.log('pair deployed: curvelend_sfrxusd_crvusd', pair);
+        writeAddressToJson("PAIR_CURVELEND_SFRXUSD_CRVUSD", pair);
         pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_SDOLA_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID);
         console.log('pair deployed: curvelend_sdola_crvusd', pair);
         writeAddressToJson("PAIR_CURVELEND_SDOLA_CRVUSD", pair);
@@ -141,18 +141,18 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
 
         //fraxlend pairs
         pair = deployLendingPair(1, Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD, address(0), 0);
-        console.log('pair deployed: fraxlend_sfrxeth_frax', pair);
-        writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRAX", pair);
+        console.log('pair deployed: fraxlend_sfrxeth_frxusd', pair);
+        writeAddressToJson("PAIR_FRAXLEND_SFRXETH_FRXUSD", pair);
         
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SUSDE_FRXUSD), address(0), uint256(0));
-        console.log('pair deployed: fraxlend_susde_frax', pair);
-        writeAddressToJson("PAIR_FRAXLEND_SUSDE_FRAX", pair);
+        console.log('pair deployed: fraxlend_susde_frxusd', pair);
+        writeAddressToJson("PAIR_FRAXLEND_SUSDE_FRXUSD", pair);
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
-        console.log('pair deployed: fraxlend_wbtc_frax', pair);
-        writeAddressToJson("PAIR_FRAXLEND_WBTC_FRAX", pair);
+        console.log('pair deployed: fraxlend_wbtc_frxusd', pair);
+        writeAddressToJson("PAIR_FRAXLEND_WBTC_FRXUSD", pair);
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), address(0), uint256(0));
-        console.log('pair deployed: fraxlend_scrvusd_frax', pair);
-        writeAddressToJson("PAIR_FRAXLEND_SCRVUSD_FRAX", pair);
+        console.log('pair deployed: fraxlend_scrvusd_frxusd', pair);
+        writeAddressToJson("PAIR_FRAXLEND_SCRVUSD_FRXUSD", pair);
     }
 
     function configurationStep1() public {

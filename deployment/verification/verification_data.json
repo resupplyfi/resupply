@@ -87,7 +87,7 @@
     },
     {
       "name": "Voter",
-      "address": "0x111111110d3e18e73CC2227A40B565043266DaC1",
+      "address": "0x11111111084a560ea5755Ed904a57e5411888C28",
       "constructorArgs": {
         "types": ["address", "address", "uint256", "uint256"],
         "values": [
@@ -100,7 +100,7 @@
     },
     {
       "name": "Treasury",
-      "address": "0x44444444DBdC03c7D8291c4f4a093cb200A918FA",
+      "address": "0x4444444455bF42de586A88426E5412971eA48324",
       "constructorArgs": {
         "types": ["address"],
         "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d"]
@@ -319,7 +319,7 @@
     },
     {
       "name": "Utilities",
-      "address": "0x38EaD0a5448FAcdCadFE72BEda766E8cd8371074",
+      "address": "0x384e77E48818835cAAf8Ad5cF74AB04cED9af4A5",
       "constructorArgs": {
         "types": ["address"],
         "values": ["0x10101010E0C3171D894B71B3400668aF311e7D94"]
