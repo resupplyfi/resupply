@@ -5,6 +5,13 @@ import { ITreasury } from "src/interfaces/ITreasury.sol";
 
 contract BaseAction is TenderlyHelper {
     address public core = Protocol.CORE;
+    uint256 public epochLength;
+    uint256 public startTime;
+
+    constructor() {
+        epochLength = ICore(core).epochLength();
+        startTime = ICore(core).startTime();
+    }
 
     function _executeCore(address _target, bytes memory _data) internal returns (bytes memory) {
         return addToBatch(
