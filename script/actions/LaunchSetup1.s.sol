@@ -26,9 +26,8 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
         newVoter = deployVoter();
         newUtils = deployUtilities();
         newTreasury = deployTreasury();
-        updateRegistry();
         newFeeDepositController = deployFeeDepositController();
-        updateRegistryPt2();
+        updateRegistry();
         setOperatorPermissions();
         returnTokens();
 
@@ -69,9 +68,7 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
                 newTreasury
             )
         );
-    }
 
-    function updateRegistryPt2() internal {
         // Set FeeDepositController address in registry
         _executeCore(
             address(Protocol.REGISTRY),
@@ -171,7 +168,6 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
         bytes memory constructorArgs = abi.encode(
             Protocol.CORE,
             Protocol.REGISTRY,
-            Protocol.FEE_DEPOSIT, 
             DeploymentConfig.FEE_SPLIT_IP,
             DeploymentConfig.FEE_SPLIT_TREASURY
         );

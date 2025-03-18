@@ -237,8 +237,7 @@ contract Setup is Test {
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(
             address(core), 
-            address(registry), 
-            address(feeDeposit), 
+            address(registry),
             1500, 
             500
         );
