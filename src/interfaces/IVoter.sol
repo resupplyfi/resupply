@@ -46,17 +46,13 @@ interface IVoter {
     function MIN_TIME_BETWEEN_PROPOSALS() external view returns (uint256);
     function MAX_PCT() external view returns (uint256);
     function MAX_DESCRIPTION_BYTES() external view returns (uint256);
-    
     function staker() external view returns (address);
     function minCreateProposalPct() external view returns (uint256);
     function quorumPct() external view returns (uint256);
-    
     function accountVoteWeights(address account, uint256 id) external view returns (Vote memory);
     function latestProposalTimestamp(address account) external view returns (uint256);
-    
     function getProposalCount() external view returns (uint256);
     function minCreateProposalWeight() external view returns (uint256);
-    
     function getProposalData(uint256 id) external view returns (
         string memory description,
         uint256 epoch,
@@ -68,10 +64,16 @@ interface IVoter {
         bool executable,
         Action[] memory payload
     );
+    function proposalData(uint256 _id) external view returns (
+        uint16 epoch,
+        uint32 createdAt,
+        uint40 quorumWeight,
+        bool processed,
+        Vote memory results
+    );
     function proposalPayload(uint256 id) external view returns (Action[] memory);
     function proposalDescription(uint256 id) external view returns (string memory);
-    
-    function createNewProposal(address account, Action[] calldata payload) external returns (uint256);
+    function createNewProposal(address account, Action[] calldata payload, string calldata description) external returns (uint256);
     function voteForProposal(address account, uint256 id) external;
     function voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) external;
     function cancelProposal(uint256 id) external;
