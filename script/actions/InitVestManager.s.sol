@@ -1,5 +1,5 @@
 import { VestManager } from "src/dao/tge/VestManager.sol";
-import { BaseAction } from "script/actions/BaseAction.s.sol";
+import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
 
 contract InitVestManager is BaseAction {

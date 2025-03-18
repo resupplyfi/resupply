@@ -193,9 +193,15 @@ abstract contract SafeHelper is Script, Test {
     }
 
     // Executes all batches, sending each to the Safe API
-    function executeBatch(bool send_) internal {
+    function executeBatch(bool send_) public {
+        executeBatch(send_, 0);
+    }
+
+    // Executes all batches, sending each to the Safe API
+    function executeBatch(bool send_, uint256 nonce_) public {
+        if (nonce_ == 0) nonce_ = _getNonce(safe);
         for (uint256 i = 0; i <= currentBatchIndex; i++) {
-            Batch memory batch = _createBatchFromIndex(i);
+            Batch memory batch = _createBatchFromIndex(i, nonce_++);
             if (send_) {
                 batch = _signBatch(safe, batch);
                 _sendBatch(safe, batch);
@@ -204,7 +210,7 @@ abstract contract SafeHelper is Script, Test {
     }
 
     // Creates a batch from the transactions at the specified index
-    function _createBatchFromIndex(uint256 batchIndex) private returns (Batch memory batch) {
+    function _createBatchFromIndex(uint256 batchIndex, uint256 nonce_) private view returns (Batch memory batch) {
         batch.to = SAFE_MULTISEND_ADDRESS;
         batch.value = 0;
         batch.operation = Operation.DELEGATECALL;
@@ -216,7 +222,7 @@ abstract contract SafeHelper is Script, Test {
             data = bytes.concat(data, batches[batchIndex].encodedTxns[i]);
         }
         batch.data = abi.encodeWithSignature("multiSend(bytes)", data);
-        batch.nonce = batchIndex;// _getNonce(safe);
+        batch.nonce = nonce_;
         batch.txHash = _getTransactionHash(safe, batch);
         return batch;
     }
