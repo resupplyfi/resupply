@@ -9,6 +9,7 @@ import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { console } from "forge-std/console.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 
 contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -31,6 +32,9 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
         setOperatorPermissions();
         returnTokens();
 
+        // Set FeeDepositController operator
+        _executeCore(Protocol.FEE_DEPOSIT, abi.encodeWithSelector(IFeeDeposit.setOperator.selector, newFeeDepositController));
+        
         console.log("newVoter: %s", newVoter);
         console.log("newUtils: %s", newUtils);
         console.log("newTreasury: %s", newTreasury);
@@ -190,8 +194,9 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
     function returnTokens() public {
         address recipient = 0xAAc0aa431c237C2C0B5f041c8e59B3f1a43aC78F;
         address token = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address oldTreasury = 0x44444444DBdC03c7D8291c4f4a093cb200A918FA;
         _executeCore(
-            address(Protocol.TREASURY),
+            address(oldTreasury),
             abi.encodeWithSelector(ITreasury.retrieveToken.selector, token, recipient)
         );
     }
