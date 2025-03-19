@@ -23,9 +23,8 @@ contract LaunchSetup2 is BaseAction {
         initVestManager();
         uint256 amount = updateVestSettingsAndClaim();
         createLP(amount);
-        // withdrawFees();
+        withdrawFees();
         // vote with prisma vecrv
-        // 
     }
         
     function setBorrowLimits() public {
@@ -65,7 +64,9 @@ contract LaunchSetup2 is BaseAction {
         require(rsup.balanceOf(Protocol.TREASURY) >= amount1, "Not enough rsup balance");
 
         // Add liquidity
-        uint256[2] memory amounts = [amount0, amount1];
+        uint256[2] memory amounts;
+        amounts[0] = amount0;
+        amounts[1] = amount1;
         _executeTreasury(address(pool), abi.encodeWithSelector(ICurveExchange.add_liquidity.selector, amounts, 0, Protocol.TREASURY));
 
         require(pool.balanceOf(Protocol.TREASURY) > 0, "LPs not in treasury");
