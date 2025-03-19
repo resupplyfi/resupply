@@ -11,6 +11,7 @@ import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol"
 contract LaunchSetup2 is BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     address public constant TREASURY = Protocol.TREASURY;
+    IERC20 public constant rsup = IERC20(Protocol.GOV_TOKEN);
     IVestManager public constant vestManager = IVestManager(Protocol.VEST_MANAGER);
     ICurveExchange public constant pool = ICurveExchange(Protocol.WETH_RSUP_POOL);
     uint256 public constant DEFAULT_BORROW_LIMIT = 25_000_000e18;
@@ -21,8 +22,10 @@ contract LaunchSetup2 is BaseAction {
         setBorrowLimits();
         initVestManager();
         uint256 amount = updateVestSettingsAndClaim();
-        // createLP(amount);
+        createLP(amount);
         // withdrawFees();
+        // vote with prisma vecrv
+        // 
     }
         
     function setBorrowLimits() public {
@@ -44,14 +47,28 @@ contract LaunchSetup2 is BaseAction {
     function createLP(uint256 amount) public {
         address token0 = pool.coins(0);
         address token1 = pool.coins(1);
+        deal(token0, Protocol.TREASURY, 100e18);
         uint256 price = pool.price_scale();
         uint256 amount0 = amount * price / 1e18;
         uint256 amount1 = amount;
         
-        console2.log("amount0: %s", amount0);
-        console2.log("amount1: %s", amount1);
-        _executeCore(token0, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
-        _executeCore(token1, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
+        console2.log("amount0: %s", amount0, IERC20(token0).balanceOf(Protocol.TREASURY));
+        console2.log("amount1: %s", amount1, rsup.balanceOf(Protocol.TREASURY));
+
+        _executeTreasury(token0, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
+        _executeTreasury(token1, abi.encodeWithSelector(IERC20.approve.selector, address(pool), type(uint256).max));
+
+        // Checks
+        require(IERC20(token0).allowance(Protocol.TREASURY, address(pool)) > 0, "Not enough token0 allowance");
+        require(rsup.allowance(Protocol.TREASURY, address(pool)) > 0, "Not enough rsup allowance");
+        require(IERC20(token0).balanceOf(Protocol.TREASURY) >= amount0, "Not enough token0 balance");
+        require(rsup.balanceOf(Protocol.TREASURY) >= amount1, "Not enough rsup balance");
+
+        // Add liquidity
+        uint256[2] memory amounts = [amount0, amount1];
+        _executeTreasury(address(pool), abi.encodeWithSelector(ICurveExchange.add_liquidity.selector, amounts, 0, Protocol.TREASURY));
+
+        require(pool.balanceOf(Protocol.TREASURY) > 0, "LPs not in treasury");
     }
 
     function updateVestSettingsAndClaim() public returns (uint256) {
@@ -73,7 +90,8 @@ contract LaunchSetup2 is BaseAction {
                 address(Protocol.TREASURY)
             )
         );
-        return uint256(bytes32(result));//uint256(bytes32(abi.decode(result, (bytes))));
+        require(rsup.balanceOf(address(Protocol.TREASURY)) > 0, "Not enough vested tokens");
+        return uint256(bytes32(result)); // Cast result bytes
     }
 
     function initVestManager() public {
