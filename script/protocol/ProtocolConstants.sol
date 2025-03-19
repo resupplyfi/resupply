@@ -82,21 +82,19 @@ library Protocol {
 library VMConstants {
     address constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;
     uint256 constant MAX_REDEEMABLE = 176_036_676e18;
-    uint256 constant TEAM_DURATION = 365 days * 5;
-    uint256 constant VICTIMS_DURATION = 365 days * 5;
-    uint256 constant LOCK_PENALTY_DURATION = 365 days * 5;
 
     bytes32 constant TEAM_MERKLE_ROOT = 0x0fcbbf4e3adc67cd5905f026171c412aebb07225e21f55c3b8a6683a8c9e36c9;
     bytes32 constant VICTIMS_MERKLE_ROOT = 0x706fe5d7fc617632ac4600bf675ece0a444b89de29ca64e264af97e61665b6bb;
     bytes32 constant PENALTY_MERKLE_ROOT = 0x550558788f6e04718c149a11379110155dfd5ee25d811abbe671a0073767473f;
 
     uint256 constant DURATION_PERMA_STAKER = 365 days * 5;
-    uint256 constant DURATION_LICENSING = 365 days * 1;
     uint256 constant DURATION_TREASURY = 365 days * 5;
-    uint256 constant DURATION_REDEMPTIONS = 365 days * 3;
-    uint256 constant DURATION_AIRDROP_TEAM = 365 days * 1;
-    uint256 constant DURATION_AIRDROP_VICTIMS = 365 days * 2;
+    uint256 constant DURATION_REDEMPTIONS = 365 days * 5;
     uint256 constant DURATION_AIRDROP_LOCK_PENALTY = 365 days * 5;
+    uint256 constant DURATION_AIRDROP_VICTIMS = 365 days * 2;
+    uint256 constant DURATION_LICENSING = 365 days * 1;
+    uint256 constant DURATION_AIRDROP_TEAM = 365 days * 1;
+    
 
     uint256 constant ALLOC_PERMA_STAKER_1 = 333333333333333333;
     uint256 constant ALLOC_PERMA_STAKER_2 = 166666666666666666;

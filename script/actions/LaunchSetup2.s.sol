@@ -25,7 +25,6 @@ contract LaunchSetup2 is BaseAction {
         uint256 amount = updateVestSettingsAndClaim();
         createLP(amount);
         withdrawFees();
-        // vote with prisma vecrv
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
         
