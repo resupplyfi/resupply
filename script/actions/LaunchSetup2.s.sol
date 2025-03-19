@@ -26,6 +26,7 @@ contract LaunchSetup2 is BaseAction {
         createLP(amount);
         withdrawFees();
         // vote with prisma vecrv
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
         
     function setBorrowLimits() public {
@@ -144,10 +145,12 @@ contract LaunchSetup2 is BaseAction {
 
     function withdrawFees() public {
         skip(epochLength);
-        feeDepositController.distribute();
+        addToBatch(
+            address(feeDepositController), 
+            abi.encodeWithSelector(IFeeDepositController.distribute.selector)
+        );
         address[] memory pairs = getPairs();
         for (uint256 i = 0; i < pairs.length; i++) {
-            // Doesn't require Core permission
             addToBatch(
                 pairs[i],
                 abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
