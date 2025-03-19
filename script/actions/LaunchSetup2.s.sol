@@ -3,7 +3,7 @@ import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { ICurvePool } from "src/interfaces/ICurvePool.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
@@ -13,7 +13,7 @@ contract LaunchSetup2 is BaseAction {
     address public constant TREASURY = Protocol.TREASURY;
     IERC20 public constant rsup = IERC20(Protocol.GOV_TOKEN);
     IVestManager public constant vestManager = IVestManager(Protocol.VEST_MANAGER);
-    ICurveExchange public constant pool = ICurveExchange(Protocol.WETH_RSUP_POOL);
+    ICurvePool public constant pool = ICurvePool(Protocol.WETH_RSUP_POOL);
     uint256 public constant DEFAULT_BORROW_LIMIT = 25_000_000e18;
     IFeeDepositController public constant feeDepositController = IFeeDepositController(Protocol.FEE_DEPOSIT_CONTROLLER);
 
@@ -67,7 +67,7 @@ contract LaunchSetup2 is BaseAction {
         uint256[2] memory amounts;
         amounts[0] = amount0;
         amounts[1] = amount1;
-        _executeTreasury(address(pool), abi.encodeWithSelector(ICurveExchange.add_liquidity.selector, amounts, 0, Protocol.TREASURY));
+        _executeTreasury(address(pool), abi.encodeWithSelector(ICurvePool.add_liquidity.selector, amounts, 0, Protocol.TREASURY));
 
         require(pool.balanceOf(Protocol.TREASURY) > 0, "LPs not in treasury");
     }
