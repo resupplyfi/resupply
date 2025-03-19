@@ -1,6 +1,7 @@
 import { IVestManager } from "src/interfaces/IVestManager.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
+import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ICurvePool } from "src/interfaces/ICurvePool.sol";
@@ -31,9 +32,14 @@ contract LaunchSetup2 is BaseAction {
         address[] memory pairs = getPairs();
         for (uint256 i = 0; i < pairs.length; i++) {
             uint256 limit = DEFAULT_BORROW_LIMIT;
+            if(pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD_OLD)) continue;
+
             if (pairs[i] == address(Protocol.PAIR_CURVELEND_SFRXUSD_CRVUSD)) limit = 50_000_000e18;
+            else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SCRVUSD_FRXUSD)) limit = 50_000_000e18;
             else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SFRXETH_FRXUSD)) limit = 50_000_000e18;
+            else if (pairs[i] == address(Protocol.PAIR_CURVELEND_SDOLA_CRVUSD)) limit = 15_000_000e18;
             else if (
+                // pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD) || //todo deploy this pair
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WBTC_CRVUSD) ||
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WETH_CRVUSD) ||
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WSTETH_CRVUSD)
@@ -147,6 +153,9 @@ contract LaunchSetup2 is BaseAction {
                 abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
             );
         }
+        SimpleRewardStreamer debtemissionStreamer = SimpleRewardStreamer(address(Protocol.EMISSIONS_STREAM_PAIR));
+        require(IERC20(Protocol.GOV_TOKEN).balanceOf(address(debtemissionStreamer)) > 0, "no emissions on debt emission streamer");
+        require(debtemissionStreamer.rewardRate() > 0, "no reward rate for debt emissions");
     }
 
     function getPairs() public view returns (address[] memory) {
