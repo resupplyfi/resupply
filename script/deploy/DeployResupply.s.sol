@@ -125,7 +125,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_USDE_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID);
         console.log('pair deployed: curvelend_usde_crvusd', pair);
         writeAddressToJson("PAIR_CURVELEND_USDE_CRVUSD", pair);
-        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_TBTC_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID);
+        pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_TBTC_CRVUSD_DEPRECATED, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID);
         console.log('pair deployed: curvelend_tbtc_crvusd', pair);
         writeAddressToJson("PAIR_CURVELEND_TBTC_CRVUSD", pair);
         pair = deployLendingPair(0, Constants.Mainnet.CURVELEND_WBTC_CRVUSD, Constants.Mainnet.CONVEX_BOOSTER, Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID);

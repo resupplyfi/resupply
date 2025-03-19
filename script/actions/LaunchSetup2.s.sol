@@ -8,6 +8,8 @@ import { ICurvePool } from "src/interfaces/ICurvePool.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
+import { ICore } from "src/interfaces/ICore.sol";
+import { ITreasury } from "src/interfaces/ITreasury.sol";
 
 contract LaunchSetup2 is BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -25,6 +27,7 @@ contract LaunchSetup2 is BaseAction {
         uint256 amount = updateVestSettingsAndClaim();
         createLP(amount);
         withdrawFees();
+        setOperatorPermissions(); // Grant permissions to treasury functions
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
         
@@ -32,8 +35,10 @@ contract LaunchSetup2 is BaseAction {
         address[] memory pairs = getPairs();
         for (uint256 i = 0; i < pairs.length; i++) {
             uint256 limit = DEFAULT_BORROW_LIMIT;
-            if(pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD_OLD)) continue;
 
+            // Overwrite default limit for select pairs
+            if (pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD_DEPRECATED)) continue;
+            if (pairs[i] == address(Protocol.PAIR_CURVELEND_TBTC_CRVUSD_DEPRECATED)) continue;
             if (pairs[i] == address(Protocol.PAIR_CURVELEND_SFRXUSD_CRVUSD)) limit = 50_000_000e18;
             else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SCRVUSD_FRXUSD)) limit = 50_000_000e18;
             else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SFRXETH_FRXUSD)) limit = 50_000_000e18;
@@ -76,6 +81,93 @@ contract LaunchSetup2 is BaseAction {
         _executeTreasury(address(pool), abi.encodeWithSelector(ICurvePool.add_liquidity.selector, amounts, 0, Protocol.TREASURY));
 
         require(pool.balanceOf(Protocol.TREASURY) > 0, "LPs not in treasury");
+    }
+
+
+    function setOperatorPermissions() internal {
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.retrieveToken.selector,
+                true,
+                address(0)
+            )
+        );
+
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.retrieveETH.selector,
+                true,
+                address(0)
+            )
+        );
+
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.retrieveTokenExact.selector,
+                true,
+                address(0)
+            )
+        );
+
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.retrieveETHExact.selector,
+                true,
+                address(0)
+            )
+        );
+
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.safeExecute.selector,
+                true,
+                address(0)
+            )
+        );
+
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.execute.selector,
+                true,
+                address(0)
+            )
+        );
+
+         _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.TREASURY,
+                ITreasury.setTokenApproval.selector,
+                true,
+                address(0)
+            )
+        );
     }
 
     function updateVestSettingsAndClaim() public returns (uint256) {

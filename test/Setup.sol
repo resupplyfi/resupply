@@ -381,7 +381,7 @@ contract Setup is Test {
         testPair = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
         testPair2 = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
+        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_DEPRECATED), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
