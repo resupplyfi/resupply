@@ -19,7 +19,12 @@ contract DeployPair is BaseAction {
         deployMode = DeployMode.FORK;
         
         address pair = deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
-        console.log('pair deployed: fraxlend_wbtc_frxusd', pair);
+        console.log('pair deployed: ', pair);
+        console.log('collateral: ', IResupplyPair(pair).collateral());
+        console.log('underlying: ', IResupplyPair(pair).underlying());
+
+
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){

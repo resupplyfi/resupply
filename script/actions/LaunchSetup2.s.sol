@@ -40,7 +40,7 @@ contract LaunchSetup2 is BaseAction {
             else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SFRXETH_FRXUSD)) limit = 50_000_000e18;
             else if (pairs[i] == address(Protocol.PAIR_CURVELEND_SDOLA_CRVUSD)) limit = 15_000_000e18;
             else if (
-                // pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD) || //todo deploy this pair
+                pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD) ||
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WBTC_CRVUSD) ||
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WETH_CRVUSD) ||
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WSTETH_CRVUSD)
