@@ -4,6 +4,7 @@ import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 import { Setup } from "../Setup.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract TreasuryTest is Setup {
 
@@ -90,5 +91,18 @@ contract TreasuryTest is Setup {
         assertEq(treasuryPostBalance, 0);
     }
 
+    function test_Execute() public {
+        vm.expectRevert("!core");
+        treasury.safeExecute(address(stablecoin), abi.encodeWithSelector(IERC20.approve.selector, address(user1), type(uint256).max));
+        
+        vm.expectRevert("!core");
+        treasury.execute(address(stablecoin), abi.encodeWithSelector(IERC20.approve.selector, address(user1), type(uint256).max));
+
+        vm.prank(address(core));
+        treasury.execute(address(stablecoin), abi.encodeWithSelector(IERC20.approve.selector, address(user1), type(uint256).max));
+
+        vm.prank(address(core));
+        treasury.safeExecute(address(stablecoin), abi.encodeWithSelector(IERC20.approve.selector, address(user1), type(uint256).max));
+    }
     
 }

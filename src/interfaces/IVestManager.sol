@@ -63,7 +63,6 @@ interface IVestManager {
         uint256 _claimed,
         uint256 _timeRemaining
     );
-
     // State-Changing Functions
     function setInitializationParams(
         uint256 _maxRedeemable,
@@ -72,9 +71,7 @@ interface IVestManager {
         uint256[8] memory _vestDurations,
         uint256[8] memory _allocPercentages
     ) external;
-
     function setLockPenaltyMerkleRoot(bytes32 _root, uint256 _allocation) external;
-
     function merkleClaim(
         address _account,
         address _recipient,
@@ -83,11 +80,8 @@ interface IVestManager {
         bytes32[] calldata _proof,
         uint256 _index
     ) external;
-
     function redeem(address _token, address _recipient, uint256 _amount) external;
-
     function claim(address _account) external returns (uint256 _claimed);
-
     function setClaimSettings(
         bool _allowPermissionlessClaims,
         address _recipient

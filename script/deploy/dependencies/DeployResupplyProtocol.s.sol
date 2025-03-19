@@ -374,7 +374,6 @@ contract DeployResupplyProtocol is BaseDeploy {
         constructorArgs = abi.encode(
             address(core),
             address(registry),
-            address(feeDeposit), 
             DeploymentConfig.FEE_SPLIT_IP,
             DeploymentConfig.FEE_SPLIT_TREASURY
         );
