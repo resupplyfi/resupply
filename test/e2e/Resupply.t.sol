@@ -464,7 +464,6 @@ contract ResupplyAccountingTest is Setup {
         uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
         (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
         uint userCollateralValueBefore = collateral.previewRedeem(userCollateralBalanceBefore);
-        uint debtToLiquidate = pair.toBorrowAmount(pair.userBorrowShares(toLiquidate), true, true);
         uint liquidationIncentive = liquidationHandler.liquidateIncentive();
         liquidationHandler.liquidate(
             address(pair),
@@ -488,12 +487,12 @@ contract ResupplyAccountingTest is Setup {
         });
         assertApproxEqAbs(
             ipUnderlyingDiff,
-            debtToLiquidate + liquidationFeeAmount - liquidationIncentive,
+            amountToLiquidate + liquidationFeeAmount - liquidationIncentive,
             1,
             "// THEN: insurance pool underlying balance not within 1 wei"
         );
         assertEq({
-            left: userCollateralValueBefore - liquidationFeeAmount - debtToLiquidate,
+            left: userCollateralValueBefore - liquidationFeeAmount - amountToLiquidate,
             right: userCollateralValueAfter,
             err: "// THEN: All collateral is not awarded"
         });
