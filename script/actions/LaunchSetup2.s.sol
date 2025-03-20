@@ -21,7 +21,7 @@ contract LaunchSetup2 is BaseAction {
     IFeeDepositController public constant feeDepositController = IFeeDepositController(Protocol.FEE_DEPOSIT_CONTROLLER);
 
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
         setBorrowLimits();
         initVestManager();
         uint256 amount = updateVestSettingsAndClaim();

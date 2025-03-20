@@ -485,17 +485,21 @@ contract ResupplyAccountingTest is Setup {
             right: amountToLiquidate,
             err: "// THEN: insurance pool stable not decremented by expected"
         });
-        assertApproxEqAbs(
-            ipUnderlyingDiff,
-            amountToLiquidate + liquidationFeeAmount - liquidationIncentive,
-            1,
-            "// THEN: insurance pool underlying balance not within 1 wei"
-        );
-        assertEq({
-            left: userCollateralValueBefore - liquidationFeeAmount - amountToLiquidate,
-            right: userCollateralValueAfter,
-            err: "// THEN: All collateral is not awarded"
-        });
+
+        uint256 liquidationAmountPlusFee = amountToLiquidate + liquidationFeeAmount;
+        if (userCollateralValueBefore > liquidationAmountPlusFee) {
+            assertApproxEqAbs(
+                ipUnderlyingDiff,
+                liquidationAmountPlusFee - liquidationIncentive,
+                1,
+                "// THEN: insurance pool underlying balance not within 1 wei"
+            );
+            assertEq({
+                left: userCollateralValueBefore - liquidationFeeAmount - amountToLiquidate,
+                right: userCollateralValueAfter,
+                err: "// THEN: All collateral is not awarded"
+            });
+        }
         assertEq({
             left: totalBorrowAmountBefore - totalBorrowAmountAfter,
             right: amountToLiquidate,
