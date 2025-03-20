@@ -81,7 +81,7 @@ library Protocol {
 
 library VMConstants {
     address constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;
-    uint256 constant MAX_REDEEMABLE = 176_036_676e18;
+    uint256 constant MAX_REDEEMABLE = 173_153_585e18;
 
     bytes32 constant TEAM_MERKLE_ROOT = 0x0fcbbf4e3adc67cd5905f026171c412aebb07225e21f55c3b8a6683a8c9e36c9;
     bytes32 constant VICTIMS_MERKLE_ROOT = 0x706fe5d7fc617632ac4600bf675ece0a444b89de29ca64e264af97e61665b6bb;
