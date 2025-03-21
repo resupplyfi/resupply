@@ -21,7 +21,7 @@ contract LaunchSetup2 is BaseAction {
     IFeeDepositController public constant feeDepositController = IFeeDepositController(Protocol.FEE_DEPOSIT_CONTROLLER);
 
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
         setBorrowLimits();
         initVestManager();
         uint256 amount = updateVestSettingsAndClaim();
@@ -42,7 +42,7 @@ contract LaunchSetup2 is BaseAction {
             if (pairs[i] == address(Protocol.PAIR_CURVELEND_SFRXUSD_CRVUSD)) limit = 50_000_000e18;
             else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SCRVUSD_FRXUSD)) limit = 50_000_000e18;
             else if (pairs[i] == address(Protocol.PAIR_FRAXLEND_SFRXETH_FRXUSD)) limit = 50_000_000e18;
-            else if (pairs[i] == address(Protocol.PAIR_CURVELEND_SDOLA_CRVUSD)) limit = 15_000_000e18;
+            else if (pairs[i] == address(Protocol.PAIR_CURVELEND_SDOLA_CRVUSD)) limit = 10_000_000e18;
             else if (
                 pairs[i] == address(Protocol.PAIR_FRAXLEND_WBTC_FRXUSD) ||
                 pairs[i] == address(Protocol.PAIR_CURVELEND_WBTC_CRVUSD) ||
@@ -85,6 +85,18 @@ contract LaunchSetup2 is BaseAction {
 
 
     function setOperatorPermissions() internal {
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                Protocol.VEST_MANAGER,
+                IVestManager.setLockPenaltyMerkleRoot.selector,
+                true,
+                address(0)
+            )
+        );
+
         _executeCore(
             address(Protocol.CORE),
             abi.encodeWithSelector(
