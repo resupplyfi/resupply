@@ -156,11 +156,11 @@ contract Utilities is ResupplyPairConstants{
         }
         uint256 cbRatio = totalCollateral * 1e36 / uint256(totalBorrow);
         if(cbRatio == 0){
-            cbRatio = 1e18; //if no collateal yet, just pad by 1e18
+            cbRatio = 1e36; //if no collateal yet, just pad
         }
         uint256 rlength = rates.length;
         for(uint256 i = 0; i < rlength; i++){
-            //leave an extra 1e18 of precision by not dividing by 1e18 and let UI do the rest
+            //leave an extra padding for precision by not dividing by 1e18 and let UI do the rest
             rates[i] = rates[i] * cbRatio;
         }
     }
@@ -187,7 +187,7 @@ contract Utilities is ResupplyPairConstants{
             }
 
             //reward rate for this pair only
-            //add an extra 1e18 padding of precision and let UI do the rest
+            //add an extra padding of precision and let UI do the rest
             rewardRate = rewardRate * pairWeight * 1e36 / totalsupply;
             rates[0] = rewardRate;
 
@@ -220,7 +220,7 @@ contract Utilities is ResupplyPairConstants{
             totalWeight = 1;
         }
         //weight should be fully on the insurance pool but just in case..
-        //add an extra 1e18 padding of precision and let UI do the rest
+        //add an extra padding of precision and let UI do the rest
         rewardRate = rewardRate * poolWeight * 1e36 / totalWeight;
 
         if(IRewards(insuranceEmissions).periodFinish() >= block.timestamp){
@@ -239,7 +239,7 @@ contract Utilities is ResupplyPairConstants{
             totalWeight = 1;
         }
         //weight should be fully on the insurance pool but just in case..
-        //add an extra 1e18 padding of precision and let UI do the rest
+        //add an extra padding of precision and let UI do the rest
         rewardRate = rewardRate * poolWeight * 1e36 / totalWeight;
 
         if(IRewards(insuranceRevenue).periodFinish() >= block.timestamp){

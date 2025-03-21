@@ -471,15 +471,15 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // Time elapsed since last interest update
             uint256 _deltaTime = block.timestamp - _currentRateInfo.lastTimestamp;
 
+            // Calculate interest accrued
+            _results.interestEarned = (_deltaTime * _results.totalBorrow.amount * _currentRateInfo.ratePerSec) / RATE_PRECISION;
+
             // Request new interest rate and full utilization rate from the rate calculator
             (_results.newRate, _results.newShares) = IRateCalculator(rateCalculator).getNewRate(
                 address(collateral),
                 _deltaTime,
                 _currentRateInfo.lastShares
             );
-
-            // Calculate interest accrued
-            _results.interestEarned = (_deltaTime * _results.totalBorrow.amount * _results.newRate) / RATE_PRECISION;
 
             // Accrue interest (if any) and fees if no overflow
             if (
