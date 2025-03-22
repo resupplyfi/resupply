@@ -44,6 +44,20 @@ contract Guardian is CoreOwnable {
         emit GuardianSet(_guardian);
     }
 
+    
+    /**
+        @notice Reverts the voter to the guardian address
+        @dev This function serves as a safety measure until the DAO is fully operational and revokes its permissions.
+     */
+    function revertVoter() external onlyGuardian {
+        (bool authorized,) = core.operatorPermissions(address(this), address(core), ICore.setVoter.selector);
+        require(authorized, "Permission to revert voter not granted");
+        core.execute(
+            address(core),
+            abi.encodeWithSelector(ICore.setVoter.selector, guardian)
+        );
+    }
+
     function _pausePair(address pair) internal {
         core.execute(
             pair, 
