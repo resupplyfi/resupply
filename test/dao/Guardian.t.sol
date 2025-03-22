@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { Setup } from "../Setup.sol";
-import { Guardian } from "src/dao/Guardian.sol";
+import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
@@ -99,6 +99,46 @@ contract GuardianTest is Setup {
         guardian.cancelProposal(proposalId);
         (,,,processed,) = IVoter(address(voter)).proposalData(proposalId);
         assertEq(processed, true);
+    }
+
+    function test_VoterRevert() public {
+        vm.prank(dev);
+        vm.expectRevert("Permission to revert voter not granted");
+        guardian.revertVoter();
+        (bool authorized,) = core.operatorPermissions(address(guardian), address(core), ICore.setVoter.selector);
+        assertEq(authorized, false);
+
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(guardian),
+            address(core),
+            ICore.setVoter.selector,
+            true,
+            IAuthHook(address(0))
+        );
+        assertNotEq(core.voter(), guardian.guardian());
+
+        vm.prank(dev);
+        guardian.revertVoter();
+        (authorized,) = core.operatorPermissions(address(guardian), address(core), ICore.setVoter.selector);
+        assertEq(authorized, true);
+        assertEq(core.voter(), guardian.guardian());
+
+        vm.startPrank(address(core));
+        // set voter to to something else and revoke permission
+        core.setVoter(address(user1)); 
+        core.setOperatorPermissions(
+            address(guardian),
+            address(core),
+            ICore.setVoter.selector,
+            false,
+            IAuthHook(address(0))
+        );
+        vm.stopPrank();
+
+        vm.prank(dev);
+        vm.expectRevert("Permission to revert voter not granted");
+        guardian.revertVoter();
     }
 
     function createSimpleProposal(address account) public returns (uint256) {

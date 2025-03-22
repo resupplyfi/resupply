@@ -94,7 +94,7 @@ contract LaunchSetup is TenderlyHelper, CreateXHelper, BaseAction {
             )
         );
 
-        // Grant multisig setAddresspermissions on Registry
+        // Grant multisig set address permissions on Registry
         _executeCore(
             address(Protocol.CORE),
             abi.encodeWithSelector(
