@@ -17,12 +17,12 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public guardian;
     address public treasuryManager;
     address public rsup = 0x419905009e4656fdC02418C7Df35B1E61Ed5F726;
+    address public grantRecipient = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
+    uint256 public grantAmount = 1_000e18;
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
-        address grantRecipient = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
-        uint256 grantAmount = 1_000e18;
-
+        
         transferGrant(grantRecipient, grantAmount);
         deployGuardianAndConfigure();
         deployTreasuryManagerAndConfigure();
@@ -50,9 +50,9 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
         bytes32 salt = CreateX.SALT_OPERATOR_GUARDIAN;
         bytes memory constructorArgs = abi.encode(
             Protocol.CORE,
-            Protocol.TREASURY
+            Protocol.REGISTRY
         );
-        bytes memory bytecode = vm.getCode("Guardian.sol:Guardian");
+        bytes memory bytecode = abi.encodePacked(vm.getCode("Guardian.sol:Guardian"), constructorArgs);
         addToBatch(
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
@@ -144,6 +144,15 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             _approve,
             address(0)
         );
+        // Update proposal description
+        setCorePermissions(
+            IVoter.updateProposalDescription.selector,
+            _caller,
+            Protocol.VOTER,
+            _approve,
+            address(0)
+        );
+        // Set address in registry
         setCorePermissions(
             IResupplyRegistry.setAddress.selector,
             _caller,
