@@ -124,21 +124,23 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
                 address(0)
             );
         }
-        // Transfer token from prisma fee receiver
-        setOperatorPermissions(
-            bytes4(keccak256("transferToken(address,address,uint256)")),
-            treasuryManager,
-            prismaFeeReceiver,
-            true,
-            address(0)
-        );
-        setOperatorPermissions(
-            bytes4(keccak256("setTokenApproval(address,address,uint256)")),
-            treasuryManager,
-            prismaFeeReceiver,
-            true,
-            address(0)
-        );
+        if (_approve) {
+            // Transfer token from prisma fee receiver
+            setOperatorPermissions(
+                bytes4(keccak256("transferToken(address,address,uint256)")),
+                treasuryManager,
+                prismaFeeReceiver,
+                true,
+                address(0)
+            );
+            setOperatorPermissions(
+                bytes4(keccak256("setTokenApproval(address,address,uint256)")),
+                treasuryManager,
+                prismaFeeReceiver,
+                true,
+                address(0)
+            );
+        }
     }
 
     function setGuardianPermissions(address _caller, bool _approve) internal {
