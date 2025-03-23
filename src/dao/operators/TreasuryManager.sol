@@ -2,11 +2,10 @@
 pragma solidity 0.8.28;
 
 import { ICore } from "src/interfaces/ICore.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 
 contract TreasuryManager is CoreOwnable {
-    IResupplyRegistry public immutable registry;
     address public immutable treasury;
     address public manager;
 
@@ -17,16 +16,15 @@ contract TreasuryManager is CoreOwnable {
         _;
     }
 
-    constructor(address _core, address _registry) CoreOwnable(_core) {
-        registry = IResupplyRegistry(_registry);
-        treasury = registry.treasury();
+    constructor(address _core, address _treasury) CoreOwnable(_core) {
+        treasury = _treasury;
     }
 
     function retrieveToken(address _token, address _to) external onlyManager {
         core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("retrieveToken(address,address)")),
+                ITreasury.retrieveToken.selector,
                 _token,
                 _to
             )
@@ -37,7 +35,7 @@ contract TreasuryManager is CoreOwnable {
         core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("retrieveTokenExact(address,address,uint256)")),
+                ITreasury.retrieveTokenExact.selector,
                 _token,
                 _to,
                 _amount
@@ -46,22 +44,20 @@ contract TreasuryManager is CoreOwnable {
     }
 
     function retrieveETH(address _to) external onlyManager {
-        address treasury = registry.treasury();
         core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("retrieveETH(address)")),
+                ITreasury.retrieveETH.selector,
                 _to
             )
         );
     }
 
     function retrieveETHExact(address _to, uint256 _amount) external onlyManager {
-        address treasury = registry.treasury();
         core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("retrieveETHExact(address,uint256)")),
+                ITreasury.retrieveETHExact.selector,
                 _to,
                 _amount
             )
@@ -69,11 +65,10 @@ contract TreasuryManager is CoreOwnable {
     }
 
     function setTokenApproval(address _token, address _spender, uint256 _amount) external onlyManager {
-        address treasury = registry.treasury();
         core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("setTokenApproval(address,address,uint256)")),
+                ITreasury.setTokenApproval.selector,
                 _token,
                 _spender,
                 _amount
@@ -81,36 +76,49 @@ contract TreasuryManager is CoreOwnable {
         );
     }
 
-    function execute(address _target, bytes calldata _data) external onlyManager returns (bool success, bytes memory result) {
-        address treasury = registry.treasury();
+    /**
+     * @notice Execute an arbitrary call to the treasury
+     * @param _target The target address to call
+     * @param _data The data to call the target with
+     * @return success Whether the call was successful
+     * @return result The result of the call as bytes
+     * @dev Use `safeExecute` instead of this function if you need to ensure the call succeeds
+     */
+    function execute(address _target, bytes calldata _data) external onlyManager returns (bool, bytes memory result) {
         result = core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("execute(address,bytes)")),
+                ITreasury.execute.selector,
                 _target,
                 _data
             )
         );
-        (success, result) = abi.decode(result, (bool, bytes));
-        return (success, result);
+        return abi.decode(result, (bool, bytes));
     }
 
+    /**
+     * @notice Safe execute an arbitrary call to the treasury
+     * @param _target The target address to call
+     * @param _data The data to call the target with
+     * @return result The result of the call as bytes
+     * @dev `safeExecute` enforces that the call must result in a success
+     */
     function safeExecute(address _target, bytes calldata _data) external onlyManager returns (bytes memory result) {
-        address treasury = registry.treasury();
         result = core.execute(
             treasury,
             abi.encodeWithSelector(
-                bytes4(keccak256("safeExecute(address,bytes)")),
+                ITreasury.safeExecute.selector,
                 _target,
                 _data
             )
         );
-        bool success;
-        (success, result) = abi.decode(result, (bool, bytes));
-        require(success, "TreasuryManager: Safe execution failed");
-        return result;
+        return abi.decode(result, (bytes));
     }
 
+    /**
+     * @notice Sets the manager address that can execute treasury operations
+     * @param _manager The address to set as the new manager
+     */
     function setManager(address _manager) external onlyOwner {
         manager = _manager;
         emit ManagerSet(_manager);

@@ -39,11 +39,18 @@ contract Guardian is CoreOwnable {
         );
     }
 
+    function updateProposalDescription(uint256 proposalId, string calldata newDescription) external onlyGuardian {
+        address voter = registry.getAddress("VOTER");
+        core.execute(
+            voter,
+            abi.encodeWithSelector(IVoter.updateProposalDescription.selector, proposalId, newDescription)
+        );
+    }
+
     function setGuardian(address _guardian) external onlyOwner {
         guardian = _guardian;
         emit GuardianSet(_guardian);
     }
-
     
     /**
         @notice Reverts the voter to the guardian address
@@ -55,6 +62,18 @@ contract Guardian is CoreOwnable {
         core.execute(
             address(core),
             abi.encodeWithSelector(ICore.setVoter.selector, guardian)
+        );
+    }
+
+
+    function setRegistryAddress(string memory _key, address _address) external onlyGuardian {
+        core.execute(
+            address(registry),
+            abi.encodeWithSelector(
+                IResupplyRegistry.setAddress.selector,
+                _key,
+                _address
+            )
         );
     }
 

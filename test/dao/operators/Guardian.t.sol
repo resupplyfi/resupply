@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Setup } from "../Setup.sol";
+import { Setup } from "test/Setup.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";

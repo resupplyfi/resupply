@@ -6,7 +6,7 @@ interface ITreasuryManager {
 
     function registry() external view returns (address);
     function treasury() external view returns (address);
-    function treasuryManager() external view returns (address);
+    function manager() external view returns (address);
 
     function retrieveToken(address _token, address _to) external;
     function retrieveTokenExact(address _token, address _to, uint256 _amount) external;
