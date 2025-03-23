@@ -57,7 +57,7 @@ contract GuardianTest is Setup {
         vm.expectRevert("!core");
         guardian.setGuardian(address(0xDAD));
     }
-
+    
     function test_PausePair() public {
         assertGt(testPair.borrowLimit(), 0);
         vm.prank(dev);

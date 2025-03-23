@@ -18,6 +18,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public treasuryManager;
     address public rsup = 0x419905009e4656fdC02418C7Df35B1E61Ed5F726;
     address public grantRecipient = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
+    address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     uint256 public grantAmount = 1_000e18;
     
     function run() public isBatch(deployer) {
@@ -123,11 +124,26 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
                 address(0)
             );
         }
+        // Transfer token from prisma fee receiver
+        setOperatorPermissions(
+            bytes4(keccak256("transferToken(address,address,uint256)")),
+            treasuryManager,
+            prismaFeeReceiver,
+            true,
+            address(0)
+        );
+        setOperatorPermissions(
+            bytes4(keccak256("setTokenApproval(address,address,uint256)")),
+            treasuryManager,
+            prismaFeeReceiver,
+            true,
+            address(0)
+        );
     }
 
     function setGuardianPermissions(address _caller, bool _approve) internal {
         // Pause pairs (any address)
-        if (_approve) {
+        if (_approve) { // Skip revoke on this permission
             setOperatorPermissions(
                 IResupplyPair.pause.selector,
                 _caller,

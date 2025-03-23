@@ -5,6 +5,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 
 contract Guardian is CoreOwnable {
+    address public constant prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     IResupplyRegistry public immutable registry;
     address public guardian;
 

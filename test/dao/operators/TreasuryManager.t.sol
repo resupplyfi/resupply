@@ -8,11 +8,14 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
+import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
 
 contract TreasuryManagerTest is Setup {
     address public token;
     TreasuryManager public treasuryManager;
     uint256 public constant TEST_AMOUNT = 1000e18;
+    address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
+    IPrismaCore public prismaCore = IPrismaCore(0x5d17eA085F2FF5da3e6979D5d26F1dBaB664ccf8);
 
     event TokenRetrieved(address indexed token, address indexed to, uint256 amount);
     event ETHRetrieved(address indexed to, uint256 amount);
@@ -43,10 +46,29 @@ contract TreasuryManagerTest is Setup {
                 IAuthHook(address(0))
             );
         }
+        core.setOperatorPermissions(
+            address(treasuryManager), 
+            address(prismaFeeReceiver), // can call on any target
+            bytes4(keccak256("transferToken(address,address,uint256)")),
+            true,
+            IAuthHook(address(0)) // auth hook
+        );
+        core.setOperatorPermissions(
+            address(treasuryManager), 
+            address(prismaFeeReceiver), // can call on any target
+            bytes4(keccak256("setTokenApproval(address,address,uint256)")),
+            true,
+            IAuthHook(address(0)) // auth hook
+        );
         treasuryManager.setManager(dev);
         vm.stopPrank();
         // Setup test token
         deal(token, address(treasury), TEST_AMOUNT);
+        vm.prank(prismaCore.owner());
+        prismaCore.commitTransferOwnership(address(core));
+        skip(3 days);
+        vm.prank(address(core));
+        prismaCore.acceptTransferOwnership();
     }
 
     function test_RetrieveToken() public {
@@ -88,9 +110,22 @@ contract TreasuryManagerTest is Setup {
         assertEq(IERC20(token).allowance(address(treasury), spender), TEST_AMOUNT);
     }
 
+    function test_TransferTokenFromPrismaFeeReceiver() public {
+        deal(address(stablecoin), prismaFeeReceiver, 100e18);
+        vm.prank(dev);
+        treasuryManager.transferTokenFromPrismaFeeReceiver(address(stablecoin), address(user1), 100e18);
+        assertEq(stablecoin.balanceOf(address(user1)), 100e18);
+    }
+
+    function test_ApproveTokenFromPrismaFeeReceiver() public {
+        vm.prank(dev);
+        treasuryManager.approveTokenFromPrismaFeeReceiver(address(stablecoin), address(user1), 100e18);
+        assertEq(stablecoin.allowance(address(prismaFeeReceiver), address(user1)), 100e18);
+    }
+
     function test_Execute() public {
         address target = address(stablecoin);
-        bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, address(0xBEEF), 100);
+        bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, address(0x123), 100);
         vm.prank(dev);
         (bool success,) = treasuryManager.execute(target, data);
         assertTrue(success);

@@ -6,6 +6,7 @@ import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 
 contract TreasuryManager is CoreOwnable {
+    address public constant prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     address public immutable treasury;
     address public manager;
 
@@ -72,6 +73,30 @@ contract TreasuryManager is CoreOwnable {
                 _token,
                 _spender,
                 _amount
+            )
+        );
+    }
+
+    function transferTokenFromPrismaFeeReceiver(address token, address to, uint256 amount) external onlyManager {
+        core.execute(
+            prismaFeeReceiver,
+            abi.encodeWithSelector(
+                bytes4(keccak256("transferToken(address,address,uint256)")),
+                token,
+                to,
+                amount
+            )
+        );
+    }
+
+    function approveTokenFromPrismaFeeReceiver(address token, address spender, uint256 amount) external onlyManager {
+        core.execute(
+            prismaFeeReceiver,
+            abi.encodeWithSelector(
+                bytes4(keccak256("setTokenApproval(address,address,uint256)")),
+                token,
+                spender,
+                amount
             )
         );
     }
