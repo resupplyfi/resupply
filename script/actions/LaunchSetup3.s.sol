@@ -22,7 +22,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
-        
+
         transferGrant(grantRecipient, grantAmount);
         deployGuardianAndConfigure();
         deployTreasuryManagerAndConfigure();
@@ -115,7 +115,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
         selectors[5] = ITreasury.execute.selector;
         selectors[6] = ITreasury.safeExecute.selector;
         for (uint256 i = 0; i < selectors.length; i++) {
-            setCorePermissions(
+            setOperatorPermissions(
                 selectors[i],
                 _caller,
                 Protocol.TREASURY,
@@ -128,7 +128,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     function setGuardianPermissions(address _caller, bool _approve) internal {
         // Pause pairs (any address)
         if (_approve) {
-            setCorePermissions(
+            setOperatorPermissions(
                 IResupplyPair.pause.selector,
                 _caller,
                 address(0),
@@ -137,7 +137,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             );
         }
         // Cancel proposals
-        setCorePermissions(
+        setOperatorPermissions(
             IVoter.cancelProposal.selector,
             _caller,
             Protocol.VOTER,
@@ -145,7 +145,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             address(0)
         );
         // Update proposal description
-        setCorePermissions(
+        setOperatorPermissions(
             IVoter.updateProposalDescription.selector,
             _caller,
             Protocol.VOTER,
@@ -153,7 +153,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             address(0)
         );
         // Set address in registry
-        setCorePermissions(
+        setOperatorPermissions(
             IResupplyRegistry.setAddress.selector,
             _caller,
             Protocol.REGISTRY,

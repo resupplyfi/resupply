@@ -34,7 +34,7 @@ contract BaseAction is TenderlyHelper {
         return abi.decode(result, (bytes));
     }
 
-    function setCorePermissions(
+    function setOperatorPermissions(
         bytes4 selector, 
         address caller, 
         address target, 
