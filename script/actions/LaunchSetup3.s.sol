@@ -20,7 +20,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public rsup = 0x419905009e4656fdC02418C7Df35B1E61Ed5F726;
     address public grantRecipient = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
     address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
-    uint256 public grantAmount = 1_000e18;
+    uint256 public grantAmount = 750e18;
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
