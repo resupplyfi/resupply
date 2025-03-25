@@ -11,6 +11,7 @@ import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { CreateX } from "script/deploy/dependencies/DeploymentConfig.sol";
 import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { console } from "forge-std/console.sol";
 
 contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -59,6 +60,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             encodeCREATE3Deployment(salt, bytecode)
         );
         guardian = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        console.log("Guardian deployed at", guardian);
         require(guardian.code.length > 0, "deployment failed");
         
         setGuardianPermissions(deployer, false);
@@ -89,7 +91,8 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
-        address treasuryManager = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        treasuryManager = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        console.log("TreasuryManager deployed at", treasuryManager);
         require(treasuryManager.code.length > 0, "deployment failed");
         
         setTreasuryManagerPermissions(deployer, false); // revoke deployer permissions
