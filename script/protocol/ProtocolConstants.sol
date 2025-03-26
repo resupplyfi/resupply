@@ -80,6 +80,12 @@ library Protocol {
     address constant PAIR_FRAXLEND_SCRVUSD_FRXUSD = 0x24CCBd9130ec24945916095eC54e9acC7382c864;
 }
 
+library Prisma {
+    address constant PRISMA_CORE = 0x5d17eA085F2FF5da3e6979D5d26F1dBaB664ccf8;
+    address constant VOTER_PROXY = 0x490b8C6007fFa5d3728A49c2ee199e51f05D2F7e;
+    address constant FEE_RECEIVER = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
+}
+
 library VMConstants {
     address constant FRAX_VEST_TARGET = 0xB1748C79709f4Ba2Dd82834B8c82D4a505003f27;
     uint256 constant MAX_REDEEMABLE = 173_153_585e18;

@@ -1,5 +1,5 @@
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { Protocol } from "script/protocol/ProtocolConstants.sol";
+import { Protocol, Prisma } from "script/protocol/ProtocolConstants.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
@@ -16,15 +16,14 @@ import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 
 contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     address public guardian;
     address public treasuryManager;
-    address public rsup = 0x419905009e4656fdC02418C7Df35B1E61Ed5F726;
     address public grantRecipient1 = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
     address public grantRecipient2 = 0xEF1Ed12cecC1e76fdB63C6609f9E7548c26fA041;
-    address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.PRODUCTION;
@@ -34,8 +33,37 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
         deployGuardianAndConfigure();
         deployTreasuryManagerAndConfigure();
         acceptPrismaGovernance();
-        
+        configurePrismaVoter();
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 16);
+    }
+
+    function configurePrismaVoter() public {
+        _executeCore(
+            Prisma.VOTER_PROXY,
+            abi.encodeWithSelector(IPrismaVoterProxy.setVoteManager.selector, deployer)
+        );
+
+        IPrismaVoterProxy.GaugeWeightVote[] memory votes = new IPrismaVoterProxy.GaugeWeightVote[](4);
+        votes[0] = IPrismaVoterProxy.GaugeWeightVote({
+            gauge: 0x9A3dCece0968b8a94AfF643C9c72127a2C1D80dc, // PRISMA-ETH
+            weight: 0
+        });
+        votes[1] = IPrismaVoterProxy.GaugeWeightVote({
+            gauge: Protocol.REUSD_SCRVUSD_GAUGE,
+            weight: 4000
+        });
+        votes[2] = IPrismaVoterProxy.GaugeWeightVote({
+            gauge: Protocol.REUSD_SFRXUSD_GAUGE,
+            weight: 4000
+        });
+        votes[3] = IPrismaVoterProxy.GaugeWeightVote({
+            gauge: Protocol.WETH_RSUP_GAUGE,
+            weight: 2000
+        });
+        addToBatch(
+            Prisma.VOTER_PROXY,
+            abi.encodeWithSelector(IPrismaVoterProxy.voteForGaugeWeights.selector, votes)
+        );
     }
 
     function transferGrant(address _recipient, uint256 _amount) public {
@@ -43,12 +71,12 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             Protocol.TREASURY,
             abi.encodeWithSelector(
                 ITreasury.retrieveTokenExact.selector, 
-                rsup,
+                Protocol.GOV_TOKEN,
                 _recipient,
                 _amount
             )
         );
-        require(IERC20(rsup).balanceOf(_recipient) >= _amount, "Grant not transferred");
+        require(IERC20(Protocol.GOV_TOKEN).balanceOf(_recipient) >= _amount, "Grant not transferred");
     }
 
     function deployGuardianAndConfigure() public {
@@ -150,14 +178,14 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             setOperatorPermissions(
                 bytes4(keccak256("transferToken(address,address,uint256)")),
                 treasuryManager,
-                prismaFeeReceiver,
+                Prisma.FEE_RECEIVER,
                 true,
                 address(0)
             );
             setOperatorPermissions(
                 bytes4(keccak256("setTokenApproval(address,address,uint256)")),
                 treasuryManager,
-                prismaFeeReceiver,
+                Prisma.FEE_RECEIVER,
                 true,
                 address(0)
             );
@@ -219,7 +247,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     }
 
     function acceptPrismaGovernance() public {
-        IPrismaCore prismaCore = IPrismaCore(0x5d17eA085F2FF5da3e6979D5d26F1dBaB664ccf8);
+        IPrismaCore prismaCore = IPrismaCore(Prisma.PRISMA_CORE);
         _executeCore(
             address(prismaCore),
             abi.encodeWithSelector(
