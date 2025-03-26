@@ -33,4 +33,24 @@ contract BaseAction is TenderlyHelper {
         );
         return abi.decode(result, (bytes));
     }
+
+    function setOperatorPermissions(
+        bytes4 selector, 
+        address caller, 
+        address target, 
+        bool approve,
+        address authHook
+    ) internal {
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                caller,
+                target,
+                selector,
+                approve,
+                authHook
+            )
+        );
+    }
 }
