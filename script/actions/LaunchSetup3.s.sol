@@ -12,6 +12,7 @@ import { CreateX } from "script/deploy/dependencies/DeploymentConfig.sol";
 import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
+import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 
 contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -107,6 +108,18 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             )
         );
         require(ITreasuryManager(treasuryManager).manager() == deployer, "TreasuryManager manager not set");
+
+        // Set lp incentives receiver
+        addToBatch(
+            treasuryManager,
+            abi.encodeWithSelector(ITreasuryManager.setLpIncentivesReceiver.selector, Protocol.LIQUIDITY_INCENTIVES_RECEIVER)
+        );
+
+        // Set approved claimers
+        _executeCore(
+            Protocol.LIQUIDITY_INCENTIVES_RECEIVER,
+            abi.encodeWithSelector(ISimpleReceiver.setApprovedClaimer.selector, treasuryManager, true)
+        );
     }
 
     function setTreasuryManagerPermissions(address _caller, bool _approve) internal {

@@ -8,7 +8,7 @@ interface ISimpleReceiver {
 
     function allocateEmissions() external returns (uint256 amount);
 
-    function claimEmissions(address receiver) external;
+    function claimEmissions(address receiver) external returns (uint256 amount);
 
     function claimableEmissions() external view returns (uint256);
 

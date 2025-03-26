@@ -6,6 +6,7 @@ import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 
 contract TreasuryManager is CoreOwnable {
     using SafeERC20 for IERC20;
@@ -13,6 +14,7 @@ contract TreasuryManager is CoreOwnable {
     address public constant prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     address public immutable treasury;
     address public manager;
+    ISimpleReceiver public lpIncentivesReceiver;
 
     event ManagerSet(address indexed manager);
 
@@ -144,6 +146,10 @@ contract TreasuryManager is CoreOwnable {
         );
     }
 
+    function claimLpIncentives() external onlyManager {
+        lpIncentivesReceiver.claimEmissions(manager);
+    }
+
     function recoverERC20(IERC20 token) external onlyManager {
         token.safeTransfer(manager, token.balanceOf(address(this)));
     }
@@ -155,6 +161,10 @@ contract TreasuryManager is CoreOwnable {
     function setManager(address _manager) external onlyOwner {
         manager = _manager;
         emit ManagerSet(_manager);
+    }
+    
+    function setLpIncentivesReceiver(address _lpIncentivesReceiver) external onlyManager {
+        lpIncentivesReceiver = ISimpleReceiver(_lpIncentivesReceiver);
     }
 
     /**

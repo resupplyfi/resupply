@@ -9,6 +9,9 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
+import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
+import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
+import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 
 contract TreasuryManagerTest is Setup {
     address public token;
@@ -16,6 +19,7 @@ contract TreasuryManagerTest is Setup {
     uint256 public constant TEST_AMOUNT = 1000e18;
     address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     IPrismaCore public prismaCore = IPrismaCore(0x5d17eA085F2FF5da3e6979D5d26F1dBaB664ccf8);
+    ISimpleReceiver public receiver;
 
     event TokenRetrieved(address indexed token, address indexed to, uint256 amount);
     event ETHRetrieved(address indexed to, uint256 amount);
@@ -154,6 +158,16 @@ contract TreasuryManagerTest is Setup {
         assertFalse(success);
     }
 
+    function test_ClaimLpIncentives() public {
+        setUpEmissions();
+        address manager = treasuryManager.manager();
+        uint256 balance = govToken.balanceOf(address(treasuryManager));
+        skip(epochLength);
+        vm.prank(dev);
+        treasuryManager.claimLpIncentives();
+        assertGt(govToken.balanceOf(manager),balance);
+    }
+
     function test_ViewPermissions() public {
         (
             bool retrieveToken, 
@@ -217,5 +231,31 @@ contract TreasuryManagerTest is Setup {
             authorized,
             IAuthHook(address(0))
         );
+    }
+
+    function setUpEmissions() public {
+        emissionsController = new EmissionsController(
+            address(core), // core
+            address(govToken), // govtoken
+            getEmissionsSchedule(), // emissions
+            1, // epochs per
+            0, // tail rate
+            0 // bootstrap epochs
+        );
+        vm.prank(address(core));
+        govToken.setMinter(address(emissionsController));
+        receiver = ISimpleReceiver(address(new 
+            SimpleReceiver(
+                address(core), 
+                address(emissionsController)
+            )
+        ));
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(receiver));
+        skip(epochLength);
+        vm.prank(address(core));
+        receiver.setApprovedClaimer(address(treasuryManager), true);
+        vm.prank(dev);
+        treasuryManager.setLpIncentivesReceiver(address(receiver));
     }
 }
