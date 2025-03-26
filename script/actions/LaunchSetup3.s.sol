@@ -26,7 +26,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public grantRecipient2 = 0xEF1Ed12cecC1e76fdB63C6609f9E7548c26fA041;
     
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.PRODUCTION;
+        deployMode = DeployMode.FORK;
 
         transferGrant(grantRecipient1, 850e18);
         transferGrant(grantRecipient2, 850e18);
@@ -34,7 +34,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
         deployTreasuryManagerAndConfigure();
         acceptPrismaGovernance();
         configurePrismaVoter();
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 16);
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
     function configurePrismaVoter() public {

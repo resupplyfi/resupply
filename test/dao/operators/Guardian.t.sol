@@ -141,9 +141,10 @@ contract GuardianTest is Setup {
     }
 
     function test_RecoverERC20() public {
+        address token = address(stablecoin);
         address _guardian = guardian.guardian();
         uint256 startBalance = IERC20(token).balanceOf(_guardian);
-        deal(token, address(_guardian), TEST_AMOUNT);
+        deal(token, address(_guardian), 100_000e18);
         vm.prank(_guardian);
         guardian.recoverERC20(IERC20(token));
         assertGt(IERC20(token).balanceOf(_guardian), startBalance);

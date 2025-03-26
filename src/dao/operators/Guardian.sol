@@ -8,8 +8,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 contract Guardian is CoreOwnable {
     using SafeERC20 for IERC20;
-    
-    address public constant prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
+
     IResupplyRegistry public immutable registry;
     address public guardian;
 
