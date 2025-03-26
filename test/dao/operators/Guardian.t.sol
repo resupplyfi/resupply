@@ -140,6 +140,15 @@ contract GuardianTest is Setup {
         assertEq(setRegistryAddress, false, "setRegistryAddress still set");
     }
 
+    function test_RecoverERC20() public {
+        address _guardian = guardian.guardian();
+        uint256 startBalance = IERC20(token).balanceOf(_guardian);
+        deal(token, address(_guardian), TEST_AMOUNT);
+        vm.prank(_guardian);
+        guardian.recoverERC20(IERC20(token));
+        assertGt(IERC20(token).balanceOf(_guardian), startBalance);
+    }
+
     function setPermission(address target, bytes4 selector, bool authorized) public {
         vm.prank(address(core));
         core.setOperatorPermissions(

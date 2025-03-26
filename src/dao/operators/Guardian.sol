@@ -3,8 +3,12 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Guardian is CoreOwnable {
+    using SafeERC20 for IERC20;
+    
     address public constant prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     IResupplyRegistry public immutable registry;
     address public guardian;
@@ -78,6 +82,10 @@ contract Guardian is CoreOwnable {
         );
     }
 
+    function recoverERC20(IERC20 token) external onlyGuardian {
+        token.safeTransfer(guardian, token.balanceOf(address(this)));
+    }
+
     function _pausePair(address pair) internal {
         core.execute(
             pair, 
@@ -87,7 +95,7 @@ contract Guardian is CoreOwnable {
     }
 
     /**
-        @notice Returns the active permissions granted to this contract
+        @notice Helper function to view the active permissions granted to this contract
         @return pausePair Whether the guardian can pause pairs
         @return cancelProposal Whether the guardian can cancel proposals
         @return updateProposalDescription Whether the guardian can update proposal descriptions

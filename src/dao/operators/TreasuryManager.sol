@@ -168,14 +168,14 @@ contract TreasuryManager is CoreOwnable {
     }
 
     /**
-        @notice Returns the active permissions granted to this contract
-        @return retrieveToken Whether the guardian can retrieve tokens
-        @return retrieveTokenExact Whether the guardian can retrieve tokens with an exact amount
-        @return retrieveETH Whether the guardian can retrieve ETH
-        @return retrieveETHExact Whether the guardian can retrieve ETH with an exact amount
-        @return setTokenApproval Whether the guardian can set token approvals
-        @return execute Whether the guardian can execute arbitrary calls
-        @return safeExecute Whether the guardian can execute arbitrary calls with a return value
+        @notice Helper function to view the active permissions granted to this contract
+        @return retrieveToken Whether the guardian can retrieve tokens from the treasury
+        @return retrieveTokenExact Whether the guardian can retrieve tokens with an exact amount from the treasury
+        @return retrieveETH Whether the guardian can retrieve ETH from the treasury
+        @return retrieveETHExact Whether the guardian can retrieve ETH with an exact amount from the treasury
+        @return setTokenApproval Whether the guardian can set token approvals on the treasury
+        @return execute Whether the guardian can execute arbitrary calls on the treasury
+        @return safeExecute Whether the guardian can execute arbitrary calls with a return value on the treasury
         @return transferTokenFromPrismaFeeReceiver Whether the guardian can transfer tokens from the prisma fee receiver
         @return approveTokenFromPrismaFeeReceiver Whether the guardian can approve tokens from the prisma fee receiver
     */

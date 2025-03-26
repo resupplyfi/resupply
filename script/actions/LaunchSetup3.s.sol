@@ -13,25 +13,29 @@ import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
+import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
+import { ICore } from "src/interfaces/ICore.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     address public guardian;
     address public treasuryManager;
     address public rsup = 0x419905009e4656fdC02418C7Df35B1E61Ed5F726;
-    address public grantRecipient = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
+    address public grantRecipient1 = 0xf39Ed30Cc51b65392911fEA9F33Ec1ccceEe1ed5;
+    address public grantRecipient2 = 0xEF1Ed12cecC1e76fdB63C6609f9E7548c26fA041;
     address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
-    uint256 public grantAmount = 750e18;
     
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
 
-        transferGrant(grantRecipient, grantAmount);
+        transferGrant(grantRecipient1, 850e18);
+        transferGrant(grantRecipient2, 850e18);
         deployGuardianAndConfigure();
         deployTreasuryManagerAndConfigure();
         acceptPrismaGovernance();
         
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 16);
     }
 
     function transferGrant(address _recipient, uint256 _amount) public {
@@ -44,6 +48,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
                 _amount
             )
         );
+        require(IERC20(rsup).balanceOf(_recipient) >= _amount, "Grant not transferred");
     }
 
     function deployGuardianAndConfigure() public {
@@ -156,20 +161,15 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
                 true,
                 address(0)
             );
+            (
+                bool p1, bool p2, bool p3, bool p4, bool p5, bool p6, bool p7, bool p8, bool p9
+            ) = ITreasuryManager(treasuryManager).viewPermissions();
+            require(p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8 && p9, "TreasuryManager permissions not set");
         }
+        
     }
 
     function setGuardianPermissions(address _caller, bool _approve) internal {
-        // Pause pairs (any address)
-        if (_approve) { // Skip revoke on this permission
-            setOperatorPermissions(
-                IResupplyPair.pause.selector,
-                _caller,
-                address(0),
-                _approve,
-                address(0)
-            );
-        }
         // Cancel proposals
         setOperatorPermissions(
             IVoter.cancelProposal.selector,
@@ -194,6 +194,28 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             _approve,
             address(0)
         );
+        // Set address in registry
+        setOperatorPermissions(
+            ICore.setVoter.selector,
+            _caller,
+            Protocol.CORE,
+            _approve,
+            address(0)
+        );
+        // Pause pairs (any address)
+        if (_approve) { // Skip revoke on this permission
+            setOperatorPermissions(
+                IResupplyPair.pause.selector,
+                _caller,
+                address(0),
+                _approve,
+                address(0)
+            );
+            (
+                bool p1, bool p2, bool p3, bool p4, bool p5
+            ) = IGuardian(guardian).viewPermissions();
+            require(p1 && p2 && p3 && p4 && p5, "Guardian permissions not set");
+        }
     }
 
     function acceptPrismaGovernance() public {

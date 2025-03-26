@@ -168,6 +168,15 @@ contract TreasuryManagerTest is Setup {
         assertGt(govToken.balanceOf(manager),balance);
     }
 
+    function test_RecoverERC20() public {
+        address manager = treasuryManager.manager();
+        uint256 startBalance = IERC20(token).balanceOf(manager);
+        deal(token, address(treasuryManager), TEST_AMOUNT);
+        vm.prank(dev);
+        treasuryManager.recoverERC20(IERC20(token));
+        assertGt(IERC20(token).balanceOf(manager), startBalance);
+    }
+
     function test_ViewPermissions() public {
         (
             bool retrieveToken, 
