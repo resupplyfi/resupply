@@ -153,4 +153,69 @@ contract TreasuryManagerTest is Setup {
         (bool success,) = treasuryManager.execute(target, data);
         assertFalse(success);
     }
+
+    function test_ViewPermissions() public {
+        (
+            bool retrieveToken, 
+            bool retrieveTokenExact, 
+            bool retrieveETH, 
+            bool retrieveETHExact, 
+            bool setTokenApproval, 
+            bool execute, 
+            bool safeExecute,
+            bool transferTokenFromPrismaFeeReceiver,
+            bool approveTokenFromPrismaFeeReceiver
+        ) = treasuryManager.viewPermissions();
+        assertEq(retrieveToken, true, "retrieveToken permission not set");
+        assertEq(retrieveTokenExact, true, "retrieveTokenExact permission not set");
+        assertEq(retrieveETH, true, "retrieveETH permission not set");
+        assertEq(retrieveETHExact, true, "retrieveETHExact permission not set");
+        assertEq(setTokenApproval, true, "setTokenApproval permission not set");
+        assertEq(execute, true, "execute permission not set");
+        assertEq(safeExecute, true, "safeExecute permission not set");
+        assertEq(transferTokenFromPrismaFeeReceiver, true, "transferTokenFromPrismaFeeReceiver permission not set");
+        assertEq(approveTokenFromPrismaFeeReceiver, true, "approveTokenFromPrismaFeeReceiver permission not set");
+
+        setPermission(address(treasury), ITreasury.retrieveToken.selector, false);
+        setPermission(address(treasury), ITreasury.retrieveTokenExact.selector, false);
+        setPermission(address(treasury), ITreasury.retrieveETH.selector, false);
+        setPermission(address(treasury), ITreasury.retrieveETHExact.selector, false);
+        setPermission(address(treasury), ITreasury.setTokenApproval.selector, false);
+        setPermission(address(treasury), ITreasury.execute.selector, false);
+        setPermission(address(treasury), ITreasury.safeExecute.selector, false);
+        setPermission(address(prismaFeeReceiver), bytes4(keccak256("transferToken(address,address,uint256)")), false);
+        setPermission(address(prismaFeeReceiver), bytes4(keccak256("setTokenApproval(address,address,uint256)")), false);
+
+        (
+            retrieveToken, 
+            retrieveTokenExact, 
+            retrieveETH, 
+            retrieveETHExact, 
+            setTokenApproval, 
+            execute, 
+            safeExecute, 
+            transferTokenFromPrismaFeeReceiver, 
+            approveTokenFromPrismaFeeReceiver
+        ) = treasuryManager.viewPermissions();
+        assertEq(retrieveToken, false, "retrieveToken still set");
+        assertEq(retrieveTokenExact, false, "retrieveTokenExact still set");
+        assertEq(retrieveETH, false, "retrieveETH still set");
+        assertEq(retrieveETHExact, false, "retrieveETHExact still set");
+        assertEq(setTokenApproval, false, "setTokenApproval still set");
+        assertEq(execute, false, "execute still set");
+        assertEq(safeExecute, false, "safeExecute still set");
+        assertEq(transferTokenFromPrismaFeeReceiver, false, "transferTokenFromPrismaFeeReceiver still set");
+        assertEq(approveTokenFromPrismaFeeReceiver, false, "approveTokenFromPrismaFeeReceiver still set");
+    }
+
+    function setPermission(address target, bytes4 selector, bool authorized) public {
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(treasuryManager),
+            target,
+            selector,
+            authorized,
+            IAuthHook(address(0))
+        );
+    }
 }

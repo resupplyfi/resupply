@@ -21,6 +21,11 @@ contract Guardian is CoreOwnable {
         registry = IResupplyRegistry(_registry);
     }
 
+    function setGuardian(address _guardian) external onlyOwner {
+        guardian = _guardian;
+        emit GuardianSet(_guardian);
+    }
+
     function pauseAllPairs() external onlyGuardian {
         address[] memory pairs = registry.getAllPairAddresses();
         for (uint256 i = 0; i < pairs.length; i++) {
@@ -46,11 +51,6 @@ contract Guardian is CoreOwnable {
             voter,
             abi.encodeWithSelector(IVoter.updateProposalDescription.selector, proposalId, newDescription)
         );
-    }
-
-    function setGuardian(address _guardian) external onlyOwner {
-        guardian = _guardian;
-        emit GuardianSet(_guardian);
     }
     
     /**
@@ -84,5 +84,29 @@ contract Guardian is CoreOwnable {
             abi.encodeWithSelector(IResupplyPair.pause.selector)
         );
         emit PairPaused(pair);
+    }
+
+    /**
+        @notice Returns the active permissions granted to this contract
+        @return pausePair Whether the guardian can pause pairs
+        @return cancelProposal Whether the guardian can cancel proposals
+        @return updateProposalDescription Whether the guardian can update proposal descriptions
+        @return revertVoter Whether the guardian can revert the voter
+        @return setRegistryAddress Whether the guardian can set registry addresses
+     */
+    function viewPermissions() external view returns (bool, bool, bool, bool, bool) {
+        address voter = registry.getAddress("VOTER");
+        bool[] memory permissions = new bool[](5);
+        (bool authorized,) = core.operatorPermissions(address(this), address(0), IResupplyPair.pause.selector);
+        permissions[0] = authorized;
+        (authorized,) = core.operatorPermissions(address(this), address(voter), IVoter.cancelProposal.selector);
+        permissions[1] = authorized;
+        (authorized,) = core.operatorPermissions(address(this), address(voter), IVoter.updateProposalDescription.selector);
+        permissions[2] = authorized;
+        (authorized,) = core.operatorPermissions(address(this), address(core), ICore.setVoter.selector);
+        permissions[3] = authorized;
+        (authorized,) = core.operatorPermissions(address(this), address(registry), IResupplyRegistry.setAddress.selector);
+        permissions[4] = authorized;
+        return (permissions[0], permissions[1], permissions[2], permissions[3], permissions[4]);
     }
 }

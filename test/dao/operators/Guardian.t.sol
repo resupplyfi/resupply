@@ -18,21 +18,15 @@ contract GuardianTest is Setup {
         deployDefaultLendingPairs();
         staker.epochLength();
         guardian = new Guardian(address(core), address(registry));
+
+        // set permissions
+        setPermission(address(voter), IVoter.cancelProposal.selector, true);
+        setPermission(address(voter), IVoter.updateProposalDescription.selector, true);
+        setPermission(address(registry), IResupplyRegistry.setAddress.selector, true);
+        setPermission(address(0), IResupplyPair.pause.selector, true);
+        setPermission(address(core), ICore.setVoter.selector, true);
+
         vm.startPrank(address(core));
-        core.setOperatorPermissions(
-            address(guardian), 
-            address(0), // can call on any target
-            IResupplyPair.pause.selector,
-            true,
-            IAuthHook(address(0)) // auth hook
-        );
-        core.setOperatorPermissions(
-            address(guardian),    // caller
-            address(voter),       // target
-            IVoter.cancelProposal.selector,
-            true,
-            IAuthHook(address(0)) // auth hook
-        );
         guardian.setGuardian(dev);
         registry.setAddress("VOTER", address(voter));
         vm.stopPrank();
@@ -103,43 +97,60 @@ contract GuardianTest is Setup {
 
     function test_VoterRevert() public {
         vm.prank(dev);
-        vm.expectRevert("Permission to revert voter not granted");
         guardian.revertVoter();
         (bool authorized,) = core.operatorPermissions(address(guardian), address(core), ICore.setVoter.selector);
-        assertEq(authorized, false);
-
-        vm.prank(address(core));
-        core.setOperatorPermissions(
-            address(guardian),
-            address(core),
-            ICore.setVoter.selector,
-            true,
-            IAuthHook(address(0))
-        );
-        assertNotEq(core.voter(), guardian.guardian());
-
-        vm.prank(dev);
-        guardian.revertVoter();
-        (authorized,) = core.operatorPermissions(address(guardian), address(core), ICore.setVoter.selector);
         assertEq(authorized, true);
         assertEq(core.voter(), guardian.guardian());
 
-        vm.startPrank(address(core));
-        // set voter to to something else and revoke permission
-        core.setVoter(address(user1)); 
-        core.setOperatorPermissions(
-            address(guardian),
-            address(core),
-            ICore.setVoter.selector,
-            false,
-            IAuthHook(address(0))
-        );
-        vm.stopPrank();
+        vm.prank(address(core));
+        core.setVoter(address(user1));
 
+        // revoke permission
+        setPermission(address(core), ICore.setVoter.selector, false);
         vm.prank(dev);
         vm.expectRevert("Permission to revert voter not granted");
         guardian.revertVoter();
+        assertNotEq(core.voter(), guardian.guardian());
+
+        setPermission(address(core), ICore.setVoter.selector, true);
+        vm.prank(dev);
+        guardian.revertVoter();
+        assertEq(core.voter(), guardian.guardian());
     }
+
+    function test_ViewPermissions() public {
+        (bool pausePair, bool cancelProposal, bool updateProposalDescription, bool revertVoter, bool setRegistryAddress) = guardian.viewPermissions();
+        assertEq(pausePair, true, "pausePair permission not set");
+        assertEq(cancelProposal, true, "cancelProposal permission not set");
+        assertEq(updateProposalDescription, true, "updateProposalDescription permission not set");
+        assertEq(revertVoter, true, "revertVoter permission not set");
+        assertEq(setRegistryAddress, true, "setRegistryAddress permission not set");
+
+        setPermission(address(core), ICore.setVoter.selector, false);
+        setPermission(address(voter), IVoter.cancelProposal.selector, false);
+        setPermission(address(voter), IVoter.updateProposalDescription.selector, false);
+        setPermission(address(registry), IResupplyRegistry.setAddress.selector, false);
+        setPermission(address(0), IResupplyPair.pause.selector, false);
+
+        (pausePair, cancelProposal, updateProposalDescription, revertVoter, setRegistryAddress) = guardian.viewPermissions();
+        assertEq(pausePair, false, "pausePair still set");
+        assertEq(cancelProposal, false, "cancelProposal still set");
+        assertEq(updateProposalDescription, false, "updateProposalDescription still set");
+        assertEq(revertVoter, false, "revertVoter still set");
+        assertEq(setRegistryAddress, false, "setRegistryAddress still set");
+    }
+
+    function setPermission(address target, bytes4 selector, bool authorized) public {
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(guardian),
+            target,
+            selector,
+            authorized,
+            IAuthHook(address(0))
+        );
+    }
+    
 
     function createSimpleProposal(address account) public returns (uint256) {
         IVoter.Action[] memory payload = new IVoter.Action[](1);
