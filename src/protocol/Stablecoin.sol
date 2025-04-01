@@ -13,9 +13,9 @@ contract Stablecoin is OFT {
         OFT("Resupply USD", "reUSD", _endpoint, _core)
         Ownable(_core)
     {
-        //premint a small amount to deployer so that it can be used in the full deployment sequence
-        //ex. insurance pool needs a small seed
-        _mint(msg.sender, 1e18);
+        // premint a small amount so that it can be used  to back 1e18 in insurance pool
+        // send to core since we use CREATE3 for deployments (msg.sender won't work)
+        _mint(_core, 1e18);
     }
 
     function core() external view returns(address) {
