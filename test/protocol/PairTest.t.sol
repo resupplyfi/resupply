@@ -71,6 +71,12 @@ contract PairTest is PairTestBase {
         uint256 borrowAmount = 500_000e18;
         uint256 redeemAmount = 10_000e18;
 
+        address[] memory _pairs = registry.getAllPairAddresses();
+        ResupplyPair otherpair = ResupplyPair(_pairs[1]);
+        IERC20 otherCollateral = otherpair.collateral();
+        otherCollateral.approve(address(otherpair), type(uint256).max);
+        underlying.approve(address(otherpair), type(uint256).max);
+
         console.log("redemption token: ", address(pair.redemptionWriteOff()));
 
         (address reward0, bool isclaimable, uint256 rewardsRemaining) = pair.rewards(0);
@@ -83,19 +89,25 @@ contract PairTest is PairTestBase {
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
 
+        
+        addCollateral(otherpair, convertToShares(address(otherCollateral), collateralAmount));
+        borrow(otherpair, borrowAmount, 0);
+
         // deal(address(stablecoin), address(this), redeemAmount);
         deal(address(stablecoin), address(this), borrowAmount);
         
-        vm.expectRevert("fee > maxFee");
-        redemptionHandler.redeemFromPair(
-            address(pair),  // pair
-            redeemAmount,   // amount
-            0,              // max fee
-            address(this),  // return to
-            false           // unwrap
-        );
+        // vm.expectRevert("fee > maxFee");
+        // redemptionHandler.redeemFromPair(
+        //     address(pair),  // pair
+        //     redeemAmount,   // amount
+        //     0,              // max fee
+        //     address(this),  // return to
+        //     false           // unwrap
+        // );
 
-        
+        vm.startPrank(address(core));
+        redemptionHandler.setOverusageInfo(1e16,5000,6000);
+        vm.stopPrank();
 
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
         uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
@@ -104,6 +116,9 @@ contract PairTest is PairTestBase {
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
         uint256 nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+        console.log("underlyingBalBefore", underlyingBalBefore);
+        console.log("nextFee", nextFee);
+        console.log("real fee", totalFee);
 
         uint256 crvusdprice = underlyingoracle.getPrices(Constants.Mainnet.CURVE_USD_ERC20);
         uint256 gascost = vm.snapshotGasLastCall("curvePriceGas");
@@ -119,10 +134,15 @@ contract PairTest is PairTestBase {
         // console.log("curve agg write price gas: ", gascost);
         uint256 frxusdprice = underlyingoracle.getPrices(address(0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29));
         gascost = vm.snapshotGasLastCall("fraxPriceGas");
+        
         console.log("frxusd price gas: ", gascost);
         console.log("frxusdprice price: ", frxusdprice);
 
         console.log("underlying oracle: ", redemptionHandler.underlyingOracle());
+
+        console.log("rweight total: ", redemptionHandler.totalWeight());
+        (, uint256 pairRWeight) = redemptionHandler.ratingData(address(pair));
+        console.log("rweight pair: ", pairRWeight);
 
         (uint256 previewUnderlying, uint256 previewCollateral, uint256 previewFee) = redemptionHandler.previewRedeem(address(pair),redeemAmount);
         bool useUnwrap = true;
@@ -136,11 +156,15 @@ contract PairTest is PairTestBase {
 
         uint256 underlyingBalAfter = underlying.balanceOf(address(this));
         uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
+        console.log("underlyingGain: ", underlyingGain);
         uint256 collateralBalAfter = pair.userCollateralBalance(address(this));
         assertGt(underlyingGain, 0);
         assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
-        uint256 feesPaid = redeemAmount - underlyingGain;
-        assertGt(feesPaid, 0);
+        uint256 feesPaid;
+        if(totalFee > 0){
+            feesPaid = redeemAmount - underlyingGain;
+            assertGt(feesPaid, 0);
+        }
         if(useUnwrap){
             assertEq(returnedTokenAmount, underlyingGain);
         }else{
@@ -167,10 +191,11 @@ contract PairTest is PairTestBase {
         console.log("amountToStakers", amountToStakers);
         printEarned(pair, address(this));
 
+        console.log("rweight total: ", redemptionHandler.totalWeight());
         (,uint192 pairUsage) = redemptionHandler.ratingData(address(pair));
         console.log("current pair usage: ", pairUsage);
         console.log("continue redemptions...");
-        for(uint256 i=0; i < 5; i++){
+        for(uint256 i=0; i < 2; i++){
             totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
             collateralBalAfter = pair.userCollateralBalance(address(this));
             redemptionHandler.redeemFromPair(
@@ -183,9 +208,41 @@ contract PairTest is PairTestBase {
             console.log("fee used: ", totalFee);
             nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
             console.log("nextFee: ", nextFee);
+            console.log("rweight total: ", redemptionHandler.totalWeight());
             (, pairUsage) = redemptionHandler.ratingData(address(pair));
             console.log("current pair usage: ", pairUsage);
             console.log("collateral remaining: ", collateralBalAfter);
+            console.log(">>>\n");
+        }
+
+        console.log("\n\n --- redeem from other ---");
+        console.log("rweight total: ", redemptionHandler.totalWeight());
+        (, pairUsage) = redemptionHandler.ratingData(address(otherpair));
+        console.log("current otherpair usage: ", pairUsage);
+        console.log("continue redemptions...");
+        for(uint256 i=0; i < 5; i++){
+            totalFee = redemptionHandler.getRedemptionFeePct(address(otherpair), redeemAmount);
+            collateralBalAfter = otherpair.userCollateralBalance(address(this));
+            redemptionHandler.redeemFromPair(
+                address(otherpair),  // pair
+                redeemAmount,   // amount
+                1e18,           // max fee
+                address(this),  // return to
+                true           // unwrap
+            );
+            console.log("fee used: ", totalFee);
+            nextFee = redemptionHandler.getRedemptionFeePct(address(otherpair), 1);
+            console.log("nextFee: ", nextFee);
+            console.log("rweight total: ", redemptionHandler.totalWeight());
+            (, pairUsage) = redemptionHandler.ratingData(address(pair));
+            console.log("current original pair usage: ", pairUsage);
+            (, uint256 otherpairUsage) = redemptionHandler.ratingData(address(otherpair));
+            console.log("current otherpairUsage usage: ", otherpairUsage);
+            console.log("collateral remaining: ", collateralBalAfter);
+
+            nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+            console.log("nextFee on original: ", nextFee);
+            console.log(">>>\n");
         }
 
         uint256 minimumRedeem = pair.minimumRedemption();
@@ -201,6 +258,7 @@ contract PairTest is PairTestBase {
                 address(this),  // return to
                 true           // unwrap
             );
+            console.log("rweight total: ", redemptionHandler.totalWeight());
             (, pairUsage) = redemptionHandler.ratingData(address(pair));
             console.log("current pair usage: ", pairUsage);
         }

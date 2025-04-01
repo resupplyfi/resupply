@@ -71,7 +71,7 @@ contract RedemptionHandler is CoreOwnable{
 
     function setOverusageInfo(uint256 _rate, uint256 _start, uint256 _end) external onlyOwner{
         require(_rate <= baseRedemptionFee*5, "over usage fee too high");
-        require(_start <= _end, "invalid start and end");
+        require(_start <= _end && _end <= 10_000, "invalid start/end");
         overusageRate = _rate;
         overusageStart = _start;
         overusageMax = _end;
@@ -130,17 +130,17 @@ contract RedemptionHandler is CoreOwnable{
         //check for over usage and apply a fee
         ///this uses the current pair weight *before* the current redemption is applied but after the time decay is taken into account
         uint256 overusageFee;
-        if(_totalweight > 0){
+        if(_totalweight+_rdata.usage > 0){
             //get overall% of weight this pair has compared to total (add back in _rdata.usage(after decay) as it was removed above)
-            overusageFee = _rdata.usage * 10_000 / (_totalweight+_rdata.usage);
+            uint256 ratio = _rdata.usage * 10_000 / (_totalweight+_rdata.usage);
 
             //check if current % of total crossed into the start line
             uint256 _start = overusageStart;
-            if(overusageFee > _start){
+            if(ratio > _start){
                 //get the difference of end(max) - start
                 uint256 usagediff = overusageMax - _start;
                 //remove start so that our equation is scaled from 0 to usagediff
-                overusageFee -= _start;
+                overusageFee = ratio - _start;
                 //clamp to max
                 overusageFee = overusageFee > usagediff ? usagediff : overusageFee;
 
