@@ -28,14 +28,20 @@ contract RedemptionHandler is CoreOwnable{
         uint192 usage;  //usage weight, defined by % of pair redeemed. thus a pair redeemed for 2% three times will have a weight of 6
     }
     mapping(address => RedeemptionRateInfo) public ratingData;
+    uint256 public totalWeight;
     uint256 public usageDecayRate = 1e17 / uint256(7 days); //10% per week
     uint256 public maxUsage = 3e17; //max usage of 30%. any thing above 30% will be 0 discount.  linearly scale between 0 and maxusage
     uint256 public maxDiscount = 5e14; //up to 0.05% discount
 
     address public underlyingOracle;
 
+    uint256 public overusageStart = 1000; //at what usage% do fees start
+    uint256 public overusageMax = 1500; //at what usage% do fees reach max
+    uint256 public overusageRate = 1e16; //at max
+
     event SetBaseRedemptionFee(uint256 _fee);
     event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);
+    event SetOverusageInfo(uint256 _fee, uint256 _start, uint256 _end);
     event SetUnderlyingOracle(address indexed _oracle);
 
     constructor(address _core, address _registry, address _underlyingOracle) CoreOwnable(_core){
@@ -63,6 +69,15 @@ contract RedemptionHandler is CoreOwnable{
         emit SetDiscountInfo(_rate, _maxUsage, _maxDiscount);
     }
 
+    function setOverusageInfo(uint256 _rate, uint256 _start, uint256 _end) external onlyOwner{
+        require(_rate <= baseRedemptionFee*5, "over usage fee too high");
+        require(_start <= _end, "invalid start and end");
+        overusageRate = _rate;
+        overusageStart = _start;
+        overusageMax = _end;
+        emit SetOverusageInfo(_rate, _start, _end);
+    }
+
     function setUnderlyingOracle(address _oracle) external onlyOwner{
         underlyingOracle = _oracle;
         emit SetUnderlyingOracle(_oracle);
@@ -81,11 +96,11 @@ contract RedemptionHandler is CoreOwnable{
     /// @notice Calculates the total redemption fee as a percentage of the redemption amount.
     function getRedemptionFeePct(address _pair, uint256 _amount) public view returns(uint256){
         //get fee
-        (uint256 feePct,) = _getRedemptionFee(_pair, _amount);
+        (uint256 feePct,,) = _getRedemptionFee(_pair, _amount);
         return feePct;
     }
 
-    function _getRedemptionFee(address _pair, uint256 _amount) internal view returns(uint256, RedeemptionRateInfo memory){
+    function _getRedemptionFee(address _pair, uint256 _amount) internal view returns(uint256 _redemptionfee, RedeemptionRateInfo memory _rdata, uint256 _totalweight){
         (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
         
         //determine the weight of this current redemption by dividing by pair's total borrow
@@ -93,31 +108,63 @@ contract RedemptionHandler is CoreOwnable{
         if (_totalBorrow.amount != 0) weightOfRedeem = _amount * PRECISION / _totalBorrow.amount;
 
         //update current data with decay rate
-        RedeemptionRateInfo memory rdata = ratingData[_pair];
+        // RedeemptionRateInfo memory rdata = ratingData[_pair];
+        _rdata = ratingData[_pair];
         
+        _totalweight = totalWeight;
+
         //only decay if this pair has been used before
-        if(rdata.timestamp != 0){
+        if(_rdata.timestamp != 0){
+            //remove current from total (add back after calcs)
+            _totalweight -= _rdata.usage;
+
             //reduce useage by time difference since last redemption
-            uint192 decay = uint192((block.timestamp - rdata.timestamp) * usageDecayRate);
+            uint192 decay = uint192((block.timestamp - _rdata.timestamp) * usageDecayRate);
+
             //set the pair's usage or weight
-            rdata.usage = rdata.usage < decay ? 0 : rdata.usage - decay;
+            _rdata.usage = _rdata.usage < decay ? 0 : _rdata.usage - decay;
         }
         //update timestamp
-        rdata.timestamp = uint64(block.timestamp);
-        
+        _rdata.timestamp = uint64(block.timestamp);
+
+        //check for over usage and apply a fee
+        ///this uses the current pair weight *before* the current redemption is applied but after the time decay is taken into account
+        uint256 overusageFee;
+        if(_totalweight > 0){
+            //get overall% of weight this pair has compared to total (add back in _rdata.usage(after decay) as it was removed above)
+            overusageFee = _rdata.usage * 10_000 / (_totalweight+_rdata.usage);
+
+            //check if current % of total crossed into the start line
+            uint256 _start = overusageStart;
+            if(overusageFee > _start){
+                //get the difference of end(max) - start
+                uint256 usagediff = overusageMax - _start;
+                //remove start so that our equation is scaled from 0 to usagediff
+                overusageFee -= _start;
+                //clamp to max
+                overusageFee = overusageFee > usagediff ? usagediff : overusageFee;
+
+                //scale additive fee linearly to max
+                overusageFee = overusageFee * overusageRate / usagediff;
+            }
+        }
+
         //use halfway point as the current weight for fee calc
         //using pre weight would have high discount, using post weight would have low discount
         //just use the half way point by using current + half the newly added weight
-        uint256 halfway = rdata.usage + (weightOfRedeem/2);
+        uint256 halfway = _rdata.usage + (weightOfRedeem/2);
         
         uint256 _maxusage = maxUsage;
 
         //add new weight to the struct
-        rdata.usage += uint192(weightOfRedeem);
+        _rdata.usage += uint192(weightOfRedeem);
         //clamp to max usage
-        if(rdata.usage > uint192(_maxusage)){
-            rdata.usage = uint192(_maxusage);
+        if(_rdata.usage > uint192(_maxusage)){
+            _rdata.usage = uint192(_maxusage);
         }
+
+        //add to total weight
+        _totalweight += _rdata.usage;
     
         //calculate the discount and final fee (base fee minus discount)
         
@@ -135,20 +182,18 @@ contract RedemptionHandler is CoreOwnable{
         //above example is 20% so a 0.2 max discount * 20% will be 0.04 discount (2e15 * 20% = 4e14)
         discount = (maxDiscount * discount / PRECISION);// get % of maxDiscount
         
-        //remove from base fee the discount and return
+        //remove from (base fee + overusage) the discount and return
         //above example will be 1.0 - 0.04 = 0.96% fee (1e16 - 4e14)
-        uint256 redemptionfee = baseRedemptionFee - discount;
+        _redemptionfee = baseRedemptionFee + overusageFee - discount;
 
         //check if underlying being redeemed is overly priced
         if(underlyingOracle != address(0)){
             uint256 price = IOracle(underlyingOracle).getPrices(IResupplyPair(_pair).underlying());
             if(price > 1e18){
                 //if overly priced then add on to fee
-                redemptionfee += (price - 1e18);
+                _redemptionfee += (price - 1e18);
             }
         }
-
-        return (redemptionfee, rdata);
     }
 
 
@@ -167,13 +212,14 @@ contract RedemptionHandler is CoreOwnable{
         bool _redeemToUnderlying
     ) external returns(uint256){
         //get fee
-        (uint256 feePct, RedeemptionRateInfo memory rdata) = _getRedemptionFee(_pair, _amount);
+        (uint256 feePct, RedeemptionRateInfo memory rdata, uint256 _newTotalWeight) = _getRedemptionFee(_pair, _amount);
         
         //check against maxfee to avoid frontrun
         require(feePct <= _maxFeePct, "fee > maxFee");
 
         //write new rating data to state
         ratingData[_pair] = rdata;
+        totalWeight = _newTotalWeight;
 
         address returnToAddress = address(this);
         if(!_redeemToUnderlying){
@@ -201,7 +247,7 @@ contract RedemptionHandler is CoreOwnable{
 
     function previewRedeem(address _pair, uint256 _amount) external view returns(uint256 _returnedUnderlying, uint256 _returnedCollateral, uint256 _fee){
         //get fee
-        (_fee, ) = _getRedemptionFee(_pair, _amount);
+        (_fee,,) = _getRedemptionFee(_pair, _amount);
 
         //value to redeem
         uint256 valueToRedeem = _amount * (1e18 - _fee) / 1e18;
