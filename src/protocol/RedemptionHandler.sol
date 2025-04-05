@@ -71,7 +71,7 @@ contract RedemptionHandler is CoreOwnable{
 
     function setOverusageInfo(uint256 _rate, uint256 _start, uint256 _end) external onlyOwner{
         require(_rate <= baseRedemptionFee*5, "over usage fee too high");
-        require(_start <= _end && _end <= 10_000, "invalid start/end");
+        require(_start <= _end-100 && _end <= 10_000, "invalid start/end");
         overusageRate = _rate;
         overusageStart = _start;
         overusageMax = _end;
