@@ -11,8 +11,6 @@ contract ReusdOracle {
    
     address public constant registry = address(0x10101010E0C3171D894B71B3400668aF311e7D94);
     address public constant crvusd = address(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E);
-    address public constant scrvusd = address(0x0655977FEb2f289A4aB78af67BAB0d17aAb84367);
-    address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
     address public constant crvusd_oracle = address(0x18672b1b0c623a30089A280Ed9256379fb0E4E62);
     address public constant reusd_scrvusd_pool = address(0xc522A6606BBA746d7960404F22a3DB936B6F4F50);
     address public constant reusd_sfrxusd_pool = address(0xed785Af60bEd688baa8990cD5c4166221599A441);
@@ -31,10 +29,11 @@ contract ReusdOracle {
     /// @notice The ```_reusdToCrvusd``` function returns price of reusd as crvusd
     /// @return _price is price of reusd in terms of crvusd
     function _reusdToCrvusd() internal view returns(uint256 _price){
-        //get scrvusd ema price from amm pool
-        _price = ICurveOracle(reusd_scrvusd_pool).price_oracle();
-        //convert scrvusd to crvusd
-        _price = IERC4626(scrvusd).convertToAssets(_price);
+        //get crvusd ema price from amm pool
+        //note that even though the pool is scrvusd, price oracle returns price in crvusd
+        _price = ICurveOracle(reusd_scrvusd_pool).price_oracle(0);
+        //convert price from reusd per crvusd to crvusd per reusd
+        _price = 1e36 / _price;
 
         //get redemption base fee
         //fee could be less than base via discounts but assume discounts are 0
@@ -50,9 +49,10 @@ contract ReusdOracle {
     /// @return _price is price of reusd in terms of frxusd
     function _reusdToFrxusd() internal view returns(uint256 _price){
         //get sfrxusd ema price from amm pool
-        _price = ICurveOracle(reusd_sfrxusd_pool).price_oracle();
-        //convert sfrxusd to frxusd
-        _price = IERC4626(sfrxusd).convertToAssets(_price);
+        //note that even though the pool is sfrxusd, price oracle returns price in frxusd
+        _price = ICurveOracle(reusd_sfrxusd_pool).price_oracle(0);
+        //convert price from reusd per frxusd to frxusd per reusd
+        _price = 1e36 / _price;
 
         //get redemption base fee
         //fee could be less than base via discounts but assume discounts are 0

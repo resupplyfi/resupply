@@ -6,4 +6,5 @@ interface ICurveOracle {
     function price() external view returns(uint256);
     function price_w() external returns(uint256);
     function price_oracle() external view returns(uint256);
+    function price_oracle(uint256 i) external view returns(uint256);
 }
