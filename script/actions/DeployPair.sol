@@ -3,6 +3,7 @@ import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
 import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ICurvePool } from "src/interfaces/ICurvePool.sol";
@@ -15,16 +16,29 @@ contract DeployPair is BaseAction {
     address public constant TREASURY = Protocol.TREASURY;
     IERC20 public constant rsup = IERC20(Protocol.GOV_TOKEN);
 
+    uint256 public constant CURVELEND = 0;
+    uint256 public constant FRAXLEND = 1;
+
+    uint256 public constant BORROW_LIMIT = 50_000_000e18;
+
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
+
+        //run if implementation should be updated before adding pair
+        updatePairImplementation();
         
-        address pair = deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
+        // address pair = deployLendingPair(FRAXLEND,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
+        address pair = deployLendingPair(CURVELEND,address(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
         console.log('pair deployed: ', pair);
         console.log('collateral: ', IResupplyPair(pair).collateral());
         console.log('underlying: ', IResupplyPair(pair).underlying());
 
 
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
+    }
+
+    function updatePairImplementation() public{
+        _executeCore(Protocol.PAIR_DEPLOYER, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){
@@ -38,7 +52,7 @@ contract DeployPair is BaseAction {
                     address(Protocol.BASIC_VAULT_ORACLE),
                     address(Protocol.INTEREST_RATE_CALCULATOR),
                     DeploymentConfig.DEFAULT_MAX_LTV,
-                    0,//DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                    BORROW_LIMIT,//DeploymentConfig.DEFAULT_BORROW_LIMIT,
                     DeploymentConfig.DEFAULT_LIQ_FEE,
                     DeploymentConfig.DEFAULT_MINT_FEE,
                     DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE

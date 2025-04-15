@@ -32,6 +32,7 @@ library Mainnet {
     address internal constant CURVELEND_WSTETH_CRVUSD = 0x21CF1c5Dc48C603b89907FE6a7AE83EA5e3709aF;
     address internal constant CURVELEND_YNETH_CRVUSD = 0x52036c9046247C3358c987A2389FFDe6Ef8564c9;
     address internal constant CURVELEND_SFRXUSD_CRVUSD = 0x8E3009b59200668e1efda0a2F2Ac42b24baa2982;
+    address internal constant CURVELEND_SDOLA2_CRVUSD = 0x992B77179A5cF876bcD566FF4b3EAE6482012B90;
     uint256 internal constant CURVELEND_SDOLA_CRVUSD_ID = 384;
     uint256 internal constant CURVELEND_SUSDE_CRVUSD_ID = 361;
     uint256 internal constant CURVELEND_USDE_CRVUSD_ID = 371;
@@ -41,6 +42,7 @@ library Mainnet {
     uint256 internal constant CURVELEND_WSTETH_CRVUSD_ID = 364;
     uint256 internal constant CURVELEND_YNETH_CRVUSD_ID = 415;
     uint256 internal constant CURVELEND_SFRXUSD_CRVUSD_ID = 438;
+    uint256 internal constant CURVELEND_SDOLA2_CRVUSD_ID = 445;
 
     // LayerZero
     address internal constant LAYERZERO_ENDPOINTV2 = 0x1a44076050125825900e736c501f859c50fE728c;
