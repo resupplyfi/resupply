@@ -427,7 +427,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         )
     {
         _newCurrentRateInfo = currentRateInfo;
-        _newCurrentRateInfo.lastTimestamp = uint64(block.timestamp);
 
         // Write return values
         InterestCalculationResults memory _results = _calculateInterest(_newCurrentRateInfo);
