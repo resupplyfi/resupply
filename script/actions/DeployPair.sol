@@ -19,7 +19,7 @@ contract DeployPair is BaseAction {
     uint256 public constant CURVELEND = 0;
     uint256 public constant FRAXLEND = 1;
 
-    uint256 public constant BORROW_LIMIT = 50_000_000e18;
+    uint256 public constant BORROW_LIMIT = 25_000_000e18;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
