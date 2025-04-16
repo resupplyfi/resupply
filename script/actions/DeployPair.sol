@@ -22,7 +22,7 @@ contract DeployPair is BaseAction {
     uint256 public constant BORROW_LIMIT = 25_000_000e18;
 
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.PRODUCTION;
+        deployMode = DeployMode.FORK;
 
         //run if implementation should be updated before adding pair
         // updatePairImplementation();
@@ -34,7 +34,7 @@ contract DeployPair is BaseAction {
         console.log('underlying: ', IResupplyPair(pair).underlying());
 
 
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 41);
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
     function updatePairImplementation() public{

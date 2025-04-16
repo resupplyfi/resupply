@@ -22,7 +22,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.PRODUCTION;
+        deployMode = DeployMode.FORK;
 
         deployRedemptionHandler();
        
