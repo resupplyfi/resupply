@@ -9,6 +9,7 @@ import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
@@ -101,6 +102,7 @@ contract RedemptionHandler is CoreOwnable{
     }
 
     function _getRedemptionFee(address _pair, uint256 _amount) internal view returns(uint256 _redemptionfee, RedeemptionRateInfo memory _rdata, uint256 _totalweight){
+        require(IResupplyRegistry(registry).pairsByName(IERC20Metadata(_pair).name()) == _pair, "pair not registered");
         (, , , IResupplyPair.VaultAccount memory _totalBorrow) = IResupplyPair(_pair).previewAddInterest();
         
         //determine the weight of this current redemption by dividing by pair's total borrow

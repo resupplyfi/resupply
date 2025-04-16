@@ -22,10 +22,10 @@ contract DeployPair is BaseAction {
     uint256 public constant BORROW_LIMIT = 25_000_000e18;
 
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
 
         //run if implementation should be updated before adding pair
-        updatePairImplementation();
+        // updatePairImplementation();
         
         // address pair = deployLendingPair(FRAXLEND,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
         address pair = deployLendingPair(CURVELEND,address(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
@@ -34,7 +34,7 @@ contract DeployPair is BaseAction {
         console.log('underlying: ', IResupplyPair(pair).underlying());
 
 
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 41);
     }
 
     function updatePairImplementation() public{
