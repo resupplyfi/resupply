@@ -99,6 +99,9 @@ contract DeployPair is BaseAction {
         );
 
         //call withdraw fees to hook up incentives
-        IResupplyPair(_pair).withdrawFees();
+        addToBatch(
+            _pair, 
+            abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
+        );
     }
 }
