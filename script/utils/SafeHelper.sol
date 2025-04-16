@@ -112,7 +112,7 @@ abstract contract SafeHelper is Script, Test {
     uint256 private currentBatchIndex;
     
     // Maximum gas per batch
-    uint256 public maxGasPerBatch = 12_000_000;
+    uint256 public maxGasPerBatch = 20_000_000;
 
     constructor() {
         // Initialize first batch
