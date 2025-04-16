@@ -25,7 +25,7 @@ contract DeployPair is BaseAction {
         deployMode = DeployMode.FORK;
 
         //run if implementation should be updated before adding pair
-        updatePairImplementation();
+        // updatePairImplementation();
         
         // address pair = deployLendingPair(FRAXLEND,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
         address pair = deployLendingPair(CURVELEND,address(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
