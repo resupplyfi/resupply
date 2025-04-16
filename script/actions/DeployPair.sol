@@ -21,7 +21,7 @@ contract DeployPair is BaseAction {
 
     uint256 public constant BORROW_LIMIT = 25_000_000e18;
 
-    bool private UPDATE_IMPLEMENTATION = true;
+    bool private UPDATE_IMPLEMENTATION = false;
     bool private ADD_TO_REGISTRY = true;
 
     function run() public isBatch(deployer) {
