@@ -21,27 +21,34 @@ contract DeployPair is BaseAction {
 
     uint256 public constant BORROW_LIMIT = 25_000_000e18;
 
+    bool private UPDATE_IMPLEMENTATION = false;
+    bool private ADD_TO_REGISTRY = true;
+
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
 
         //run if implementation should be updated before adding pair
-        // updatePairImplementation();
+        if(UPDATE_IMPLEMENTATION){
+            updatePairImplementation();
+        }
         
         // address pair = deployLendingPair(FRAXLEND,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
         address pair = deployLendingPair(CURVELEND,address(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
-        console.log('pair deployed: ', pair);
-        console.log('collateral: ', IResupplyPair(pair).collateral());
-        console.log('underlying: ', IResupplyPair(pair).underlying());
-
+        
+        if(ADD_TO_REGISTRY){
+            addToRegistry(pair);
+        }
 
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
     function updatePairImplementation() public{
+        console.log("\n*** updating implementation...");
         _executeCore(Protocol.PAIR_DEPLOYER, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){
+        console.log("\n*** deploying pair...");
         bytes memory result;
         result = _executeCore(
             address(Protocol.PAIR_DEPLOYER),
@@ -63,10 +70,23 @@ contract DeployPair is BaseAction {
         );
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         address pair = abi.decode(result, (address));
+
+        console.log('pair deployed: ', pair);
+        console.log('collateral: ', IResupplyPair(pair).collateral());
+        console.log('underlying: ', IResupplyPair(pair).underlying());
+
+        return pair;
+    }
+
+    function addToRegistry(address _pair) public{
+        console.log("\n*** adding to registry...");
+        //add to registry
         _executeCore(
             address(Protocol.REGISTRY),
-            abi.encodeWithSelector(IResupplyRegistry.addPair.selector, pair)
+            abi.encodeWithSelector(IResupplyRegistry.addPair.selector, _pair)
         );
-        return pair;
+
+        //call withdraw fees to hook up incentives
+        IResupplyPair(_pair).withdrawFees();
     }
 }
