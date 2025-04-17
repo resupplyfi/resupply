@@ -61,12 +61,8 @@ contract DeployPair is BaseAction {
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){
         console.log("\n*** deploying pair...");
-        bytes memory result;
-        result = _executeCore(
-            address(Protocol.PAIR_DEPLOYER),
-            abi.encodeWithSelector(ResupplyPairDeployer.deploy.selector,
-                _protocolId,
-                abi.encode(
+        
+        bytes memory configdata = abi.encode(
                     _collateral,
                     address(Protocol.BASIC_VAULT_ORACLE),
                     address(Protocol.INTEREST_RATE_CALCULATOR),
@@ -75,7 +71,15 @@ contract DeployPair is BaseAction {
                     DeploymentConfig.DEFAULT_LIQ_FEE,
                     DeploymentConfig.DEFAULT_MINT_FEE,
                     DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-                ),
+                );
+        bytes memory immutables = abi.encode(address(Protocol.REGISTRY));
+
+        bytes memory result;
+        result = _executeCore(
+            address(Protocol.PAIR_DEPLOYER),
+            abi.encodeWithSelector(ResupplyPairDeployer.deploy.selector,
+                _protocolId,
+                configdata,
                 _staking,
                 _stakingId
             )
@@ -83,9 +87,15 @@ contract DeployPair is BaseAction {
         result = abi.decode(result, (bytes)); // our result was double encoded, so we decode it once
         address pair = abi.decode(result, (address));
 
+        string memory name = IResupplyPair(pair).name();
+        bytes memory customData = abi.encode(name, address(Protocol.GOV_TOKEN), _staking, _stakingId);
+        bytes memory constructorData = abi.encode(Protocol.CORE, configdata, immutables, customData);
+
         console.log('pair deployed: ', pair);
         console.log('collateral: ', IResupplyPair(pair).collateral());
         console.log('underlying: ', IResupplyPair(pair).underlying());
+        console.log('constructor args:');
+        console.logBytes(constructorData);
 
         return pair;
     }
