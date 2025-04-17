@@ -34,12 +34,24 @@ contract DeployPair is BaseAction {
         
         // address pair = deployLendingPair(FRAXLEND,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
         address pair = deployLendingPair(CURVELEND,address(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
+        printPairVersion(pair);
         
         if(ADD_TO_REGISTRY){
             addToRegistry(pair);
         }
 
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
+    }
+
+    function printPairVersion(address _pair) public{
+        (uint256 major, uint256 minor, uint256 patch) = IResupplyPair(_pair).version();
+        console.log("pair version: ", string.concat(
+            vm.toString(major),
+            ".",
+            vm.toString(minor),
+            ".",
+            vm.toString(patch)
+        ));
     }
 
     function updatePairImplementation() public{
@@ -87,6 +99,9 @@ contract DeployPair is BaseAction {
         );
 
         //call withdraw fees to hook up incentives
-        IResupplyPair(_pair).withdrawFees();
+        addToBatch(
+            _pair, 
+            abi.encodeWithSelector(IResupplyPair.withdrawFees.selector)
+        );
     }
 }
