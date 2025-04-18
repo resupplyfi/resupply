@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 
-contract OdosSwapper is CoreOwnable {
+contract SwapperOdos is CoreOwnable {
     using BytesLib for bytes;
 
     address public odosRouter;
@@ -15,6 +15,7 @@ contract OdosSwapper is CoreOwnable {
 
     /**
      * @notice Executes a swap through Odos router using an encoded payload in the path parameter
+     * @dev This function accepts bytes data encoded as an address[] for compatibility with the legacy interface in PairCore
      */
     function swap(
         address,
@@ -24,6 +25,16 @@ contract OdosSwapper is CoreOwnable {
     ) external {
         // Decode the path to get the original Odos router payload
         bytes memory payload = decodeOdosPayload(_path);
+        (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
+        require(success, "Odos swap failed");
+    }
+
+    function swap(
+        address,
+        uint256,
+        bytes calldata payload,
+        address
+    ) external {
         (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
         require(success, "Odos swap failed");
     }

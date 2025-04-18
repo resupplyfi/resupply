@@ -9,5 +9,11 @@ interface ISwapper {
         address to
     ) external;
 
+    function swap(
+        address account,
+        uint256 amountIn,
+        bytes calldata payload,
+        address to
+    ) external;
     function swapPools(address tokenIn, address tokenOut) external view returns(address swappool, int32 tokenInIndex, int32 tokenOutIndex, uint32 swaptype);
 }
