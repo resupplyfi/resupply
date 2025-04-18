@@ -3,8 +3,9 @@ pragma solidity 0.8.28;
 
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract SwapperOdos is CoreOwnable {
+contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     using BytesLib for bytes;
 
     address public odosRouter;
@@ -22,7 +23,7 @@ contract SwapperOdos is CoreOwnable {
         uint256,
         address[] memory _path,
         address
-    ) external {
+    ) external nonReentrant {
         // Decode the path to get the original Odos router payload
         bytes memory payload = decodeOdosPayload(_path);
         (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
@@ -34,7 +35,7 @@ contract SwapperOdos is CoreOwnable {
         uint256,
         bytes calldata payload,
         address
-    ) external {
+    ) external nonReentrant {
         (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
         require(success, "Odos swap failed");
     }
