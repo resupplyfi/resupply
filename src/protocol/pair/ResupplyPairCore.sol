@@ -1106,6 +1106,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         }
         if (_path.length == 0 && _payload.length == 0) revert PathAndPayloadEmpty();
         if (_path.length > 0) {
+            if (_payload.length > 0) revert PathAndPayload();
             if (_path[0] != address(_debtToken)) {
                 revert InvalidPath(address(_debtToken), _path[0]);
             }

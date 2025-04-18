@@ -31,4 +31,5 @@ abstract contract ResupplyPairConstants {
     error OnlyProtocolOrOwner();
     error InvalidPayloadLength();
     error PathAndPayloadEmpty();
+    error PathAndPayload();
 }
