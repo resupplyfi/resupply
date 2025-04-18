@@ -105,7 +105,7 @@ contract PairTestSwaps is PairTestBase {
         minout = utilities.getSwapRouteAmountOut(currentCollateral, defaultswapper, fraxRepayPath);
         console.log("minout: ", minout);
 
-        fraxresupply.repayWithCollateral(defaultswapper, currentCollateral, minout, fraxRepayPath);
+        fraxresupply.repayWithCollateral(defaultswapper, currentCollateral, minout, fraxRepayPath, "");
         printPairInfo(fraxresupply);
         printUserInfo(fraxresupply, address(this));
         console.log("leftover reusd: ", stablecoin.balanceOf(address(this)));

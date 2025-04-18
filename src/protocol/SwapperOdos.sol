@@ -4,15 +4,20 @@ pragma solidity 0.8.28;
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     using BytesLib for bytes;
+    using SafeERC20 for IERC20;
 
-    address public odosRouter;
+    address public constant odosRouter = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
+    address public constant registry = 0x10101010E0C3171D894B71B3400668aF311e7D94;
 
-    constructor(address _core, address _odosRouter) CoreOwnable(_core) {
-        odosRouter = _odosRouter;
-    }
+    constructor(address _core) CoreOwnable(_core) {}
 
     /**
      * @notice Executes a swap through Odos router using an encoded payload in the path parameter
@@ -40,8 +45,12 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         require(success, "Odos swap failed");
     }
 
-    function setOdosRouter(address _odosRouter) external onlyOwner {
-        odosRouter = _odosRouter;
+    function _setApprovals(address[] memory path) internal {
+        address registeredPair = IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name());
+        if(registeredPair != msg.sender) revert();
+        address collateral = IResupplyPair(msg.sender).collateral();
+        address underlying = IResupplyPair(msg.sender).underlying();
+        IERC20(underlying).forceApprove(collateral, type(uint256).max);
     }
 
     /**
