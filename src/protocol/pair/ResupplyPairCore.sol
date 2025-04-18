@@ -1084,7 +1084,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _borrowAmount,
         uint256 _initialUnderlyingAmount,
         uint256 _amountCollateralOutMin,
-        address[] memory _path
+        address[] memory _path,
+        bytes memory _payload
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _totalCollateralBalance) {
         // Accrue interest if necessary
         _addInterest();
@@ -1098,11 +1099,14 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_debtToken)) {
-            revert InvalidPath(address(_debtToken), _path[0]);
-        }
-        if (_path[_path.length - 1] != address(_collateral)) {
-            revert InvalidPath(address(_collateral), _path[_path.length - 1]);
+        if (_path.length == 0 && _payload.length == 0) revert PathAndPayloadEmpty();
+        if (_path.length > 0) {
+            if (_path[0] != address(_debtToken)) {
+                revert InvalidPath(address(_debtToken), _path[0]);
+            }
+            if (_path[_path.length - 1] != address(_collateral)) {
+                revert InvalidPath(address(_collateral), _path[_path.length - 1]);
+            }
         }
 
         // Add initial underlying
@@ -1119,12 +1123,21 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
-        ISwapper(_swapperAddress).swap(
-            msg.sender,
-            _borrowAmount,
-            _path,
-            address(this)
-        );
+        if (_path.length > 0) {
+            ISwapper(_swapperAddress).swap(
+                msg.sender,
+                _borrowAmount,
+                _path,
+                address(this)
+            );
+        } else {
+            ISwapper(_swapperAddress).swap(
+                msg.sender,
+                _borrowAmount,
+                _payload,
+                address(this)
+            );
+        }
         uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
