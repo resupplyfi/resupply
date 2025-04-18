@@ -155,7 +155,7 @@
     },
     {
       "name": "RedemptionHandler",
-      "address": "0x99999999BeaAE496551793313a7653553d1e0B3A",
+      "address": "0x9999999b8ce70322b021efe340759b7958af43c8",
       "constructorArgs": {
         "types": ["address", "address", "address"],
         "values": [
