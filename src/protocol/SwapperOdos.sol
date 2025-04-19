@@ -38,6 +38,7 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     function swap(
         address,
         uint256,
+        address[] calldata path,
         bytes calldata payload,
         address
     ) external nonReentrant {
@@ -94,6 +95,36 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      * @return payload The decoded bytes payload
      */
     function decodeOdosPayload(address[] memory path) public pure returns (bytes memory payload) {
+        require(path.length > 0, "Empty path");
+
+        uint totalLen = uint(uint160(path[0]));
+        
+        // Handle all full chunks (all except the last one if it's partial)
+        bytes memory fullChunks;
+        uint lastIndex = path.length - 1;
+        
+        // Append all complete chunks using abi.encodePacked
+        for (uint i = 1; i < lastIndex; i++) {
+            fullChunks = abi.encodePacked(fullChunks, path[i]);
+        }
+        
+        uint remainingBytes = totalLen % 20;
+        if (remainingBytes == 0 && path.length > 1) {
+            payload = abi.encodePacked(fullChunks, path[lastIndex]);
+        } else {
+            bytes memory lastChunk = addressToBytes(path[lastIndex]);
+            bytes memory trimmedLastChunk = new bytes(remainingBytes);
+            for (uint i = 0; i < remainingBytes; i++) {
+                trimmedLastChunk[i] = lastChunk[i];
+            }
+            payload = abi.encodePacked(fullChunks, trimmedLastChunk);
+        }
+        
+        // Ensure the result has the correct length
+        require(payload.length == totalLen, "Length mismatch");
+    }
+
+    function decodeOdosPayloadOld(address[] memory path) public pure returns (bytes memory payload) {
         require(path.length > 0, "Empty path");
 
         uint totalLen = uint(uint160(path[0]));

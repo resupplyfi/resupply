@@ -12,6 +12,7 @@ interface ISwapper {
     function swap(
         address account,
         uint256 amountIn,
+        address[] calldata path,
         bytes calldata payload,
         address to
     ) external;
