@@ -1124,21 +1124,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialCollateralBalance = _collateral.balanceOf(address(this));
-        if (_path.length > 0) {
-            ISwapper(_swapperAddress).swap(
-                msg.sender,
-                _borrowAmount,
-                _path,
-                address(this)
-            );
-        } else {
-            ISwapper(_swapperAddress).swap(
-                msg.sender,
-                _borrowAmount,
-                _payload,
-                address(this)
-            );
-        }
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
+            _borrowAmount,
+            _path,
+            _payload,
+            address(this)
+        );
         uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
@@ -1229,21 +1221,14 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
-        if (_path.length > 0) {
-            ISwapper(_swapperAddress).swap(
-                msg.sender,
-                _collateralToSwap,
-                _path,
-                address(this)
-            );
-        } else {
-            ISwapper(_swapperAddress).swap(
-                msg.sender,
-                _collateralToSwap,
-                _payload,
-                address(this)
-            );
-        }
+
+        ISwapper(_swapperAddress).swap(
+            msg.sender,
+            _collateralToSwap,
+            _path,
+            _payload,
+            address(this)
+        );
 
         // Note: VIOLATES CHECKS-EFFECTS-INTERACTION pattern, make sure function is NONREENTRANT
         // Effects: bookkeeping
