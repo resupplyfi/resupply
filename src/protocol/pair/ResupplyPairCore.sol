@@ -33,7 +33,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
         _major = 3;
         _minor = 0;
-        _patch = 1;
+        _patch = 2;
     }
 
     // ============================================================================================
@@ -1089,7 +1089,8 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         uint256 _borrowAmount,
         uint256 _initialUnderlyingAmount,
         uint256 _amountCollateralOutMin,
-        address[] memory _path
+        address[] memory _path,
+        bytes memory _payload
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _totalCollateralBalance) {
         // Accrue interest if necessary
         _addInterest();
@@ -1103,11 +1104,15 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_debtToken)) {
-            revert InvalidPath(address(_debtToken), _path[0]);
-        }
-        if (_path[_path.length - 1] != address(_collateral)) {
-            revert InvalidPath(address(_collateral), _path[_path.length - 1]);
+        if (_path.length == 0 && _payload.length == 0) revert PathAndPayloadEmpty();
+        if (_path.length > 0) {
+            if (_payload.length > 0) revert PathAndPayload();
+            if (_path[0] != address(_debtToken)) {
+                revert InvalidPath(address(_debtToken), _path[0]);
+            }
+            if (_path[_path.length - 1] != address(_collateral)) {
+                revert InvalidPath(address(_collateral), _path[_path.length - 1]);
+            }
         }
 
         // Add initial underlying
@@ -1128,6 +1133,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             msg.sender,
             _borrowAmount,
             _path,
+            _payload,
             address(this)
         );
         uint256 _finalCollateralBalance = _collateral.balanceOf(address(this));
@@ -1172,12 +1178,14 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     /// @param _collateralToSwap The amount of Collateral Tokens to swap for Asset Tokens
     /// @param _amountOutMin The minimum amount of Asset Tokens to receive during the swap
     /// @param _path An array containing the addresses of ERC20 tokens to swap.  Adheres to UniV2 style path params.
+    /// @param _payload The payload for the swap.
     /// @return _amountOut The amount of Asset Tokens received for the Collateral Tokens, the amount the borrowers account was credited
     function repayWithCollateral(
         address _swapperAddress,
         uint256 _collateralToSwap,
         uint256 _amountOutMin,
-        address[] calldata _path
+        address[] calldata _path,
+        bytes calldata _payload
     ) external nonReentrant isSolvent(msg.sender) returns (uint256 _amountOut) {
         // Accrue interest if necessary
         _addInterest();
@@ -1192,11 +1200,15 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
         if (!swappers[_swapperAddress]) {
             revert BadSwapper();
         }
-        if (_path[0] != address(_collateral)) {
-            revert InvalidPath(address(_collateral), _path[0]);
-        }
-        if (_path[_path.length - 1] != address(_debtToken)) {
-            revert InvalidPath(address(_debtToken), _path[_path.length - 1]);
+        if (_path.length == 0 && _payload.length == 0) revert PathAndPayloadEmpty();
+        if (_path.length > 0) {
+            if (_payload.length > 0) revert PathAndPayload();
+            if (_path[0] != address(_collateral)) {
+                revert InvalidPath(address(_collateral), _path[0]);
+            }
+            if (_path[_path.length - 1] != address(_debtToken)) {
+                revert InvalidPath(address(_debtToken), _path[_path.length - 1]);
+            }
         }
         //in case of a full redemption/shutdown via protocol,
         //all user debt should be 0 and thus swapping to repay is unnecessary.
@@ -1214,10 +1226,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Even though swappers are trusted, we verify the balance before and after swap
         uint256 _initialBalance = _debtToken.balanceOf(address(this));
+
         ISwapper(_swapperAddress).swap(
             msg.sender,
             _collateralToSwap,
             _path,
+            _payload,
             address(this)
         );
 
