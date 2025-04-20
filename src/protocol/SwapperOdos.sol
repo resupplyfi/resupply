@@ -98,47 +98,25 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         require(path.length > 0, "Empty path");
 
         uint totalLen = uint(uint160(path[0]));
-        
-        // Handle all full chunks (all except the last one if it's partial)
-        bytes memory fullChunks;
+        bytes memory fullElements;
         uint lastIndex = path.length - 1;
         
         // Append all complete chunks using abi.encodePacked
         for (uint i = 1; i < lastIndex; i++) {
-            fullChunks = abi.encodePacked(fullChunks, path[i]);
+            fullElements = abi.encodePacked(fullElements, path[i]);
         }
-        
         uint remainingBytes = totalLen % 20;
         if (remainingBytes == 0 && path.length > 1) {
-            payload = abi.encodePacked(fullChunks, path[lastIndex]);
+            payload = abi.encodePacked(fullElements, path[lastIndex]);
         } else {
             bytes memory lastChunk = addressToBytes(path[lastIndex]);
             bytes memory trimmedLastChunk = new bytes(remainingBytes);
             for (uint i = 0; i < remainingBytes; i++) {
                 trimmedLastChunk[i] = lastChunk[i];
             }
-            payload = abi.encodePacked(fullChunks, trimmedLastChunk);
+            payload = abi.encodePacked(fullElements, trimmedLastChunk);
         }
-        
-        // Ensure the result has the correct length
         require(payload.length == totalLen, "Length mismatch");
-    }
-
-    function decodeOdosPayloadOld(address[] memory path) public pure returns (bytes memory payload) {
-        require(path.length > 0, "Empty path");
-
-        uint totalLen = uint(uint160(path[0]));
-        payload = new bytes(totalLen);
-
-        uint written = 0;
-        for (uint i = 1; i < path.length; i++) {
-            bytes memory chunk = addressToBytes(path[i]);
-            uint toCopy = written + 20 > totalLen ? totalLen - written : 20;
-            for (uint j = 0; j < toCopy; j++) {
-                payload[written + j] = chunk[j];
-            }
-            written += toCopy;
-        }
     }
 
     function bytesToAddress(bytes memory b) internal pure returns (address a) {

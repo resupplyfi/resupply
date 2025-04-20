@@ -34,61 +34,6 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Setup complete, payload length:", odosPayload.length);
     }
 
-    function test_CompareGas() public {
-        address[] memory encodedPath = swapper.encodeOdosPayload(odosPayload);
-        console.log("\n=== GAS CONSUMPTION COMPARISON ===");
-        console.log("Payload size:", odosPayload.length, "bytes");
-        
-        // Warmup calls to avoid first-call overhead
-        bytes memory warmupOld = swapper.decodeOdosPayloadOld(encodedPath);
-        bytes memory warmupNew = swapper.decodeOdosPayload(encodedPath);
-        
-        // Measure gas for the original/old method
-        uint256 startGasOld = gasleft();
-        bytes memory decodedOld = swapper.decodeOdosPayloadOld(encodedPath);
-        uint256 oldGasUsed = startGasOld - gasleft();
-        
-        // Measure gas for the new method using abi.encodePacked
-        uint256 startGasNew = gasleft();
-        bytes memory decodedNew = swapper.decodeOdosPayload(encodedPath);
-        uint256 newGasUsed = startGasNew - gasleft();
-        
-        // Log results
-        console.log("\nOld method (manual iteration):");
-        console.log("  Gas used:", oldGasUsed);
-        if (odosPayload.length > 0) {
-            console.log("  Gas per byte:", oldGasUsed / odosPayload.length);
-        }
-        
-        console.log("\nNew method (abi.encodePacked):");
-        console.log("  Gas used:", newGasUsed);
-        if (odosPayload.length > 0) {
-            console.log("  Gas per byte:", newGasUsed / odosPayload.length);
-        }
-        
-        int256 gasSavings = int256(oldGasUsed) - int256(newGasUsed);
-        console.log("\nGas savings:", gasSavings);
-        if (gasSavings > 0) {
-            console.log("Percentage saved:", (uint256(gasSavings) * 100) / oldGasUsed, "%");
-        } else if (gasSavings < 0) {
-            console.log("Percentage increase:", (uint256(-gasSavings) * 100) / oldGasUsed, "%");
-        }
-        
-        // Verify both methods produce identical results
-        assertEq(
-            keccak256(decodedOld), 
-            keccak256(decodedNew), 
-            "Decoded payloads don't match between methods"
-        );
-        
-        // Verify both methods correctly decode the original payload
-        assertEq(
-            keccak256(odosPayload),
-            keccak256(decodedNew),
-            "Decoded payload doesn't match original"
-        );
-    }
-
     function test_EncodeDecodePayload() public {
         // add some extra data to the payload to help test that we are trimming properly
         odosPayload = abi.encodePacked(
