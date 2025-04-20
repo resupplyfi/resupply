@@ -16,8 +16,11 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
 
     address public constant odosRouter = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant registry = 0x10101010E0C3171D894B71B3400668aF311e7D94;
+    address public constant rsup = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
 
-    constructor(address _core) CoreOwnable(_core) {}
+    constructor(address _core) CoreOwnable(_core) {
+        IERC20(rsup).forceApprove(odosRouter, type(uint256).max);
+    }
 
     /**
      * @notice Executes a swap through Odos router using an encoded payload in the path parameter
@@ -35,23 +38,8 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         require(success, "Odos swap failed");
     }
 
-    function swap(
-        address,
-        uint256,
-        address[] calldata path,
-        bytes calldata payload,
-        address
-    ) external nonReentrant {
-        (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
-        require(success, "Odos swap failed");
-    }
-
     function _setApprovals(address[] memory path) internal {
-        address registeredPair = IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name());
-        if(registeredPair != msg.sender) revert();
-        address collateral = IResupplyPair(msg.sender).collateral();
-        address underlying = IResupplyPair(msg.sender).underlying();
-        IERC20(underlying).forceApprove(collateral, type(uint256).max);
+        // TODO: Do stuff to set approvals for the path
     }
 
     /**

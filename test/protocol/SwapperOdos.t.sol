@@ -6,7 +6,7 @@ import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
 import { PairTestBase } from "test/protocol/PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
-import { Odos } from "test/utils/Odos.sol";
+import { OdosApi } from "test/utils/OdosApi.sol";
 
 contract SwapperOdosTest is PairTestBase {
     SwapperOdos public swapper;

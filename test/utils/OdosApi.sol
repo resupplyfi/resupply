@@ -8,7 +8,7 @@ import { Vm } from "lib/forge-std/src/Vm.sol";
  * @title Odos
  * @notice Utility library for interacting with the Odos API in Forge tests
  */
-library Odos {
+library OdosApi {
     Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
