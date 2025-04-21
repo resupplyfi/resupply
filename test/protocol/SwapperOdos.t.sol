@@ -7,6 +7,8 @@ import { PairTestBase } from "test/protocol/PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { OdosApi } from "test/utils/OdosApi.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
 contract SwapperOdosTest is PairTestBase {
     SwapperOdos public swapper;
@@ -34,6 +36,50 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Setup complete, payload length:", odosPayload.length);
     }
 
+    function test_LiveOdosSwap() public {
+        address _core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
+        swapper = new SwapperOdos(_core);
+        IResupplyRegistry _registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
+        address _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
+        address[] memory pairs = _registry.getAllPairAddresses();
+        ResupplyPair pair = ResupplyPair(pairs[0]);
+        vm.prank(_core);
+        pair.setSwapper(address(swapper), true);
+        addCollateral(pair, 100_000e18);
+        address collateral = address(pair.collateral());
+
+        odosPayload = OdosApi.getPayload(
+            _stablecoin,
+            collateral, 
+            1e18,   // amount
+            3,      // slippage pct
+            address(this)
+        );
+
+        address[] memory path = swapper.encode(odosPayload, _stablecoin);
+
+        console.log("Odos payload:", _bytesToFullHex(odosPayload));
+
+        pair.leveragedPosition(
+            address(swapper), 
+            1_000e18, // borrow amount
+            1e18, // initial collateral amount
+            1e18, // amount collateral out min
+            path // encoded path
+        );
+    }
+
+    function test_UpdateApprovals() public {
+        swapper.updateApprovals();
+        address[] memory pairs = registry.getAllPairAddresses();
+        for (uint i = 0; i < pairs.length; i++) {
+            address pair = pairs[i];
+            address collateral = address(ResupplyPair(pair).collateral());
+            address odosRouter = swapper.odosRouter();
+            assertGt(IERC20(collateral).allowance(address(swapper), odosRouter), 1e40);
+        }
+    }
+
     function test_EncodeDecodePayload() public {
         // add some extra data to the payload to help test that we are trimming properly
         odosPayload = abi.encodePacked(
@@ -43,27 +89,33 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Original payload:", _bytesToFullHex(odosPayload));
         
         // now lets encode into an array of addresses
-        address[] memory encodedPath = swapper.encodeOdosPayload(odosPayload);
+        address[] memory encodedPath = swapper.encode(odosPayload, weth);
         
-        // Length is stored in the first element
-        uint256 originalLength = uint160(encodedPath[0]);
+        // sell token is stored in the first element
+        address sellToken = encodedPath[0];
+
+        // Length is stored in the second element
+        uint256 originalLength = uint160(encodedPath[1]);
+        
         console.log("Original length stored in first element:", originalLength);
         
         // Loop through the encoded path, appending each element to `decodedPayload`
         bytes memory decodedPayload;
-        for (uint i = 1; i < encodedPath.length - 1; i++) {
+        uint lastIndex = encodedPath.length - 1;
+        for (uint i = 2; i < lastIndex; i++) {
             console.log("Appending element:", i, _bytesToFullHex(abi.encodePacked(encodedPath[i])));
             decodedPayload = abi.encodePacked(decodedPayload, encodedPath[i]);
         }
         // Trim any extra padding that was added to the final element
         bytes memory trimmedFinalElement = BytesLib.slice(
-            abi.encodePacked(encodedPath[encodedPath.length - 1]),
+            abi.encodePacked(encodedPath[lastIndex]),
             0,
             originalLength % 20
         );
-        console.log("Appending element:", encodedPath.length - 1, _bytesToFullHex(trimmedFinalElement));
+        console.log("Appending element:", lastIndex, _bytesToFullHex(trimmedFinalElement));
 
         decodedPayload = abi.encodePacked(decodedPayload, trimmedFinalElement);
+        console.log("Original payload:", _bytesToFullHex(odosPayload));
         console.log("Decoded payload:", _bytesToFullHex(decodedPayload));
         
         // Verify the payload was correctly encoded and decoded

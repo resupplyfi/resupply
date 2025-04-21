@@ -17,6 +17,8 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     address public constant odosRouter = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant registry = 0x10101010E0C3171D894B71B3400668aF311e7D94;
     address public constant rsup = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
+    uint256 public nextPairIndex;
+    bool public approvalsRevoked;
 
     constructor(address _core) CoreOwnable(_core) {
         IERC20(rsup).forceApprove(odosRouter, type(uint256).max);
@@ -32,14 +34,42 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         address[] memory _path,
         address
     ) external nonReentrant {
+        address _pair = IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name());
+        require(_pair == msg.sender, "invalid pair");
         // Decode the path to get the original Odos router payload
-        bytes memory payload = decodeOdosPayload(_path);
+        (bytes memory payload, address sellToken) = decode(_path);
+        _setApprovals();
         (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
         require(success, "Odos swap failed");
     }
 
-    function _setApprovals(address[] memory path) internal {
-        // TODO: Do stuff to set approvals for the path
+    /**
+     * @notice Permissionless function to update the approvals for the collateral tokens that have not yet been approved
+     */
+    function updateApprovals() external {
+        _setApprovals();
+    }
+
+    function _setApprovals() internal {
+        uint256 _nextIndex = nextPairIndex;
+        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
+        if (_nextIndex >= pairs.length || approvalsRevoked) return;
+        for (; _nextIndex < pairs.length; _nextIndex++) {
+            address _pair = pairs[_nextIndex];
+            address _collateral = IResupplyPair(_pair).collateral();
+            IERC20(_collateral).forceApprove(odosRouter, type(uint256).max);
+        }
+        nextPairIndex = _nextIndex;
+    }
+
+    function revokeApprovals() external onlyOwner {
+        approvalsRevoked = true;
+        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address _pair = pairs[i];
+            address _collateral = IResupplyPair(_pair).collateral();
+            IERC20(_collateral).forceApprove(odosRouter, 0);
+        }
     }
 
     /**
@@ -47,21 +77,18 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      * @param payload The bytes payload to encode
      * @return path The encoded address[]
      */
-    function encodeOdosPayload(bytes memory payload) external pure returns (address[] memory path) {
+    function encode(bytes memory payload, address sellToken) external pure returns (address[] memory path) {
         uint totalLen = payload.length;
         // determine the total number of chunks needed to store the payload
         // each chunk is 20 bytes, so we add 19 to the total length to ensure result is always rounded up
         uint chunkCount = (totalLen + 19) / 20;
-        path = new address[](chunkCount + 1); // +1 to store the length prefix which will be needed for decoding
-
-        // Store original payload length in the first address slot (as uint96 in lower 12 bytes)
-        path[0] = address(uint160(totalLen)); // packs into the low 20 bytes (safe)
-
+        path = new address[](chunkCount + 2); // +2 to store extra data: sell token and the length
+        path[0] = sellToken;
+        path[1] = address(uint160(totalLen)); // packs into the low 20 bytes (safe)
         for (uint i = 0; i < chunkCount; i++) {
             uint offset = i * 20;
             uint end = offset + 20 > totalLen ? totalLen : offset + 20;
             bytes memory chunk = payload.slice(offset, end - offset);
-
             // Pad to 20 bytes if needed
             if (chunk.length < 20) {
                 bytes memory padded = new bytes(20);
@@ -71,8 +98,9 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
                 chunk = padded;
             }
 
-            path[i + 1] = bytesToAddress(chunk);
+            path[i + 2] = bytesToAddress(chunk);
         }
+        
     }
 
     /**
@@ -82,22 +110,21 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      * @param path The address array containing the encoded payload
      * @return payload The decoded bytes payload
      */
-    function decodeOdosPayload(address[] memory path) public pure returns (bytes memory payload) {
+    function decode(address[] memory path) public pure returns (bytes memory payload, address sellToken) {
         require(path.length > 0, "Empty path");
 
-        uint totalLen = uint(uint160(path[0]));
-        bytes memory fullElements;
-        uint lastIndex = path.length - 1;
-        
+        uint totalLen = uint(uint160(path[1]));
+        sellToken = path[0];
+        uint lastDataIndex = path.length - 1;
         // Append all complete chunks using abi.encodePacked
-        for (uint i = 1; i < lastIndex; i++) {
-            fullElements = abi.encodePacked(fullElements, path[i]);
+        for (uint i = 1; i < lastDataIndex; i++) {
+            payload = abi.encodePacked(payload, path[i]);
         }
         uint remainingBytes = totalLen % 20;
         if(remainingBytes == 0){
             remainingBytes = 20;
         }
-        payload = abi.encodePacked(fullElements, addressToBytes(path[lastIndex], remainingBytes));
+        payload = abi.encodePacked(payload, addressToBytes(path[lastDataIndex], remainingBytes));
         require(payload.length == totalLen, "Length mismatch");
     }
 

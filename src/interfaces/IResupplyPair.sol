@@ -57,7 +57,7 @@ interface IResupplyPair {
         uint256 _totalCollateral
     );
     function getUserSnapshot(address _address) external view returns (uint256 _userBorrowShares, uint256 _userCollateralBalance);
-    function leveragePosition(
+    function leveragedPosition(
         address _swapperAddress,
         uint256 _borrowAmount,
         uint256 _initialUnderlyingAmount,
@@ -141,6 +141,14 @@ interface IResupplyPair {
     event WithdrawFees(address recipient, uint256 interestFees, uint256 otherFees);
     event SetSwapper(address swapper, bool approval);
     event SetConvexPool(uint256 pid);
+    event LeveragedPosition(
+        address indexed _borrower,
+        address indexed _swapperAddress,
+        uint256 _borrowAmount,
+        uint256 _borrowShares,
+        uint256 _initialUnderlyingAmount,
+        uint256 _amountCollateralOut
+    );
 
     // Errors
     error FeesAlreadyDistributed();

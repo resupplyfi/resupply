@@ -43,6 +43,31 @@ library OdosApi {
         
         return payload;
     }
+
+    function getPayload(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 slippagePct,
+        address userAddress
+    ) public returns (bytes memory) {
+        console.log("Attempting to get Odos payload for swap");
+        console.log("Input amount:", inputAmount);
+        
+        // Get a quote from the Odos API
+        string memory pathId = getQuote(
+            inputToken,
+            outputToken,
+            inputAmount,
+            slippagePct,
+            userAddress
+        );
+        
+        // Assemble the transaction
+        bytes memory payload = assembleTransaction(pathId, userAddress);
+        
+        return payload;
+    }
     
     /**
      * @notice Get a quote from the Odos API
