@@ -46,7 +46,15 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      * @notice Permissionless function to update the approvals for the collateral tokens that have not yet been approved
      */
     function updateApprovals() external {
-        _setApprovals();
+        uint256 _nextIndex = nextPairIndex;
+        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
+        if (!canUpdateApprovals()) return;
+        for (; _nextIndex < pairs.length; _nextIndex++) {
+            address _pair = pairs[_nextIndex];
+            address _collateral = IResupplyPair(_pair).collateral();
+            IERC20(_collateral).forceApprove(odosRouter, type(uint256).max);
+        }
+        nextPairIndex = _nextIndex;
     }
 
     function revokeApprovals() external onlyOwner {
@@ -64,18 +72,6 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      */
     function canUpdateApprovals() public view returns (bool) {
         return !approvalsRevoked && nextPairIndex < IResupplyRegistry(registry).getAllPairAddresses().length;
-    }
-
-    function _setApprovals() internal {
-        uint256 _nextIndex = nextPairIndex;
-        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
-        if (!canUpdateApprovals()) return;
-        for (; _nextIndex < pairs.length; _nextIndex++) {
-            address _pair = pairs[_nextIndex];
-            address _collateral = IResupplyPair(_pair).collateral();
-            IERC20(_collateral).forceApprove(odosRouter, type(uint256).max);
-        }
-        nextPairIndex = _nextIndex;
     }
 
     /**
