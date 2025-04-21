@@ -88,7 +88,7 @@ contract PairTestSwaps is PairTestBase {
         
         // uint256 startingfraxCollateral = frxcollateral.balanceOf(address(this));
         // uint256 startingcrvusdCollateral = crvcollateral.balanceOf(address(this));
-        fraxresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, fraxpath, "");
+        fraxresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, fraxpath);
 
         printPairInfo(fraxresupply);
         printUserInfo(fraxresupply, address(this));
@@ -105,7 +105,7 @@ contract PairTestSwaps is PairTestBase {
         minout = utilities.getSwapRouteAmountOut(currentCollateral, defaultswapper, fraxRepayPath);
         console.log("minout: ", minout);
 
-        fraxresupply.repayWithCollateral(defaultswapper, currentCollateral, minout, fraxRepayPath, "");
+        fraxresupply.repayWithCollateral(defaultswapper, currentCollateral, minout, fraxRepayPath);
         printPairInfo(fraxresupply);
         printUserInfo(fraxresupply, address(this));
         console.log("leftover reusd: ", stablecoin.balanceOf(address(this)));
@@ -116,7 +116,7 @@ contract PairTestSwaps is PairTestBase {
 
 
         console.log("\ntry leverage...\n");
-        curveresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, curvepath, "");
+        curveresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, curvepath);
         printPairInfo(curveresupply);
         printUserInfo(curveresupply, address(this));
     }

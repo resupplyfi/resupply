@@ -94,16 +94,10 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
             fullElements = abi.encodePacked(fullElements, path[i]);
         }
         uint remainingBytes = totalLen % 20;
-        if (remainingBytes == 0 && path.length > 1) {
-            payload = abi.encodePacked(fullElements, path[lastIndex]);
-        } else {
-            bytes memory lastChunk = addressToBytes(path[lastIndex]);
-            bytes memory trimmedLastChunk = new bytes(remainingBytes);
-            for (uint i = 0; i < remainingBytes; i++) {
-                trimmedLastChunk[i] = lastChunk[i];
-            }
-            payload = abi.encodePacked(fullElements, trimmedLastChunk);
+        if(remainingBytes == 0){
+            remainingBytes = 20;
         }
+        payload = abi.encodePacked(fullElements, addressToBytes(path[lastIndex], remainingBytes));
         require(payload.length == totalLen, "Length mismatch");
     }
 
@@ -114,8 +108,8 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         }
     }
 
-    function addressToBytes(address a) internal pure returns (bytes memory b) {
-        b = new bytes(20);
+    function addressToBytes(address a, uint256 size) internal pure returns (bytes memory b) {
+        b = new bytes(size);
         assembly {
             mstore(add(b, 32), shl(96, a))
         }
