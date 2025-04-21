@@ -37,8 +37,7 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         address _pair = IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name());
         require(_pair == msg.sender, "invalid pair");
         // Decode the path to get the original Odos router payload
-        (bytes memory payload, address sellToken) = decode(_path);
-        _setApprovals();
+        bytes memory payload = decode(_path);
         (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
         require(success, "Odos swap failed");
     }
@@ -48,18 +47,6 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      */
     function updateApprovals() external {
         _setApprovals();
-    }
-
-    function _setApprovals() internal {
-        uint256 _nextIndex = nextPairIndex;
-        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
-        if (_nextIndex >= pairs.length || approvalsRevoked) return;
-        for (; _nextIndex < pairs.length; _nextIndex++) {
-            address _pair = pairs[_nextIndex];
-            address _collateral = IResupplyPair(_pair).collateral();
-            IERC20(_collateral).forceApprove(odosRouter, type(uint256).max);
-        }
-        nextPairIndex = _nextIndex;
     }
 
     function revokeApprovals() external onlyOwner {
@@ -73,18 +60,37 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns true if there are new pairs to update approvals for
+     */
+    function canUpdateApprovals() public view returns (bool) {
+        return !approvalsRevoked && nextPairIndex < IResupplyRegistry(registry).getAllPairAddresses().length;
+    }
+
+    function _setApprovals() internal {
+        uint256 _nextIndex = nextPairIndex;
+        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
+        if (!canUpdateApprovals()) return;
+        for (; _nextIndex < pairs.length; _nextIndex++) {
+            address _pair = pairs[_nextIndex];
+            address _collateral = IResupplyPair(_pair).collateral();
+            IERC20(_collateral).forceApprove(odosRouter, type(uint256).max);
+        }
+        nextPairIndex = _nextIndex;
+    }
+
+    /**
      * @notice Encodes any-length bytes into address[] for transport
      * @param payload The bytes payload to encode
      * @return path The encoded address[]
      */
-    function encode(bytes memory payload, address sellToken) external pure returns (address[] memory path) {
+    function encode(bytes memory payload) external pure returns (address[] memory path) {
         uint totalLen = payload.length;
         // determine the total number of chunks needed to store the payload
         // each chunk is 20 bytes, so we add 19 to the total length to ensure result is always rounded up
         uint chunkCount = (totalLen + 19) / 20;
-        path = new address[](chunkCount + 2); // +2 to store extra data: sell token and the length
-        path[0] = sellToken;
-        path[1] = address(uint160(totalLen)); // packs into the low 20 bytes (safe)
+        uint numReservedItems = 1; // 1 to store extra data: the length
+        path = new address[](chunkCount + numReservedItems);
+        path[0] = address(uint160(totalLen)); // packs into the low 20 bytes (safe)
         for (uint i = 0; i < chunkCount; i++) {
             uint offset = i * 20;
             uint end = offset + 20 > totalLen ? totalLen : offset + 20;
@@ -98,7 +104,7 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
                 chunk = padded;
             }
 
-            path[i + 2] = bytesToAddress(chunk);
+            path[i + numReservedItems] = bytesToAddress(chunk);
         }
         
     }
@@ -110,14 +116,14 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      * @param path The address array containing the encoded payload
      * @return payload The decoded bytes payload
      */
-    function decode(address[] memory path) public pure returns (bytes memory payload, address sellToken) {
+    function decode(address[] memory path) public pure returns (bytes memory payload) {
         require(path.length > 0, "Empty path");
 
         uint totalLen = uint(uint160(path[1]));
-        sellToken = path[0];
+        uint numReservedItems = 1;
         uint lastDataIndex = path.length - 1;
         // Append all complete chunks using abi.encodePacked
-        for (uint i = 1; i < lastDataIndex; i++) {
+        for (uint i = numReservedItems; i < lastDataIndex; i++) {
             payload = abi.encodePacked(payload, path[i]);
         }
         uint remainingBytes = totalLen % 20;

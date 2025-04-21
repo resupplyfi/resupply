@@ -56,7 +56,7 @@ contract SwapperOdosTest is PairTestBase {
             address(this)
         );
 
-        address[] memory path = swapper.encode(odosPayload, _stablecoin);
+        address[] memory path = swapper.encode(odosPayload);
 
         console.log("Odos payload:", _bytesToFullHex(odosPayload));
 
@@ -70,14 +70,18 @@ contract SwapperOdosTest is PairTestBase {
     }
 
     function test_UpdateApprovals() public {
+        bool canUpdateApprovals = swapper.canUpdateApprovals();
+        console.log("Can update approvals:", canUpdateApprovals);
         swapper.updateApprovals();
         address[] memory pairs = registry.getAllPairAddresses();
+        assertGt(pairs.length, 0);
         for (uint i = 0; i < pairs.length; i++) {
             address pair = pairs[i];
             address collateral = address(ResupplyPair(pair).collateral());
             address odosRouter = swapper.odosRouter();
             assertGt(IERC20(collateral).allowance(address(swapper), odosRouter), 1e40);
         }
+        assertEq(swapper.canUpdateApprovals(), false);
     }
 
     function test_EncodeDecodePayload() public {
@@ -89,20 +93,17 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Original payload:", _bytesToFullHex(odosPayload));
         
         // now lets encode into an array of addresses
-        address[] memory encodedPath = swapper.encode(odosPayload, weth);
-        
-        // sell token is stored in the first element
-        address sellToken = encodedPath[0];
+        address[] memory encodedPath = swapper.encode(odosPayload);
 
         // Length is stored in the second element
-        uint256 originalLength = uint160(encodedPath[1]);
+        uint256 originalLength = uint160(encodedPath[0]);
         
         console.log("Original length stored in first element:", originalLength);
         
         // Loop through the encoded path, appending each element to `decodedPayload`
         bytes memory decodedPayload;
         uint lastIndex = encodedPath.length - 1;
-        for (uint i = 2; i < lastIndex; i++) {
+        for (uint i = 1; i < lastIndex; i++) {
             console.log("Appending element:", i, _bytesToFullHex(abi.encodePacked(encodedPath[i])));
             decodedPayload = abi.encodePacked(decodedPayload, encodedPath[i]);
         }
