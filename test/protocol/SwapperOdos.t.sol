@@ -10,8 +10,8 @@ import { OdosApi } from "test/utils/OdosApi.sol";
 
 contract SwapperOdosTest is PairTestBase {
     SwapperOdos public swapper;
-    address public weth = Odos.WETH;
-    address public usdc = Odos.USDC;
+    address public weth = OdosApi.WETH;
+    address public usdc = OdosApi.USDC;
     
     // Store the Odos payload once and reuse it for all tests
     bytes public odosPayload;
@@ -29,7 +29,7 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Fetching Odos payload during setup...");
         
         // Fetch the real payload for swapping WETH to USDC
-        odosPayload = Odos.getPayloadForWethToUsdc(1e18, 3, address(this));
+        odosPayload = OdosApi.getPayloadForWethToUsdc(1e18, 3, address(this));
         
         console.log("Setup complete, payload length:", odosPayload.length);
     }

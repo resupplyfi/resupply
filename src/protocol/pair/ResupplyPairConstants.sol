@@ -29,6 +29,4 @@ abstract contract ResupplyPairConstants {
     error MinimumRedemption();
     error InsufficientBorrowAmount();
     error OnlyProtocolOrOwner();
-    error PathAndPayloadEmpty();
-    error PathAndPayload();
 }
