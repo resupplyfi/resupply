@@ -46,6 +46,7 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     }
 
     function configureOdosSwapper(address _odosSwapper) public {
+        addToBatch(_odosSwapper, abi.encodeWithSelector(bytes4(keccak256("updateApprovals()"))));
         // Add as a default swapper
         address[] memory swappers = new address[](2);
         swappers[0] = registry.defaultSwappers(0);
