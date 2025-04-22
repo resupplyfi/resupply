@@ -34,10 +34,11 @@ contract SwapperOdosTest is PairTestBase {
         address collateral = address(newPair.collateral());
         vm.startPrank(address(_core));
         swapper = new SwapperOdos(_core);
+        swapper.updateApprovals();
         newPair.setSwapper(address(swapper), true);
         vm.stopPrank();
         
-        uint256 borrowAmount = 1_000e18;
+        uint256 borrowAmount = 50_000e18;
         odosPayload = OdosApi.getPayload(
             _stablecoin,        // input token
             collateral,         // output token
@@ -60,6 +61,22 @@ contract SwapperOdosTest is PairTestBase {
             initialUnderlyingAmount,    // initial collateral amount
             1e18,                       // amount collateral out min
             path                        // encoded path
+        );
+
+
+        odosPayload = OdosApi.getPayload(
+            collateral,         // input token
+            _stablecoin,        // output token
+            borrowAmount,       // input amount
+            3,                  // slippage pct
+            address(newPair)    // recipient address
+        );
+        path = swapper.encode(odosPayload, collateral, _stablecoin);
+        newPair.repayWithCollateral(
+            address(swapper),
+            borrowAmount / 2,
+            1e18,
+            path
         );
     }
 

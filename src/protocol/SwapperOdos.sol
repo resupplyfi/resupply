@@ -114,7 +114,6 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      */
     function decode(address[] memory path) public pure returns (bytes memory payload) {
         require(path.length > 0, "Empty path");
-
         uint totalLen = uint(uint160(path[1]));
         uint dataStartIndex = 2;
         uint lastDataIndex = path.length - 2;
