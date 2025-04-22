@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import "src/Constants.sol" as Constants;
 import { console } from "lib/forge-std/src/console.sol";
 import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
 import { PairTestBase } from "test/protocol/PairTestBase.t.sol";
@@ -9,12 +10,18 @@ import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { OdosApi } from "test/utils/OdosApi.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
 contract SwapperOdosTest is PairTestBase {
     SwapperOdos public swapper;
     address public weth = OdosApi.WETH;
     address public usdc = OdosApi.USDC;
     bytes public odosPayload;
+    ResupplyPair public newPair;
+    address public _core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
+    ResupplyPairDeployer pairDeployer = ResupplyPairDeployer(0x5555555524De7C56C1B20128dbEAace47d2C0417);
+    IResupplyRegistry _registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
+    address public _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
     
     function setUp() public override {
         super.setUp();
@@ -22,35 +29,37 @@ contract SwapperOdosTest is PairTestBase {
     }
 
     function test_LiveOdosSwap() public {
-        address _core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
-        swapper = new SwapperOdos(_core);
-        IResupplyRegistry _registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
-        address _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
         address[] memory pairs = _registry.getAllPairAddresses();
-        ResupplyPair pair = ResupplyPair(pairs[0]);
-        vm.prank(_core);
-        pair.setSwapper(address(swapper), true);
-        addCollateral(pair, 100_000e18);
-        address collateral = address(pair.collateral());
-
+        newPair = ResupplyPair(pairs[0]);
+        address collateral = address(newPair.collateral());
+        vm.startPrank(address(_core));
+        swapper = new SwapperOdos(_core);
+        newPair.setSwapper(address(swapper), true);
+        vm.stopPrank();
+        
+        uint256 borrowAmount = 1_000e18;
         odosPayload = OdosApi.getPayload(
-            _stablecoin,
-            collateral, 
-            1e18,   // amount
-            3,      // slippage pct
-            address(this)
+            _stablecoin,        // input token
+            collateral,         // output token
+            1e18,               // input amount
+            3,                  // slippage pct
+            address(newPair)    // recipient address
         );
 
-        address[] memory path = swapper.encode(odosPayload);
+        address[] memory path = swapper.encode(odosPayload, _stablecoin, collateral);
 
         console.log("Odos payload:", _bytesToFullHex(odosPayload));
 
-        pair.leveragedPosition(
+        uint256 initialUnderlyingAmount = 100_000e18;
+        IERC20 underlying = newPair.underlying();
+        deal(address(underlying), address(this), initialUnderlyingAmount);
+        underlying.approve(address(newPair), initialUnderlyingAmount);
+        newPair.leveragedPosition(
             address(swapper), 
-            1_000e18, // borrow amount
-            1e18, // initial collateral amount
-            1e18, // amount collateral out min
-            path // encoded path
+            borrowAmount,               // borrow amount
+            initialUnderlyingAmount,    // initial collateral amount
+            1e18,                       // amount collateral out min
+            path                        // encoded path
         );
     }
 
@@ -71,8 +80,8 @@ contract SwapperOdosTest is PairTestBase {
         address[] memory pairs = registry.getAllPairAddresses();
         assertGt(pairs.length, 0);
         for (uint i = 0; i < pairs.length; i++) {
-            address pair = pairs[i];
-            address collateral = address(ResupplyPair(pair).collateral());
+            address _pair = pairs[i];
+            address collateral = address(ResupplyPair(_pair).collateral());
             address odosRouter = swapper.odosRouter();
             assertGt(IERC20(collateral).allowance(address(swapper), odosRouter), 1e40);
         }
@@ -85,8 +94,8 @@ contract SwapperOdosTest is PairTestBase {
         address[] memory pairs = registry.getAllPairAddresses();
         assertGt(pairs.length, 0);
         for (uint i = 0; i < pairs.length; i++) {
-            address pair = pairs[i];
-            address collateral = address(ResupplyPair(pair).collateral());
+            address _pair = pairs[i];
+            address collateral = address(ResupplyPair(_pair).collateral());
             address odosRouter = swapper.odosRouter();
             assertEq(IERC20(collateral).allowance(address(swapper), odosRouter), 0);
         }
@@ -105,7 +114,7 @@ contract SwapperOdosTest is PairTestBase {
         );
         console.log("Original payload:", _bytesToFullHex(odosPayload));
         
-        address[] memory encodedPath = swapper.encode(odosPayload); // Encode to path array
+        address[] memory encodedPath = swapper.encode(odosPayload, weth, usdc); // Encode to path array
         uint256 originalLength = uint160(encodedPath[0]); // Length is stored in the second element
         bytes memory decodedPayload;
         uint lastIndex = encodedPath.length - 1;

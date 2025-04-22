@@ -72,20 +72,21 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     }
 
     /**
-     * @notice Encodes any-length bytes into address[] for transport via the pair interface
+     * @notice Encodes any-length bytes into address[] data type for transport via the interface on Resupply pairs
      * @dev This function is not gas efficient, and should only be used by off-chain calls 
             to prepare a payload for the leveragedPosition or repayWithCollateral functions in a pair.
      * @param payload The bytes payload to encode
      * @return path The encoded address[]
      */
-    function encode(bytes memory payload) external pure returns (address[] memory path) {
+    function encode(bytes memory payload, address _sellToken, address _buyToken) external pure returns (address[] memory path) {
         uint totalLen = payload.length;
         // determine the total number of chunks needed to store the payload
         // each chunk is 20 bytes, so we add 19 to the total length to ensure result is always rounded up
         uint chunkCount = (totalLen + 19) / 20;
-        uint numReservedItems = 1; // 1 to store extra data: the length
-        path = new address[](chunkCount + numReservedItems);
-        path[0] = address(uint160(totalLen)); // packs into the low 20 bytes (safe)
+        uint dataStartIndex = 2; // index 0 = sell token, index 1 = payload length
+        path = new address[](chunkCount + dataStartIndex + 1);
+        path[0] = _sellToken;
+        path[1] = address(uint160(totalLen)); // packs into the low 20 bytes (safe)
         for (uint i = 0; i < chunkCount; i++) {
             uint offset = i * 20;
             uint end = offset + 20 > totalLen ? totalLen : offset + 20;
@@ -99,8 +100,9 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
                 chunk = padded;
             }
 
-            path[i + numReservedItems] = bytesToAddress(chunk);
+            path[i + dataStartIndex] = bytesToAddress(chunk);
         }
+        path[path.length - 1] = _buyToken; // final item is the buy token
     }
 
     /**
@@ -114,10 +116,10 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         require(path.length > 0, "Empty path");
 
         uint totalLen = uint(uint160(path[1]));
-        uint numReservedItems = 1;
-        uint lastDataIndex = path.length - 1;
+        uint dataStartIndex = 2;
+        uint lastDataIndex = path.length - 2;
         // Append all complete chunks using abi.encodePacked
-        for (uint i = numReservedItems; i < lastDataIndex; i++) {
+        for (uint i = dataStartIndex; i < lastDataIndex; i++) {
             payload = abi.encodePacked(payload, path[i]);
         }
         uint remainingBytes = totalLen % 20;

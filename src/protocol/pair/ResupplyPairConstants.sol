@@ -20,11 +20,11 @@ abstract contract ResupplyPairConstants {
     error InsufficientDebtAvailable(uint256 _assets, uint256 _request);
     error SlippageTooHigh(uint256 _minOut, uint256 _actual);
     error BadSwapper();
-    error InvalidPath(address _expected, address _actual);
     error InvalidReceiver();
     error InvalidLiquidator();
     error InvalidRedemptionHandler();
     error InvalidParameter();
+    error InvalidPath(address _expected, address _actual);
     error InsufficientDebtToRedeem();
     error MinimumRedemption();
     error InsufficientBorrowAmount();
