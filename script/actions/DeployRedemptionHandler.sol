@@ -1,24 +1,12 @@
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { Protocol, Prisma } from "script/protocol/ProtocolConstants.sol";
-import { Guardian } from "src/dao/operators/Guardian.sol";
-import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
-import { ITreasury } from "src/interfaces/ITreasury.sol";
-import { IVoter } from "src/interfaces/IVoter.sol";
-import { IGuardian } from "src/interfaces/IGuardian.sol";
+import { Protocol } from "script/protocol/ProtocolConstants.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
+import { SafeHelper } from "script/utils/SafeHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { CreateX } from "script/deploy/dependencies/DeploymentConfig.sol";
-import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
-import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
-import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
-import { ICore } from "src/interfaces/ICore.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 
-contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
+contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     
     function run() public isBatch(deployer) {
