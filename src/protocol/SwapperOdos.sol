@@ -43,9 +43,9 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
      * @notice Permissionless function to update the approvals for the collateral tokens that have not yet been approved
      */
     function updateApprovals() external {
+        if (!canUpdateApprovals()) return;
         uint256 _nextIndex = nextPairIndex;
         address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
-        if (!canUpdateApprovals()) return;
         for (; _nextIndex < pairs.length; _nextIndex++) {
             address _pair = pairs[_nextIndex];
             address _collateral = IResupplyPair(_pair).collateral();
