@@ -34,9 +34,6 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         address[] memory _path,
         address
     ) external nonReentrant {
-        address _pair = IResupplyRegistry(registry).pairsByName(IERC20Metadata(msg.sender).name());
-        require(_pair == msg.sender, "invalid pair");
-        // Decode the path to get the original Odos router payload
         bytes memory payload = decode(_path);
         (bool success, bytes memory result) = odosRouter.call{value: 0}(payload);
         require(success, "Odos swap failed");
@@ -102,7 +99,6 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
 
             path[i + numReservedItems] = bytesToAddress(chunk);
         }
-        
     }
 
     /**
