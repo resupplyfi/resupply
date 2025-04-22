@@ -16,12 +16,12 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
 
     address public constant odosRouter = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant registry = 0x10101010E0C3171D894B71B3400668aF311e7D94;
-    address public constant rsup = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
+    address public constant reusd = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
     uint256 public nextPairIndex;
     bool public approvalsRevoked;
 
     constructor(address _core) CoreOwnable(_core) {
-        IERC20(rsup).forceApprove(odosRouter, type(uint256).max);
+        IERC20(reusd).forceApprove(odosRouter, type(uint256).max);
     }
 
     /**
