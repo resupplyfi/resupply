@@ -62,6 +62,7 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
             address _collateral = IResupplyPair(_pair).collateral();
             IERC20(_collateral).forceApprove(odosRouter, 0);
         }
+        IERC20(reusd).forceApprove(odosRouter, 0);
     }
 
     /**
@@ -126,6 +127,10 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         }
         payload = abi.encodePacked(payload, addressToBytes(path[lastDataIndex], remainingBytes));
         require(payload.length == totalLen, "Length mismatch");
+    }
+
+    function recoverERC20(address token, uint256 amount) external onlyOwner {
+        IERC20(token).safeTransfer(msg.sender, amount);
     }
 
     function bytesToAddress(bytes memory b) internal pure returns (address a) {
