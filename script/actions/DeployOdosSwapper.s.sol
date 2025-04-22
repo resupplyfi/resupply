@@ -63,6 +63,19 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
             require(pair.swappers(_odosSwapper), "Failed to set");
             console.log("Swapper added to: ", pair.name());
         }
+
+        _executeCore(
+            address(Protocol.CORE),
+            abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                deployer,
+                _odosSwapper,
+                bytes4(keccak256("revokeApprovals()")),
+                true,
+                address(0)
+            )
+        );
+        console.log("Odos swapper revokeApprovals permissions granted to", deployer);
     }
 
     function updatePairImplementation() public{
