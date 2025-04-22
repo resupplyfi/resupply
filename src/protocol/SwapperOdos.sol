@@ -72,7 +72,9 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
     }
 
     /**
-     * @notice Encodes any-length bytes into address[] for transport
+     * @notice Encodes any-length bytes into address[] for transport via the pair interface
+     * @dev This function is not gas efficient, and should only be used by off-chain calls 
+            to prepare a payload for the leveragedPosition or repayWithCollateral functions in a pair.
      * @param payload The bytes payload to encode
      * @return path The encoded address[]
      */
