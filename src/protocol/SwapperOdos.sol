@@ -118,8 +118,9 @@ contract SwapperOdos is CoreOwnable, ReentrancyGuard {
         uint dataStartIndex = 2;
         uint lastDataIndex = path.length - 2;
         // Append all complete chunks using abi.encodePacked
-        for (uint i = dataStartIndex; i < lastDataIndex; i++) {
+        for (uint i = dataStartIndex; i < lastDataIndex;) {
             payload = abi.encodePacked(payload, path[i]);
+            unchecked { i++; }
         }
         uint remainingBytes = totalLen % 20;
         if(remainingBytes == 0){

@@ -6,6 +6,7 @@ import { console } from "lib/forge-std/src/console.sol";
 import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
 import { PairTestBase } from "test/protocol/PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { OdosApi } from "test/utils/OdosApi.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
@@ -17,7 +18,7 @@ contract SwapperOdosTest is PairTestBase {
     address public weth = OdosApi.WETH;
     address public usdc = OdosApi.USDC;
     bytes public odosPayload;
-    ResupplyPair public newPair;
+    ResupplyPair public _pair;
     address public _core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
     ResupplyPairDeployer pairDeployer = ResupplyPairDeployer(0x5555555524De7C56C1B20128dbEAace47d2C0417);
     IResupplyRegistry _registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
@@ -30,21 +31,21 @@ contract SwapperOdosTest is PairTestBase {
 
     function test_LiveOdosSwap() public {
         address[] memory pairs = _registry.getAllPairAddresses();
-        newPair = ResupplyPair(pairs[0]);
-        address collateral = address(newPair.collateral());
+        _pair = ResupplyPair(pairs[0]);
+        address collateral = address(_pair.collateral());
         vm.startPrank(address(_core));
         swapper = new SwapperOdos(_core);
         swapper.updateApprovals();
-        newPair.setSwapper(address(swapper), true);
+        _pair.setSwapper(address(swapper), true);
         vm.stopPrank();
         
         uint256 borrowAmount = 50_000e18;
         odosPayload = OdosApi.getPayload(
             _stablecoin,        // input token
             collateral,         // output token
-            1e18,               // input amount
+            borrowAmount,       // input amount
             3,                  // slippage pct
-            address(newPair)    // recipient address
+            address(_pair)    // recipient address
         );
 
         address[] memory path = swapper.encode(odosPayload, _stablecoin, collateral);
@@ -52,14 +53,15 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Odos payload:", _bytesToFullHex(odosPayload));
 
         uint256 initialUnderlyingAmount = 100_000e18;
-        IERC20 underlying = newPair.underlying();
+        IERC20 underlying = _pair.underlying();
         deal(address(underlying), address(this), initialUnderlyingAmount);
-        underlying.approve(address(newPair), initialUnderlyingAmount);
-        newPair.leveragedPosition(
+        underlying.approve(address(_pair), initialUnderlyingAmount);
+        uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount) * 9900 / 10000;
+        _pair.leveragedPosition(
             address(swapper), 
             borrowAmount,               // borrow amount
             initialUnderlyingAmount,    // initial collateral amount
-            1e18,                       // amount collateral out min
+            minCollateralOut,           // amount collateral out min
             path                        // encoded path
         );
 
@@ -68,18 +70,19 @@ contract SwapperOdosTest is PairTestBase {
         odosPayload = OdosApi.getPayload(
             collateral,         // input token
             _stablecoin,        // output token
-            amount,       // input amount
+            amount,             // input amount
             3,                  // slippage pct
-            address(newPair)    // recipient address
+            address(_pair)    // recipient address
         );
         path = swapper.encode(odosPayload, collateral, _stablecoin);
         bytes memory decodedPayload = swapper.decode(path);
         assertEq(keccak256(decodedPayload), keccak256(odosPayload), "Decoded payload does not match original payload");
-        newPair.repayWithCollateral(
-            address(swapper),
-            amount,
-            1e18,
-            path
+        uint256 minAmountOut = IERC4626(collateral).convertToAssets(amount);
+        _pair.repayWithCollateral(
+            address(swapper),   // swapper address
+            amount,             // collateral amount to swap
+            minAmountOut,       // amount out min
+            path                // path
         );
     }
 
