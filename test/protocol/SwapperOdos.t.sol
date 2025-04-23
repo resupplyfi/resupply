@@ -57,6 +57,10 @@ contract SwapperOdosTest is PairTestBase {
         deal(address(underlying), address(this), initialUnderlyingAmount);
         underlying.approve(address(_pair), initialUnderlyingAmount);
         uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount) * 9900 / 10000;
+        console.log("-- Leveraging position --");
+        console.log("Borrow Amt:", borrowAmount);
+        console.log("Min collateral out:", minCollateralOut);
+        uint256 collatBefore = _pair.userCollateralBalance(address(this)) + IERC4626(collateral).convertToShares(initialUnderlyingAmount);
         _pair.leveragedPosition(
             address(swapper), 
             borrowAmount,               // borrow amount
@@ -64,7 +68,8 @@ contract SwapperOdosTest is PairTestBase {
             minCollateralOut,           // amount collateral out min
             path                        // encoded path
         );
-
+        uint256 collatAfter = _pair.userCollateralBalance(address(this));
+        console.log("Collateral delta:", collatAfter - collatBefore);
 
         uint256 amount = borrowAmount / 2;
         odosPayload = OdosApi.getPayload(
@@ -78,12 +83,20 @@ contract SwapperOdosTest is PairTestBase {
         bytes memory decodedPayload = swapper.decode(path);
         assertEq(keccak256(decodedPayload), keccak256(odosPayload), "Decoded payload does not match original payload");
         uint256 minAmountOut = IERC4626(collateral).convertToAssets(amount);
+        console.log("-- Repaying with collateral --");
+        console.log("Collateral Amt:", amount);
+        console.log("Min amount reUSD out:", minAmountOut);
+        uint256 borrowBefore = _pair.userBorrowShares(address(this));
+        borrowBefore = toAmount(_pair, borrowBefore);
         _pair.repayWithCollateral(
             address(swapper),   // swapper address
             amount,             // collateral amount to swap
             minAmountOut,       // amount out min
             path                // path
         );
+        uint256 borrowAfter = _pair.userBorrowShares(address(this));
+        borrowAfter = toAmount(_pair, borrowAfter);
+        console.log("Borrow delta:", borrowBefore - borrowAfter);
     }
 
     function test_recoverERC20() public {
@@ -161,6 +174,18 @@ contract SwapperOdosTest is PairTestBase {
             return bytes1(uint8(bytes1("0")) + value);
         } else {
             return bytes1(uint8(bytes1("a")) + value - 10);
+        }
+    }
+
+    function toAmount(ResupplyPair _pair, uint256 shares) internal view returns (uint256 amount) {
+        (uint256 totalBorrow, uint256 totalBorrowShares) = _pair.totalBorrow();
+        if (totalBorrowShares == 0) {
+            amount = shares;
+        } else {
+            amount = (shares * totalBorrow) / totalBorrowShares;
+            if (true && totalBorrow > 0 && (amount * totalBorrowShares) / totalBorrow < shares) {
+                amount = amount + 1;
+            }
         }
     }
 }
