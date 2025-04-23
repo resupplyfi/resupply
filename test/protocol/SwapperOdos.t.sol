@@ -64,17 +64,20 @@ contract SwapperOdosTest is PairTestBase {
         );
 
 
+        uint256 amount = borrowAmount / 2;
         odosPayload = OdosApi.getPayload(
             collateral,         // input token
             _stablecoin,        // output token
-            borrowAmount,       // input amount
+            amount,       // input amount
             3,                  // slippage pct
             address(newPair)    // recipient address
         );
         path = swapper.encode(odosPayload, collateral, _stablecoin);
+        bytes memory decodedPayload = swapper.decode(path);
+        assertEq(keccak256(decodedPayload), keccak256(odosPayload), "Decoded payload does not match original payload");
         newPair.repayWithCollateral(
             address(swapper),
-            borrowAmount / 2,
+            amount,
             1e18,
             path
         );
@@ -129,27 +132,7 @@ contract SwapperOdosTest is PairTestBase {
             odosPayload,
             "111" // add some extra data to the payload to help test that we are trimming properly
         );
-        console.log("Original payload:", _bytesToFullHex(odosPayload));
-        
-        address[] memory encodedPath = swapper.encode(odosPayload, weth, usdc); // Encode to path array
-        uint256 originalLength = uint160(encodedPath[0]); // Length is stored in the second element
-        bytes memory decodedPayload;
-        uint lastIndex = encodedPath.length - 1;
-        for (uint i = 1; i < lastIndex; i++) {
-            console.log("Appending element:", i, _bytesToFullHex(abi.encodePacked(encodedPath[i])));
-            decodedPayload = abi.encodePacked(decodedPayload, encodedPath[i]);
-        }
-        // Use our length value to find and trim any extra padding that was added to the final element
-        bytes memory trimmedFinalElement = BytesLib.slice(
-            abi.encodePacked(encodedPath[lastIndex]),
-            0,
-            originalLength % 20
-        );
-        console.log("Appending element:", lastIndex, _bytesToFullHex(trimmedFinalElement));
-        decodedPayload = abi.encodePacked(decodedPayload, trimmedFinalElement);
-        console.log("Original payload:", _bytesToFullHex(odosPayload));
-        console.log("Decoded payload:", _bytesToFullHex(decodedPayload));
-        
+        bytes memory decodedPayload = swapper.decode(swapper.encode(odosPayload, weth, usdc));
         // Verify the payload was correctly encoded and decoded
         assertEq(keccak256(odosPayload), keccak256(decodedPayload), "Original and decoded payloads don't match");
     }
