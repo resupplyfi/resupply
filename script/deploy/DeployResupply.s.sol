@@ -1,5 +1,7 @@
+pragma solidity 0.8.28;
+
 import "src/Constants.sol" as Constants;
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { DeploymentConfig } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { console2 } from "forge-std/console2.sol";
 import { DeployResupplyDao } from "./dependencies/DeployResupplyDao.s.sol";
@@ -307,28 +309,28 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 1;
         swapinfo.swaptype = 1;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, address(stablecoin), Constants.Mainnet.CURVE_SCRVUSD, swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, address(stablecoin), Constants.Mainnet.SCRVUSD_ERC20, swapinfo));
 
         //scrvusd to reusd
         swapinfo.swappool = crvusdPool;
         swapinfo.tokenInIndex = 1;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 1;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CURVE_SCRVUSD, address(stablecoin), swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SCRVUSD_ERC20, address(stablecoin), swapinfo));
 
         //scrvusd withdraw to crvusd
-        swapinfo.swappool = Constants.Mainnet.CURVE_SCRVUSD;
+        swapinfo.swappool = Constants.Mainnet.SCRVUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 3;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CURVE_SCRVUSD, Constants.Mainnet.CURVE_USD_ERC20, swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.SCRVUSD_ERC20, Constants.Mainnet.CRVUSD_ERC20, swapinfo));
 
         //crvusd deposit to scrvusd
-        swapinfo.swappool = Constants.Mainnet.CURVE_SCRVUSD;
+        swapinfo.swappool = Constants.Mainnet.SCRVUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 2;
-        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CURVE_USD_ERC20, Constants.Mainnet.CURVE_SCRVUSD, swapinfo));
+        _executeCore(address(defaultSwapper), abi.encodeWithSelector(Swapper.addPairing.selector, Constants.Mainnet.CRVUSD_ERC20, Constants.Mainnet.SCRVUSD_ERC20, swapinfo));
 
         //reusd to sfrxusd
         swapinfo.swappool = fraxPool;
