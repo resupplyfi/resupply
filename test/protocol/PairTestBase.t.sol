@@ -114,6 +114,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
     function addCollateral(ResupplyPair _pair, uint256 amount) public {
         IERC20 collateral = _pair.collateral();
         deal(address(collateral), address(this), amount);
+        collateral.approve(address(_pair), type(uint256).max);
         _pair.addCollateralVault(amount, address(this));
     }
 

@@ -35,10 +35,9 @@ interface IResupplyRegistry {
     function addPair(address _pairAddress) external;
     function registeredPairs(uint256) external view returns (address);
     function pairsByName(string memory) external view returns (address);
-    function defaultSwappersLength() external view returns (uint256);
     function registeredPairsLength() external view returns (uint256);
     function getAllPairAddresses() external view returns (address[] memory _deployedPairsArray);
-    function getAllDefaultSwappers() external view returns (address[] memory _defaultSwappers);
+    function defaultSwappers(uint256 _index) external view returns (address);
     function owner() external view returns (address);
     function pendingOwner() external view returns (address);
     function renounceOwnership() external;
