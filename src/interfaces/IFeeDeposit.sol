@@ -7,4 +7,5 @@ interface IFeeDeposit {
     function setOperator(address _newAddress) external;
     function distributeFees() external;
     function incrementPairRevenue(uint256 _fees, uint256 _otherFees) external;
+    function getEpoch() external view returns(uint256);
 }

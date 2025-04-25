@@ -8,7 +8,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
-import { Setup } from "test/Setup.sol";
+import { Setup } from "test/e2e/Setup.sol";
 import "src/Constants.sol" as Constants;
 
 contract ResupplyAccountingTest is Setup {

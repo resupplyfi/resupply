@@ -22,7 +22,7 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { Utilities } from "src/protocol/Utilities.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { DeploymentConfig } from "src/Constants.sol";
 
 contract BaseDeploy is TenderlyHelper, CreateXHelper {
     address public deployer = DeploymentConfig.DEPLOYER;
@@ -61,7 +61,7 @@ contract BaseDeploy is TenderlyHelper, CreateXHelper {
     SimpleReceiver public insuranceEmissionsReceiver;
     Utilities public utilities;
     IERC20 public fraxToken = IERC20(address(Constants.Mainnet.FRXUSD_ERC20));
-    IERC20 public crvusdToken = IERC20(address(Constants.Mainnet.CURVE_USD_ERC20));
+    IERC20 public crvusdToken = IERC20(address(Constants.Mainnet.CRVUSD_ERC20));
     Swapper public defaultSwapper;
     UnderlyingOracle public underlyingOracle;
 

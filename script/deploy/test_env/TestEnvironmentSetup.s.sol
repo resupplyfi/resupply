@@ -1,5 +1,5 @@
 import "src/Constants.sol" as Constants;
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { DeploymentConfig } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseDeploy } from "script/deploy/dependencies/BaseDeploy.s.sol";

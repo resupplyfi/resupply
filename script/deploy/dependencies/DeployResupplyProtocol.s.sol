@@ -1,5 +1,5 @@
-import { CreateX } from "script/deploy/dependencies/DeploymentConfig.sol";
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { CreateX } from "src/Constants.sol";
+import { DeploymentConfig } from "src/Constants.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";

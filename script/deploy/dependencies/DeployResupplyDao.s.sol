@@ -1,5 +1,5 @@
 import "src/Constants.sol" as Constants;
-import { CreateX } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { CreateX } from "src/Constants.sol";
 import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { IGovStakerEscrow } from "src/interfaces/IGovStakerEscrow.sol";
@@ -11,7 +11,7 @@ import { VestManager } from "src/dao/tge/VestManager.sol";
 import { GovStaker } from "src/dao/staking/GovStaker.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
+import { DeploymentConfig } from "src/Constants.sol";
 
 contract DeployResupplyDao is BaseDeploy {
     function deployDaoContracts() public {

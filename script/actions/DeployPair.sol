@@ -1,7 +1,9 @@
+pragma solidity 0.8.28;
+
 import "src/Constants.sol" as Constants;
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { DeploymentConfig } from "script/deploy/dependencies/DeploymentConfig.sol";
-import { Protocol, VMConstants } from "script/protocol/ProtocolConstants.sol";
+import { DeploymentConfig } from "src/Constants.sol";
+import { Protocol, VMConstants } from "src/Constants.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";

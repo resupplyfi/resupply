@@ -1,6 +1,8 @@
+pragma solidity 0.8.28;
+
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { ICore } from "src/interfaces/ICore.sol";
-import { Protocol } from "script/protocol/ProtocolConstants.sol";
+import { Protocol } from "src/Constants.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 
 contract BaseAction is TenderlyHelper {
