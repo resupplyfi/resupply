@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-import { GovStaker } from './staking/GovStaker.sol';
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
 import { EpochTracker } from '../dependencies/EpochTracker.sol';
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IGovStaker } from '../interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
+import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 
 interface IERC20 {
     function decimals() external view returns (uint256);
@@ -26,24 +26,23 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
     uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
     uint256 public constant MAX_PCT = 10000;
+    uint256 public constant MAX_DESCRIPTION_BYTES = 384;
 
     IGovStaker public immutable staker;
 
-    Proposal[] proposalData;
-    // Proposal ID -> Action[]
-    mapping(uint256 => Action[]) proposalPayloads;
-
-    // Record of user's vote: account -> ID -> Vote
+    Proposal[] public proposalData;
+    // Proposal ID -> payload
+    mapping(uint256 id => Action[] payload) public proposalPayload;
+    // Proposal ID -> description
+    mapping(uint256 id => string description) public proposalDescription;
+    // Record of user's vote: account -> ID -> vote
     mapping(address account => mapping(uint256 id => Vote vote)) public accountVoteWeights;
-
     // Record of last created proposal timestamp for a given account: account -> timestamp
     mapping(address account => uint256 timestamp) public latestProposalTimestamp;
-
-    // Settable state variables
-    // percent of total weight required to create a new proposal
+    // Percent of total weight required to create a new proposal
     uint256 public minCreateProposalPct;
-    // percent of total weight that must vote for a proposal before it can be executed
-    uint256 public passingPct;
+    // Percent of total weight that must vote for a proposal before it can be executed
+    uint256 public quorumPct;
 
     event ProposalCreated(
         address indexed account,
@@ -54,6 +53,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     );
     event ProposalExecuted(uint256 indexed proposalId);
     event ProposalCancelled(uint256 indexed proposalId);
+    event ProposalDescriptionUpdated(uint256 indexed proposalId, string description);
     event VoteCast(
         address indexed account,
         uint256 indexed id,
@@ -61,8 +61,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         uint256 weightNo
     );
     event ProposalCreationMinPctSet(uint256 weight);
-    event ProposalPassingPctSet(uint256 pct);
-    event OperatorExecuted(address indexed caller, address indexed target, bytes data);
+    event QuorumPctSet(uint256 pct);
 
     struct Proposal {
         uint16 epoch; // epoch which vote weights are based upon
@@ -87,17 +86,17 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param _core Address of the core contract
         @param _staker Address of the staker contract
         @param _minCreateProposalPct Percent (in BPS) of total weight required to create a proposal
-        @param _passingPct Percent (in BPS) of total weight that must vote for a proposal before it can be executed
+        @param _quorumPct Percent (in BPS) of total weight that must vote for a proposal before it can be executed
     */
     constructor(
         address _core,
         IGovStaker _staker,
         uint256 _minCreateProposalPct,
-        uint256 _passingPct
+        uint256 _quorumPct
     ) CoreOwnable(_core) EpochTracker(_core) {
         staker = _staker;
         minCreateProposalPct = _minCreateProposalPct;
-        passingPct = _passingPct;
+        quorumPct = _quorumPct;
         TOKEN_DECIMALS = IERC20(_staker.stakeToken()).decimals();
     }
 
@@ -108,37 +107,34 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         return proposalData.length;
     }
 
+    // @dev: Reverts in epoch 0 as proposals are not permitted
     function minCreateProposalWeight() public view returns (uint256) {
         uint256 epoch = getEpoch();
-        if (epoch == 0) return 0;
         epoch -= 1;
-
         uint256 totalWeight = staker.getTotalWeightAt(epoch);
         return (totalWeight * minCreateProposalPct) / MAX_PCT;
     }
 
     /**
         @notice Gets information on a specific proposal
+        @dev Fetching the description can be expensive. 
+            On chain integrations should consider accessing proposalData directly.
      */
-    function getProposalData(
-        uint256 id
-    )
-        external
-        view
-        returns (
-            uint256 epoch,
-            uint256 createdAt,
-            uint256 quorumWeight,
-            uint256 weightYes,
-            uint256 weightNo,
-            bool processed,
-            bool executable,
-            Action[] memory payload
-        )
-    {
+    function getProposalData(uint256 id) external view returns (
+        string memory description,
+        uint256 epoch,
+        uint256 createdAt,
+        uint256 quorumWeight,
+        uint256 weightYes,
+        uint256 weightNo,
+        bool processed,
+        bool executable,
+        Action[] memory payload
+    ){
         Proposal memory proposal = proposalData[id];
-        payload = proposalPayloads[id];
+        payload = proposalPayload[id];
         return (
+            proposalDescription[id],
             proposal.epoch,
             proposal.createdAt,
             proposal.quorumWeight,
@@ -152,18 +148,20 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Create a new proposal
+        @param account Address of the account creating the proposal
         @param payload Tuple of [(target address, calldata), ... ] to be
                        executed if the proposal is passed.
+        @param description Description text for the proposal
+        @dev A proposal containing a proposal canceler action is required to be an independent single-action proposal.
      */
-    function createNewProposal(address account, Action[] calldata payload) external callerOrDelegated(account) returns (uint256) {
+    function createNewProposal(address account, Action[] calldata payload, string calldata description) external callerOrDelegated(account) returns (uint256) {
         require(payload.length > 0, "Empty payload");
-
         require(
             latestProposalTimestamp[account] + MIN_TIME_BETWEEN_PROPOSALS < block.timestamp,
             "MIN_TIME_BETWEEN_PROPOSALS"
         );
-
-        _containsProposalCancelerPaylod(payload); // Enforce payloads with canceler must be single action
+        require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
+        if (_containsProposalCancelerPayload(payload)) require(payload.length == 1, "Payload length not 1");
 
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
@@ -174,7 +172,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         require(accountWeight >= minCreateProposalWeight(), "Not enough weight to propose");
 
         uint256 totalWeight = staker.getTotalWeightAt(epoch) / 10 ** TOKEN_DECIMALS;
-        uint40 quorumWeight = uint40((totalWeight * passingPct) / MAX_PCT);
+        uint40 quorumWeight = uint40((totalWeight * quorumPct) / MAX_PCT);
         require(quorumWeight > 0, "Too little stake weight");
         uint256 proposalId = proposalData.length;
         proposalData.push(
@@ -186,10 +184,10 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
                 results: Vote(0, 0)
             })
         );
-
         for (uint256 i = 0; i < payload.length; i++) {
-            proposalPayloads[proposalId].push(payload[i]);
+            proposalPayload[proposalId].push(payload[i]);
         }
+        proposalDescription[proposalId] = description;
         latestProposalTimestamp[account] = block.timestamp;
         emit ProposalCreated(account, proposalId, payload, epoch, quorumWeight);
         return proposalId;
@@ -198,6 +196,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Vote fully in favor of a proposal
         @dev Each account can vote once per proposal. Uses full weight.
+        @param account Address of the account voting
         @param id Proposal ID
      */
     function voteForProposal(address account, uint256 id) external callerOrDelegated(account) {
@@ -206,17 +205,17 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Vote in partial favor of a proposal
         @dev Each account can vote once per proposal. Uses full weight.
+        @param account Address of the account voting
         @param id Proposal ID
         @param pctYes Percent of account's total weight to vote for
         @param pctNo Percent of account's total weight to vote against
      */
     function voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) external callerOrDelegated(account) {
-        require(pctYes <= MAX_PCT && pctNo <= MAX_PCT, "Pct must not exceed MAX_PCT");
         require(pctYes + pctNo == MAX_PCT, "Sum of pcts must equal MAX_PCT");
         _voteForProposal(account, id, pctYes, pctNo);
     }
 
-    function _voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) internal callerOrDelegated(account) {
+    function _voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) internal {
         require(id < proposalData.length, "Invalid ID");
         Vote memory vote = accountVoteWeights[account][id];
         require(vote.weightYes + vote.weightNo == 0, "Already voted");
@@ -252,37 +251,30 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function cancelProposal(uint256 id) external onlyOwner {
         require(id < proposalData.length, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
-        require(!_containsProposalCancelerPaylod(proposalPayloads[id]), "Contains canceler payload");
+        if (proposalPayload[id].length == 1) require(!_containsProposalCancelerPayload(proposalPayload[id]), "Contains canceler payload");
         proposalData[id].processed = true;
         emit ProposalCancelled(id);
     }
 
     // @dev: inspects a payload to check if any actions contain a proposal canceler
-    //       requires any proposal modifying cancel permissions to be the only action in the payload
-    function _containsProposalCancelerPaylod(Action[] memory payload) internal view returns (bool) {
+    function _containsProposalCancelerPayload(Action[] memory payload) internal view returns (bool) {
         uint256 payloadLength = payload.length;
-
         for (uint256 i = 0; i < payloadLength; i++) {
             Action memory action = payload[i];
             bytes memory data = action.data;
             bytes4 selector;
-
-            // Use inline assembly to extract the selector
             assembly {
                 selector := mload(add(data, 32))
             }
-
             if (action.target == address(core) && selector == ICore.setOperatorPermissions.selector) {
-                bytes memory slicedData = new bytes(data.length - 4); // create new byte array that excludes the selector
-                // copy the data to slicedData byte by byte, excluding the selector
-                for (uint256 j = 0; j < slicedData.length; j++) {
-                    slicedData[j] = data[j + 4];
-                }
+                // 164 bytes is the length of a properly formed action which sets operator permissions on Core
+                if (data.length < 164) return false;
+                // Use BytesLib to slice the calldata, skipping the first 4 bytes (selector)
+                bytes memory slicedData = BytesLib.slice(data, 4, data.length - 4);
                 (, address target, bytes4 permissionSelector, , ) = abi.decode(slicedData, (address, address, bytes4, bool, address));
-                if ((target == address(this) || target == address(0)) && permissionSelector == ICore.cancelProposal.selector) {
-                    require(payloadLength == 1, "Payload with canceler must be single action");
-                    return true;
-                }
+                if (permissionSelector != this.cancelProposal.selector) continue;
+                if (target != address(this) && target != address(0)) continue;
+                return true;
             }
         }
         return false;
@@ -301,7 +293,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         require(_canExecute(proposal), "Proposal cannot be executed");
         proposalData[id].processed = true;
 
-        Action[] storage payload = proposalPayloads[id];
+        Action[] storage payload = proposalPayload[id];
         uint256 payloadLength = payload.length;
 
         for (uint256 i = 0; i < payloadLength; i++) {
@@ -339,8 +331,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Set the minimum % of the total weight required to create a new proposal
-        @dev Only callable via a passing proposal that includes a call
-             to this contract and function within it's payload
      */
     function setMinCreateProposalPct(uint256 pct) external onlyOwner returns (bool) {
         require(pct > 0, "Too low");
@@ -352,15 +342,26 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Set the required % of the total weight that must vote
-                for a proposal prior to being able to execute it
-        @dev Only callable via a passing proposal that includes a call
-             to this contract and function within it's payload
+                for a proposal in order to become executable
      */
-    function setPassingPct(uint256 pct) external onlyOwner returns (bool) {
+    function setQuorumPct(uint256 pct) external onlyOwner returns (bool) {
         require(pct > 0, "Too low");
         require(pct <= MAX_PCT, "Invalid value");
-        passingPct = pct;
-        emit ProposalPassingPctSet(pct);
+        quorumPct = pct;
+        emit QuorumPctSet(pct);
         return true;
+    }
+
+
+    /**
+        @notice Overwrite the description text for an existing proposal
+        @param id The ID of the proposal to update
+        @param description New description text for the proposal
+     */
+    function updateProposalDescription(uint256 id, string calldata description) external onlyOwner {
+        require(id < proposalData.length, "Invalid ID");
+        require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
+        proposalDescription[id] = description;
+        emit ProposalDescriptionUpdated(id, description);
     }
 }

@@ -30,11 +30,11 @@ contract GovStakerRewardsTest is Setup {
     uint256 public maxFuzzAmount = 1e30;
     uint256 public minFuzzAmount = 10_000;
 
-    event RewardPaid(address indexed user, address indexed rewardToken, uint256 reward);
-
+    event RewardPaid(address indexed user, address indexed rewardToken, address indexed claimTo, uint256 reward);
+             
     function setUp() public override {
         super.setUp();
-        staker = new GovStaker(address(core), address(govToken), 2);
+        staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         owner = address(core);
         rewardToken = new MockToken("RewardToken1", "RT1");
         rewardToken2 = new MockToken("RewardToken2", "RT2");
@@ -212,7 +212,7 @@ contract GovStakerRewardsTest is Setup {
         uint256 earned = staker.earned(user1, address(rewardToken));
         assertGt(earned, 0);
         vm.prank(user1);
-        staker.getOneReward(address(rewardToken));
+        staker.getOneReward(user1, address(rewardToken));
         vm.prank(user1);
         staker.getReward();
         assertGe(rewardToken.balanceOf(user1), earned);
@@ -335,11 +335,11 @@ contract GovStakerRewardsTest is Setup {
         assertGt(acctData.realizedStake, 0);
         assertGt(earned, 0);
 
-        vm.expectEmit(true, true, false, true);
-        emit RewardPaid(user1, address(rewardToken2), earned);
+        vm.expectEmit(true, true, true, true);
+        emit RewardPaid(user1, address(rewardToken2), user1, earned);
         staker.exit(user1);
 
-        (uint120 _realizedStake,,) = staker.accountData(user1);
+        (uint120 _realizedStake,,,) = staker.accountData(user1);
         assertEq(_realizedStake, 0);
         uint256 totalGainsTwo = rewardToken2.balanceOf(user1);
         assertGt(totalGainsTwo, currentProfitsTwo);
@@ -458,7 +458,7 @@ contract GovStakerRewardsTest is Setup {
                 }
                 if (bal > 0) {
                     staker.checkpointAccount(users[x]);
-                    (uint120 _realizedStake,,) = staker.accountData(users[x]);
+                    (uint120 _realizedStake,,,) = staker.accountData(users[x]);
                     if (_realizedStake > 0) {
                         vm.prank(users[x]);
                         staker.cooldown(users[x], bal / (x + 2));
@@ -528,6 +528,46 @@ contract GovStakerRewardsTest is Setup {
         stakingToken.mint(_to, _amount);
     }
 
+    function test_ClaimOnBehalf() public {
+        depositStake();
+        addReward();
+        skip(1 weeks);
+        uint startBalance = rewardToken.balanceOf(user1);
+        staker.getReward(user1); // call from different address
+        assertGt(rewardToken.balanceOf(user1), startBalance);
+
+        skip(1 weeks);
+        startBalance = rewardToken.balanceOf(user1);
+        staker.getOneReward(user1, address(rewardToken)); // call from different address
+        assertGt(rewardToken.balanceOf(user1), startBalance);
+    }
+
+    function test_Redirect() public {
+        depositStake();
+        addReward();
+        skip(1 weeks);
+        vm.prank(user1);
+        staker.setRewardRedirect(user2);
+        uint startBalance = rewardToken.balanceOf(user2);
+        staker.getReward(user1); // call from different address
+        assertGt(rewardToken.balanceOf(user2), startBalance);
+
+        skip(1 weeks);
+        startBalance = rewardToken.balanceOf(user2);
+        staker.getOneReward(user1, address(rewardToken)); // call from different address
+        assertGt(rewardToken.balanceOf(user2), startBalance);
+
+        vm.prank(user1);
+        staker.setRewardRedirect(address(0)); // clear redirect
+
+        skip(1 weeks);
+        startBalance = rewardToken.balanceOf(user2);
+        uint user1Balance = rewardToken.balanceOf(user1);
+        staker.getOneReward(user1, address(rewardToken)); // call from different address
+        assertEq(rewardToken.balanceOf(user2), startBalance);
+        assertGt(rewardToken.balanceOf(user1), user1Balance);
+    }
+
     function depositStake() public {
         uint256 amount = 1_000e18;
         mintGovToken(user1, amount);
@@ -536,5 +576,17 @@ contract GovStakerRewardsTest is Setup {
         stakingToken.approve(address(staker), type(uint256).max);
         staker.stake(user1, amount);
         vm.stopPrank();
+    }
+
+    function addReward() public {
+        deal(address(rewardToken), address(owner), 1_000_000e18);
+        vm.prank(owner);
+        staker.addReward(
+            address(rewardToken), 
+            address(owner), 
+            3*WEEK
+        );
+        vm.prank(owner);
+        staker.notifyRewardAmount(address(rewardToken), 1_000_000e18);
     }
 }

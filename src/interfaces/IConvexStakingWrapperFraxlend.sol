@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: ISC
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This is a generated file. Do not edit directly.
 

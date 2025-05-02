@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
@@ -7,7 +7,6 @@ import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { IRewards } from "../interfaces/IRewards.sol";
 import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
-import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -38,8 +37,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
     constructor(
-        address _core, 
-        address _registry, 
+        address _core,
+        address _registry,
         address _insurancepool, 
         address _debtEmissionsReceiver, 
         address _pairEmissions, 
@@ -67,6 +66,9 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
         IERC20(_emissionToken).approve(pairEmissions, type(uint256).max);
         IERC20(_emissionToken).approve(insuranceEmissions, type(uint256).max);
+
+        //initial base minimum weight
+        baseMinimumWeight = 400 * 1e18 / uint256(7 days);
     }
 
     function setBaseMinimumWeight(uint256 _amount) external onlyOwner{
@@ -82,6 +84,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     function checkNewRewards(address _pair) external{
         address booster = IResupplyPair(_pair).convexBooster();
         uint256 pid = IResupplyPair(_pair).convexPid();
+        require(pid != 0, "pid cannot be 0");
         
         //get main reward distribution contract from convex pool
         (,,,address rewards,,) = IConvexStaking(booster).poolInfo(pid);
@@ -135,7 +138,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
         //get previous and update
         uint256 lastTimestamp = pairTimestamp[_pair];
-        pairTimestamp[_pair] == block.timestamp;
+        pairTimestamp[_pair] = block.timestamp;
 
         uint256 borrowLimit = IResupplyPair(_pair).borrowLimit();
         uint256 rate;
@@ -149,12 +152,12 @@ contract RewardHandler is CoreOwnable, EpochTracker {
             //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
             rate = _amount / (block.timestamp - lastTimestamp);
 
-            //if minimum set check if rate is below
-            if(minimumWeights[_pair] != 0 && rate < minimumWeights[_pair]){
-                rate = minimumWeights[_pair];
-            }else if(rate < baseMinimumWeight){
-                //if rate below the global base minimum then clamp
-                rate = baseMinimumWeight;
+            //clamp rate floor to a minimum value
+            //use custom pair setting if set, otherwise compare against baseMinimumWeight
+            uint256 minWeight = minimumWeights[_pair];
+            minWeight = minWeight == 0 ? baseMinimumWeight : minWeight;
+            if(rate < minWeight){
+                rate = minWeight;
             }
         }
         
@@ -164,7 +167,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     function queueInsuranceRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
+        require(msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDepositOperator");
 
         //queue up any reward tokens currently on this handler
         IRewards(insuranceRevenue).queueNewRewards(IERC20(revenueToken).balanceOf(address(this)));
@@ -179,7 +182,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     function queueStakingRewards() external{
         //check that caller is feedeposit or operator of fee deposit
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        require(msg.sender == feeDeposit || msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDeposist");
+        require(msg.sender == IFeeDeposit(feeDeposit).operator(), "!feeDepositOperator");
 
         //queue up any reward tokens currently on this handler
         uint256 revenueBalance = IERC20(revenueToken).balanceOf(address(this));

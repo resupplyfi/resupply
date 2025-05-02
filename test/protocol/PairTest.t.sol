@@ -1,4 +1,8 @@
-import { console } from "forge-std/console.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+import "src/Constants.sol" as Constants;
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { Setup } from "test/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
@@ -63,54 +67,202 @@ contract PairTest is PairTestBase {
     }
 
     function test_RedemptionPartial() public {
-        uint256 collateralAmount = 150_000e18;
-        uint256 borrowAmount = 100_000e18;
+        uint256 collateralAmount = 1_500_000e18;
+        uint256 borrowAmount = 500_000e18;
         uint256 redeemAmount = 10_000e18;
+
+        address[] memory _pairs = registry.getAllPairAddresses();
+        ResupplyPair otherpair = ResupplyPair(_pairs[1]);
+        IERC20 otherCollateral = otherpair.collateral();
+        otherCollateral.approve(address(otherpair), type(uint256).max);
+        underlying.approve(address(otherpair), type(uint256).max);
+
+        console.log("redemption token: ", address(pair.redemptionWriteOff()));
+
+        (address reward0, bool isclaimable, uint256 rewardsRemaining) = pair.rewards(0);
+        console.log("reward0 token", reward0);
+        console.log("reward0 isclaimable", isclaimable);
+        console.log("reward0 rewardsRemaining", uint(rewardsRemaining));
+        console.logUint(rewardsRemaining);
+
 
         addCollateral(pair, convertToShares(address(collateral), collateralAmount));
         borrow(pair, borrowAmount, 0);
 
-        deal(address(stablecoin), address(this), redeemAmount);
         
-        vm.expectRevert("fee > maxFee");
-        redemptionHandler.redeemFromPair(
-            address(pair),  // pair
-            redeemAmount,   // amount
-            0,              // max fee
-            address(this),  // return to
-            false           // unwrap
-        );
+        addCollateral(otherpair, convertToShares(address(otherCollateral), collateralAmount));
+        borrow(otherpair, borrowAmount, 0);
+
+        // deal(address(stablecoin), address(this), redeemAmount);
+        deal(address(stablecoin), address(this), borrowAmount);
+        
+        // vm.expectRevert("fee > maxFee");
+        // redemptionHandler.redeemFromPair(
+        //     address(pair),  // pair
+        //     redeemAmount,   // amount
+        //     0,              // max fee
+        //     address(this),  // return to
+        //     false           // unwrap
+        // );
+
+        vm.startPrank(address(core));
+        redemptionHandler.setOverusageInfo(1e16,5000,6000);
+        vm.stopPrank();
 
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
         uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
+        uint256 collateralBalBefore = pair.userCollateralBalance(address(this));
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
         uint256 otherFeesBefore = pair.claimableOtherFees();
         uint256 totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
-        uint256 collateralFreed = redemptionHandler.redeemFromPair(
+        uint256 nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+        console.log("underlyingBalBefore", underlyingBalBefore);
+        console.log("nextFee", nextFee);
+        console.log("real fee", totalFee);
+
+        uint256 crvusdprice = underlyingoracle.getPrices(Constants.Mainnet.CURVE_USD_ERC20);
+        uint256 gascost = vm.snapshotGasLastCall("curvePriceGas");
+        console.log("curve price gas: ", gascost);
+        console.log("crvusd price: ", crvusdprice);
+
+        // underlyingoracle.getAggPrice();
+        // gascost = vm.snapshotGasLastCall("curvePriceGasAgg");
+        // console.log("curve agg price gas: ", gascost);
+
+        // underlyingoracle.getAggPriceWrite();
+        // gascost = vm.snapshotGasLastCall("curvePriceGasAggWrite");
+        // console.log("curve agg write price gas: ", gascost);
+        uint256 frxusdprice = underlyingoracle.getPrices(address(0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29));
+        gascost = vm.snapshotGasLastCall("fraxPriceGas");
+        
+        console.log("frxusd price gas: ", gascost);
+        console.log("frxusdprice price: ", frxusdprice);
+
+        console.log("underlying oracle: ", redemptionHandler.underlyingOracle());
+
+        console.log("rweight total: ", redemptionHandler.totalWeight());
+        (, uint256 pairRWeight) = redemptionHandler.ratingData(address(pair));
+        console.log("rweight pair: ", pairRWeight);
+
+        (uint256 previewUnderlying, uint256 previewCollateral, uint256 previewFee) = redemptionHandler.previewRedeem(address(pair),redeemAmount);
+        bool useUnwrap = true;
+        uint256 returnedTokenAmount = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
             1e18,           // max fee
             address(this),  // return to
-            true           // unwrap
+            useUnwrap           // unwrap
         );
+
         uint256 underlyingBalAfter = underlying.balanceOf(address(this));
         uint256 underlyingGain = underlyingBalAfter - underlyingBalBefore;
+        console.log("underlyingGain: ", underlyingGain);
+        uint256 collateralBalAfter = pair.userCollateralBalance(address(this));
         assertGt(underlyingGain, 0);
         assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
-        uint256 feesPaid = redeemAmount - underlyingGain;
-        assertGt(feesPaid, 0);
+        uint256 feesPaid;
+        if(totalFee > 0){
+            feesPaid = redeemAmount - underlyingGain;
+            assertGt(feesPaid, 0);
+        }
+        if(useUnwrap){
+            assertEq(returnedTokenAmount, underlyingGain);
+        }else{
+            assertEq(returnedTokenAmount, previewCollateral);
+        }
+        assertEq(underlyingGain, previewUnderlying);
         
 
         (uint256 totalDebtAfter, ) = pair.totalBorrow();
         uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
         uint256 amountToStakers = pair.claimableOtherFees() - otherFeesBefore;
-        console.log("totalFeePct", totalFee);
+        console.log("previewUnderlying", previewUnderlying);
+        console.log("previewCollateral", previewCollateral);
+        console.log("previewFee", previewFee);
+        console.log("nextFee", nextFee);
+        console.log("real fee", totalFee);
         console.log("redeemAmount", redeemAmount);
-        console.log("collateralFreed", collateralFreed);
+        console.log("returnedTokenAmount", returnedTokenAmount);
+        console.log("collateralBefore", collateralBalBefore);
+        console.log("collateralAfter", collateralBalAfter);
         console.log("debtWrittenOff", debtWrittenOff);
         console.log("underlyingReturned", underlyingGain);
         console.log("feesPaid (w/ rounding error)", feesPaid);
         console.log("amountToStakers", amountToStakers);
+        printEarned(pair, address(this));
+
+        console.log("rweight total: ", redemptionHandler.totalWeight());
+        (,uint192 pairUsage) = redemptionHandler.ratingData(address(pair));
+        console.log("current pair usage: ", pairUsage);
+        console.log("continue redemptions...");
+        for(uint256 i=0; i < 2; i++){
+            totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
+            collateralBalAfter = pair.userCollateralBalance(address(this));
+            redemptionHandler.redeemFromPair(
+                address(pair),  // pair
+                redeemAmount,   // amount
+                1e18,           // max fee
+                address(this),  // return to
+                true           // unwrap
+            );
+            console.log("fee used: ", totalFee);
+            nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+            console.log("nextFee: ", nextFee);
+            console.log("rweight total: ", redemptionHandler.totalWeight());
+            (, pairUsage) = redemptionHandler.ratingData(address(pair));
+            console.log("current pair usage: ", pairUsage);
+            console.log("collateral remaining: ", collateralBalAfter);
+            console.log(">>>\n");
+        }
+
+        console.log("\n\n --- redeem from other ---");
+        console.log("rweight total: ", redemptionHandler.totalWeight());
+        (, pairUsage) = redemptionHandler.ratingData(address(otherpair));
+        console.log("current otherpair usage: ", pairUsage);
+        console.log("continue redemptions...");
+        for(uint256 i=0; i < 5; i++){
+            totalFee = redemptionHandler.getRedemptionFeePct(address(otherpair), redeemAmount);
+            collateralBalAfter = otherpair.userCollateralBalance(address(this));
+            redemptionHandler.redeemFromPair(
+                address(otherpair),  // pair
+                redeemAmount,   // amount
+                1e18,           // max fee
+                address(this),  // return to
+                true           // unwrap
+            );
+            console.log("fee used: ", totalFee);
+            nextFee = redemptionHandler.getRedemptionFeePct(address(otherpair), 1);
+            console.log("nextFee: ", nextFee);
+            console.log("rweight total: ", redemptionHandler.totalWeight());
+            (, pairUsage) = redemptionHandler.ratingData(address(pair));
+            console.log("current original pair usage: ", pairUsage);
+            (, uint256 otherpairUsage) = redemptionHandler.ratingData(address(otherpair));
+            console.log("current otherpairUsage usage: ", otherpairUsage);
+            console.log("collateral remaining: ", collateralBalAfter);
+
+            nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+            console.log("nextFee on original: ", nextFee);
+            console.log(">>>\n");
+        }
+
+        uint256 minimumRedeem = pair.minimumRedemption();
+        for(uint256 i=0; i < 20; i++){
+            vm.warp(block.timestamp +7 days);
+            console.log("warp forward...");
+            nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
+            console.log("nextFee: ", nextFee);
+            redemptionHandler.redeemFromPair(
+                address(pair),  // pair
+                minimumRedeem,   // amount
+                1e18,           // max fee
+                address(this),  // return to
+                true           // unwrap
+            );
+            console.log("rweight total: ", redemptionHandler.totalWeight());
+            (, pairUsage) = redemptionHandler.ratingData(address(pair));
+            console.log("current pair usage: ", pairUsage);
+        }
+        
 
         assertZeroBalanceRH();
     }
@@ -171,6 +323,7 @@ contract PairTest is PairTestBase {
         console.log("feesPaid (w/ rounding error)", feesPaid);
         console.log("amountToStakers", amountToStakers);
 
+
         assertZeroBalanceRH();
     }
 
@@ -223,6 +376,32 @@ contract PairTest is PairTestBase {
         assertEq(collateral.balanceOf(address(redemptionHandler)), 0);
         assertEq(underlying.balanceOf(address(redemptionHandler)), 0);
         assertEq(stablecoin.balanceOf(address(redemptionHandler)), 0);
+    }
+
+    function test_Pause() public {
+        uint256 amount = 100_000e18;
+        deal(address(underlying), address(this), amount);
+        addCollateral(pair, amount);
+        underlying.approve(address(pair), type(uint256).max);
+        uint256 borrowAmount = 10_000e18;
+        uint256 startLimit = pair.borrowLimit();
+        assertGt(startLimit, 0);
+        vm.startPrank(pair.owner());
+        pair.unpause();
+        assertGt(pair.borrowLimit(), 0); // ensure unpausing doesn't set to 0
+        pair.pause();
+        vm.stopPrank();
+        assertEq(pair.borrowLimit(), 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(ResupplyPairConstants.InsufficientDebtAvailable.selector, 0, borrowAmount)
+        );
+        pair.borrow(borrowAmount, 20_000e18, address(this));
+        // ensure double pause does not set previous to 0.
+        vm.startPrank(pair.owner());
+        pair.pause();
+        pair.unpause();
+        assertEq(pair.borrowLimit(), startLimit);
+        vm.stopPrank();
     }
 
 }

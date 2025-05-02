@@ -1,13 +1,14 @@
-// SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { DelegatedOps } from '../../dependencies/DelegatedOps.sol';
 import { CoreOwnable } from '../../dependencies/CoreOwnable.sol';
+import { IVestClaimCallback } from 'src/interfaces/IVestClaimCallback.sol';
 
 contract VestManagerBase is CoreOwnable, DelegatedOps {
     uint256 public immutable VEST_GLOBAL_START_TIME;
-    IERC20 public token;
+    IERC20 public immutable token;
 
     mapping(address => Vest[]) public userVests;
     mapping(address => ClaimSettings) public claimSettings;
@@ -19,13 +20,13 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     }
 
     struct ClaimSettings {
-        bool blockPermissionlessClaims;
+        bool allowPermissionlessClaims;
         address recipient;
     }
 
     event VestCreated(address indexed account, uint256 indexed duration, uint256 amount);
     event Claimed(address indexed account, uint256 amount);
-    event ClaimSettingsSet(address indexed account, bool indexed blockPermissionlessClaims, address indexed recipient);
+    event ClaimSettingsSet(address indexed account, bool indexed allowPermissionlessClaims, address indexed recipient);
 
     constructor(address _core, address _token) CoreOwnable(_core) {
         token = IERC20(_token);
@@ -78,6 +79,35 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
      */
     function claim(address _account) external returns (uint256 _claimed) {
         address recipient = _enforceClaimSettings(_account);
+        _claimed = _claim(_account);
+        if (_claimed > 0) {
+            token.transfer(recipient, _claimed);
+            emit Claimed(_account, _claimed);
+        }
+    }
+
+    /**
+     * @notice Claims all available vested tokens for an account, and calls a callback to handle the tokens
+     * @dev Important: the claimed tokens are transferred to the callback contract for handling, not the recipient
+     * @dev Restricted to the account or a delegated caller
+     * @param _account Address to claim tokens for
+     * @param _callback Address of the callback contract to use
+     * @return _claimed Total amount of tokens claimed
+     */
+    function claimWithCallback(
+        address _account, 
+        address _callback
+    ) external callerOrDelegated(_account) returns (uint256 _claimed) {
+        address recipient = _enforceClaimSettings(_account);
+        _claimed = _claim(_account);
+        if (_claimed > 0) {
+            token.transfer(_callback, _claimed);
+            require(IVestClaimCallback(_callback).onClaim(_account, recipient, _claimed), "callback failed");
+            emit Claimed(_account, _claimed);
+        }
+    }
+
+    function _claim(address _account) internal returns (uint256 _claimed) {
         Vest[] storage vests = userVests[_account];
         uint256 length = vests.length;
         require(length > 0, "No vests to claim");
@@ -89,16 +119,11 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
                 _claimed += claimable;
             }
         }
-    
-        if (_claimed > 0) {
-            token.transfer(recipient, _claimed);
-            emit Claimed(_account, _claimed);
-        }
     }
 
     function _enforceClaimSettings(address _account) internal view returns (address) {
         ClaimSettings memory settings = claimSettings[_account];
-        if (settings.blockPermissionlessClaims) {
+        if (!settings.allowPermissionlessClaims) {
             require(msg.sender == _account, "!authorized");
         }
         return settings.recipient != address(0) ? settings.recipient : _account;
@@ -154,7 +179,8 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
         _total = vest.amount;
         _claimable = vested - vest.claimed;
         _claimed = vest.claimed;
-        _timeRemaining = vest.duration - (block.timestamp - VEST_GLOBAL_START_TIME);
+        uint256 elapsed = block.timestamp - VEST_GLOBAL_START_TIME;
+        _timeRemaining = elapsed > vest.duration ? 0 : vest.duration - elapsed;
     }
 
     function _claimableAmount(Vest storage vest) internal view returns (uint112) {
@@ -172,10 +198,10 @@ contract VestManagerBase is CoreOwnable, DelegatedOps {
     }
 
     function setClaimSettings( 
-        bool _blockPermissionlessClaims, 
+        bool _allowPermissionlessClaims, 
         address _recipient
     ) external {
-        claimSettings[msg.sender] = ClaimSettings(_blockPermissionlessClaims, _recipient);
-        emit ClaimSettingsSet(msg.sender, _blockPermissionlessClaims, _recipient);
+        claimSettings[msg.sender] = ClaimSettings(_allowPermissionlessClaims, _recipient);
+        emit ClaimSettingsSet(msg.sender, _allowPermissionlessClaims, _recipient);
     }
 }

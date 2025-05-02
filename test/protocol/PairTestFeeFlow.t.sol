@@ -1,4 +1,7 @@
-import { console } from "forge-std/console.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { RewardDistributorMultiEpoch } from "src/protocol/RewardDistributorMultiEpoch.sol";
 import { Setup } from "test/Setup.sol";
@@ -33,7 +36,7 @@ contract PairTestFeeFlow is PairTestBase {
         assertEq(staker.balanceOf(_THIS), 1e18);
 
         printPairFees(pair);
-        vm.warp(block.timestamp + 7 days);
+        skip(feeDeposit.epochLength());
         printPairFees(pair);
         feeDepositController.distribute();
         pair.withdrawFees();
@@ -45,14 +48,24 @@ contract PairTestFeeFlow is PairTestBase {
         uint256 collateralAmount = getCollateralAmount(availableDebt,exchangeRate,maxltv);
         deal(address(collateral), address(this), collateralAmount);
 
-        // pair.addCollateralVault(amount, address(this));
-        borrow(pair, availableDebt, collateralAmount);
+        pair.addCollateralVault(collateralAmount, address(this));
+        borrow(pair, availableDebt, 0);
         console.log("\nborrowed\n");
         assertEq(pair.userCollateralBalance(_THIS), collateralAmount);
 
 
         vm.warp(block.timestamp +7 days);
         pair.addInterest(false);
+
+        (uint256 userborrowshares, uint256 usercollateral) = pair.getUserSnapshot(address(this));
+        (uint256 claimblefees, uint128 totalBorrowAmount, uint128 totalborrowShares, uint256 totalCollateral) = pair.getPairAccounting();
+
+        console.log("userborrowshares: ", userborrowshares);
+        console.log("usercollateral: ", usercollateral);
+        console.log("claimblefees: ", claimblefees);
+        console.log("totalBorrowAmount: ", totalBorrowAmount);
+        console.log("totalborrowShares: ", totalborrowShares);
+        console.log("totalCollateral: ", totalCollateral);
 
         printPairFees(pair);
         printDistributionInfo();
@@ -64,7 +77,7 @@ contract PairTestFeeFlow is PairTestBase {
 
         console.log("\nwarp to next week now that these are queued\n");
 
-        vm.warp(block.timestamp +7 days);
+        skip(feeDeposit.epochLength());
         pair.addInterest(false);
 
         printPairFees(pair);
@@ -96,14 +109,14 @@ contract PairTestFeeFlow is PairTestBase {
         staker.stake(address(this), 1e18);
         assertEq(staker.balanceOf(_THIS), 1e18);
 
-        deal(address(stablecoin), address(this), 1e18);
-        stablecoin.approve(address(insurancePool), 1e18);
+        deal(address(stablecoin), address(this), 2e18);
+        stablecoin.approve(address(insurancePool), 9999e18);
         insurancePool.deposit(1e18, address(this));
         assertEq(insurancePool.balanceOf(_THIS), 1e18);
 
         console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
 
-        vm.warp(block.timestamp + 7 days);
+        skip(feeDeposit.epochLength());
         feeDepositController.distribute();
         pair.withdrawFees();
 
@@ -114,13 +127,16 @@ contract PairTestFeeFlow is PairTestBase {
         uint256 collateralAmount = getCollateralAmount(availableDebt,exchangeRate,maxltv);
         deal(address(collateral), address(this), collateralAmount);
 
-        // pair.addCollateralVault(amount, address(this));
-        borrow(pair, availableDebt, collateralAmount);
+        pair.addCollateralVault(collateralAmount, address(this));
+        borrow(pair, availableDebt, 0);
         console.log("\nborrowed\n");
         assertEq(pair.userCollateralBalance(_THIS), collateralAmount);
         
 
-        vm.warp(block.timestamp +7 days);
+        uint startEpoch = feeDeposit.getEpoch();
+        skip(feeDeposit.epochLength());
+        console.log("start epoch: ", startEpoch);
+        console.log("end epoch: ", feeDeposit.getEpoch());
         pair.addInterest(false);
 
        // printPairFees(pair);
@@ -133,7 +149,7 @@ contract PairTestFeeFlow is PairTestBase {
 
         console.log("\nwarp to next week now that these are queued\n");
 
-        vm.warp(block.timestamp +7 days);
+        skip(feeDeposit.epochLength());
         pair.addInterest(false);
 
         // printPairFees(pair);
@@ -144,7 +160,7 @@ contract PairTestFeeFlow is PairTestBase {
         printPairFees(pair);
         printDistributionInfo();
 
-        vm.warp(block.timestamp +1 days);
+        skip(feeDeposit.epochLength());
         console.log("\nwarp to check claimables\n");
         console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
         console.log("govToken on insurance: ", stakingToken.balanceOf(address(insurancePool)));
@@ -172,7 +188,7 @@ contract PairTestFeeFlow is PairTestBase {
         for(uint256 i = 0; i < rlength; i++){
             console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
         }
-        vm.warp(block.timestamp +1 days);
+        skip(1 days);
         console.log("\nwarp to check claimables\n");
         earnedData = insurancePool.earned(address(this));
         for(uint256 i = 0; i < rlength; i++){
@@ -183,7 +199,7 @@ contract PairTestFeeFlow is PairTestBase {
             console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
         }
 
-        vm.warp(block.timestamp +6 days);
+        skip(6 days);
         feeDepositController.distribute();
         pair.withdrawFees();
         // insurancePool.getReward(address(this));
@@ -192,7 +208,7 @@ contract PairTestFeeFlow is PairTestBase {
         console.log("\nredeemed half\n");
         console.log("assets in IP: ", insurancePool.convertToAssets(insurancePool.balanceOf(_THIS)));
         
-        vm.warp(block.timestamp +1 days);
+        skip(1 days);
         console.log("\nwarp to check claimables\n");
         console.log("govToken on this: ", stakingToken.balanceOf(address(this)));
         earnedData = insurancePool.earned(address(this));
@@ -212,12 +228,15 @@ contract PairTestFeeFlow is PairTestBase {
 
         insurancePool.exit();
         console.log("\nexit started\n");
-        vm.warp(block.timestamp +1 days);
+        skip(1 days);
         console.log("\nwarp ahead, no new emissions should be claimable\n");
         //expect revert
         uint256 redeembalance = insurancePool.balanceOf(address(this));
         vm.expectRevert("!withdraw time");
         insurancePool.redeem(redeembalance, address(this), address(this));
+        //expect revert
+        vm.expectRevert("withdraw queued");
+        insurancePool.deposit(1e18, address(this));
 
         earnedData = insurancePool.earned(address(this));
         for(uint256 i = 0; i < rlength; i++){
@@ -241,7 +260,7 @@ contract PairTestFeeFlow is PairTestBase {
         for(uint256 i = 0; i < rlength; i++){
             console.log("insurance rewards burnt-> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);
         }
-        vm.warp(block.timestamp +1 days);
+        skip(1 days);
         console.log("\nwarp to check claimables\n");
 
         earnedData = insurancePool.earned(address(this));
@@ -259,12 +278,12 @@ contract PairTestFeeFlow is PairTestBase {
         insurancePool.redeem(redeembalance, address(this), address(this));
 
         insurancePool.exit();
-        vm.warp(block.timestamp +10 days);
+        skip(10 days);
         vm.expectRevert("withdraw time over");
         insurancePool.redeem(redeembalance, address(this), address(this));
 
         insurancePool.exit();
-        vm.warp(block.timestamp +8 days);
+        skip(8 days);
         insurancePool.redeem(redeembalance, address(this), address(this));
     }
 

@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: ISC
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-import { console } from "forge-std/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -12,6 +12,7 @@ import { Setup } from "test/Setup.sol";
 import "src/Constants.sol" as Constants;
 
 contract ResupplyAccountingTest is Setup {
+    uint256 public PRECISION;
     ResupplyPair pair1;
     ResupplyPair pair2;
 
@@ -23,9 +24,10 @@ contract ResupplyAccountingTest is Setup {
         super.setUp();
         deployDefaultLendingPairs();
         address[] memory _pairs = registry.getAllPairAddresses();
-        pair1 = ResupplyPair(_pairs[0]); 
-        pair2 = ResupplyPair(_pairs[1]);
+        pair1 = ResupplyPair(_pairs[_pairs.length - 1]); 
+        pair2 = ResupplyPair(_pairs[0]);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
+        PRECISION = redemptionHandler.PRECISION();
     }
 
     // ############################################
@@ -51,7 +53,7 @@ contract ResupplyAccountingTest is Setup {
             pair1,
             user7,
             collateralAmount,
-            Constants.Mainnet.FRAX_ERC20
+            Constants.Mainnet.FRXUSD_ERC20
         );
         uint256 collateral = pair1.userCollateralBalance(user7);
         uint256 ltv = pair1.maxLTV();
@@ -130,14 +132,14 @@ contract ResupplyAccountingTest is Setup {
     }
 
     function test_fuzz_addCollateral(uint96 amount) public {
-        addCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
+        addCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRXUSD_ERC20);
     }
 
     function test_fuzz_removeCollateral(uint64 amount) public {
         uint256 amountToDeposit = uint(amount) * 2;
         amountToDeposit = uint128(bound(amountToDeposit, 0, type(uint128).max - 10));
-        addCollateralFlow(pair1, user9, amountToDeposit, Constants.Mainnet.FRAX_ERC20);
-        removeCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRAX_ERC20);
+        addCollateralFlow(pair1, user9, amountToDeposit, Constants.Mainnet.FRXUSD_ERC20);
+        removeCollateralFlow(pair1, user9, amount, Constants.Mainnet.FRXUSD_ERC20);
     }
 
     // ############################################
@@ -195,7 +197,19 @@ contract ResupplyAccountingTest is Setup {
         uint256 collateralValue = amountToRedeem * (1e18 - _fee) / 1e18;
         uint256 platformFee = (amountToRedeem - collateralValue) * pair.protocolRedemptionFee() / 1e18;
         uint256 debtReduction = amountToRedeem - platformFee;
+        uint256 minimumRedeem = pair.minimumRedemption();
 
+        if (amountToRedeem < minimumRedeem) {
+            vm.expectRevert(ResupplyPairConstants.MinimumRedemption.selector);
+            redemptionHandler.redeemFromPair(
+                address(pair), 
+                amountToRedeem, 
+                _fee, 
+                userToRedeem,
+                true // _redeemToUnderlying
+            );
+            return;
+        }
         if (
             totalBorrowAmount <= debtReduction ||
             totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
@@ -211,7 +225,7 @@ contract ResupplyAccountingTest is Setup {
             vm.stopPrank();
             return;
         }
-        
+        uint256 feePct = redemptionHandler.getRedemptionFeePct(address(pair), amountToRedeem);
         redemptionHandler.redeemFromPair(
             address(pair), 
             amountToRedeem, 
@@ -222,7 +236,7 @@ contract ResupplyAccountingTest is Setup {
         vm.stopPrank();
 
         assertApproxEqAbs(
-            (amountToRedeem * 99) / 100, // Fee schema
+            (amountToRedeem * (PRECISION - feePct)) / PRECISION, // Fee schema
             pair.underlying().balanceOf(userToRedeem) - underlyingBalanceBefore,
             0.001e18
         );
@@ -443,20 +457,24 @@ contract ResupplyAccountingTest is Setup {
         deal(address(stablecoin), address(insurancePool), 10_000e18 + amountToLiquidate, true);
 
         /// Values to derive state change from
+        IERC4626 collateral = IERC4626(address(pair.collateral()));
         uint stableTSBefore = stablecoin.totalSupply();
         uint stableBalanceInsuranceBefore = stablecoin.balanceOf(address(insurancePool));
-        uint insuracePoolBalanceUnderlyingBefore = pair.underlying().balanceOf(address(insurancePool));
+        uint insurancePoolBalanceUnderlyingBefore = pair.underlying().balanceOf(address(insurancePool));
         uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
-        uint collateralInPairBefore = pair.collateral().balanceOf(address(pair));
         (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
-        uint underlyingExpected = IERC4626(address(pair.collateral())).previewRedeem(userCollateralBalanceBefore);
+        uint userCollateralValueBefore = collateral.previewRedeem(userCollateralBalanceBefore);
+        uint liquidationIncentive = liquidationHandler.liquidateIncentive();
         liquidationHandler.liquidate(
             address(pair),
             toLiquidate
         );
 
         (uint totalBorrowAmountAfter, ) =  pair.totalBorrow();
-        
+        uint256 ipUnderlyingDiff = pair.underlying().balanceOf(address(insurancePool)) - insurancePoolBalanceUnderlyingBefore;
+        uint userCollateralValueAfter = collateral.previewRedeem(pair.userCollateralBalance(toLiquidate));
+        uint256 liquidationFeeAmount = (amountToLiquidate * pair.liquidationFee()) / 1e5;
+
         assertEq({
             left: stableTSBefore - stablecoin.totalSupply(),
             right: amountToLiquidate,
@@ -467,16 +485,21 @@ contract ResupplyAccountingTest is Setup {
             right: amountToLiquidate,
             err: "// THEN: insurance pool stable not decremented by expected"
         });
-        assertEq({
-            left: pair.underlying().balanceOf(address(insurancePool)) - insuracePoolBalanceUnderlyingBefore,
-            right: underlyingExpected,
-            err: "// THEN: insurance pool underlying balance increase not expected"
-        });
-        assertEq({
-            left: pair.userCollateralBalance(toLiquidate),
-            right: 0,
-            err: "// THEN: All collateral is not awarded"
-        });
+
+        uint256 liquidationAmountPlusFee = amountToLiquidate + liquidationFeeAmount;
+        if (userCollateralValueBefore > liquidationAmountPlusFee) {
+            assertApproxEqAbs(
+                ipUnderlyingDiff,
+                liquidationAmountPlusFee - liquidationIncentive,
+                1,
+                "// THEN: insurance pool underlying balance not within 1 wei"
+            );
+            assertEq({
+                left: userCollateralValueBefore - liquidationFeeAmount - amountToLiquidate,
+                right: userCollateralValueAfter,
+                err: "// THEN: All collateral is not awarded"
+            });
+        }
         assertEq({
             left: totalBorrowAmountBefore - totalBorrowAmountAfter,
             right: amountToLiquidate,

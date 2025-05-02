@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 import { ISimpleReceiver } from "../../../interfaces/ISimpleReceiver.sol";
 import { CoreOwnable } from "../../../dependencies/CoreOwnable.sol";
@@ -36,11 +36,12 @@ contract SimpleReceiverFactory is CoreOwnable {
     /// @return receiver The address of the newly deployed receiver contract
     function deployNewReceiver(string memory _name, address[] memory _approvedClaimers) external onlyOwner returns (address receiver) {
         bytes32 nameHash = keccak256(bytes(_name));
-        receiver = implementation.cloneDeterministic(nameHash);
+        address _implementation = implementation;
+        receiver = _implementation.cloneDeterministic(nameHash);
         ISimpleReceiver(receiver).initialize(_name, _approvedClaimers);
         receivers.push(receiver);
         nameHashToReceiver[nameHash] = receiver;
-        emit ReceiverDeployed(address(receiver), implementation, receivers.length - 1);
+        emit ReceiverDeployed(address(receiver), _implementation, receivers.length - 1);
     }
 
     /// @dev Returns address(0) if no receiver is found.
@@ -53,11 +54,13 @@ contract SimpleReceiverFactory is CoreOwnable {
         return receivers.length;
     }
 
-    function getDeterministicAddress(string memory _name) public view returns (address) {
+    function getDeterministicAddress(string memory _name) external view returns (address) {
         return Clones.predictDeterministicAddress(implementation, bytes32(keccak256(bytes(_name))));
     }
 
-    function getReceiverId(address receiver) external view returns (uint256) {
-        return IEmissionsController(emissionsController).receiverToId(receiver);
+    function getReceiverId(address _receiver) external view returns (uint256) {
+        uint256 id = IEmissionsController(emissionsController).receiverToId(_receiver);
+        if (id == 0) require(IEmissionsController(emissionsController).idToReceiver(id).receiver == _receiver, "!registered");
+        return id;
     }
 }

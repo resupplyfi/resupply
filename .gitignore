@@ -18,6 +18,9 @@
 out
 data
 tenderly/
+snapshots
+abis/
+
 # files
 *.env
 *.log
@@ -28,6 +31,10 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 lcov.info
+.vscode
+package-lock.json
+abis
+safesmith.toml
 
 # factories
 !src/types/factories

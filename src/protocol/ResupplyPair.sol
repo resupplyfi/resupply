@@ -1,37 +1,18 @@
-// SPDX-License-Identifier: ISC
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ========================== ResupplyPair ============================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
-
-// Primary Author
-// Drake Evans: https://github.com/DrakeEvans
-
-// Reviewers
-// Dennis: https://github.com/denett
-// Sam Kazemian: https://github.com/samkazemian
-// Travis Moore: https://github.com/FortisFortuna
-// Jack Corddry: https://github.com/corddry
-// Rich Gee: https://github.com/zer0blockchain
-
-// ====================================================================
+/**
+ * @title ResupplyPair
+ * @notice Based on code from Drake Evans and Frax Finance's lending pair contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
+ */
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairConstants } from "./pair/ResupplyPairConstants.sol";
 import { ResupplyPairCore } from "./pair/ResupplyPairCore.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { ISwapper } from "../interfaces/ISwapper.sol";
@@ -39,9 +20,7 @@ import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
-/// @title ResupplyPair
-/// @author Drake Evans (Frax Finance) https://github.com/drakeevans
-/// @notice  The ResupplyPair is a lending pair that allows users to engage in lending and borrowing activities
+
 contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
@@ -58,6 +37,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     error FeesAlreadyDistributed();
     error IncorrectStakeBalance();
 
+    /// @param _core Core contract address
     /// @param _configData config data
     /// @param _immutables immutable data
     /// @param _customConfigData extras
@@ -82,10 +62,12 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             convexBooster = _convexBooster;
             convexPid = _convexpid;
             //approve
-            collateral.approve(convexBooster, type(uint256).max);
+            collateral.forceApprove(convexBooster, type(uint256).max);
             //add rewards for curve staking
             _insertRewardToken(CRV);
             _insertRewardToken(CVX);
+
+            emit SetConvexPool(_convexpid);
         }
     }
 
@@ -112,13 +94,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```getUserSnapshot``` function gets user level accounting data
     /// @param _address The user address
-    /// @return _userBorrowShares The user borrow shares
-    /// @return _userCollateralBalance The user collateral balance
+    /// @return _borrowShares The user borrow shares
+    /// @return _collateralBalance The user collateral balance
     function getUserSnapshot(
         address _address
-    ) external returns (uint256 _userBorrowShares, uint256 _userCollateralBalance) {
-        _userBorrowShares = userBorrowShares(_address);
-        _userCollateralBalance = userCollateralBalance(_address);
+    ) external returns (uint256 _borrowShares, uint256 _collateralBalance) {
+        _collateralBalance = userCollateralBalance(_address);
+        _borrowShares = userBorrowShares(_address);
     }
 
     /// @notice The ```getPairAccounting``` function gets all pair level accounting numbers
@@ -136,7 +118,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
             uint256 _totalCollateral
         )
     {
-        (, , uint256 _claimableFees, VaultAccount memory _totalBorrow) = previewAddInterest();
+        VaultAccount memory _totalBorrow;
+        (, , _claimableFees, _totalBorrow) = previewAddInterest();
         _totalBorrowAmount = _totalBorrow.amount;
         _totalBorrowShares = _totalBorrow.shares;
         _totalCollateral = totalCollateral();
@@ -182,7 +165,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     // ============================================================================================
 
 
-    /// @notice The ```SetOracleInfo``` event is emitted when the oracle info (address and max deviation) is set
+    /// @notice The ```SetOracleInfo``` event is emitted when the oracle info is set
     /// @param oldOracle The old oracle address
     /// @param newOracle The new oracle address
     event SetOracleInfo(
@@ -210,6 +193,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @notice The ```setMaxLTV``` function sets the max LTV
     /// @param _newMaxLTV The new max LTV
     function setMaxLTV(uint256 _newMaxLTV) external onlyOwner{
+        if (_newMaxLTV > LTV_PRECISION) revert InvalidParameter();
         emit SetMaxLTV(maxLTV, _newMaxLTV);
         maxLTV = _newMaxLTV;
     }
@@ -222,7 +206,14 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
 
     /// @notice The ```setRateCalculator``` function sets the rate contract address
     /// @param _newRateCalculator The new rate contract address
-    function setRateCalculator(address _newRateCalculator) external onlyOwner{
+    /// @param _updateInterest Whether to update interest before setting new rate calculator
+    function setRateCalculator(address _newRateCalculator, bool _updateInterest) external onlyOwner{
+        //should add interest before changing rate calculator
+        //however if there is an intrinsic problem with the current rate calculate, need to be able
+        //to update without calling addInterest
+        if(_updateInterest){
+            _addInterest();
+        }
         emit SetRateCalculator(address(rateCalculator), _newRateCalculator);
         rateCalculator = IRateCalculator(_newRateCalculator);
     }
@@ -241,6 +232,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function setLiquidationFees(
         uint256 _newLiquidationFee
     ) external onlyOwner{
+        if (_newLiquidationFee > LIQ_PRECISION) revert InvalidParameter();
         emit SetLiquidationFees(
             liquidationFee,
             _newLiquidationFee
@@ -282,6 +274,16 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         }
         borrowLimit = _limit;
         emit SetBorrowLimit(_limit);
+    }
+
+    event SetMinimumRedemption(uint256 min);
+
+    function setMinimumRedemption(uint256 _min) external onlyOwner{
+        if(_min < 100 * PAIR_DECIMALS ){
+            revert InvalidParameter();
+        }
+        minimumRedemption = _min;
+        emit SetMinimumRedemption(_min);
     }
 
     event SetMinimumLeftover(uint256 min);
@@ -358,9 +360,13 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     /// @dev
     /// @param _swapper The swapper address
     /// @param _approval The approval
-    function setSwapper(address _swapper, bool _approval) external onlyOwner{
-        swappers[_swapper] = _approval;
-        emit SetSwapper(_swapper, _approval);
+    function setSwapper(address _swapper, bool _approval) external{
+        if(msg.sender == owner() || msg.sender == registry){
+            swappers[_swapper] = _approval;
+            emit SetSwapper(_swapper, _approval);
+        }else{
+            revert OnlyProtocolOrOwner();
+        }
     }
 
     /// @notice The ```SetConvexPool``` event fires when convex pool id is updated
@@ -376,15 +382,16 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     }
 
     function _updateConvexPool(uint256 _pid) internal{
-        if(convexPid != _pid){
+        uint256 currentPid = convexPid;
+        if(currentPid != _pid){
             //get previous staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
             //get balance
-            uint256 stakedBalance = IConvexStaking(rewards).balanceOf(address(this));
+            uint256 stakedBalance = IConvexStaking(_rewards).balanceOf(address(this));
             
             if(stakedBalance > 0){
                 //withdraw
-                IConvexStaking(rewards).withdrawAndUnwrap(stakedBalance,false);
+                IConvexStaking(_rewards).withdrawAndUnwrap(stakedBalance,false);
                 if(collateral.balanceOf(address(this)) < stakedBalance){
                     revert IncorrectStakeBalance();
                 }
@@ -399,24 +406,27 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     }
 
     function _stakeUnderlying(uint256 _amount) internal override{
-        if(convexPid != 0){
-            IConvexStaking(convexBooster).deposit(convexPid, _amount, true);
+        uint256 currentPid = convexPid;
+        if(currentPid != 0){
+            IConvexStaking(convexBooster).deposit(currentPid, _amount, true);
         }
     }
 
     function _unstakeUnderlying(uint256 _amount) internal override{
-        if(convexPid != 0){
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
-            IConvexStaking(rewards).withdrawAndUnwrap(_amount, false);
+        uint256 currentPid = convexPid;
+        if(currentPid != 0){
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
+            IConvexStaking(_rewards).withdrawAndUnwrap(_amount, false);
         }
     }
 
     function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
-        if(convexPid != 0){
+        uint256 currentPid = convexPid;
+        if(currentPid != 0){
             //get staking
-            (,,,address rewards,,) = IConvexStaking(convexBooster).poolInfo(convexPid);
+            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
             //get balance
-            _totalCollateralBalance = IConvexStaking(rewards).balanceOf(address(this));
+            _totalCollateralBalance = IConvexStaking(_rewards).balanceOf(address(this));
         }else{
             _totalCollateralBalance = collateral.balanceOf(address(this));   
         }
@@ -429,12 +439,14 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     uint256 previousBorrowLimit;
     /// @notice The ```pause``` function is called to pause all contract functionality
     function pause() external onlyOwner{
-        previousBorrowLimit = borrowLimit;
-        _setBorrowLimit(0);
+        if (borrowLimit > 0) {
+            previousBorrowLimit = borrowLimit;
+            _setBorrowLimit(0);
+        }
     }
 
     /// @notice The ```unpause``` function is called to unpause all contract functionality
     function unpause() external onlyOwner{
-        _setBorrowLimit(previousBorrowLimit);
+        if (borrowLimit == 0) _setBorrowLimit(previousBorrowLimit);
     }
 }

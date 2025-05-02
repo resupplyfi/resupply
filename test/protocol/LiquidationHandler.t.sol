@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
-import { console } from "forge-std/console.sol";
+import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { MockOracle } from "test/mocks/MockOracle.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-contract LiquidationManagerTest is PairTestBase {
+contract LiquidationHandlerTest is PairTestBase {
 
     MockOracle mockOracle;
 
@@ -27,8 +30,7 @@ contract LiquidationManagerTest is PairTestBase {
         stablecoin.approve(address(liquidationHandler), type(uint256).max);
         stablecoin.approve(address(insurancePool), type(uint256).max);
 
-        deal(address(stablecoin), address(this), 10_000e18);
-        depositToInsurancePool(10_000e18);
+        depositToInsurancePool(1_000_000e18);
     }
 
     
@@ -39,12 +41,18 @@ contract LiquidationManagerTest is PairTestBase {
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         uint256 ipTotalSupply = insurancePool.totalSupply();
         uint256 ipTotalAssets = insurancePool.totalAssets();
-        uint256 pairCollateralBalance = collateral.balanceOf(address(pair));
+        uint256 pairCollateralBalance = pair.totalCollateral();
 
+        printPairInfo(pair);
+        printUserInfo(pair, address(this));
+        vm.prank(address(core));
+        pair.setMaxLTV(1);
 
         vm.expectEmit(true, false, false, false, address(liquidationHandler));
         emit LiquidationHandler.CollateralProccessed(address(collateral), 0, 0);
         liquidationHandler.liquidate(address(pair), address(this));
+        uint256 gascost = vm.snapshotGasLastCall("Liquidate");
+        console.log("liquidate gas: ", gascost);
 
         assertEq(collateral.balanceOf(address(liquidationHandler)), 0);
         assertEq(underlying.balanceOf(address(liquidationHandler)), 0);
@@ -52,13 +60,12 @@ contract LiquidationManagerTest is PairTestBase {
         assertGt(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'underlying balance should increase');
         assertEq(insurancePool.totalSupply(), ipTotalSupply, 'total supply should not change');
         assertLt(insurancePool.totalAssets(), ipTotalAssets, 'total assets should decrease');
-        assertLt(collateral.balanceOf(address(pair)), pairCollateralBalance, 'pair collateral balance should decrease');
+        assertLt(pair.totalCollateral(), pairCollateralBalance, 'pair collateral balance should decrease');
     }
 
     function test_LiquidateSolventBorrowerFails() public {
         uint256 amount = 1000e18;
-        deal(address(collateral), address(this), amount);
-        borrow(pair, amount, amount); 
+        borrow(pair, amount, calculateMinUnderlyingNeededForBorrow(amount)); 
 
         vm.expectRevert(ResupplyPairConstants.BorrowerSolvent.selector);
         liquidationHandler.liquidate(address(pair), address(this));
@@ -67,7 +74,6 @@ contract LiquidationManagerTest is PairTestBase {
     function test_LiquidationCollateralArrivesInIP() public {
         buildLiquidatablePosition();
         liquidationHandler.liquidate(address(pair), address(this));
-
     }
 
     function test_LiquidationWithIlliquidCollateral() public {
@@ -76,7 +82,7 @@ contract LiquidationManagerTest is PairTestBase {
 
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         liquidationHandler.liquidate(address(pair), address(this));
-        assertGt(collateral.balanceOf(address(liquidationHandler)), 0);
+        assertGt(collateral.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler collateral balance should be greater than 0');
         assertEq(underlying.balanceOf(address(insurancePool)), 0, 'IP underlying balance should be 0');
 
         resupplyLiquidityToMarket();
@@ -85,7 +91,7 @@ contract LiquidationManagerTest is PairTestBase {
         
         // We should be able to process collateral now
         liquidationHandler.processCollateral(address(collateral));
-        assertEq(collateral.balanceOf(address(liquidationHandler)), 0);
+        assertEq(collateral.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler collateral balance should be 0');
         assertGt(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'IP underlying balance should increase');
     }
 
@@ -99,11 +105,12 @@ contract LiquidationManagerTest is PairTestBase {
         deal(address(collateral), address(liquidationHandler), amt);
         vm.startPrank(address(core));
         vm.expectRevert("handler still used");
-        liquidationHandler.migrateCollateral(address(collateral), amt, address(newLiquidationHandler));
+        liquidationHandler.migrateCollateral(address(collateral));
 
         registry.setLiquidationHandler(address(newLiquidationHandler));
-        liquidationHandler.migrateCollateral(address(collateral), collateral.balanceOf(address(liquidationHandler)), address(newLiquidationHandler));
         vm.stopPrank();
+        vm.prank(address(newLiquidationHandler));
+        liquidationHandler.migrateCollateral(address(collateral));
         assertEq(collateral.balanceOf(address(newLiquidationHandler)), amt);
     }
 
@@ -115,7 +122,7 @@ contract LiquidationManagerTest is PairTestBase {
         uint256 ipUnderlyingBalance = underlying.balanceOf(address(insurancePool));
         uint256 ipTotalSupply = insurancePool.totalSupply();
         uint256 ipTotalAssets = insurancePool.totalAssets();
-        uint256 pairCollateralBalance = collateral.balanceOf(address(pair));
+        uint256 pairCollateralBalance = pair.totalCollateral();
         uint256 ipCollateralBalance = collateral.balanceOf(address(insurancePool));
 
         vm.startPrank(address(core));
@@ -126,13 +133,13 @@ contract LiquidationManagerTest is PairTestBase {
 
         liquidationHandler.distributeCollateralAndClearDebt(address(collateral));
 
-        assertEq(collateral.balanceOf(address(liquidationHandler)), 0);
-        assertEq(underlying.balanceOf(address(liquidationHandler)), 0);
+        assertEq(collateral.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler collateral balance should be 0');
+        assertEq(underlying.balanceOf(address(liquidationHandler)), 0, 'liquidationHandler underlying balance should be 0');
         assertLt(stablecoin.balanceOf(address(insurancePool)), ipStableBalance, 'stablecoin balance should decrease');
         assertEq(underlying.balanceOf(address(insurancePool)), ipUnderlyingBalance, 'underlying balance should not change');
         assertEq(insurancePool.totalSupply(), ipTotalSupply, 'total supply should not change');
         assertLt(insurancePool.totalAssets(), ipTotalAssets, 'total assets should decrease');
-        assertLt(collateral.balanceOf(address(pair)), pairCollateralBalance, 'pair collateral balance should decrease');
+        assertLt(pair.totalCollateral(), pairCollateralBalance, 'pair collateral balance should decrease');
         assertGt(collateral.balanceOf(address(insurancePool)), ipCollateralBalance, 'IP collateral balance should increase');
         vm.stopPrank();
     }
@@ -149,26 +156,21 @@ contract LiquidationManagerTest is PairTestBase {
     }
 
     function depositToInsurancePool(uint256 _amount) public {
+        deal(address(stablecoin), address(this), _amount);
         insurancePool.deposit(_amount, address(this));
     }
 
     function buildLiquidatablePosition() public {
-        uint256 amount = 1000e18;
-        uint256 maxBorrow = (
-            convertToAssets(address(collateral), amount) *
-            pair.maxLTV() /
-            ResupplyPairConstants.LTV_PRECISION
-        );
-        deal(address(collateral), address(this), amount);
-        borrow(pair, maxBorrow - 1e18, amount); // borrow while adding collateral
-        setOraclePrice(1e17);
+        uint256 DEFAULT_BORROW_AMOUNT = 5_000e18;
+        uint256 borrowAmount = pair.minimumBorrowAmount() > DEFAULT_BORROW_AMOUNT ? pair.minimumBorrowAmount() : DEFAULT_BORROW_AMOUNT;
+        borrow(pair, borrowAmount, calculateMinUnderlyingNeededForBorrow(borrowAmount)); // borrow while adding collateral
+        setOraclePrice(1e10);
     }
 
     function withdrawLiquidityFromMarket() public {
-        deal(address(collateral), user1, collateral.totalSupply() * 2);
+        deal(address(collateral), user1, collateral.totalSupply() * 10000);
         IERC4626 _collateral = IERC4626(address(collateral));
         uint256 toRedeem = _collateral.maxRedeem(user1);
-
         vm.startPrank(user1);
         _collateral.redeem(toRedeem, user1, user1);
         vm.stopPrank();

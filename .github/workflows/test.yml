@@ -7,7 +7,7 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
-  MAINNET_URL: https://ethereum-rpc.publicnode.com
+  MAINNET_URL: ${{ secrets.MAINNET_URL }}
 
 jobs:
   check:
@@ -34,6 +34,10 @@ jobs:
           forge --version
 
       - run: npm i
+
+      - name: Update Forge dependencies
+        run: |
+          forge update
 
       - name: Run Forge build
         run: |

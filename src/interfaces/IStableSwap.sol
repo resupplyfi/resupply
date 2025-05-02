@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 // NOTE: This file generated from ABI of the FraxBP pool found at https://etherscan.io/address/0xDcEF968d416a41Cdac0ED8702fAC8128A64241A2#code
 

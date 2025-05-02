@@ -1,10 +1,8 @@
-
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 import { VestManagerBase } from "./VestManagerBase.sol";
 
 interface IGovToken is IERC20 {
@@ -19,7 +17,7 @@ contract VestManager is VestManagerBase {
     uint256 public immutable INITIAL_SUPPLY;
     address public immutable BURN_ADDRESS;
     
-    bool public initParamsSet;
+    bool public initialized;
     uint256 public redemptionRatio;
     mapping(AllocationType => uint256) public allocationByType;
     mapping(AllocationType => uint256) public durationByType;
@@ -27,7 +25,7 @@ contract VestManager is VestManagerBase {
     mapping(address account => mapping(AllocationType => bool hasClaimed)) public hasClaimed; // used for airdrops only
 
     enum AllocationType {
-        PERMA_LOCK,
+        PERMA_STAKE,
         LICENSING,
         TREASURY,
         REDEMPTIONS,
@@ -48,7 +46,7 @@ contract VestManager is VestManagerBase {
         address[3] memory _redemptionTokens // PRISMA, yPRISMA, cvxPRISMA
     ) VestManagerBase(_core, _token) {
         INITIAL_SUPPLY = IGovToken(_token).INITIAL_SUPPLY();
-        require(IERC20(_token).balanceOf(address(this)) == INITIAL_SUPPLY, "invalid initial supply");
+        require(IERC20(_token).balanceOf(address(this)) == INITIAL_SUPPLY, "VestManager not funded");
         BURN_ADDRESS = _burnAddress;
         prisma = _redemptionTokens[0];
         yprisma = _redemptionTokens[1];
@@ -62,8 +60,9 @@ contract VestManager is VestManagerBase {
         @param _merkleRoots     Merkle roots for the airdrop allocations
         @param _nonUserTargets  Addresses to receive the non-user allocations
         @param _vestDurations  Durations of the vesting periods for each type
-        @param _allocPercentages Percentages of the initial supply allocated to each type, 
-            with the final value being the total percentage allocated for emissions.
+        @param _allocPercentages Percentages of the initial supply allocated to each type,  
+            the first two values being perma-stakers, followed by all other allocation types in order of 
+            AllocationType enum.
     */
     function setInitializationParams(
         uint256 _maxRedeemable,
@@ -72,19 +71,19 @@ contract VestManager is VestManagerBase {
         uint256[8] memory _vestDurations,
         uint256[8] memory _allocPercentages
     ) external onlyOwner {
-        require(!initParamsSet, "params already set");
-        initParamsSet = true;
+        require(!initialized, "params already set");
+        initialized = true;
 
         uint256 totalPctAllocated;
         uint256 airdropIndex;
-        // Set durations and allocations for each allocation type
+        require(_vestDurations[0] == _vestDurations[1], "perma-staker durations must match");
         for (uint256 i = 0; i < _allocPercentages.length; i++) {
             AllocationType allocType = i == 0 ? AllocationType(i) : AllocationType(i-1); // First two are same type
             require(_vestDurations[i] > 0 && _vestDurations[i] <= type(uint32).max, "invalid duration");
             durationByType[allocType] = uint32(_vestDurations[i]);
             totalPctAllocated += _allocPercentages[i];
             uint256 allocation = _allocPercentages[i] * INITIAL_SUPPLY / PRECISION;
-            allocationByType[allocType] = allocation;
+            allocationByType[allocType] += allocation;
             
             if (i < _nonUserTargets.length) { 
                 _createVest(
@@ -106,10 +105,11 @@ contract VestManager is VestManagerBase {
         }
 
         // Set the redemption ratio to be used for all PRISMA/yPRISMA/cvxPRISMA redemptions
-        redemptionRatio = (
+        uint256 _redemptionRatio = (
             allocationByType[AllocationType.REDEMPTIONS] * 1e18 / _maxRedeemable
         );
-        require(redemptionRatio != 0, "ratio is 0");
+        redemptionRatio = _redemptionRatio;
+        require(_redemptionRatio != 0, "ratio is 0");
         require(totalPctAllocated == PRECISION, "Total not 100%");
         emit InitializationParamsSet();
     }
@@ -121,6 +121,7 @@ contract VestManager is VestManagerBase {
         @param _allocation Allocation for the lock penalty airdrop
     */
     function setLockPenaltyMerkleRoot(bytes32 _root, uint256 _allocation) external onlyOwner {
+        require(initialized, "init params not set");
         require(merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] == bytes32(0), "root already set");
         merkleRootByType[AllocationType.AIRDROP_LOCK_PENALTY] = _root;
         emit MerkleRootSet(AllocationType.AIRDROP_LOCK_PENALTY, _root);

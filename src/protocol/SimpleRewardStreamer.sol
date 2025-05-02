@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
+pragma solidity 0.8.28;
 
 /**
  *Submitted for verification at Etherscan.io on 2020-07-17
@@ -43,20 +42,16 @@ pragma solidity ^0.8.19;
 
 import "../libraries/MathUtil.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-
-
+import { IERC20Decimals } from "../interfaces/IERC20Decimals.sol";
 /*
  a managed single reward contract which can set weights for any account address
 */
-contract SimpleRewardStreamer is CoreOwnable{
+contract SimpleRewardStreamer is CoreOwnable {
     using SafeERC20 for IERC20;
 
-    
     uint256 public constant duration = 7 days;
 
     IERC20 public immutable rewardToken;
@@ -81,10 +76,10 @@ contract SimpleRewardStreamer is CoreOwnable{
     event RewardPaid(address indexed user, uint256 reward);
     event RewardRedirected(address indexed user, address redirect);
 
-    constructor(address _rewardToken, address _registry, address _core, address _initialWeightAddress) CoreOwnable(_core){
-        rewardToken = IERC20(_rewardToken);
+    constructor(address _core, address _registry, address _rewardToken, address _initialWeightAddress) CoreOwnable(_core){
         registry = _registry;
-
+        rewardToken = IERC20(_rewardToken);
+        require(IERC20Decimals(_rewardToken).decimals() == 18, "18 decimals required"); // Guard against precision loss.
         //set an initial target address weight
         if(_initialWeightAddress != address(0)){
             _setWeight(_initialWeightAddress, 1e18);
@@ -108,11 +103,12 @@ contract SimpleRewardStreamer is CoreOwnable{
 
     //checkpoint earned rewards modifier
     modifier updateReward(address _account) {
-        rewardPerTokenStored = rewardPerToken();
+        uint256 rewardPerToken = rewardPerToken();
+        rewardPerTokenStored = rewardPerToken;
         lastUpdateTime = lastTimeRewardApplicable();
         if (_account != address(0)) {
             rewards[_account] = earned(_account);
-            userRewardPerTokenPaid[_account] = rewardPerTokenStored;
+            userRewardPerTokenPaid[_account] = rewardPerToken;
         }
         _;
     }
@@ -161,11 +157,11 @@ contract SimpleRewardStreamer is CoreOwnable{
         updateReward(_account)
         returns(bool)
     {
-
-        emit WeightSet(_account, _balances[_account], _amount);
+        uint256 currentBalance = _balances[_account];
+        emit WeightSet(_account, currentBalance, _amount);
 
         uint256 tsupply = _totalSupply;
-        tsupply -= _balances[_account]; //remove current from temp supply
+        tsupply -= currentBalance; //remove current from temp supply
         _balances[_account] = _amount; //set new account balance
         tsupply += _amount; //add new to temp supply
         _totalSupply = tsupply; //set supply
@@ -180,19 +176,20 @@ contract SimpleRewardStreamer is CoreOwnable{
         emit RewardRedirected(msg.sender, _to);
     }
 
-    function getReward() external updateReward(msg.sender){
+    function getReward() external{
         getReward(msg.sender);
     }
 
     //claim reward for given account (unguarded)
     function getReward(address _account) public updateReward(_account){
-        uint256 reward = earned(_account);
+        uint256 reward = rewards[_account]; //earned is called in updateReward and thus up to date
         if (reward > 0) {
             rewards[_account] = 0;
             emit RewardPaid(_account, reward);
             //check if there is a redirect address
-            if(rewardRedirect[_account] != address(0)){
-                rewardToken.safeTransfer(rewardRedirect[_account], reward);
+            address redirect = rewardRedirect[_account];
+            if(redirect != address(0)){
+                rewardToken.safeTransfer(redirect, reward);
             }else{
                 //normal claim to account address
                 rewardToken.safeTransfer(_account, reward);
@@ -204,9 +201,10 @@ contract SimpleRewardStreamer is CoreOwnable{
     function getReward(address _account, address _forwardTo) external updateReward(_account){
         //in order to forward, must be called by the account itself
         require(msg.sender == _account, "!self");
+        require(_forwardTo != address(0), "fwd address cannot be 0");
 
         //claim to _forwardTo
-        uint256 reward = earned(msg.sender);
+        uint256 reward = rewards[_account]; //earned is called in updateReward and thus up to date
         if (reward > 0) {
             rewards[msg.sender] = 0;
             rewardToken.safeTransfer(_forwardTo, reward);

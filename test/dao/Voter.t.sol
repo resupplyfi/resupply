@@ -9,7 +9,7 @@ import { MockToken } from "../mocks/MockToken.sol";
 import { Setup } from "../Setup.sol";
 import { MockPair } from "../mocks/MockPair.sol";
 import { Voter } from "../../src/dao/Voter.sol";
-import { ICore } from "../../src/interfaces/ICore.sol";
+import { IVoter } from "../../src/interfaces/IVoter.sol";
 
 contract VoterTest is Setup {
     MockPair pair;
@@ -31,14 +31,25 @@ contract VoterTest is Setup {
         vm.prank(user1);
         staker.stake(user1, 100e18);
         skip(staker.epochLength() * 2); // We skip 2, so that the stake can be registered (first epoch) and finalized (second epoch).
-        
     }
 
     function test_createProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
         uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
 
-        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.passingPct() / 10_000);
+        // String size: 408 bytes
+        string memory longInvalidDescription = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.here is a very long string that repeats.";
+        // String size: 368 bytes
+        string memory longValidDescrition = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.";
+        uint256 quorumWeight = uint40(staker.getTotalWeightAt(epoch) / 10 ** voter.TOKEN_DECIMALS() * voter.quorumPct() / 10_000);
+        vm.expectRevert("Description too long");
+        vm.prank(user1);
+        proposalId = voter.createNewProposal(
+            user1,
+            buildProposalData(5),
+            longInvalidDescription
+        );
+
         vm.expectEmit(true, true, false, true);
         emit Voter.ProposalCreated(
             user1, 
@@ -50,7 +61,8 @@ contract VoterTest is Setup {
         vm.prank(user1);
         proposalId = voter.createNewProposal(
             user1,
-            buildProposalData(5)
+            buildProposalData(5),
+            longValidDescrition
         );
 
         assertEq(pair.value(), 0);
@@ -65,7 +77,8 @@ contract VoterTest is Setup {
         vm.prank(user2);
         proposalId = voter.createNewProposal(
             user1,
-            buildProposalData(5)
+            buildProposalData(5),
+            "Test proposal"
         );
         
         vm.prank(user1);
@@ -75,7 +88,8 @@ contract VoterTest is Setup {
         vm.prank(user2);
         proposalId = voter.createNewProposal(
             user1,
-            buildProposalData(5)
+            buildProposalData(5),
+            "Test proposal"
         );
         assertEq(pair.value(), 0);
         assertEq(voter.getProposalCount(), 1);
@@ -100,13 +114,14 @@ contract VoterTest is Setup {
         vm.prank(user1);
         proposalId = voter.createNewProposal(
             user1,
-            buildProposalData(5)
+            buildProposalData(5),
+            "Test proposal"
         );
 
         vm.startPrank(user1);
-        vm.expectRevert("Pct must not exceed MAX_PCT");
+        vm.expectRevert("Sum of pcts must equal MAX_PCT");
         voter.voteForProposal(user1, proposalId, MAX_PCT+1, MAX_PCT);
-        vm.expectRevert("Pct must not exceed MAX_PCT");
+        vm.expectRevert("Sum of pcts must equal MAX_PCT");
         voter.voteForProposal(user1, proposalId, MAX_PCT, MAX_PCT+1);
         vm.expectRevert("Sum of pcts must equal MAX_PCT");
         voter.voteForProposal(user1, proposalId, MAX_PCT, 1);
@@ -128,6 +143,7 @@ contract VoterTest is Setup {
         skip(voter.EXECUTION_DELAY());
 
         (
+            ,
             uint256 _epoch,
             uint256 _createdAt,
             ,
@@ -159,13 +175,13 @@ contract VoterTest is Setup {
     function test_cancelProposal() public {
         bool _processed;
         vm.prank(user1);
-        uint256 propId = voter.createNewProposal(user1, buildProposalData(5));
-        (,,,,,_processed,,) = voter.getProposalData(propId);
+        uint256 propId = voter.createNewProposal(user1, buildProposalData(5), "Test proposal");
+        (,,,,,,_processed,,) = voter.getProposalData(propId);
         assertEq(_processed, false);
 
         vm.prank(address(core));
         voter.cancelProposal(propId);
-        (,,,,,_processed,,) = voter.getProposalData(propId);
+        (,,,,,,_processed,,) = voter.getProposalData(propId);
         assertEq(_processed, true);
     }
 
@@ -176,11 +192,27 @@ contract VoterTest is Setup {
         voter.cancelProposal(propId);
     }
 
+    function test_CannotCreateMultiActionProposalWithCanceler() public {
+        vm.expectRevert("Payload length not 1");
+        createProposalDataWithCancelerAsNonFirstAction();
+    }
+
     function test_CannotCancelProposalWithCancelerPayloadAndTargetIsZeroAddress() public {
         uint256 propId = createProposalDataWithCancelerAndTargetIsZeroAddress();
         vm.prank(address(core));
         vm.expectRevert("Contains canceler payload");
         voter.cancelProposal(propId);
+    }
+
+    function test_updateProposalDescription() public {
+        uint256 propId = createSimpleProposal();
+        vm.prank(user1);
+        vm.expectRevert("!core");
+        voter.updateProposalDescription(propId, "New description");
+        vm.prank(address(core));
+        voter.updateProposalDescription(propId, "New description!");
+        (string memory _description,,,,,,,,) = voter.getProposalData(propId);
+        assertEq(_description, "New description!");
     }
 
     function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {
@@ -200,13 +232,36 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(voter), 
-                ICore.cancelProposal.selector, 
+                IVoter.cancelProposal.selector, 
                 true,
                 address(0)
             )
         });
         vm.prank(user1);
-        return voter.createNewProposal(user1, payload);
+        return voter.createNewProposal(user1, payload, "Test proposal");
+    }
+
+    function createProposalDataWithCancelerAsNonFirstAction() public returns (uint256) {
+        Voter.Action[] memory payload = new Voter.Action[](2);
+        // Dummy action
+        payload[0] = Voter.Action({
+            target: address(pair),
+            data: abi.encodeWithSelector(pair.setValue.selector, 0)
+        });
+        // Canceler action
+        payload[1] = Voter.Action({
+            target: address(core),
+            data: abi.encodeWithSelector(
+                core.setOperatorPermissions.selector, 
+                address(0),
+                address(voter), 
+                IVoter.cancelProposal.selector, 
+                true,
+                address(0)
+            )
+        });
+        vm.prank(user1);
+        return voter.createNewProposal(user1, payload, "Test proposal");
     }
 
     function createProposalDataWithCancelerAndTargetIsZeroAddress() public returns (uint256) {
@@ -217,13 +272,13 @@ contract VoterTest is Setup {
                 core.setOperatorPermissions.selector, 
                 address(0),
                 address(0), 
-                ICore.cancelProposal.selector, 
+                IVoter.cancelProposal.selector, 
                 true,
                 address(0)
             )
         });
         vm.prank(user1);
-        return voter.createNewProposal(user1, payload);
+        return voter.createNewProposal(user1, payload, "Test proposal");
     }
 
     function test_setMinCreateProposalPct() public {
@@ -241,18 +296,18 @@ contract VoterTest is Setup {
         vm.stopPrank();
     }
 
-    function test_setPassingPct() public {
+    function test_SetQuorumPct() public {
         vm.expectRevert("!core");
-        voter.setPassingPct(5000);
+        voter.setQuorumPct(5000);
 
         vm.startPrank(address(core));
-        voter.setPassingPct(5000);
+        voter.setQuorumPct(5000);
 
         vm.expectRevert("Too low");
-        voter.setPassingPct(0);
+        voter.setQuorumPct(0);
 
         vm.expectRevert("Invalid value");
-        voter.setPassingPct(MAX_PCT+1);
+        voter.setQuorumPct(MAX_PCT+1);
         vm.stopPrank();
     }
 
@@ -266,6 +321,6 @@ contract VoterTest is Setup {
             )
         });
         vm.prank(user1);
-        return voter.createNewProposal(user1, payload);
+        return voter.createNewProposal(user1, payload, "Test proposal");
     }
 }

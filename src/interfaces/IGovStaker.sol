@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 interface IGovStaker {
     /* ========== EVENTS ========== */
@@ -99,4 +99,8 @@ interface IGovStaker {
     function getEpoch() external view returns (uint);
     function epochLength() external view returns (uint);
     function startTime() external view returns (uint);
+    function irreversiblyCommitAccountAsPermanentStaker(address account) external;
+    function onPermaStakeMigrate(address account) external;
+    function migrateStake() external returns (uint amount);
+    function setDelegateApproval(address delegate, bool approved) external;
 }

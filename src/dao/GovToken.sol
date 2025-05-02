@@ -1,8 +1,12 @@
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { CoreOwnable } from "../../src/dependencies/CoreOwnable.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-contract GovToken is ERC20, CoreOwnable {
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { OFT } from "@layerzerolabs/oft-evm/contracts/OFT.sol";
+
+contract GovToken is OFT {
     uint256 public immutable INITIAL_SUPPLY;
+    uint256 public globalSupply;
     bool public minterFinalized;
     address public minter;
 
@@ -18,15 +22,31 @@ contract GovToken is ERC20, CoreOwnable {
         address _core,
         address _vesting,
         uint256 _initialSupply,
+        address _endpoint,
         string memory _name,
         string memory _symbol
-    ) ERC20(_name, _symbol) CoreOwnable(_core) {
+    ) OFT(_name, _symbol, _endpoint, _core)
+      Ownable(_core) {
         INITIAL_SUPPLY = _initialSupply;
         _mint(_vesting, _initialSupply);
+        globalSupply = _initialSupply;
+    }
+
+    function core() external view returns(address) {
+        return owner();
+    }
+
+    function _transferOwnership(address newOwner) internal override {
+        if(owner() == address(0)){
+            super._transferOwnership(newOwner);
+        }else{
+            revert OwnableInvalidOwner(newOwner);
+        }
     }
 
     function mint(address _to, uint256 _amount) external onlyMinter {
         _mint(_to, _amount);
+        globalSupply += _amount;
     }
 
     function setMinter(address _minter) external onlyOwner {

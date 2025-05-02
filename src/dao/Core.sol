@@ -1,44 +1,38 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 import { IAuthHook } from '../interfaces/IAuthHook.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
     @title Core
     @author Resupply Finance (code inspired by Prisma Finance)
     @notice Single source of truth for system-wide values and contract ownership.
-
             Ownership of this contract should be the DAO via `Voting`.
             Other ownable contracts inherit their ownership from this contract
             using `Ownable`.
  */
-contract Core {
+contract Core is ReentrancyGuard {
     using Address for address;
 
     address public voter;
 
+    /// @notice The start time of the first epoch. To be referenced by other system contracts.
     uint256 public immutable startTime;
     
-    /// @notice Length of an epoch, in seconds
+    /// @notice Length of an epoch in seconds. To be referenced by other system contracts.
     uint256 public immutable epochLength;
-    bool private paused;
 
     // permission for callers to execute arbitrary calls via this contract's `execute` function
     mapping(address caller => mapping(address target => mapping(bytes4 selector => OperatorAuth auth))) public operatorPermissions;
 
     event VoterSet(address indexed newVoter);
-    event ProtocolPaused(bool indexed paused);
     event OperatorExecuted(address indexed caller, address indexed target, bytes data);
     event OperatorSet(address indexed caller, address indexed target, bool authorized, bytes4 selector, IAuthHook authHook);
 
-    struct Action {
-        address target;
-        bytes data;
-    }
-
     struct OperatorAuth {
-        bool authorized;    // uint8
+        bool authorized;
         IAuthHook hook;
     }
 
@@ -60,7 +54,7 @@ contract Core {
         @notice Execute an arbitrary function call using this contract
         @dev Callable via the voter, or any operator with explicit permission.       
      */
-    function execute(address target, bytes calldata data) external returns (bytes memory) {
+    function execute(address target, bytes calldata data) external nonReentrant returns (bytes memory) {
         if (msg.sender == voter) return target.functionCall(data);
         bytes4 selector = bytes4(data[:4]);
         OperatorAuth memory auth = operatorPermissions[msg.sender][address(0)][selector];
@@ -78,6 +72,11 @@ contract Core {
     /**
         @notice Grant or revoke permission for `caller` to call one or more
                 functions on `target` via this contract.
+        @param caller The address to grant or revoke permission for
+        @param target The address which the caller is being granted permission to call (0x0 for global)
+        @param selector The 4 bytes selector to grant or revoke permission for
+        @param authorized Whether to grant or revoke permission
+        @param authHook The hook to use for the permission
         @dev Setting `target` to the zero address allows for global authorization of
              `caller` to use `selector` on any target.
      */
@@ -87,7 +86,7 @@ contract Core {
         bytes4 selector,
         bool authorized,
         IAuthHook authHook
-    ) onlyCore public {
+    ) onlyCore external {
         operatorPermissions[caller][target][selector] = OperatorAuth(authorized, authHook);
         emit OperatorSet(caller, target, authorized, selector, authHook);
     }
@@ -95,25 +94,5 @@ contract Core {
     function setVoter(address newVoter) external onlyCore {
         voter = newVoter;
         emit VoterSet(newVoter);
-    }
-
-    /**
-     * @notice Sets the global pause state of the protocol
-     *         Pausing is used to mitigate risks in exceptional circumstances.
-     */
-    function pauseProtocol() public onlyCore {
-        require(!paused, "Already Paused");
-        paused = true;
-        emit ProtocolPaused(true);
-    }
-
-    function unpauseProtocol() public onlyCore {
-        require(paused, "Already Unpaused");
-        paused = false;
-        emit ProtocolPaused(false);
-    }
-
-    function isProtocolPaused() external view returns (bool) {
-        return paused;
     }
 }

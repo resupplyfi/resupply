@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
-import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { EpochTracker } from '../dependencies/EpochTracker.sol';
-
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
+import { CoreOwnable } from 'src/dependencies/CoreOwnable.sol';
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
 
 //Fee deposit to collect/track fees and distribute
 contract FeeDeposit is CoreOwnable, EpochTracker {
@@ -17,8 +16,6 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
     address public immutable registry;
     address public immutable feeToken;
 
-    address public receiverPlatform;
-    address public receiverInsurance;
     address public operator;
 
     uint256 public lastDistributedEpoch;
@@ -48,8 +45,9 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
 
         lastDistributedEpoch = currentEpoch;
         uint256 amount = IERC20(feeToken).balanceOf(address(this));
-        IERC20(feeToken).safeTransfer(operator, amount);
-        emit FeesDistributed(operator,amount);
+        address _operator = operator;
+        IERC20(feeToken).safeTransfer(_operator, amount);
+        emit FeesDistributed(_operator,amount);
     }
 
     function incrementPairRevenue(uint256 _fees, uint256 _otherFees) external{

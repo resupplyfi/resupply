@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 import { IGovToken } from "./IGovToken.sol";
 
@@ -21,7 +21,6 @@ interface IEmissionsController {
     function setEmissionsSchedule(uint256[] memory _rates, uint256 _epochsPer, uint256 _tailRate) external;
     function transferFromAllocation(address _recipient, uint256 _amount) external returns (uint256);
 
-    // Events (if any)
     event EmissionsMinted(uint256 epoch, uint256 amount);
     event EmissionsSplitSet(address receiver, uint256 split);
     event EmissionsScheduleSet(uint256[] rates, uint256 epochsPer, uint256 tailRate);
