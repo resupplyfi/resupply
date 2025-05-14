@@ -107,11 +107,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         return proposalData.length;
     }
 
-    // @dev: Reverts in epoch 0 as proposals are not permitted
     function minCreateProposalWeight() public view returns (uint256) {
-        uint256 epoch = getEpoch();
-        epoch -= 1;
-        uint256 totalWeight = staker.getTotalWeightAt(epoch);
+        uint256 totalWeight = staker.getTotalWeightAt(getEpoch());
         return (totalWeight * minCreateProposalPct) / MAX_PCT;
     }
 
@@ -166,7 +163,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
         require(epoch > 0, "No proposals in first epoch");
-        epoch -= 1;
 
         uint256 accountWeight = staker.getAccountWeightAt(account, epoch);
         require(accountWeight >= minCreateProposalWeight(), "Not enough weight to propose");

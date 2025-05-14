@@ -48,6 +48,14 @@
       }
     },
     {
+      "name": "SwapperOdos",
+      "address": "0x3Ae884D1a67650501278001FDa40DCa975D9194D",
+      "constructorArgs": {
+        "types": ["address"],
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d"]
+      }
+    },
+    {
       "name": "Stablecoin",
       "address": "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
       "constructorArgs": {
@@ -170,9 +178,7 @@
       "address": "0x3Ae884D1a67650501278001FDa40DCa975D9194D",
       "constructorArgs": {
         "types": ["address"],
-        "values": [
-          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d"
-        ]
+        "values": ["0xc07e000044F95655c11fda4cD37F70A94d7e0a7d"]
       }
     },
     {
