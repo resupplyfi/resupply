@@ -53,6 +53,7 @@ interface IVoter {
     function latestProposalTimestamp(address account) external view returns (uint256);
     function getProposalCount() external view returns (uint256);
     function minCreateProposalWeight() external view returns (uint256);
+    function minTimeBetweenProposals() external view returns (uint256);
     function getProposalData(uint256 id) external view returns (
         string memory description,
         uint256 epoch,
