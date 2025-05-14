@@ -20,8 +20,6 @@ contract DeployVoter is TenderlyHelper, CreateXHelper, BaseAction {
     }
 
     function deployVoter() public {
-        // 1 Deploy voter
-        // 2 Set on registry
         bytes32 salt = CreateX.SALT_VOTER;
         bytes memory constructorArgs = abi.encode(
             address(Protocol.CORE),
