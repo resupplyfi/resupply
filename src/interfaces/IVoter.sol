@@ -80,7 +80,8 @@ interface IVoter {
     function executeProposal(uint256 id) external;
     function canExecute(uint256 id) external view returns (bool);
     function quorumReached(uint256 id) external view returns (bool);
-    function setMinCreateProposalPct(uint256 pct) external returns (bool);
-    function setQuorumPct(uint256 pct) external returns (bool);
+    function setMinCreateProposalPct(uint256 pct) external;
+    function setQuorumPct(uint256 pct) external;
+    function setMinTimeBetweenProposals(uint256 _cooldown) external;
     function updateProposalDescription(uint256 id, string calldata description) external;
 }
