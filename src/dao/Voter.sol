@@ -43,7 +43,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     // Percent of total weight that must vote for a proposal before it can be executed
     uint256 public quorumPct;
     // Cooldown period between proposals for a given account
-    uint256 public minTimeBetweenProposals;
+    uint256 public minTimeBetweenProposals = 1 days;
 
     event ProposalCreated(
         address indexed account,
