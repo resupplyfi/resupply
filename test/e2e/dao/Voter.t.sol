@@ -35,7 +35,7 @@ contract VoterTest is Setup {
 
     function test_createProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
-        uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
+        uint256 epoch = voter.getEpoch(); // Current epoch is used for voting
 
         // String size: 408 bytes
         string memory longInvalidDescription = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.here is a very long string that repeats.";
@@ -55,7 +55,7 @@ contract VoterTest is Setup {
             user1, 
             0, 
             buildProposalData(5), 
-            voter.getEpoch()-1, 
+            voter.getEpoch(), 
             quorumWeight
         );
         vm.prank(user1);
@@ -110,7 +110,7 @@ contract VoterTest is Setup {
 
     function test_voteForProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
-        uint256 epoch = voter.getEpoch()-1; // Prior epoch to be used for voting
+        uint256 epoch = voter.getEpoch(); // Current epoch is used for voting
         vm.prank(user1);
         proposalId = voter.createNewProposal(
             user1,

@@ -53,6 +53,7 @@ interface IVoter {
     function latestProposalTimestamp(address account) external view returns (uint256);
     function getProposalCount() external view returns (uint256);
     function minCreateProposalWeight() external view returns (uint256);
+    function minTimeBetweenProposals() external view returns (uint256);
     function getProposalData(uint256 id) external view returns (
         string memory description,
         uint256 epoch,
@@ -80,7 +81,8 @@ interface IVoter {
     function executeProposal(uint256 id) external;
     function canExecute(uint256 id) external view returns (bool);
     function quorumReached(uint256 id) external view returns (bool);
-    function setMinCreateProposalPct(uint256 pct) external returns (bool);
-    function setQuorumPct(uint256 pct) external returns (bool);
+    function setMinCreateProposalPct(uint256 pct) external;
+    function setQuorumPct(uint256 pct) external;
+    function setMinTimeBetweenProposals(uint256 _cooldown) external;
     function updateProposalDescription(uint256 id, string calldata description) external;
 }
