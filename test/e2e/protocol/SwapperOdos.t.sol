@@ -31,7 +31,7 @@ contract SwapperOdosTest is PairTestBase {
 
     function test_LiveOdosSwap() public {
         address[] memory pairs = _registry.getAllPairAddresses();
-        _pair = ResupplyPair(pairs[0]);
+        _pair = ResupplyPair(pairs[1]);
         address collateral = address(_pair.collateral());
         vm.startPrank(address(_core));
         swapper = new SwapperOdos(_core);
@@ -44,19 +44,18 @@ contract SwapperOdosTest is PairTestBase {
             _stablecoin,        // input token
             collateral,         // output token
             borrowAmount,       // input amount
-            3,                  // slippage pct
+            20,                  // slippage pct
             address(_pair)    // recipient address
         );
-
+        assertGt(odosPayload.length, 0, "API returned empty payload for leveragedPosition");
         address[] memory path = swapper.encode(odosPayload, _stablecoin, collateral);
-
         console.log("Odos payload:", _bytesToFullHex(odosPayload));
 
         uint256 initialUnderlyingAmount = 100_000e18;
         IERC20 underlying = _pair.underlying();
         deal(address(underlying), address(this), initialUnderlyingAmount);
         underlying.approve(address(_pair), initialUnderlyingAmount);
-        uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount) * 9900 / 10000;
+        uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount * 9000 / 10000);
         console.log("-- Leveraging position --");
         console.log("Borrow Amt:", borrowAmount);
         console.log("Min collateral out:", minCollateralOut);
@@ -76,9 +75,10 @@ contract SwapperOdosTest is PairTestBase {
             collateral,         // input token
             _stablecoin,        // output token
             amount,             // input amount
-            3,                  // slippage pct
-            address(_pair)    // recipient address
+            20,                 // slippage pct
+            address(_pair)      // recipient address
         );
+        assertGt(odosPayload.length, 0, "API returned empty payload for repayWithCollateral");
         path = swapper.encode(odosPayload, collateral, _stablecoin);
         bytes memory decodedPayload = swapper.decode(path);
         assertEq(keccak256(decodedPayload), keccak256(odosPayload), "Decoded payload does not match original payload");

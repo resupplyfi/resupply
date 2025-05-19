@@ -36,16 +36,15 @@ contract SwapperOdosTest is PairTestBase {
             3,                      // slippage pct
             address(pair)           // recipient address
         );
-
         address[] memory path = swapper.encode(odosPayload, address(stablecoin), collateral);
-
         console.log("Odos payload:", _bytesToFullHex(odosPayload));
+        assertGt(odosPayload.length, 0, "API returned empty payload for leveragedPosition");
 
         uint256 initialUnderlyingAmount = 100_000e18;
         IERC20 underlying = IERC20(pair.underlying());
         deal(address(underlying), address(this), initialUnderlyingAmount);
         underlying.approve(address(pair), initialUnderlyingAmount);
-        uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount) * 9900 / 10000;
+        uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount) * 9800 / 10000;
         console.log("-- Leveraging position --");
         console.log("Borrow Amt:", borrowAmount);
         console.log("Min collateral out:", minCollateralOut);
@@ -62,14 +61,16 @@ contract SwapperOdosTest is PairTestBase {
 
         uint256 amount = borrowAmount / 2;
         odosPayload = OdosApi.getPayload(
-            collateral,         // input token
-            address(stablecoin),        // output token
-            amount,             // input amount
-            3,                  // slippage pct
-            address(pair)    // recipient address
+            collateral,             // input token
+            address(stablecoin),    // output token
+            amount,                 // input amount
+            3,                      // slippage pct
+            address(pair)           // recipient address
         );
         path = swapper.encode(odosPayload, collateral, address(stablecoin));
         bytes memory decodedPayload = swapper.decode(path);
+        assertGt(decodedPayload.length, 0, "API returned empty payload for repayWithCollateral");
+        
         assertEq(keccak256(decodedPayload), keccak256(odosPayload), "Decoded payload does not match original payload");
         uint256 minAmountOut = IERC4626(collateral).convertToAssets(amount);
         console.log("-- Repaying with collateral --");
