@@ -24,7 +24,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public constant VOTING_PERIOD = 1 weeks;
     uint256 public constant EXECUTION_DELAY = 1 days;
     uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
-    uint256 public constant MIN_TIME_BETWEEN_PROPOSALS = 3 days;
     uint256 public constant MAX_PCT = 10000;
     uint256 public constant MAX_DESCRIPTION_BYTES = 384;
 
@@ -43,6 +42,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public minCreateProposalPct;
     // Percent of total weight that must vote for a proposal before it can be executed
     uint256 public quorumPct;
+    // Cooldown period between proposals for a given account
+    uint256 public minTimeBetweenProposals = 1 days;
 
     event ProposalCreated(
         address indexed account,
@@ -61,7 +62,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         uint256 weightNo
     );
     event ProposalCreationMinPctSet(uint256 weight);
-    event QuorumPctSet(uint256 pct);
+    event QuorumPctSet(uint256 weight);
+    event MinTimeBetweenProposalsSet(uint256 cooldown);
 
     struct Proposal {
         uint16 epoch; // epoch which vote weights are based upon
@@ -107,11 +109,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         return proposalData.length;
     }
 
-    // @dev: Reverts in epoch 0 as proposals are not permitted
     function minCreateProposalWeight() public view returns (uint256) {
-        uint256 epoch = getEpoch();
-        epoch -= 1;
-        uint256 totalWeight = staker.getTotalWeightAt(epoch);
+        uint256 totalWeight = staker.getTotalWeightAt(getEpoch());
         return (totalWeight * minCreateProposalPct) / MAX_PCT;
     }
 
@@ -157,8 +156,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     function createNewProposal(address account, Action[] calldata payload, string calldata description) external callerOrDelegated(account) returns (uint256) {
         require(payload.length > 0, "Empty payload");
         require(
-            latestProposalTimestamp[account] + MIN_TIME_BETWEEN_PROPOSALS < block.timestamp,
-            "MIN_TIME_BETWEEN_PROPOSALS"
+            latestProposalTimestamp[account] + minTimeBetweenProposals < block.timestamp,
+            "Too soon"
         );
         require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
         if (_containsProposalCancelerPayload(payload)) require(payload.length == 1, "Payload length not 1");
@@ -166,7 +165,6 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         // week is set at -1 to the active week so that weights are finalized
         uint256 epoch = getEpoch();
         require(epoch > 0, "No proposals in first epoch");
-        epoch -= 1;
 
         uint256 accountWeight = staker.getAccountWeightAt(account, epoch);
         require(accountWeight >= minCreateProposalWeight(), "Not enough weight to propose");
@@ -332,24 +330,31 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     /**
         @notice Set the minimum % of the total weight required to create a new proposal
      */
-    function setMinCreateProposalPct(uint256 pct) external onlyOwner returns (bool) {
+    function setMinCreateProposalPct(uint256 pct) external onlyOwner {
         require(pct > 0, "Too low");
         require(pct <= MAX_PCT, "Invalid value");
         minCreateProposalPct = pct;
         emit ProposalCreationMinPctSet(pct);
-        return true;
     }
 
     /**
         @notice Set the required % of the total weight that must vote
                 for a proposal in order to become executable
      */
-    function setQuorumPct(uint256 pct) external onlyOwner returns (bool) {
+    function setQuorumPct(uint256 pct) external onlyOwner {
         require(pct > 0, "Too low");
         require(pct <= MAX_PCT, "Invalid value");
         quorumPct = pct;
         emit QuorumPctSet(pct);
-        return true;
+    }
+
+    /**
+        @notice Set the cooldown period between proposals for a given account
+        @param _cooldown The cooldown period in seconds
+     */
+    function setMinTimeBetweenProposals(uint256 _cooldown) external onlyOwner {
+        minTimeBetweenProposals = _cooldown;
+        emit MinTimeBetweenProposalsSet(_cooldown);
     }
 
 
