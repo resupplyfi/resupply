@@ -95,6 +95,8 @@ library Prisma {
     address constant PRISMA_CORE = 0x5d17eA085F2FF5da3e6979D5d26F1dBaB664ccf8;
     address constant VOTER_PROXY = 0x490b8C6007fFa5d3728A49c2ee199e51f05D2F7e;
     address constant FEE_RECEIVER = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
+    address constant PSM_MKUSD = 0x9d7634b2B99c2684611c0Ac3150bAF6AEEa4Ed77;
+    address constant PSM_ULTRA = 0xAe21Fe5B61998b143f721CE343aa650a6d5EadCe;
 }
 
 library VMConstants {
