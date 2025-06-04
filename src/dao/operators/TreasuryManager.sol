@@ -146,8 +146,12 @@ contract TreasuryManager is CoreOwnable {
         );
     }
 
-    function claimLpIncentives() external onlyManager {
-        lpIncentivesReceiver.claimEmissions(manager);
+    function claimLpIncentives() external onlyManager returns (uint256) {
+        return lpIncentivesReceiver.claimEmissions(manager);
+    }
+
+    function claimLpIncentivesTo(address _to) external onlyManager returns (uint256) {
+        return lpIncentivesReceiver.claimEmissions(_to);
     }
 
     function recoverERC20(IERC20 token) external onlyManager {

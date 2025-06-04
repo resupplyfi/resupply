@@ -85,4 +85,7 @@ interface IVoter {
     function setQuorumPct(uint256 pct) external;
     function setMinTimeBetweenProposals(uint256 _cooldown) external;
     function updateProposalDescription(uint256 id, string calldata description) external;
+    function getEpoch() external view returns (uint256);
+    function setDelegateApproval(address delegate, bool approved) external;
+    function isApprovedDelegate(address account, address delegate) external view returns (bool);
 }
