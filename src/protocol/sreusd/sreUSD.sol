@@ -64,11 +64,6 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
         }
     }
 
-    /// @notice The ```SetMaxDistributionPerSecondPerAsset``` event is emitted when the maxDistributionPerSecondPerAsset is set
-    /// @param oldMax The old maxDistributionPerSecondPerAsset value
-    /// @param newMax The new maxDistributionPerSecondPerAsset value
-    event SetMaxDistributionPerSecondPerAsset(uint256 oldMax, uint256 newMax);
-
     // error AlreadyInitialized();
 
     // function initialize(
@@ -113,6 +108,11 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
     //     rewardsCycleData.lastSync = _lastSync;
     //     rewardsCycleData.rewardCycleAmount = _rewardCycleAmount;
     // }
+
+    /// @notice The ```SetMaxDistributionPerSecondPerAsset``` event is emitted when the maxDistributionPerSecondPerAsset is set
+    /// @param oldMax The old maxDistributionPerSecondPerAsset value
+    /// @param newMax The new maxDistributionPerSecondPerAsset value
+    event SetMaxDistributionPerSecondPerAsset(uint256 oldMax, uint256 newMax);
 
     /// @notice The ```setMaxDistributionPerSecondPerAsset``` function sets the maxDistributionPerSecondPerAsset
     /// @dev This function can only be called by the Owner, caps the value to type(uint64).max
@@ -199,8 +199,19 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
         // @dev In NON-default OFT, amountSentLD could be 100, with a 10% fee, the amountReceivedLD amount is 90,
         // therefore amountSentLD CAN differ from amountReceivedLD.
 
-        // @dev Default OFT burns on src.
-        _burn(_from, amountSentLD);
+        //for 4626 vault we cant burn/mint and change supply
+        //transfer the tokens to this contract instead
+
+        //reduce balance of _from
+        balanceOf[_from] -= amountSentLD;
+
+        // Cannot overflow because the sum of all user
+        // balances can't exceed the max uint256 value.
+        unchecked {
+            balanceOf[address(this)] += amountSentLD;
+        }
+
+        emit Transfer(_from, address(this), amountSentLD);
     }
 
     /**
@@ -216,8 +227,21 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
         uint32 /*_srcEid*/
     ) internal virtual override returns (uint256 amountReceivedLD) {
         if (_to == address(0x0)) _to = address(0xdead); // _mint(...) does not support address(0x0)
-        // @dev Default OFT mints on dst.
-        _mint(_to, _amountLD);
+
+        //for 4626 vault we cant burn/mint and change supply
+        //transfer tokens from this contract instead
+        //reduce balance of this contract, will revert if there is not enough cached
+        balanceOf[address(this)] -= _amountLD;
+
+        // Cannot overflow because the sum of all user
+        // balances can't exceed the max uint256 value.
+        unchecked {
+            //increase balance of _to
+            balanceOf[_to] += _amountLD;
+        }
+
+        emit Transfer(address(this), _to, _amountLD);
+
         // @dev In the case of NON-default OFT, the _amountLD MIGHT not be == amountReceivedLD.
         return _amountLD;
     }
