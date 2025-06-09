@@ -28,8 +28,6 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
     /// @notice The maximum amount of rewards that can be distributed per second per 1e18 asset
     uint256 public maxDistributionPerSecondPerAsset;
 
-    // uint256 private initializeStage = 2;
-
     /// @param _underlying The erc20 asset deposited
     /// @param _name The name of the vault
     /// @param _symbol The symbol of the vault
@@ -42,11 +40,11 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
         uint32 _rewardsCycleLength,
         uint256 _maxDistributionPerSecondPerAsset,
         address _core,
-        address _lzEndpoint,
-        address _delegate
+        address _registry,
+        address _lzEndpoint
     )
-        LinearRewardsErc4626(ERC20(address(_underlying)), _name, _symbol, _rewardsCycleLength)
-        OFTCore(IERC20Metadata(address(_underlying)).decimals(), _lzEndpoint, _delegate)
+        LinearRewardsErc4626(ERC20(address(_underlying)), _name, _symbol, _rewardsCycleLength, _registry)
+        OFTCore(IERC20Metadata(address(_underlying)).decimals(), _lzEndpoint, _core)
         Ownable(_core)
     {
         maxDistributionPerSecondPerAsset = _maxDistributionPerSecondPerAsset;
@@ -63,51 +61,6 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
             revert OwnableInvalidOwner(newOwner);
         }
     }
-
-    // error AlreadyInitialized();
-
-    // function initialize(
-    //     string memory _name,
-    //     string memory _symbol,
-    //     uint256 _maxDistributionPerSecondPerAsset
-    // ) external {
-    //     if (initializeStage != 0) revert AlreadyInitialized();
-    //     initializeStage++;
-    //     name = _name;
-    //     symbol = _symbol;
-    //     maxDistributionPerSecondPerAsset = _maxDistributionPerSecondPerAsset;
-
-
-    //     // initialize rewardsCycleEnd value
-    //     // NOTE: normally distribution of rewards should be done prior to _syncRewards but in this case we know there are no users or rewards yet.
-    //     _syncRewards();
-
-    //     // initialize lastRewardsDistribution value
-    //     _distributeRewards();
-    // }
-
-    // /// @notice The ```initializeRewardsCycleData``` function initializes the rewards cycle data
-    // /// @dev This function can only be called once
-    // /// @param _pricePerShare The price per share
-    // /// @param _maxDistributionPerSecondPerAsset The maximum amount of rewards that can be distributed per second per 1e18 asset
-    // /// @param _cycleEnd The end of the rewards cycle
-    // /// @param _lastSync The last sync time
-    // /// @param _rewardCycleAmount The reward cycle amount
-    // function initializeRewardsCycleData(
-    //     uint256 _pricePerShare,
-    //     uint256 _maxDistributionPerSecondPerAsset,
-    //     uint40 _cycleEnd,
-    //     uint40 _lastSync,
-    //     uint216 _rewardCycleAmount
-    // ) external {
-    //     if (initializeStage != 1) revert AlreadyInitialized();
-    //     initializeStage++;
-    //     storedTotalAssets = (_pricePerShare * totalSupply) / PRECISION;
-    //     maxDistributionPerSecondPerAsset = _maxDistributionPerSecondPerAsset;
-    //     rewardsCycleData.cycleEnd = _cycleEnd;
-    //     rewardsCycleData.lastSync = _lastSync;
-    //     rewardsCycleData.rewardCycleAmount = _rewardCycleAmount;
-    // }
 
     /// @notice The ```SetMaxDistributionPerSecondPerAsset``` event is emitted when the maxDistributionPerSecondPerAsset is set
     /// @param oldMax The old maxDistributionPerSecondPerAsset value

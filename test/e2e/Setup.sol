@@ -25,6 +25,7 @@ import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
+import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
@@ -78,6 +79,7 @@ contract Setup is Test {
     PermaStaker public permaStaker1;
     PermaStaker public permaStaker2;
     Stablecoin public stablecoin;
+    StakedReUSD public stakedStable;
     BasicVaultOracle public oracle;
     UnderlyingOracle public underlyingoracle;
     InterestRateCalculator public rateCalculator;
@@ -239,8 +241,9 @@ contract Setup is Test {
         feeDepositController = new FeeDepositController(
             address(core), 
             address(registry),
-            1500, 
-            500
+            1000, 
+            500,
+            1500
         );
         //attach fee deposit controller to fee deposit
         vm.prank(address(core));
@@ -302,6 +305,8 @@ contract Setup is Test {
             "RSUP"
         );
         stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
+        uint256 maxdistro = 2e17 / uint256( 365 days );
+        stakedStable = new StakedReUSD(IERC20(stablecoin), "Staked reUSD", "sreUSD", 7 days, maxdistro, address(core), address(registryAddress), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
@@ -342,6 +347,7 @@ contract Setup is Test {
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));
         registry.setStaker(address(staker));
+        registry.setAddress("SREUSD", address(stakedStable));
         vm.stopPrank();
     }
 

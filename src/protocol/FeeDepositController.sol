@@ -17,26 +17,29 @@ contract FeeDepositController is CoreOwnable{
     Splits public splits;
 
     struct Splits {
-        uint80 insurance;
-        uint80 treasury;
-        uint80 platform;
+        uint40 insurance;
+        uint40 treasury;
+        uint40 platform;
+        uint40 stakedStable;
     }
 
-    event SplitsSet(uint80 insurance, uint80 treasury, uint80 platform);
+    event SplitsSet(uint40 insurance, uint40 treasury, uint40 platform, uint40 stakedStable);
 
     constructor(
         address _core,
         address _registry,
-        uint256 _insuranceSplit, 
-        uint256 _treasurySplit
+        uint256 _insuranceSplit,
+        uint256 _treasurySplit,
+        uint256 _stakedStableSplit
     ) CoreOwnable(_core){
         registry = _registry;
         feeToken = IResupplyRegistry(_registry).token();
         require(_insuranceSplit + _treasurySplit <= BPS, "invalid splits");
-        splits.insurance = uint80(_insuranceSplit);
-        splits.treasury = uint80(_treasurySplit);
-        splits.platform = uint80(BPS - splits.insurance - splits.treasury);
-        emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), splits.platform);
+        splits.insurance = uint40(_insuranceSplit);
+        splits.treasury = uint40(_treasurySplit);
+        splits.stakedStable = uint40(_stakedStableSplit);
+        splits.platform = uint40(BPS - splits.insurance - splits.treasury - splits.stakedStable);
+        emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), splits.platform, uint40(_stakedStableSplit));
     }
 
     function distribute() external{
@@ -47,12 +50,23 @@ contract FeeDepositController is CoreOwnable{
         Splits memory _splits = splits;
         uint256 ipAmount =  balance * _splits.insurance / BPS;
         uint256 treasuryAmount =  balance * _splits.treasury / BPS;
+        uint256 stakedStableAmount =  balance * _splits.stakedStable / BPS;
+        
+        //treasury
         address treasury = IResupplyRegistry(registry).treasury();
         IERC20(feeToken).safeTransfer(treasury, treasuryAmount);
+
+        //staked stable
+        address staked = IResupplyRegistry(registry).getAddress("SREUSD");
+        IERC20(feeToken).safeTransfer(staked, stakedStableAmount);
+
+        //insurance
         address rewardHandler = IResupplyRegistry(registry).rewardHandler();
         IERC20(feeToken).safeTransfer(rewardHandler, ipAmount);
         IRewardHandler(rewardHandler).queueInsuranceRewards();
-        IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount);
+
+        //rsup
+        IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount - stakedStableAmount);
         IRewardHandler(rewardHandler).queueStakingRewards();
     }
 
@@ -60,11 +74,12 @@ contract FeeDepositController is CoreOwnable{
     /// @param _insuranceSplit The percentage (in BPS) to send to insurance pool
     /// @param _treasurySplit The percentage (in BPS) to send to treasury
     /// @param _platformSplit The percentage (in BPS) to send to platform stakers
-    function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit) external onlyOwner {
+    function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit, uint256 _stakedStableSplit) external onlyOwner {
         require(_insuranceSplit + _treasurySplit + _platformSplit == BPS, "invalid splits");
-        splits.insurance = uint80(_insuranceSplit);
-        splits.treasury = uint80(_treasurySplit);
-        splits.platform = uint80(_platformSplit);
-        emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), uint80(_platformSplit));
+        splits.insurance = uint40(_insuranceSplit);
+        splits.treasury = uint40(_treasurySplit);
+        splits.platform = uint40(_platformSplit);
+        splits.stakedStable = uint40(_stakedStableSplit);
+        emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), uint40(_platformSplit), uint40(_stakedStableSplit));
     }
 }

@@ -15,11 +15,17 @@ pragma solidity ^0.8.21;
 
 import { ERC20, ERC4626 } from "src/libraries/solmate/ERC4626.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
+import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
+
 
 /// @title LinearRewardsErc4626
 /// @notice An ERC4626 Vault implementation with linear rewards
-abstract contract LinearRewardsErc4626 is ERC4626 {
+abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     using SafeCastLib for *;
+
+    address public immutable registry;
 
     /// @notice The precision of all integer calculations
     uint256 public constant PRECISION = 1e18;
@@ -54,8 +60,12 @@ abstract contract LinearRewardsErc4626 is ERC4626 {
         ERC20 _underlying,
         string memory _name,
         string memory _symbol,
-        uint256 _rewardsCycleLength
-    ) ERC4626(_underlying, _name, _symbol) {
+        uint256 _rewardsCycleLength,
+        address _registry
+    ) 
+        ERC4626(_underlying, _name, _symbol) 
+        EpochTracker(IResupplyRegistry(_registry).owner())
+    {
         REWARDS_CYCLE_LENGTH = _rewardsCycleLength;
         UNDERLYING_PRECISION = 10 ** _underlying.decimals();
 
@@ -127,6 +137,13 @@ abstract contract LinearRewardsErc4626 is ERC4626 {
 
         // Only sync if the previous cycle has ended
         if (_timestamp <= _rewardsCycleData.cycleEnd) return _rewardsCycleData;
+
+        address feeDeposit = IResupplyRegistry(registry).feeDeposit();
+        uint256 lastDistributedEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
+        uint256 cycleEndEpoch = (_rewardsCycleData.cycleEnd - startTime) / epochLength;
+
+        //only sync if a new distribution epoch has been completed
+        if(lastDistributedEpoch <= cycleEndEpoch) return _rewardsCycleData;
 
         // Calculate rewards for next cycle
         uint256 _newRewards = asset.balanceOf(address(this)) - storedTotalAssets;
