@@ -10,6 +10,7 @@ import { Setup } from "test/integration/Setup.sol";
 import { MockPair } from "test/mocks/MockPair.sol";
 import { Voter } from "src/dao/Voter.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 
 contract VoterTest is Setup {
     MockPair pair;
@@ -26,14 +27,11 @@ contract VoterTest is Setup {
         // Create a mock protocol contract for us to test with
         pair = new MockPair(address(core));
 
-        // Transfer ownership of the core contract to the voter contract
-        // skip(1 days);
-        // voter.executeProposal(4);
-        // assertNotEq(core.voter(), address(voter));
-        // voter = IVoter(core.voter());
-        voter = IVoter(0x11111111408bd67B92C4f74B9D3cF96f1fa412BC);
+        // Transfer ownership of the core contract to the new voter contract
+        address voterAddress = address(new Voter(address(core), IGovStaker(address(staker)), 100, 3000));
+        voter = IVoter(voterAddress);
         vm.prank(address(core));
-        core.setVoter(address(voter));
+        core.setVoter(voterAddress);
     }
 
     function test_createProposal() public {
@@ -56,7 +54,7 @@ contract VoterTest is Setup {
         vm.expectEmit(true, true, false, true);
         emit IVoter.ProposalCreated(
             user1, 
-            proposalId + 1, 
+            proposalId, 
             buildProposalData(5), 
             voter.getEpoch(), 
             quorumWeight
