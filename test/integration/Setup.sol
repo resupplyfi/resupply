@@ -57,6 +57,7 @@ import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
 
 
 contract Setup is Test {
+    address public user = address(0x1);
     ICore public core = ICore(Protocol.CORE);
     IGovStaker public staker = IGovStaker(Protocol.GOV_STAKER);
     IVoter public voter = IVoter(Protocol.VOTER);
@@ -95,10 +96,9 @@ contract Setup is Test {
     IERC20 public crvusd = IERC20(Mainnet.CRVUSD_ERC20);
     IERC20 public sfrxusd = IERC20(Mainnet.SFRXUSD_ERC20);
     IERC20 public scrvusd = IERC20(Mainnet.SCRVUSD_ERC20);
+    address public lzEndpoint = address(Mainnet.LAYERZERO_ENDPOINTV2);
 
     constructor() {}
 
-    function setUp() public virtual {
-        
-    }
+    function setUp() public virtual {}
 }
