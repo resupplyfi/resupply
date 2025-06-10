@@ -37,13 +37,12 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
         IERC20 _underlying,
         string memory _name,
         string memory _symbol,
-        uint32 _rewardsCycleLength,
         uint256 _maxDistributionPerSecondPerAsset,
         address _core,
         address _registry,
         address _lzEndpoint
     )
-        LinearRewardsErc4626(ERC20(address(_underlying)), _name, _symbol, _rewardsCycleLength, _registry)
+        LinearRewardsErc4626(ERC20(address(_underlying)), _name, _symbol, 7 days, _registry)
         OFTCore(IERC20Metadata(address(_underlying)).decimals(), _lzEndpoint, _core)
         Ownable(_core)
     {
