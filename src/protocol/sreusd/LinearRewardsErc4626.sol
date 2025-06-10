@@ -55,6 +55,8 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
 
     /// @param _core The core address
     /// @param _registry The registry address
+    /// @param _core The core address
+    /// @param _registry The registry address
     /// @param _underlying The erc20 asset deposited
     /// @param _name The name of the vault
     /// @param _symbol The symbol of the vault
@@ -129,13 +131,11 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
             storedTotalAssets += _rewardToDistribute;
             emit DistributeRewards({ rewardsToDistribute: _rewardToDistribute });
         }
-
-        lastRewardsDistribution = block.timestamp;
     }
 
     /// @notice The ```previewSyncRewards``` function returns the updated rewards cycle data without updating the state
     /// @return _newRewardsCycleData The updated rewards cycle data
-    function previewSyncRewards() public view virtual returns (RewardsCycleData memory _newRewardsCycleData) {
+    function previewSyncRewards() public view virtual returns (RewardsCycleData memory _newRewardsCycleData, bool _update) {
         RewardsCycleData memory _rewardsCycleData = rewardsCycleData;
 
         uint256 _timestamp = block.timestamp;
@@ -155,12 +155,13 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
             _cycleEnd += REWARDS_CYCLE_LENGTH.safeCastTo40();
         }
 
-        // Write return values
-        _rewardsCycleData.rewardCycleAmount = _newRewards.safeCastTo216();
-        _rewardsCycleData.lastSync = _timestamp.safeCastTo40();
         _rewardsCycleData.cycleEnd = _cycleEnd;
+        //only sync if a new distribution epoch has been completed
+        if(lastDistributedEpoch <= cycleEndEpoch) return (_rewardsCycleData, false);
 
-        return _rewardsCycleData;
+        _rewardsCycleData.lastSync = _timestamp.safeCastTo40();
+        _rewardsCycleData.rewardCycleAmount = _newRewards.safeCastTo216();
+        return (_rewardsCycleData, true);
     }
 
     /// @notice The ```_syncRewards``` function is used to update the rewards cycle data
