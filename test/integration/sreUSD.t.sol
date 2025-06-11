@@ -136,6 +136,26 @@ contract sreUSDTest is Setup {
         assertGt(vault.previewDistributeRewards(), 0);
     }
 
+    function test_LateEpochTransitionAllocatesToNextEpoch() public {
+        advanceEpochs(1); // Go to start of new epoch
+        deposit(address(this), 1000e18);
+        airdropAsset(address(vault), 10e18);
+        vault.syncRewardsAndDistribution();
+        advanceEpochs(1); // Go to start of new epoch
+        uint256 pps = vault.pricePerShare();
+        (uint40 cycleEnd,,) = vault.rewardsCycleData();
+        uint256 nextEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + REWARDS_CYCLE_LENGTH;
+        vm.warp(nextEpochTs - 2 hours); // Go to end
+        vault.syncRewardsAndDistribution();
+        assertEq(vault.pricePerShare(), pps);
+        (uint40 cycleEnd2,,) = vault.rewardsCycleData();
+        assertNotEq(cycleEnd2, cycleEnd);
+        skip(1 hours);
+        skip(1 days);
+        assertGt(vault.previewDistributeRewards(), 0);
+        assertGt(vault.pricePerShare(), pps);
+    }
+
     function test_AirdropDoesntAffectPPS() public {
         uint256 amount = 100e18;
         deposit(address(this), amount);
@@ -152,6 +172,10 @@ contract sreUSDTest is Setup {
         assertEq(vault.balanceOf(address(this)), amount);
         assertEq(vault.balanceOf(address(vault)), 0);
         assertEq(vault.token(), address(vault));
+    }
+
+    function test_RewardsBeforeDeposit() public {
+        /// TODO
     }
     
     function test_MigrateFeeDepositAndFeeDepositController() public {
