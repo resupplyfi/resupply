@@ -165,6 +165,7 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
 
     /// @notice The ```_syncRewards``` function is used to update the rewards cycle data
     function _syncRewards() internal virtual {
+        if (block.timestamp <= rewardsCycleData.cycleEnd) return;
         _distributeFees();
         RewardsCycleData memory _rewardsCycleData = previewSyncRewards();
         if (

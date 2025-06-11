@@ -174,6 +174,14 @@ contract sreUSDTest is Setup {
         assertEq(vault.token(), address(vault));
     }
 
+    function test_PreviewSync() public {
+        /// TODO
+    }
+
+    function test_PreviewDistributeRewards() public {
+        /// TODO
+    }
+    
     function test_RewardsBeforeDeposit() public {
         /// TODO
     }
