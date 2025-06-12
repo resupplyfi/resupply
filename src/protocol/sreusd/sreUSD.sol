@@ -31,7 +31,6 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
     /// @param _underlying The erc20 asset deposited
     /// @param _name The name of the vault
     /// @param _symbol The symbol of the vault
-    /// @param _rewardsCycleLength The length of the rewards cycle in seconds
     /// @param _maxDistributionPerSecondPerAsset The maximum amount of rewards that can be distributed per second per 1e18 asset
     constructor(
         IERC20 _underlying,

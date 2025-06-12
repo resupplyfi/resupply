@@ -37,6 +37,7 @@ import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
+import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
 
 // Incentive Contracts
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
@@ -96,6 +97,7 @@ contract Setup is Test {
     SimpleReceiverFactory public receiverFactory;
     SimpleReceiver public debtReceiver;
     SimpleReceiver public insuranceEmissionsReceiver;
+    PriceWatcher public priceWatcher;
     Swapper public defaultSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
@@ -248,6 +250,10 @@ contract Setup is Test {
         //attach fee deposit controller to fee deposit
         vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
+
+        priceWatcher = new PriceWatcher(address(registry),1e5);
+        vm.prank(address(core));
+        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
 
         rewardHandler = new RewardHandler(
             address(core),

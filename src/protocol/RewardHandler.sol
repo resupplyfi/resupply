@@ -13,6 +13,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
 import { IGovStaker } from "../interfaces/IGovStaker.sol";
+import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
 
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
@@ -26,6 +27,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     address public immutable insuranceRevenue;
     address public immutable govStaker;
     address public immutable emissionToken;
+    address public immutable priceWatcher;
     ISimpleReceiver public immutable debtEmissionsReceiver;
     ISimpleReceiver public immutable insuranceEmissionReceiver;
 
@@ -61,6 +63,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         insuranceRevenue = _insuranceRevenue;
         debtEmissionsReceiver = ISimpleReceiver(_debtEmissionsReceiver);
         insuranceEmissionReceiver = ISimpleReceiver(IInsurancePool(insurancepool).emissionsReceiver());
+
+        priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
 
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
@@ -123,6 +127,11 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
         //claim emissions
         IRewards(pairEmissions).getReward(_pair);
+
+        //add a hook to keep PriceWatcher up to date
+        IPriceWatcher(priceWatcher).updatePriceData();
+        //also update a specific pair's price history
+        IPriceWatcher(priceWatcher).updatePairPriceHistory(_pair);
     }
 
     function claimInsuranceRewards() external{
