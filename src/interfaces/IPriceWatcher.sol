@@ -7,10 +7,11 @@ interface IPriceWatcher {
         uint64 weight;
         uint128 totalWeight;
     }
-    
+
     function updatePriceData() external;
     function updatePairPriceHistory(address _pair) external;
     function priceDataLength() external view returns(uint256);
     function priceDataAtIndex(uint256 i) external view returns(PriceData memory _pd);
     function latestPriceData() external view returns(PriceData memory _pd);
+    function findPairPriceWeight(address _pair) external view returns(uint256);
 }

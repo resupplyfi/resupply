@@ -142,4 +142,64 @@ contract PriceWatcher {
             priceIndex[_pair] = nextIndex;
         }
     }
+
+    function findPairPriceWeight(address _pair) external view returns(uint256){
+        //get pair's most recent timestamp on interest update
+        (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
+        uint256 currentIndex = priceIndex[_pair];
+        uint256 latestIndex = priceData.length - 1;
+
+        if(currentIndex == latestIndex){
+            //if pair is at latest then there has been no change in weight
+            //calculation is a simple return of latest's weight
+            return priceData[latestIndex].weight;
+        }
+
+        //loop till we find our starting point
+        //this can be exhaustive on gas so ensuring starting index is updated frequently is a must
+        for(;;){
+
+            //get next data set
+            PriceData memory next = priceData[currentIndex+1];
+
+            //if the next node has a higher timestamp, break without increase nextIndex
+            if(next.timestamp > lastPairUpdate){
+                break;
+            }
+
+            //increase index
+            unchecked{
+                ++currentIndex;
+            }
+
+            //check if current is last and return if needed
+            if(currentIndex == latestIndex){
+                //if pair is at latest then there has been no change in weight
+                //calculation is a simple return of latest's weight
+                return priceData[latestIndex].weight;
+            }
+        }
+
+        //get current + 1 and extrapolate a starting point thats inbetween currentIndex and currentIndex+1
+        //based on the block.timestamp
+        PriceData memory current = priceData[currentIndex];
+        PriceData memory next = priceData[currentIndex+1];
+        uint64 dt = next.timestamp - current.timestamp;
+        current.timestamp = current.timestamp + dt;
+        current.totalWeight = current.totalWeight + (current.weight * dt);
+
+        //get latest data and extrapolate a new data point that uses latest's weight and the time difference between
+        //latest and block.timestamp 
+        PriceData memory latest = priceData[latestIndex];
+        dt = uint64(block.timestamp) - latest.timestamp;
+        latest.timestamp = latest.timestamp + dt;
+        latest.totalWeight = latest.totalWeight + (latest.weight * dt);
+
+        //get difference of total weight between these two points
+        uint256 dw = latest.totalWeight - current.totalWeight;
+        dt - latest.timestamp - current.timestamp;
+
+        //divide by time between these two points to get average weight during the timespan
+        return dw / dt;
+    }
 }
