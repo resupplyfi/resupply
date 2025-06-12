@@ -132,14 +132,14 @@ contract PriceWatcher {
                 ++nextIndex;
             }
 
-            //after increasing currenIndex, check if its the last break if needed
+            //after increasing nextIndex, check if its the last and break if needed
             if(nextIndex == latestIndex){
                 break;
             }
         }
         if(nextIndex != currentIndex){
             //update the pair's current index
-            priceIndex[_pair] = currentIndex;
+            priceIndex[_pair] = nextIndex;
         }
     }
 }
