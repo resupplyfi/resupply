@@ -14,4 +14,5 @@ interface IPriceWatcher {
     function priceDataAtIndex(uint256 i) external view returns(PriceData memory _pd);
     function latestPriceData() external view returns(PriceData memory _pd);
     function findPairPriceWeight(address _pair) external view returns(uint256);
+    function updatePairPriceHistoryAtIndex(address _pair, uint256 _index) external;
 }

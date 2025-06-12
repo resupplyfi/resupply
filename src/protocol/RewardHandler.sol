@@ -171,6 +171,9 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         }
         
         IRewards(pairEmissions).setWeight(_pair, rate);
+
+        //when withdrawfees is called, addInterest is also called so we can safely sync price watching index of the pair
+        IPriceWatcher(priceWatcher).updatePairPriceHistoryAtIndex(_pair, 0);
     }
 
     function queueInsuranceRewards() external{

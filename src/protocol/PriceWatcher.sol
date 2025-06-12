@@ -35,7 +35,7 @@ contract PriceWatcher {
         requiredWeightDifference = _reqWeight;
 
         //start with at least 2 nodes of information
-        _addUpdate(uint64(block.timestamp - 1 hours), 0, 0);
+        _addUpdate(0, 0, 0);
         updatePriceData();
     }
 
@@ -143,9 +143,30 @@ contract PriceWatcher {
         }
     }
 
+    function updatePairPriceHistoryAtIndex(address _pair, uint256 _index) external{
+        uint256 currentIndex = priceIndex[_pair];
+
+        //if given 0 then set index as the most recent
+        if(_index == 0){
+            _index = priceData.length - 1;
+        }
+
+        //only try updating if index is greater than current
+        if(_index > currentIndex){
+            //get pair's most recent timestamp on interest update
+            (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
+
+            PriceData memory pd = priceData[_index];
+            //if last update is greater or equal then move index up
+            if(lastPairUpdate >= pd.timestamp){
+                //write to state
+                priceIndex[_pair] = _index;
+            }
+        }
+    }
+
     function findPairPriceWeight(address _pair) external view returns(uint256){
-        //get pair's most recent timestamp on interest update
-        (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
+        
         uint256 currentIndex = priceIndex[_pair];
         uint256 latestIndex = priceData.length - 1;
 
@@ -154,6 +175,9 @@ contract PriceWatcher {
             //calculation is a simple return of latest's weight
             return priceData[latestIndex].weight;
         }
+
+        //get pair's most recent timestamp on interest update
+        (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
 
         //loop till we find our starting point
         //this can be exhaustive on gas so ensuring starting index is updated frequently is a must
@@ -180,11 +204,10 @@ contract PriceWatcher {
             }
         }
 
-        //get current + 1 and extrapolate a starting point thats inbetween currentIndex and currentIndex+1
-        //based on the block.timestamp
+        //get current and extrapolate a starting point thats inbetween currentIndex and currentIndex+1
+        //at the timestamp of lastPairUpdate (which will always be equal to or greater than current.timestamp)
         PriceData memory current = priceData[currentIndex];
-        PriceData memory next = priceData[currentIndex+1];
-        uint64 dt = next.timestamp - current.timestamp;
+        uint64 dt = lastPairUpdate - current.timestamp;
         current.timestamp = current.timestamp + dt;
         current.totalWeight = current.totalWeight + (current.weight * dt);
 
