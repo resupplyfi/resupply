@@ -44,6 +44,10 @@ contract PriceWatcher {
     }
 
     function priceDataAtIndex(uint256 i) external view returns(PriceData memory _pd){
+        _pd = priceData[i];
+    }
+
+    function latestPriceData() external view returns(PriceData memory _pd){
         _pd = priceData[priceData.length-1];
     }
 
