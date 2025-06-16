@@ -186,8 +186,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         //update timestamp
         pairTimestamp[_pair] = block.timestamp;
         
-        //log fees collected
-        IFeeLogger(feeLogger).updateInterestFees(_pair, getEpoch(), _amount);
+        //log fees collected and set to the previous epoch
+        IFeeLogger(feeLogger).updateInterestFees(_pair, getEpoch() - 1, _amount);
 
         //set emission weights
         IRewards(pairEmissions).setWeight(_pair, rate);

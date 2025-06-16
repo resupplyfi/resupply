@@ -5,16 +5,28 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
+import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { IFeeLogger } from "../interfaces/IFeeLogger.sol";
 
-contract FeeDepositController is CoreOwnable{
+contract FeeDepositController is CoreOwnable, EpochTracker{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
     address public immutable feeToken;
+    address public immutable priceWatcher;
+    address public immutable feeLogger;
     uint256 public constant BPS = 10_000;
     Splits public splits;
+
+    struct WeightData{
+        uint64 index;
+        uint64 timestamp;
+        uint128 avgWeighting;
+    }
+    mapping(uint256 => WeightData) public epochWeighting;
 
     struct Splits {
         uint40 insurance;
@@ -31,9 +43,11 @@ contract FeeDepositController is CoreOwnable{
         uint256 _insuranceSplit,
         uint256 _treasurySplit,
         uint256 _stakedStableSplit
-    ) CoreOwnable(_core){
+    ) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;
         feeToken = IResupplyRegistry(_registry).token();
+        priceWatcher = IResupplyRegistry(_registry).getAddress("PRICE_WATCHER");
+        feeLogger = IResupplyRegistry(_registry).getAddress("FEE_LOGGER");
         require(_insuranceSplit + _treasurySplit <= BPS, "invalid splits");
         splits.insurance = uint40(_insuranceSplit);
         splits.treasury = uint40(_treasurySplit);
@@ -46,11 +60,74 @@ contract FeeDepositController is CoreOwnable{
         // Pull fees. Reverts when called multiple times in single epoch.
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         IFeeDeposit(feeDeposit).distributeFees();
+        uint256 currentEpoch = getEpoch();
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
+
+        //log TOTAL fees for current epoch - 2 since the balance here is what was accrued two epochs ago
+        IFeeLogger(feeLogger).updateTotalFees(currentEpoch-2, balance);
+
+        uint256 stakedStableAmount;
+
+
+        //process weighted fees for sreusd
+
+        //first need to look at weighting differences for currentEpoch-2 (which was logged at the beginning of epoch-1)
+        //and currentEpoch-1 (which is logged now but the data being logged is for the previous epoch)
+        //ex. if getEpoch is 2, we need to find and record the avg weight during epoch 1. we do that by looking at difference of (x-2) and (x-1)
+        WeightData memory prevWeight = epochWeighting[currentEpoch - 2];
+        WeightData memory currentWeight;
+
+        uint256 latestIndex =  IPriceWatcher(priceWatcher).priceDataLength() - 1;
+
+        //only calc if there is enough data to do so, the first execution will result in 0 avgWeighting
+        if(prevWeight.index > 0){
+            //offset by the timestamp of the previous distribution
+            IPriceWatcher.PriceData memory prevData = IPriceWatcher(priceWatcher).priceDataAtIndex(prevWeight.index);
+            uint64 dt = prevWeight.timestamp - prevData.timestamp;
+            prevData.timestamp = prevData.timestamp + dt;
+            prevData.totalWeight = prevData.totalWeight + (prevData.weight * dt);
+
+
+            //get latest data and extrapolate a new data point that uses latest's weight and the time difference between
+            //latest and block.timestamp 
+            IPriceWatcher.PriceData memory latest = IPriceWatcher(priceWatcher).priceDataAtIndex(latestIndex);
+            dt = uint64(block.timestamp) - latest.timestamp;
+            latest.timestamp = latest.timestamp + dt;
+            latest.totalWeight = latest.totalWeight + (latest.weight * dt);
+
+            //get difference of total weight between these two points
+            uint256 dw = latest.totalWeight - prevData.totalWeight;
+            dt = latest.timestamp - prevData.timestamp;
+            currentWeight.avgWeighting = uint128(dw / dt);
+        }
+
+        //set the latest timestamp and index used
+        currentWeight.timestamp = uint64(block.timestamp);
+        currentWeight.index = uint64(latestIndex);
+
+        //write to state to be used in the following epoch
+        epochWeighting[currentEpoch - 1] = currentWeight;
+
+        //next calculate how much of the current balance should be sent to sreusd
+        //using currentEpoch - 2 as pair interest is trailing by two epochs
+
+        WeightData memory distroWeight = epochWeighting[currentEpoch - 2];
+        if(distroWeight.avgWeighting > 0){
+            uint256 additionalFeeRatio = 200_000 * distroWeight.avgWeighting / 1e6; //TODO make settable
+            address feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
+            //get total amount of fees collected in interest only
+            uint256 feesInInterest = IFeeLogger(feeLogger).epochInterestFees(currentEpoch-2);
+
+            stakedStableAmount = feesInInterest * additionalFeeRatio / 1e6;
+            balance -= stakedStableAmount;
+        }
+
+        /////
+
         Splits memory _splits = splits;
         uint256 ipAmount =  balance * _splits.insurance / BPS;
         uint256 treasuryAmount =  balance * _splits.treasury / BPS;
-        uint256 stakedStableAmount =  balance * _splits.stakedStable / BPS;
+        stakedStableAmount +=  balance * _splits.stakedStable / BPS;
         
         //treasury
         address treasury = IResupplyRegistry(registry).treasury();
