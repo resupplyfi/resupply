@@ -263,7 +263,7 @@ contract PriceWatcher {
 
         //get difference of total weight between these two points
         uint256 dw = latest.totalWeight - current.totalWeight;
-        dt - latest.timestamp - current.timestamp;
+        dt = latest.timestamp - current.timestamp;
 
         //divide by time between these two points to get average weight during the timespan
         return dw / dt;
