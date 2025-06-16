@@ -14,6 +14,7 @@ import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { EpochTracker } from "../dependencies/EpochTracker.sol";
 import { IGovStaker } from "../interfaces/IGovStaker.sol";
 import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
+import { IFeeLogger } from "../interfaces/IFeeLogger.sol";
 
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
@@ -28,14 +29,13 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     address public immutable govStaker;
     address public immutable emissionToken;
     address public immutable priceWatcher;
+    address public immutable feeLogger;
     ISimpleReceiver public immutable debtEmissionsReceiver;
     ISimpleReceiver public immutable insuranceEmissionReceiver;
 
     mapping(address => uint256) public pairTimestamp;
     mapping(address => uint256) public minimumWeights;
     uint256 public baseMinimumWeight;
-
-    mapping(address => mapping(uint256 => uint256)) public pairEpochWeightings;
 
     event BaseMinimumWeightSet(uint256 bweight);
     event MinimumWeightSet(address indexed user, uint256 mweight);
@@ -67,6 +67,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         insuranceEmissionReceiver = ISimpleReceiver(IInsurancePool(insurancepool).emissionsReceiver());
 
         priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
+        feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
 
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
@@ -144,24 +145,15 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         IRewards(insuranceEmissions).getReward(insurancepool);
     }
 
-    function setPairWeight(address _pair, uint256 _amount) external{
-        require(msg.sender == IResupplyRegistry(registry).feeDeposit(), "!feeDeposist");
-
-        //get previous and update
-        uint256 lastTimestamp = pairTimestamp[_pair];
-        pairTimestamp[_pair] = block.timestamp;
-
+    function getPairRate(address _pair, uint256 _timespan, uint256 _amount) public view returns(uint256){
         uint256 borrowLimit = IResupplyPair(_pair).borrowLimit();
         uint256 rate;
 
         //if borrow limit is 0, dont apply any weight
         if(borrowLimit > 0){
 
-            // if first call for pair use epoch length
-            lastTimestamp = lastTimestamp == 0 ? block.timestamp - epochLength : lastTimestamp;
-
             //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
-            rate = _amount / (block.timestamp - lastTimestamp);
+            rate = _amount / _timespan;
 
             //clamp rate floor to a minimum value
             //use custom pair setting if set, otherwise compare against baseMinimumWeight
@@ -171,10 +163,33 @@ contract RewardHandler is CoreOwnable, EpochTracker {
                 rate = minWeight;
             }
         }
-        
-        //write base rate to state, can be referened later
-        pairEpochWeightings[_pair][getEpoch()] = rate;
 
+        return rate;
+    }
+
+    function setPairWeight(address _pair, uint256 _amount) external{
+        require(msg.sender == IResupplyRegistry(registry).feeDeposit(), "!feeDeposist");
+
+        
+        //get previous timestamp and calculate timespan since last call
+        uint256 timespan = pairTimestamp[_pair];
+
+        // if first call for pair use epoch length
+        timespan = timespan == 0 ? block.timestamp - epochLength : timespan;
+
+        //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
+        timespan = block.timestamp - timespan;
+
+        //get rate
+        uint256 rate = getPairRate(_pair, timespan, _amount);
+
+        //update timestamp
+        pairTimestamp[_pair] = block.timestamp;
+        
+        //log fees collected
+        IFeeLogger(feeLogger).updateInterestFees(_pair, getEpoch(), _amount);
+
+        //set emission weights
         IRewards(pairEmissions).setWeight(_pair, rate);
 
         //when withdrawfees is called, addInterest is also called so we can safely sync price watching index of the pair
