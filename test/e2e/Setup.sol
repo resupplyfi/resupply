@@ -251,7 +251,7 @@ contract Setup is Test {
         vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
 
-        priceWatcher = new PriceWatcher(address(registry),1e5);
+        priceWatcher = new PriceWatcher(address(registry));
         vm.prank(address(core));
         registry.setAddress("PRICE_WATCHER", address(priceWatcher));
 

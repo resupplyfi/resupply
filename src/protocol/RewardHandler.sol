@@ -35,6 +35,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     mapping(address => uint256) public minimumWeights;
     uint256 public baseMinimumWeight;
 
+    mapping(address => mapping(uint256 => uint256)) public pairEpochWeightings;
+
     event BaseMinimumWeightSet(uint256 bweight);
     event MinimumWeightSet(address indexed user, uint256 mweight);
 
@@ -170,6 +172,9 @@ contract RewardHandler is CoreOwnable, EpochTracker {
             }
         }
         
+        //write base rate to state, can be referened later
+        pairEpochWeightings[_pair][getEpoch()] = rate;
+
         IRewards(pairEmissions).setWeight(_pair, rate);
 
         //when withdrawfees is called, addInterest is also called so we can safely sync price watching index of the pair
