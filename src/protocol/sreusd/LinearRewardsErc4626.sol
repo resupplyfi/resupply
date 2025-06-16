@@ -16,8 +16,9 @@ pragma solidity ^0.8.21;
 import { ERC20, ERC4626 } from "src/libraries/solmate/ERC4626.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
 import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
-import { IFeeDeposit } from "../../interfaces/IFeeDeposit.sol";
-import { IResupplyRegistry } from "../../interfaces/IResupplyRegistry.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 
 
 /// @title LinearRewardsErc4626
@@ -52,22 +53,26 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     /// @notice The precision of the underlying asset
     uint256 public immutable UNDERLYING_PRECISION;
 
+    /// @param _core The core address
+    /// @param _registry The registry address
     /// @param _underlying The erc20 asset deposited
     /// @param _name The name of the vault
     /// @param _symbol The symbol of the vault
     /// @param _rewardsCycleLength The length of the rewards cycle in seconds
     constructor(
-        ERC20 _underlying,
+        address _core,
+        address _registry,
+        address _underlying,
         string memory _name,
         string memory _symbol,
-        uint256 _rewardsCycleLength,
-        address _registry
+        uint256 _rewardsCycleLength
     ) 
-        ERC4626(_underlying, _name, _symbol) 
-        EpochTracker(IResupplyRegistry(_registry).owner())
+        ERC4626(ERC20(_underlying), _name, _symbol) 
+        EpochTracker(_core)
     {
+        registry = _registry;
         REWARDS_CYCLE_LENGTH = _rewardsCycleLength;
-        UNDERLYING_PRECISION = 10 ** _underlying.decimals();
+        UNDERLYING_PRECISION = 10 ** ERC20(_underlying).decimals();
 
         // initialize rewardsCycleEnd value
         // NOTE: normally distribution of rewards should be done prior to _syncRewards but in this case we know there are no users or rewards yet.
@@ -95,7 +100,7 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     }
 
     /// @notice The ```previewDistributeRewards``` function is used to preview the rewards distributed at the top of the block
-    /// @return _rewardToDistribute The amount of underlying to distribute
+    /// @return _rewardToDistribute The amount of underlying streamed since last state write
     function previewDistributeRewards() public view virtual returns (uint256 _rewardToDistribute) {
         // Cache state for gas savings
         RewardsCycleData memory _rewardsCycleData = rewardsCycleData;
@@ -138,13 +143,6 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
         // Only sync if the previous cycle has ended
         if (_timestamp <= _rewardsCycleData.cycleEnd) return _rewardsCycleData;
 
-        address feeDeposit = IResupplyRegistry(registry).feeDeposit();
-        uint256 lastDistributedEpoch = IFeeDeposit(feeDeposit).lastDistributedEpoch();
-        uint256 cycleEndEpoch = (_rewardsCycleData.cycleEnd - startTime) / epochLength;
-
-        //only sync if a new distribution epoch has been completed
-        if(lastDistributedEpoch <= cycleEndEpoch) return _rewardsCycleData;
-
         // Calculate rewards for next cycle
         uint256 _newRewards = asset.balanceOf(address(this)) - storedTotalAssets;
 
@@ -167,8 +165,9 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
 
     /// @notice The ```_syncRewards``` function is used to update the rewards cycle data
     function _syncRewards() internal virtual {
+        if (block.timestamp <= rewardsCycleData.cycleEnd) return;
+        _distributeFees();
         RewardsCycleData memory _rewardsCycleData = previewSyncRewards();
-
         if (
             // If true, then preview shows a rewards should be processed
             // Ensures that we don't write to state twice in the same block
@@ -276,6 +275,14 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
             s: _s
         });
         _shares = (deposit({ _assets: _assets, _receiver: _receiver }));
+    }
+
+    function _distributeFees() internal {
+        IFeeDeposit feeDeposit = IFeeDeposit(IResupplyRegistry(registry).feeDeposit());
+        if (feeDeposit.lastDistributedEpoch() < getEpoch()) {
+            IFeeDepositController feeDepositController = IFeeDepositController(feeDeposit.operator());
+            feeDepositController.distribute();
+        }
     }
 
     //==============================================================================

@@ -28,21 +28,24 @@ contract StakedReUSD is LinearRewardsErc4626, OFTCore {
     /// @notice The maximum amount of rewards that can be distributed per second per 1e18 asset
     uint256 public maxDistributionPerSecondPerAsset;
 
+    /// @param _core The core address
+    /// @param _registry The registry address
+    /// @param _lzEndpoint The layerzero endpoint address
     /// @param _underlying The erc20 asset deposited
     /// @param _name The name of the vault
     /// @param _symbol The symbol of the vault
     /// @param _maxDistributionPerSecondPerAsset The maximum amount of rewards that can be distributed per second per 1e18 asset
     constructor(
-        IERC20 _underlying,
-        string memory _name,
-        string memory _symbol,
-        uint256 _maxDistributionPerSecondPerAsset,
         address _core,
         address _registry,
-        address _lzEndpoint
+        address _lzEndpoint,
+        address _underlying,
+        string memory _name,
+        string memory _symbol,
+        uint256 _maxDistributionPerSecondPerAsset
     )
-        LinearRewardsErc4626(ERC20(address(_underlying)), _name, _symbol, 7 days, _registry)
-        OFTCore(IERC20Metadata(address(_underlying)).decimals(), _lzEndpoint, _core)
+        LinearRewardsErc4626(_core, _registry, _underlying, _name, _symbol, 7 days)
+        OFTCore(IERC20Metadata(_underlying).decimals(), _lzEndpoint, _core)
         Ownable(_core)
     {
         maxDistributionPerSecondPerAsset = _maxDistributionPerSecondPerAsset;

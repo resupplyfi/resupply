@@ -312,7 +312,7 @@ contract Setup is Test {
         );
         stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
         uint256 maxdistro = 2e17 / uint256( 365 days );
-        stakedStable = new StakedReUSD(IERC20(stablecoin), "Staked reUSD", "sreUSD", maxdistro, address(core), address(registryAddress), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
+        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
