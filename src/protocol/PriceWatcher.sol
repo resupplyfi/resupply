@@ -10,6 +10,8 @@ import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 contract PriceWatcher {
 
     address public immutable oracle;
+    uint256 public constant INTERIM_UPDATE_INTERVAL = 1 hours;
+    uint256 public constant UPDATE_INTERVAL = 12 hours;
 
     struct PriceData{
         uint64 timestamp;
@@ -18,7 +20,7 @@ contract PriceWatcher {
     }
 
     PriceData[] public priceData;
-    mapping(address => uint256) priceIndex;
+    mapping(address => uint256) public priceIndex;
 
     PriceData public interimData;
 
@@ -33,7 +35,7 @@ contract PriceWatcher {
         // requiredWeightDifference = _reqWeight;
 
         //start with at least 2 nodes of information
-        _addUpdate(0, 0, 0);
+        _addUpdate(0, getCurrentWeight(), 0);
         updatePriceData();
     }
 
@@ -61,30 +63,21 @@ contract PriceWatcher {
         uint256 timedifference = timestamp - interim.timestamp;
 
         //update interim periodically but at a faster rate than priceData nodes
-        if(timedifference < 1 hours) return;
+        if(timedifference < INTERIM_UPDATE_INTERVAL) return;
         
-        //get current weight
-        uint256 price = IReusdOracle(oracle).price();
-        uint256 weight = price > 1e18 ? 0 : 1e18 - price;
-        //our oracle has a floor that matches redemption fee, thus 0.9900
-        //at this point a price of 0.99000 has a weight of 0.010000 or 1e16
-        //reduce precision to 1e6
-        weight /= 1e10;
-        //max weight is 1,000,000 or 1e6
-
+        uint64 weight = getCurrentWeight();
         
         //use previous interim weight to add to a total weight since last checkpoint
-        uint256 timesinceIterim = timestamp - interim.timestamp;
-        interim.totalWeight = uint128(interim.totalWeight + (interim.weight * timesinceIterim));
+        interim.totalWeight = uint128(interim.totalWeight + (interim.weight * timedifference));
         //then update new interim weight and timestamp
-        interim.weight = uint64(weight);
+        interim.weight = weight;
         interim.timestamp = uint64(timestamp);
 
         
         //get most recent priceData node to see if enough time has elapsed
         PriceData memory recent = priceData[priceData.length-1];
         timedifference = timestamp - recent.timestamp;
-        if(timedifference < 12 hours){
+        if(timedifference < UPDATE_INTERVAL){
             //if not enough time, still need to save interim
             //write interim data and return
             interimData = interim;
@@ -92,7 +85,7 @@ contract PriceWatcher {
         }
 
         //get avg weight throughout the interim
-        weight = interim.totalWeight / timedifference;
+        weight = uint64(interim.totalWeight / timedifference);
 
         //reset interim total weight and write to state
         //interim weight and timestamp will be equal to the new priceData node
@@ -102,7 +95,7 @@ contract PriceWatcher {
         //add weighted time from previous checkpoint to total
         uint256 newTotalWeight = (recent.weight * timedifference) + recent.totalWeight;
         //add new price data node
-        _addUpdate(uint64(timestamp), uint64(weight), uint128(newTotalWeight));
+        _addUpdate(uint64(timestamp), weight, uint128(newTotalWeight));
     }
 
     function _addUpdate(uint64 _timestamp, uint64 _weight, uint128 _totalweight) internal{
@@ -115,26 +108,45 @@ contract PriceWatcher {
         emit NewPriceData(_timestamp, _weight, _totalweight);
     }
 
+    function getCurrentWeight() public view returns (uint64) {
+        uint256 price = IReusdOracle(oracle).price();
+        uint256 weight = price > 1e18 ? 0 : 1e18 - price;
+        //our oracle has a floor that matches redemption fee
+        //e.g. it returns a minimum price of 0.9900 when there is a 1% redemption fee
+        //at this point a price of 0.99000 has a weight of 0.010000 or 1e16
+        //reduce precision to 1e6
+        return uint64(weight / 1e10);
+    }
+
+    //bulk update for pairs
+    function updatePairsPriceHistory(address[] memory pairs) external{
+        uint256 length = pairs.length;
+        //for each pair, update the price history
+        for(uint256 i = 0; i < length; i++){
+            updatePairPriceHistory(pairs[i]);
+        }
+    }
+
     //given a pair's last update of interest rates, check to see what priceData node
     //is the latest node in which its timestamp is less than the timestamp on the pair's rate info
     //by slowly moving up a pair's index we create a better start position for when the pair does
     //another interest rate update
-    function updatePairPriceHistory(address _pair) external{
+    function updatePairPriceHistory(address _pair) public{
         //this function is isolated to the given pair so no real need to check if
         //the given pair address is a resupply pair or not
 
-        uint256 latestIndex = priceData.length - 1;
-        uint256 currentIndex = priceIndex[_pair];
+        uint256 priceDataIndex = priceData.length - 1;
+        uint256 pairIndex = priceIndex[_pair];
         
-        if(currentIndex == latestIndex){
+        if(pairIndex == priceDataIndex){
             //no update needed
             return;
         }
 
         //a new pair being added will have a long list to check against so just skip
         //to the latest index on the first calll
-        if(currentIndex == 0){
-            priceIndex[_pair] = latestIndex;
+        if(pairIndex == 0){
+            priceIndex[_pair] = priceDataIndex;
             return;
         }
 
@@ -142,14 +154,14 @@ contract PriceWatcher {
         (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
 
         //we assume latest index has a high probability to match so check it first
-        PriceData memory latestNode = priceData[latestIndex];
+        PriceData memory latestNode = priceData[priceDataIndex];
         if(lastPairUpdate >= latestNode.timestamp){
-            priceIndex[_pair] = latestIndex;
+            priceIndex[_pair] = priceDataIndex; // NOTE: why not force an update to price data? could be stale?
             return;
         }
 
         //if timestamp doesnt match latest, we are forced to search for where the index should be..
-        uint256 nextIndex = currentIndex;
+        uint256 nextIndex = pairIndex;
         //step through pairData array to find the most up to data node
         //limit max steps as to not overly inflate gas costs
         for(uint256 i = 0; i < 5;){
@@ -169,11 +181,11 @@ contract PriceWatcher {
             }
 
             //after increasing nextIndex, check if its the last and break if needed
-            if(nextIndex == latestIndex){
+            if(nextIndex == priceDataIndex){
                 break;
             }
         }
-        if(nextIndex != currentIndex){
+        if(nextIndex != pairIndex){
             //update the pair's current index
             priceIndex[_pair] = nextIndex;
         }

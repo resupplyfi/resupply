@@ -88,8 +88,6 @@ contract Setup is Test {
     ISwapper public defaultSwapper = ISwapper(Protocol.SWAPPER);
     IERC20 public frxusdToken = IERC20(Mainnet.FRXUSD_ERC20);
     IERC20 public crvusdToken = IERC20(Mainnet.CRVUSD_ERC20);
-    IResupplyPair public testPair = IResupplyPair(Mainnet.FRAXLEND_SCRVUSD_FRXUSD);
-    IResupplyPair public testPair2 = IResupplyPair(Mainnet.CURVELEND_SDOLA_CRVUSD);
     ICurveExchange public swapPoolsCrvUsd = ICurveExchange(Protocol.REUSD_SCRVUSD_POOL);
     ICurveExchange public swapPoolsFrxusd = ICurveExchange(Protocol.REUSD_SFRXUSD_POOL);
     IERC20 public frxusd = IERC20(Mainnet.FRXUSD_ERC20);
