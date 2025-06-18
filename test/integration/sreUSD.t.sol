@@ -7,9 +7,19 @@ import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsEr
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
+import { FeeLogger } from "src/protocol/FeeLogger.sol";
+import { RewardHandler } from "src/protocol/RewardHandler.sol";
+import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
+
+import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
+import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 
 contract sreUSDTest is Setup {
     StakedReUSD public vault;
+    FeeLogger public feeLogger;
+    PriceWatcher public priceWatcher;
+
+
     IERC20 public asset;
 
     uint32 public constant REWARDS_CYCLE_LENGTH = 7 days;
@@ -18,6 +28,8 @@ contract sreUSDTest is Setup {
     function setUp() public override {
         super.setUp();
         asset = IERC20(address(stablecoin));
+
+        //deploy sreusd
         vault = new StakedReUSD(
             address(core),
             address(registry),
@@ -27,10 +39,19 @@ contract sreUSDTest is Setup {
             "sreUSD",
             MAX_DISTRIBUTION_PER_SECOND_PER_ASSET
         );
+
+        //deploy fee logger
+        feeLogger = new FeeLogger(address(core), address(registry));
+
+        //deploy price watcher
+        priceWatcher = new PriceWatcher(address(registry));
+
         // Setup new fee deposit controller
         vm.startPrank(address(core));
         registry.setAddress("SREUSD", address(vault));
-        FeeDepositController feeDepositController = new FeeDepositController(
+        registry.setAddress("FEE_LOGGER", address(feeLogger));
+        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
+        FeeDepositController fdcontroller = new FeeDepositController(
             address(core),
             address(registry),
             200_000,
@@ -38,7 +59,20 @@ contract sreUSDTest is Setup {
             500,
             1000
         );
+        feeDepositController = IFeeDepositController(address(fdcontroller));
         feeDeposit.setOperator(address(feeDepositController));
+
+        RewardHandler rewardHandlerAddress = new RewardHandler(
+            address(core),
+            address(registry),
+            address(insurancePool),
+            address(debtReceiver),
+            address(pairEmissionStream),
+            address(ipEmissionStream),
+            address(ipStableStream)
+            );
+        rewardHandler = IRewardHandler(address(rewardHandlerAddress));
+        registry.setRewardHandler(address(rewardHandler));
         vm.stopPrank();
     }
 

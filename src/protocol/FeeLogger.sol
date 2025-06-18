@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
+import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 
 //keep track of fees
 contract FeeLogger is CoreOwnable {
@@ -24,8 +25,9 @@ contract FeeLogger is CoreOwnable {
     }
 
     function updateTotalFees(uint256 _epoch, uint256 _amount) external{
-        require(msg.sender == IResupplyRegistry(registry).rewardHandler()
-            || msg.sender == owner(), "!rewardHandler");
+        address feeDeposit = IResupplyRegistry(registry).feeDeposit();
+        require(msg.sender == IFeeDeposit(feeDeposit).operator()
+            || msg.sender == owner(), "!feeDepositOperator");
 
 
         //write total fees for epoch
