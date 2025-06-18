@@ -61,6 +61,8 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         IFeeDeposit(feeDeposit).distributeFees();
         uint256 currentEpoch = getEpoch();
+        if(currentEpoch < 2) return;
+
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
 
         //log TOTAL fees for current epoch - 2 since the balance here is what was accrued two epochs ago
@@ -113,12 +115,15 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
 
         WeightData memory distroWeight = epochWeighting[currentEpoch - 2];
         if(distroWeight.avgWeighting > 0){
-            uint256 additionalFeeRatio = 200_000 * distroWeight.avgWeighting / 1e6; //TODO make settable
+            
             address feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
             //get total amount of fees collected in interest only
             uint256 feesInInterest = IFeeLogger(feeLogger).epochInterestFees(currentEpoch-2);
 
-            stakedStableAmount = feesInInterest * additionalFeeRatio / 1e6;
+            uint256 additionalFeeRatio = 200_000 * distroWeight.avgWeighting / 1e6; //TODO make settable
+            additionalFeeRatio = 1e6 + additionalFeeRatio; //turn something like 10% or 0.1 to 1.1
+
+            stakedStableAmount = (feesInInterest * 1e16 / additionalFeeRatio) - feesInInterest;
             balance -= stakedStableAmount;
         }
 
