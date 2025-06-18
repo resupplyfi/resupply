@@ -33,6 +33,7 @@ contract sreUSDTest is Setup {
         FeeDepositController feeDepositController = new FeeDepositController(
             address(core),
             address(registry),
+            200_000,
             500,
             500,
             1000

@@ -20,6 +20,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     address public immutable feeLogger;
     uint256 public constant BPS = 10_000;
     Splits public splits;
+    uint256 public maxAdditionalFeeRatio;
 
     struct WeightData{
         uint64 index;
@@ -36,10 +37,12 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     }
 
     event SplitsSet(uint40 insurance, uint40 treasury, uint40 platform, uint40 stakedStable);
+    event MaxAdditionalFeesSet(uint256 maxAdditionalFeeRatio);
 
     constructor(
         address _core,
         address _registry,
+        uint256 _maxAdditionalFee,
         uint256 _insuranceSplit,
         uint256 _treasurySplit,
         uint256 _stakedStableSplit
@@ -54,6 +57,9 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         splits.stakedStable = uint40(_stakedStableSplit);
         splits.platform = uint40(BPS - splits.insurance - splits.treasury - splits.stakedStable);
         emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), splits.platform, uint40(_stakedStableSplit));
+
+        maxAdditionalFeeRatio = _maxAdditionalFee;
+        emit MaxAdditionalFeesSet(_maxAdditionalFee);
     }
 
     function distribute() external{
@@ -68,14 +74,17 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         //log TOTAL fees for current epoch - 2 since the balance here is what was accrued two epochs ago
         IFeeLogger(feeLogger).updateTotalFees(currentEpoch-2, balance);
 
-        uint256 stakedStableAmount;
+        //max sure price watcher is up to date
+        IPriceWatcher(priceWatcher).updatePriceData();
 
+        uint256 stakedStableAmount;
 
         //process weighted fees for sreusd
 
         //first need to look at weighting differences for currentEpoch-2 (which was logged at the beginning of epoch-1)
         //and currentEpoch-1 (which is logged now but the data being logged is for the previous epoch)
-        //ex. if getEpoch is 2, we need to find and record the avg weight during epoch 1. we do that by looking at difference of (x-2) and (x-1)
+        //ex. if getEpoch is 2, we need to find and record the avg weight during epoch 1.
+        //we do that by looking at difference of (x-2) and (x-1), aka epoch 0 and 1
         WeightData memory prevWeight = epochWeighting[currentEpoch - 2];
         WeightData memory currentWeight;
 
@@ -99,6 +108,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
 
             //get difference of total weight between these two points
             uint256 dw = latest.totalWeight - prevData.totalWeight;
+            //dt will always be > 0
             dt = latest.timestamp - prevData.timestamp;
             currentWeight.avgWeighting = uint128(dw / dt);
         }
@@ -120,7 +130,8 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
             //get total amount of fees collected in interest only
             uint256 feesInInterest = IFeeLogger(feeLogger).epochInterestFees(currentEpoch-2);
 
-            uint256 additionalFeeRatio = 200_000 * distroWeight.avgWeighting / 1e6; //TODO make settable
+            //use weighting to determine how much of the max fee should be applied
+            uint256 additionalFeeRatio = maxAdditionalFeeRatio * distroWeight.avgWeighting / 1e6;
             additionalFeeRatio = 1e6 + additionalFeeRatio; //turn something like 10% or 0.1 to 1.1
 
             stakedStableAmount = (feesInInterest * 1e16 / additionalFeeRatio) - feesInInterest;
@@ -150,6 +161,14 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         //rsup
         IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount - stakedStableAmount);
         IRewardHandler(rewardHandler).queueStakingRewards();
+    }
+
+    /// @notice The ```setMaxAdditionalFees``` function sets the max fee ratio attributed to additional fees
+    /// @param _additionalFeeRatio max additional fee ratio
+    function setMaxAdditionalFees(uint256 _additionalFeeRatio) external onlyOwner {
+        require(_additionalFeeRatio <= 1e6, "invalid ratio");
+        maxAdditionalFeeRatio = _additionalFeeRatio;
+        emit MaxAdditionalFeesSet(_additionalFeeRatio);
     }
 
     /// @notice The ```setSplits``` function sets the fee distribution splits between insurance, treasury, and platform

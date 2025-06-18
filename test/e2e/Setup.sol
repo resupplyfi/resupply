@@ -243,6 +243,7 @@ contract Setup is Test {
         feeDepositController = new FeeDepositController(
             address(core), 
             address(registry),
+            200_000,
             1000, 
             500,
             1500

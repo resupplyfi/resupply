@@ -5,11 +5,13 @@ import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IReusdOracle } from "../interfaces/IReusdOracle.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
+import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
 
 /// @title Keep track of reusd discount with a time weighted value
-contract PriceWatcher {
+contract PriceWatcher is CoreOwnable{
 
-    address public immutable oracle;
+    address public immutable registry;
+    address public oracle;
 
     struct PriceData{
         uint64 timestamp;
@@ -22,19 +24,31 @@ contract PriceWatcher {
 
     PriceData public interimData;
 
-    event NewPriceData(uint64 timestamp, uint64 weight, uint128 weightedValue);
+    event NewPriceData(uint64 indexed timestamp, uint64 weight, uint128 weightedValue);
+    event OracleSet(address indexed oracle);
 
     /// @notice The ```constructor``` function
     /// @param _registry registry address
     constructor(
         address _registry
-    ) {
+    ) CoreOwnable( IResupplyRegistry(_registry).owner() ) {
+        registry = _registry;
         oracle = IResupplyRegistry(_registry).getAddress("REUSD_ORACLE");
         // requiredWeightDifference = _reqWeight;
 
         //start with at least 2 nodes of information
         _addUpdate(0, 0, 0);
         updatePriceData();
+    }
+
+    /// @notice The ```setOracle``` function pulls oracle address from registry and sets
+    function setOracle() external onlyOwner {
+        address _oracle = IResupplyRegistry(registry).getAddress("REUSD_ORACLE");
+        require(_oracle != address(0), "invalid address");
+        require(IReusdOracle(_oracle).price() > 0, "price invalid");
+        
+        oracle = _oracle;
+        emit OracleSet(_oracle);
     }
 
     function priceDataLength() external view returns(uint256){
