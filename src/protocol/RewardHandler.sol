@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
-import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
-import { IRewards } from "../interfaces/IRewards.sol";
-import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
-import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
-import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
+import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IConvexStaking } from "src/interfaces/IConvexStaking.sol";
+import { IRewards } from "src/interfaces/IRewards.sol";
+import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
+import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
-import { EpochTracker } from "../dependencies/EpochTracker.sol";
-import { IGovStaker } from "../interfaces/IGovStaker.sol";
-import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
-import { IFeeLogger } from "../interfaces/IFeeLogger.sol";
+import { SafeERC20 } from "src/libraries/SafeERC20.sol";
+import { EpochTracker } from "src/dependencies/EpochTracker.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
+import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
+import { IFeeLogger } from "src/interfaces/IFeeLogger.sol";
 
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
@@ -68,6 +68,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
         priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
         feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
+        require(priceWatcher != address(0), "priceWatcher not set");
+        require(feeLogger != address(0), "feeLogger not set");
 
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);

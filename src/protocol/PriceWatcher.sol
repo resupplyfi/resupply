@@ -10,6 +10,8 @@ import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
 /// @title Keep track of reusd discount with a time weighted value
 contract PriceWatcher is CoreOwnable{
 
+    uint256 public constant INTERIM_UPDATE_INTERVAL = 1 hours;
+    uint256 public constant UPDATE_INTERVAL = 12 hours;
     address public immutable registry;
     address public oracle;
 
@@ -20,11 +22,11 @@ contract PriceWatcher is CoreOwnable{
     }
 
     PriceData[] public priceData;
-    mapping(uint256 => uint256) timeMap;
+    mapping(uint256 => uint256) public timeMap;
 
     PriceData public interimData;
 
-    event NewPriceData(uint64 indexed timestamp, uint64 weight, uint128 weightedValue);
+    event NewPriceData(uint256 indexed index, uint64 timestamp, uint64 weight, uint128 weightedValue);
     event OracleSet(address indexed oracle);
 
     /// @notice The ```constructor``` function
@@ -46,9 +48,10 @@ contract PriceWatcher is CoreOwnable{
         address _oracle = IResupplyRegistry(registry).getAddress("REUSD_ORACLE");
         require(_oracle != address(0), "invalid address");
         require(IReusdOracle(_oracle).price() > 0, "price invalid");
-        
-        oracle = _oracle;
-        emit OracleSet(_oracle);
+        if (_oracle != oracle) {
+            oracle = _oracle;
+            emit OracleSet(_oracle);
+        }
     }
 
     function priceDataLength() external view returns(uint256){
@@ -59,7 +62,7 @@ contract PriceWatcher is CoreOwnable{
         _pd = priceData[i];
     }
 
-    function latestPriceData() external view returns(PriceData memory _pd){
+    function latestPriceData() public view returns(PriceData memory _pd){
         _pd = priceData[priceData.length-1];
     }
 
@@ -75,30 +78,22 @@ contract PriceWatcher is CoreOwnable{
         uint256 timedifference = timestamp - interim.timestamp;
 
         //update interim periodically but at a faster rate than priceData nodes
-        if(timedifference < 1 hours) return;
+        if(timedifference < INTERIM_UPDATE_INTERVAL) return;
         
-        //get current weight
-        uint256 price = IReusdOracle(oracle).price();
-        uint256 weight = price > 1e18 ? 0 : 1e18 - price;
-        //our oracle has a floor that matches redemption fee, thus 0.9900
-        //at this point a price of 0.99000 has a weight of 0.010000 or 1e16
-        //reduce precision to 1e6
-        weight /= 1e10;
-        //max weight is 1,000,000 or 1e6
-
+        uint256 weight = getCurrentWeight();
         
         //use previous interim weight to add to a total weight since last checkpoint
-        uint256 timesinceIterim = timestamp - interim.timestamp;
-        interim.totalWeight = uint128(interim.totalWeight + (interim.weight * timesinceIterim));
+        uint256 timeSinceInterim = timestamp - interim.timestamp;
+        interim.totalWeight += uint128(interim.weight * timeSinceInterim);
         //then update new interim weight and timestamp
         interim.weight = uint64(weight);
         interim.timestamp = uint64(timestamp);
 
         
         //get most recent priceData node to see if enough time has elapsed
-        PriceData memory recent = priceData[priceData.length-1];
-        timedifference = timestamp - recent.timestamp;
-        if(timedifference < 12 hours){
+        PriceData memory latestPriceData = latestPriceData();
+        timedifference = timestamp - latestPriceData.timestamp;
+        if(timedifference < UPDATE_INTERVAL){
             //if not enough time, still need to save interim
             //write interim data and return
             interimData = interim;
@@ -114,25 +109,26 @@ contract PriceWatcher is CoreOwnable{
         interimData = interim;
 
         //add weighted time from previous checkpoint to total
-        uint256 newTotalWeight = (recent.weight * timedifference) + recent.totalWeight;
+        uint256 newTotalWeight = (latestPriceData.weight * timedifference) + latestPriceData.totalWeight;
         //add new price data node
         _addUpdate(uint64(timestamp), uint64(weight), uint128(newTotalWeight));
     }
 
     function _getTimestampFloor(uint256 _timestamp)  internal view returns(uint256){
-        return (_timestamp/12 hours) * 12 hours;
+        return (_timestamp/UPDATE_INTERVAL) * UPDATE_INTERVAL;
     }
 
     function _addUpdate(uint64 _timestamp, uint64 _weight, uint128 _totalweight) internal{
+        uint256 newIndex = priceData.length;
         priceData.push(PriceData({
             timestamp: _timestamp,
             weight: _weight,
             totalWeight: _totalweight
         }));
 
-        timeMap[ _getTimestampFloor(_timestamp) ] = priceData.length - 1;
+        timeMap[ _getTimestampFloor(_timestamp) ] = newIndex;
 
-        emit NewPriceData(_timestamp, _weight, _totalweight);
+        emit NewPriceData(newIndex, _timestamp, _weight, _totalweight);
     }
 
     function findPairPriceWeight(address _pair) external view returns(uint256){
@@ -149,7 +145,7 @@ contract PriceWatcher is CoreOwnable{
         //we loop just in case price watcher was not updated for a very long time
         //but impossible to loop forever
         while(currentIndex == 0){
-            ftime = _getTimestampFloor(ftime - 1);
+            ftime -= UPDATE_INTERVAL;
             currentIndex = timeMap[ftime];
         }
         
@@ -158,7 +154,7 @@ contract PriceWatcher is CoreOwnable{
 
         //however we need to check timestamps again since the price node could have been written after addInterest
         if(current.timestamp > lastPairUpdate){
-            //if current is greater, then its guarenteed that the correct node is currentIndex - 1
+            //if current is greater, then its guaranteed that the correct node is currentIndex - 1
             currentIndex--;
             current = priceData[currentIndex];
         }
@@ -190,5 +186,15 @@ contract PriceWatcher is CoreOwnable{
 
         //divide by time between these two points to get average weight during the timespan
         return dw / dt;
+    }
+
+    function getCurrentWeight() public view returns (uint64) {
+        uint256 price = IReusdOracle(oracle).price();
+        uint256 weight = price > 1e18 ? 0 : 1e18 - price;
+        //our oracle has a floor that matches redemption fee
+        //e.g. it returns a minimum price of 0.9900 when there is a 1% redemption fee
+        //at this point a price of 0.99000 has a weight of 0.010000 or 1e16
+        //reduce precision to 1e6
+        return uint64(weight / 1e10);
     }
 }
