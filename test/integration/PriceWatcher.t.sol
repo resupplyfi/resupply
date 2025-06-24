@@ -24,8 +24,8 @@ contract PriceWatcherTest is Setup {
         interestRateCalculator = new InterestRateCalculatorV2(
             "V2",
             2e16 / uint256(365 days),//2%
-            2,
-            2,
+            5e17,
+            1e17,
             address(priceWatcher)
         );
         pairs = registry.getAllPairAddresses();
@@ -46,7 +46,7 @@ contract PriceWatcherTest is Setup {
         printCurrentWeight();
         skip(5 days);
         // Update all pairs
-        uint256 ftime = floor(block.timestamp);
+        uint256 ftime = getFloorTimestamp(block.timestamp);
         uint256 idx;
         
         for (uint256 i = 0; i < 25; i++) {

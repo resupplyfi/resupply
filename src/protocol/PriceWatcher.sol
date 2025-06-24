@@ -36,7 +36,6 @@ contract PriceWatcher is CoreOwnable{
     ) CoreOwnable( IResupplyRegistry(_registry).owner() ) {
         registry = _registry;
         oracle = IResupplyRegistry(_registry).getAddress("REUSD_ORACLE");
-        // requiredWeightDifference = _reqWeight;
 
         //start with at least 2 nodes of information
         _addUpdate(0, 0, 0);

@@ -10,9 +10,11 @@ import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
 import { FeeLogger } from "src/protocol/FeeLogger.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
+import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 
 contract sreUSDTest is Setup {
     StakedReUSD public vault;
@@ -51,6 +53,8 @@ contract sreUSDTest is Setup {
         registry.setAddress("SREUSD", address(vault));
         registry.setAddress("FEE_LOGGER", address(feeLogger));
         registry.setAddress("PRICE_WATCHER", address(priceWatcher));
+
+
         FeeDepositController fdcontroller = new FeeDepositController(
             address(core),
             address(registry),
@@ -73,6 +77,23 @@ contract sreUSDTest is Setup {
             );
         rewardHandler = IRewardHandler(address(rewardHandlerAddress));
         registry.setRewardHandler(address(rewardHandler));
+
+        //new interest calculator
+        InterestRateCalculatorV2 calcv2 = new InterestRateCalculatorV2(
+            "V2",
+            2e16 / uint256(365 days),//2%
+            5e17,
+            1e17,
+            address(priceWatcher)
+        );
+
+        //update all pair's interest calculator
+        address[] memory pairs = registry.getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            //MUST add interest BEFORE switching
+            IResupplyPair(pairs[i]).setRateCalculator(address(calcv2),true);
+        }
+
         vm.stopPrank();
     }
 
