@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
+import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
@@ -29,6 +30,18 @@ contract Utilities is ResupplyPairConstants{
 
     constructor(address _registry){
         registry = _registry;
+    }
+
+    function getPairInterestRate(address _pair) external returns(uint256 _rate){
+       (uint64 lastTimestamp, , uint128 lastShares) = IResupplyPair(_pair).currentRateInfo();
+       address rateCalculator = IResupplyPair(_pair).rateCalculator();
+       uint256 deltaTime = block.timestamp - lastTimestamp;
+
+       (_rate, ) = IRateCalculator(rateCalculator).getNewRate(
+            IResupplyPair(_pair).collateral(),
+            deltaTime,
+            lastShares
+        );
     }
 
     //get swap amount out of a given route
