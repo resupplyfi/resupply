@@ -5,66 +5,182 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../libraries/SafeERC20.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IRewardHandler } from "../interfaces/IRewardHandler.sol";
+import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
 import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { IFeeLogger } from "../interfaces/IFeeLogger.sol";
 
-contract FeeDepositController is CoreOwnable{
+contract FeeDepositController is CoreOwnable, EpochTracker{
     using SafeERC20 for IERC20;
 
     address public immutable registry;
     address public immutable feeToken;
+    address public immutable priceWatcher;
+    address public immutable feeLogger;
     uint256 public constant BPS = 10_000;
     Splits public splits;
+    uint256 public maxAdditionalFeeRatio;
+
+    struct WeightData{
+        uint64 index;
+        uint64 timestamp;
+        uint128 avgWeighting;
+    }
+    mapping(uint256 => WeightData) public epochWeighting;
 
     struct Splits {
-        uint80 insurance;
-        uint80 treasury;
-        uint80 platform;
+        uint40 insurance;
+        uint40 treasury;
+        uint40 platform;
+        uint40 stakedStable;
     }
 
-    event SplitsSet(uint80 insurance, uint80 treasury, uint80 platform);
+    event SplitsSet(uint40 insurance, uint40 treasury, uint40 platform, uint40 stakedStable);
+    event MaxAdditionalFeesSet(uint256 maxAdditionalFeeRatio);
 
     constructor(
         address _core,
         address _registry,
-        uint256 _insuranceSplit, 
-        uint256 _treasurySplit
-    ) CoreOwnable(_core){
+        uint256 _maxAdditionalFee,
+        uint256 _insuranceSplit,
+        uint256 _treasurySplit,
+        uint256 _stakedStableSplit
+    ) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;
         feeToken = IResupplyRegistry(_registry).token();
+        priceWatcher = IResupplyRegistry(_registry).getAddress("PRICE_WATCHER");
+        feeLogger = IResupplyRegistry(_registry).getAddress("FEE_LOGGER");
         require(_insuranceSplit + _treasurySplit <= BPS, "invalid splits");
-        splits.insurance = uint80(_insuranceSplit);
-        splits.treasury = uint80(_treasurySplit);
-        splits.platform = uint80(BPS - splits.insurance - splits.treasury);
-        emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), splits.platform);
+        splits.insurance = uint40(_insuranceSplit);
+        splits.treasury = uint40(_treasurySplit);
+        splits.stakedStable = uint40(_stakedStableSplit);
+        splits.platform = uint40(BPS - splits.insurance - splits.treasury - splits.stakedStable);
+        emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), splits.platform, uint40(_stakedStableSplit));
+
+        maxAdditionalFeeRatio = _maxAdditionalFee;
+        emit MaxAdditionalFeesSet(_maxAdditionalFee);
     }
 
     function distribute() external{
         // Pull fees. Reverts when called multiple times in single epoch.
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         IFeeDeposit(feeDeposit).distributeFees();
+        uint256 currentEpoch = getEpoch();
+        if(currentEpoch < 2) return;
+
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
+
+        //log TOTAL fees for current epoch - 2 since the balance here is what was accrued two epochs ago
+        IFeeLogger(feeLogger).updateTotalFees(currentEpoch-2, balance);
+
+        //max sure price watcher is up to date
+        IPriceWatcher(priceWatcher).updatePriceData();
+
+        uint256 stakedStableAmount;
+
+        //process weighted fees for sreusd
+
+        //first need to look at weighting differences for currentEpoch-2 (which was logged at the beginning of epoch-1)
+        //and currentEpoch-1 (which is logged now but the data being logged is for the previous epoch)
+        //ex. if getEpoch is 2, we need to find and record the avg weight during epoch 1.
+        //we do that by looking at difference of (x-2) and (x-1), aka epoch 0 and 1
+        WeightData memory prevWeight = epochWeighting[currentEpoch - 2];
+        WeightData memory currentWeight;
+
+        uint256 latestIndex =  IPriceWatcher(priceWatcher).priceDataLength() - 1;
+
+        //only calc if there is enough data to do so, the first execution will result in 0 avgWeighting
+        if(prevWeight.index > 0){
+            //offset by the timestamp of the previous distribution
+            IPriceWatcher.PriceData memory prevData = IPriceWatcher(priceWatcher).priceDataAtIndex(prevWeight.index);
+            uint64 dt = prevWeight.timestamp - prevData.timestamp;
+            prevData.timestamp = prevData.timestamp + dt;
+            prevData.totalWeight = prevData.totalWeight + (prevData.weight * dt);
+
+
+            //get latest data and extrapolate a new data point that uses latest's weight and the time difference between
+            //latest and block.timestamp 
+            IPriceWatcher.PriceData memory latest = IPriceWatcher(priceWatcher).priceDataAtIndex(latestIndex);
+            dt = uint64(block.timestamp) - latest.timestamp;
+            latest.timestamp = latest.timestamp + dt;
+            latest.totalWeight = latest.totalWeight + (latest.weight * dt);
+
+            //get difference of total weight between these two points
+            uint256 dw = latest.totalWeight - prevData.totalWeight;
+            //dt will always be > 0
+            dt = latest.timestamp - prevData.timestamp;
+            currentWeight.avgWeighting = uint128(dw / dt);
+        }
+
+        //set the latest timestamp and index used
+        currentWeight.timestamp = uint64(block.timestamp);
+        currentWeight.index = uint64(latestIndex);
+
+        //write to state to be used in the following epoch
+        epochWeighting[currentEpoch - 1] = currentWeight;
+
+        //next calculate how much of the current balance should be sent to sreusd
+        //using currentEpoch - 2 as pair interest is trailing by two epochs
+
+        WeightData memory distroWeight = epochWeighting[currentEpoch - 2];
+        if(distroWeight.avgWeighting > 0){
+            
+            address feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
+            //get total amount of fees collected in interest only
+            uint256 feesInInterest = IFeeLogger(feeLogger).epochInterestFees(currentEpoch-2);
+
+            //use weighting to determine how much of the max fee should be applied
+            uint256 additionalFeeRatio = maxAdditionalFeeRatio * distroWeight.avgWeighting / 1e6;
+            additionalFeeRatio = 1e6 + additionalFeeRatio; //turn something like 10% or 0.1 to 1.1
+
+            stakedStableAmount = (feesInInterest * 1e16 / additionalFeeRatio) - feesInInterest;
+            balance -= stakedStableAmount;
+        }
+
+        /////
+
         Splits memory _splits = splits;
         uint256 ipAmount =  balance * _splits.insurance / BPS;
         uint256 treasuryAmount =  balance * _splits.treasury / BPS;
+        stakedStableAmount +=  balance * _splits.stakedStable / BPS;
+        
+        //treasury
         address treasury = IResupplyRegistry(registry).treasury();
         IERC20(feeToken).safeTransfer(treasury, treasuryAmount);
+
+        //staked stable
+        address staked = IResupplyRegistry(registry).getAddress("SREUSD");
+        IERC20(feeToken).safeTransfer(staked, stakedStableAmount);
+
+        //insurance
         address rewardHandler = IResupplyRegistry(registry).rewardHandler();
         IERC20(feeToken).safeTransfer(rewardHandler, ipAmount);
         IRewardHandler(rewardHandler).queueInsuranceRewards();
-        IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount);
+
+        //rsup
+        IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount - stakedStableAmount);
         IRewardHandler(rewardHandler).queueStakingRewards();
+    }
+
+    /// @notice The ```setMaxAdditionalFees``` function sets the max fee ratio attributed to additional fees
+    /// @param _additionalFeeRatio max additional fee ratio
+    function setMaxAdditionalFees(uint256 _additionalFeeRatio) external onlyOwner {
+        require(_additionalFeeRatio <= 1e6, "invalid ratio");
+        maxAdditionalFeeRatio = _additionalFeeRatio;
+        emit MaxAdditionalFeesSet(_additionalFeeRatio);
     }
 
     /// @notice The ```setSplits``` function sets the fee distribution splits between insurance, treasury, and platform
     /// @param _insuranceSplit The percentage (in BPS) to send to insurance pool
     /// @param _treasurySplit The percentage (in BPS) to send to treasury
     /// @param _platformSplit The percentage (in BPS) to send to platform stakers
-    function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit) external onlyOwner {
+    function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit, uint256 _stakedStableSplit) external onlyOwner {
         require(_insuranceSplit + _treasurySplit + _platformSplit == BPS, "invalid splits");
-        splits.insurance = uint80(_insuranceSplit);
-        splits.treasury = uint80(_treasurySplit);
-        splits.platform = uint80(_platformSplit);
-        emit SplitsSet(uint80(_insuranceSplit), uint80(_treasurySplit), uint80(_platformSplit));
+        splits.insurance = uint40(_insuranceSplit);
+        splits.treasury = uint40(_treasurySplit);
+        splits.platform = uint40(_platformSplit);
+        splits.stakedStable = uint40(_stakedStableSplit);
+        emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), uint40(_platformSplit), uint40(_stakedStableSplit));
     }
 }

@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
-import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
-import { IRewards } from "../interfaces/IRewards.sol";
-import { IInsurancePool } from "../interfaces/IInsurancePool.sol";
-import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
-import { ISimpleReceiver } from "../interfaces/ISimpleReceiver.sol";
+import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IConvexStaking } from "src/interfaces/IConvexStaking.sol";
+import { IRewards } from "src/interfaces/IRewards.sol";
+import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
+import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
-import { EpochTracker } from "../dependencies/EpochTracker.sol";
-import { IGovStaker } from "../interfaces/IGovStaker.sol";
+import { SafeERC20 } from "src/libraries/SafeERC20.sol";
+import { EpochTracker } from "src/dependencies/EpochTracker.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
+import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
+import { IFeeLogger } from "src/interfaces/IFeeLogger.sol";
 
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
@@ -26,6 +28,8 @@ contract RewardHandler is CoreOwnable, EpochTracker {
     address public immutable insuranceRevenue;
     address public immutable govStaker;
     address public immutable emissionToken;
+    address public immutable priceWatcher;
+    address public immutable feeLogger;
     ISimpleReceiver public immutable debtEmissionsReceiver;
     ISimpleReceiver public immutable insuranceEmissionReceiver;
 
@@ -61,6 +65,11 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         insuranceRevenue = _insuranceRevenue;
         debtEmissionsReceiver = ISimpleReceiver(_debtEmissionsReceiver);
         insuranceEmissionReceiver = ISimpleReceiver(IInsurancePool(insurancepool).emissionsReceiver());
+
+        priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
+        feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
+        require(priceWatcher != address(0), "priceWatcher not set");
+        require(feeLogger != address(0), "feeLogger not set");
 
         IERC20(_revenueToken).approve(_insuranceRevenue, type(uint256).max);
         IERC20(_revenueToken).approve(_govStaker, type(uint256).max);
@@ -123,6 +132,9 @@ contract RewardHandler is CoreOwnable, EpochTracker {
 
         //claim emissions
         IRewards(pairEmissions).getReward(_pair);
+
+        //add a hook to keep PriceWatcher up to date
+        IPriceWatcher(priceWatcher).updatePriceData();
     }
 
     function claimInsuranceRewards() external{
@@ -133,24 +145,15 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         IRewards(insuranceEmissions).getReward(insurancepool);
     }
 
-    function setPairWeight(address _pair, uint256 _amount) external{
-        require(msg.sender == IResupplyRegistry(registry).feeDeposit(), "!feeDeposist");
-
-        //get previous and update
-        uint256 lastTimestamp = pairTimestamp[_pair];
-        pairTimestamp[_pair] = block.timestamp;
-
+    function getPairRate(address _pair, uint256 _timespan, uint256 _amount) public view returns(uint256){
         uint256 borrowLimit = IResupplyPair(_pair).borrowLimit();
         uint256 rate;
 
         //if borrow limit is 0, dont apply any weight
         if(borrowLimit > 0){
 
-            // if first call for pair use epoch length
-            lastTimestamp = lastTimestamp == 0 ? block.timestamp - epochLength : lastTimestamp;
-
             //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
-            rate = _amount / (block.timestamp - lastTimestamp);
+            rate = _amount / _timespan;
 
             //clamp rate floor to a minimum value
             //use custom pair setting if set, otherwise compare against baseMinimumWeight
@@ -160,7 +163,33 @@ contract RewardHandler is CoreOwnable, EpochTracker {
                 rate = minWeight;
             }
         }
+
+        return rate;
+    }
+
+    function setPairWeight(address _pair, uint256 _amount) external{
+        require(msg.sender == IResupplyRegistry(registry).feeDeposit(), "!feeDeposist");
+
         
+        //get previous timestamp and calculate timespan since last call
+        uint256 timespan = pairTimestamp[_pair];
+
+        // if first call for pair use epoch length
+        timespan = timespan == 0 ? block.timestamp - epochLength : timespan;
+
+        //calculate our `rate`, which is just amount per second to be used as weights for fair distribution (precision loss ok)
+        timespan = block.timestamp - timespan;
+
+        //get rate
+        uint256 rate = getPairRate(_pair, timespan, _amount);
+
+        //update timestamp
+        pairTimestamp[_pair] = block.timestamp;
+        
+        //log fees collected and set to the previous epoch
+        IFeeLogger(feeLogger).updateInterestFees(_pair, getEpoch() - 1, _amount);
+
+        //set emission weights
         IRewards(pairEmissions).setWeight(_pair, rate);
     }
 

@@ -39,8 +39,10 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public overusageStart = 1000; //at what usage% do fees start
     uint256 public overusageMax = 1500; //at what usage% do fees reach max
     uint256 public overusageRate = 1e16; //at max
+    uint256 public overWeight = 2e17; //If weight of redeem is overthis, charge over usage
 
     event SetBaseRedemptionFee(uint256 _fee);
+    event SetWeightLimit(uint256 _weightLimit);
     event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);
     event SetOverusageInfo(uint256 _fee, uint256 _start, uint256 _end);
     event SetUnderlyingOracle(address indexed _oracle);
@@ -77,6 +79,11 @@ contract RedemptionHandler is CoreOwnable{
         overusageStart = _start;
         overusageMax = _end;
         emit SetOverusageInfo(_rate, _start, _end);
+    }
+
+    function setWeightLimit(uint256 _weightLimit) external onlyOwner{
+        overWeight = _weightLimit;
+        emit SetWeightLimit(_weightLimit);
     }
 
     function setUnderlyingOracle(address _oracle) external onlyOwner{
@@ -149,6 +156,11 @@ contract RedemptionHandler is CoreOwnable{
                 //scale additive fee linearly to max
                 overusageFee = overusageFee * overusageRate / usagediff;
             }
+        }
+
+        // if too much of the pair is being redeemed at once, set to max usage fee
+        if(weightOfRedeem > overWeight){
+            overusageFee = overusageRate;
         }
 
         //use halfway point as the current weight for fee calc
