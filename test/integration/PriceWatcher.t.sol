@@ -103,14 +103,15 @@ contract PriceWatcherTest is Setup {
         weight2 = priceWatcher.findPairPriceWeight(pair2);
         (uint64 lastPairUpdate, ,) = IResupplyPair(pair2).currentRateInfo();
         console.log("---Step 1---");
-        console.log("lastPairUpdate", lastPairUpdate, getFloorTimestamp(uint256(lastPairUpdate)));
+        PriceWatcher.PriceData memory latestPriceData = priceWatcher.latestPriceData();
+        console.log(lastPairUpdate, block.timestamp, latestPriceData.timestamp);
         console.log("pair 1:", weight1, "pair 2:", weight2);
-        // assertEq(weight1, 1e6);
-        // assertEq(weight2, 1e6);
+        assertEq(weight1, 1e6);
+        assertEq(weight2, 1e6);
 
         // Step 2. Now increase the peg to give zero weight
-        mockReUsdOracle.setPrice(1e18);
         skip(UPDATE_INTERVAL);
+        mockReUsdOracle.setPrice(1e18);
         priceWatcher.updatePriceData();
         IResupplyPair(pair1).addInterest(false);
         skip(UPDATE_INTERVAL);
@@ -122,12 +123,10 @@ contract PriceWatcherTest is Setup {
         (lastPairUpdate, ,) = IResupplyPair(pair2).currentRateInfo();
         console.log("lastPairUpdate", lastPairUpdate, getFloorTimestamp(uint256(lastPairUpdate)));
         console.log("pair 1:", weight1, "pair 2:", weight2);
-        // assertEq(weight1, 0);
-        // assertEq(weight2, 1e6); // We did not sync pair 2, so it should still have weight
+        assertEq(weight1, 0);
+        assertEq(weight2, uint256(1e6) / 2); // We did not sync pair 2, so it should still have weight
 
         // Step 3. Sync pair 1
-        skip(UPDATE_INTERVAL);
-        priceWatcher.updatePriceData();
         skip(UPDATE_INTERVAL);
         priceWatcher.updatePriceData();
         IResupplyPair(pair1).addInterest(false);
@@ -135,8 +134,8 @@ contract PriceWatcherTest is Setup {
         weight2 = priceWatcher.findPairPriceWeight(pair2);
         console.log("---Step 3---");
         console.log("pair 1:", weight1, "pair 2:", weight2);
-        // assertEq(weight1, 0);
-        // assertEq(weight2, 1e6); // We still did not sync pair 2, so it should still have weight
+        assertEq(weight1, 0);
+        assertEq(weight2, uint256(1e6) / 3); // We still did not sync pair 2, so it should still have weight
 
         skip(UPDATE_INTERVAL);
         priceWatcher.updatePriceData();
@@ -145,6 +144,8 @@ contract PriceWatcherTest is Setup {
         weight1 = priceWatcher.findPairPriceWeight(pair1);
         weight2 = priceWatcher.findPairPriceWeight(pair2);
         console.log("pair 1:", weight1, "pair 2:", weight2);
+        assertEq(weight1, 0);
+        assertEq(weight2, 0); // since we finally called addInterest on pair 2, it should have weight 0
 
         console.log("\n---Price Data---");
         for (uint256 i = 0; i < priceWatcher.priceDataLength(); i++) {

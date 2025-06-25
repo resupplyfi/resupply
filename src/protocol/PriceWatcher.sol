@@ -6,7 +6,6 @@ import { IReusdOracle } from "../interfaces/IReusdOracle.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
-import { console } from "forge-std/console.sol";
 
 /// @title Keep track of reusd discount with a time weighted value
 contract PriceWatcher is CoreOwnable{
@@ -102,16 +101,11 @@ contract PriceWatcher is CoreOwnable{
 
         //get avg weight throughout the interim
         weight = interim.totalWeight / timedifference;
-
+        _addUpdate(uint64(timestamp), uint64(weight), uint128(latestPriceData.totalWeight + interim.totalWeight));
         //reset interim total weight and write to state
         //interim weight and timestamp will be equal to the new priceData node
         interim.totalWeight = 0;
         interimData = interim;
-
-        //add weighted time from previous checkpoint to total
-        uint256 newTotalWeight = (latestPriceData.weight * timedifference) + latestPriceData.totalWeight;
-        //add new price data node
-        _addUpdate(uint64(timestamp), uint64(weight), uint128(newTotalWeight));
     }
 
     function _getTimestampFloor(uint256 _timestamp)  internal view returns(uint256){
