@@ -101,16 +101,11 @@ contract PriceWatcher is CoreOwnable{
 
         //get avg weight throughout the interim
         weight = interim.totalWeight / timedifference;
-
+        _addUpdate(uint64(timestamp), uint64(weight), uint128(latestPriceData.totalWeight + interim.totalWeight));
         //reset interim total weight and write to state
         //interim weight and timestamp will be equal to the new priceData node
         interim.totalWeight = 0;
         interimData = interim;
-
-        //add weighted time from previous checkpoint to total
-        uint256 newTotalWeight = (latestPriceData.weight * timedifference) + latestPriceData.totalWeight;
-        //add new price data node
-        _addUpdate(uint64(timestamp), uint64(weight), uint128(newTotalWeight));
     }
 
     function _getTimestampFloor(uint256 _timestamp)  internal view returns(uint256){
@@ -160,24 +155,22 @@ contract PriceWatcher is CoreOwnable{
 
         //get latest index and price data
         uint256 latestIndex = priceData.length - 1;
-        PriceData memory latest = priceData[latestIndex];
-
         //quick check if current is equal to latest, if so just return latest's weight
-        if(currentIndex == latestIndex){
-            return latest.weight;
-        }
+        if(currentIndex == latestIndex) return current.weight;
 
-        //extrapolate a starting point thats inbetween currentIndex and currentIndex+1
+        PriceData memory latest = priceData[latestIndex];
+        
+        //extrapolate a starting point thats between currentIndex and currentIndex+1
         //at the timestamp of lastPairUpdate (which will always be equal to or greater than current.timestamp)
         uint64 dt = lastPairUpdate - current.timestamp;
-        current.timestamp = current.timestamp + dt;
-        current.totalWeight = current.totalWeight + (current.weight * dt);
+        current.timestamp = lastPairUpdate;
+        current.totalWeight += current.weight * dt;
 
         //extrapolate a new data point that uses latest's weight and the time difference between
         //latest and block.timestamp 
         dt = uint64(block.timestamp) - latest.timestamp;
-        latest.timestamp = latest.timestamp + dt;
-        latest.totalWeight = latest.totalWeight + (latest.weight * dt);
+        latest.timestamp = uint64(block.timestamp);
+        latest.totalWeight += latest.weight * dt;
 
         //get difference of total weight between these two points
         uint256 dw = latest.totalWeight - current.totalWeight;
