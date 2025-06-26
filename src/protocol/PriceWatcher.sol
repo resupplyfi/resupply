@@ -10,8 +10,7 @@ import { CoreOwnable } from "../dependencies/CoreOwnable.sol";
 /// @title Keep track of reusd discount with a time weighted value
 contract PriceWatcher is CoreOwnable{
 
-    uint256 public constant INTERIM_UPDATE_INTERVAL = 1 hours;
-    uint256 public constant UPDATE_INTERVAL = 12 hours;
+    uint256 public constant UPDATE_INTERVAL = 6 hours;
     address public immutable registry;
     address public oracle;
 
@@ -23,8 +22,6 @@ contract PriceWatcher is CoreOwnable{
 
     PriceData[] public priceData;
     mapping(uint256 => uint256) public timeMap;
-
-    PriceData public interimData;
 
     event NewPriceData(uint256 indexed index, uint64 timestamp, uint64 weight, uint128 weightedValue);
     event OracleSet(address indexed oracle);
@@ -67,45 +64,18 @@ contract PriceWatcher is CoreOwnable{
 
     //refer to price oracle and update price weighting
     function updatePriceData() public{
-
-        //in order to reduce number of priceData nodes written to state (and thus number of nodes needed to be proceessed),
-        //we will first watch price over a short period and record it as an average in interimData
-        //next we will check if a longer period of time has elapsed and if so write the interimData as a new priceData node
-
-        uint256 timestamp = block.timestamp;
-        PriceData memory interim = interimData;
-        uint256 timedifference = timestamp - interim.timestamp;
-
-        //update interim periodically but at a faster rate than priceData nodes
-        if(timedifference < INTERIM_UPDATE_INTERVAL) return;
-        
-        uint256 weight = getCurrentWeight();
-        
-        //use previous interim weight to add to a total weight since last checkpoint
-        uint256 timeSinceInterim = timestamp - interim.timestamp;
-        interim.totalWeight += uint128(interim.weight * timeSinceInterim);
-        //then update new interim weight and timestamp
-        interim.weight = uint64(weight);
-        interim.timestamp = uint64(timestamp);
-
+        uint64 timestamp = uint64(block.timestamp);
         
         //get most recent priceData node to see if enough time has elapsed
         PriceData memory latestPriceData = latestPriceData();
-        timedifference = timestamp - latestPriceData.timestamp;
-        if(timedifference < UPDATE_INTERVAL){
-            //if not enough time, still need to save interim
-            //write interim data and return
-            interimData = interim;
-            return;
-        }
+        uint64 timedifference = timestamp - latestPriceData.timestamp;
+        if(timedifference < UPDATE_INTERVAL) return;
 
-        //get avg weight throughout the interim
-        weight = interim.totalWeight / timedifference;
-        _addUpdate(uint64(timestamp), uint64(weight), uint128(latestPriceData.totalWeight + interim.totalWeight));
-        //reset interim total weight and write to state
-        //interim weight and timestamp will be equal to the new priceData node
-        interim.totalWeight = 0;
-        interimData = interim;
+        _addUpdate(
+            timestamp,
+            getCurrentWeight(), 
+            (latestPriceData.weight * timedifference) + latestPriceData.totalWeight
+        );
     }
 
     function _getTimestampFloor(uint256 _timestamp)  internal view returns(uint256){
@@ -126,7 +96,7 @@ contract PriceWatcher is CoreOwnable{
     }
 
     function findPairPriceWeight(address _pair) external view returns(uint256){
-
+        uint64 timestamp = uint64(block.timestamp);
         //get pair's most recent timestamp on interest update
         (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
 
@@ -165,11 +135,10 @@ contract PriceWatcher is CoreOwnable{
         uint64 dt = lastPairUpdate - current.timestamp;
         current.timestamp = lastPairUpdate;
         current.totalWeight += current.weight * dt;
-
         //extrapolate a new data point that uses latest's weight and the time difference between
         //latest and block.timestamp 
-        dt = uint64(block.timestamp) - latest.timestamp;
-        latest.timestamp = uint64(block.timestamp);
+        dt = timestamp - latest.timestamp;
+        latest.timestamp = timestamp;
         latest.totalWeight += latest.weight * dt;
 
         //get difference of total weight between these two points
