@@ -15,7 +15,6 @@ contract PriceWatcherTest is Setup {
     InterestRateCalculatorV2 public interestRateCalculator;
     address[] public pairs;
     uint256 public UPDATE_INTERVAL;
-    uint256 public INTERIM_UPDATE_INTERVAL;
     MockReUsdOracle public mockReUsdOracle;
 
     function setUp() public override {
@@ -27,7 +26,6 @@ contract PriceWatcherTest is Setup {
         // set up price watcher
         priceWatcher = new PriceWatcher(address(registry));
         UPDATE_INTERVAL = priceWatcher.UPDATE_INTERVAL();
-        INTERIM_UPDATE_INTERVAL = priceWatcher.INTERIM_UPDATE_INTERVAL();
         interestRateCalculator = new InterestRateCalculatorV2(
             "V2",
             2e16 / uint256(365 days),//2%
@@ -57,11 +55,9 @@ contract PriceWatcherTest is Setup {
         uint256 idx;
         
         for (uint256 i = 0; i < 25; i++) {
-            for (uint256 i = 0; i < 12; i++) {
-                priceWatcher.updatePriceData();
-                skip(INTERIM_UPDATE_INTERVAL);
-            }
+            priceWatcher.updatePriceData();
             assertLe(priceWatcher.timeMap(ftime), priceWatcher.priceDataLength() - 1);
+            skip(UPDATE_INTERVAL);
         }
 
         priceWatcher.updatePriceData();
@@ -83,6 +79,7 @@ contract PriceWatcherTest is Setup {
     }
 
     function test_FindPairPriceWeight() public {
+        // In this test we use two sample pairs to test the prices returned by the price watcher
         address pair1 = pairs[0];
         address pair2 = pairs[1];
         uint256 weight1;
@@ -146,13 +143,66 @@ contract PriceWatcherTest is Setup {
         console.log("pair 1:", weight1, "pair 2:", weight2);
         assertEq(weight1, 0);
         assertEq(weight2, 0); // since we finally called addInterest on pair 2, it should have weight 0
+        printPriceNodesData();
+    }
 
-        console.log("\n---Price Data---");
-        for (uint256 i = 0; i < priceWatcher.priceDataLength(); i++) {
-            PriceWatcher.PriceData memory priceData = priceWatcher.priceDataAtIndex(i);
-            uint ftime = getFloorTimestamp(priceData.timestamp);
-            console.log(i, priceData.weight, ftime, priceWatcher.timeMap(ftime));
-        }
+    function test_InterestRateCalculation() public {
+        address pair1 = pairs[0];
+        address pair2 = pairs[1];
+        uint256 rate1;
+        uint256 rate2;
+        
+        // Step 1. Start with .99 peg and sync to give us some weight (1e6)
+        skip(UPDATE_INTERVAL);
+        mockReUsdOracle.setPrice(0.99e18);
+        priceWatcher.updatePriceData();
+        IResupplyPair(pair1).addInterest(false);
+        IResupplyPair(pair2).addInterest(false);
+
+        skip(UPDATE_INTERVAL);
+        priceWatcher.updatePriceData();
+        IResupplyPair(pair1).addInterest(false); // checkpoints our weight
+        IResupplyPair(pair2).addInterest(false);
+        rate1 = getNewInterestRate(pair1);
+        rate2 = getNewInterestRate(pair2);
+        (uint64 lastPairUpdate, ,) = IResupplyPair(pair2).currentRateInfo();
+        console.log("---Step 1---");
+        console.log("pair 1:", rate1, "pair 2:", rate2);
+
+
+        // Step 2. Now increase the peg to give zero weight
+        skip(UPDATE_INTERVAL);
+        mockReUsdOracle.setPrice(0.98e18);
+        priceWatcher.updatePriceData();
+        IResupplyPair(pair1).addInterest(false);
+        skip(UPDATE_INTERVAL);
+        priceWatcher.updatePriceData();
+        IResupplyPair(pair1).addInterest(false);
+        rate1 = getNewInterestRate(pair1);
+        rate2 = getNewInterestRate(pair2);
+        console.log("---Step 2---");
+        console.log("pair 1:", rate1, "pair 2:", rate2);
+
+        // Step 3. Sync pair 1
+        mockReUsdOracle.setPrice(1e18);
+        skip(UPDATE_INTERVAL);
+        priceWatcher.updatePriceData();
+        IResupplyPair(pair1).addInterest(false);
+        rate1 = getNewInterestRate(pair1);
+        rate2 = getNewInterestRate(pair2);
+        console.log("---Step 3---");
+        console.log("pair 1:", rate1, "pair 2:", rate2);    
+
+        skip(UPDATE_INTERVAL);
+        priceWatcher.updatePriceData();
+        IResupplyPair(pair1).addInterest(false);
+        IResupplyPair(pair2).addInterest(false);
+        rate1 = getNewInterestRate(pair1);
+        rate2 = getNewInterestRate(pair2);
+        console.log("---Step 4---");
+        console.log("pair 1:", rate1, "pair 2:", rate2);
+
+        printPriceNodesData();
     }
 
     function assertPriceRatioWithinRange(uint256 priceRatio) public {
@@ -168,9 +218,33 @@ contract PriceWatcherTest is Setup {
         return (_timestamp/UPDATE_INTERVAL) * UPDATE_INTERVAL;
     }
 
+    function printPriceNodesData() public {
+        console.log("\n---Node Data---");
+        for (uint256 i = 0; i < priceWatcher.priceDataLength(); i++) {
+            PriceWatcher.PriceData memory priceData = priceWatcher.priceDataAtIndex(i);
+            uint ftime = getFloorTimestamp(priceData.timestamp);
+            console.log(i, priceData.totalWeight, priceData.weight, ftime);
+        }
+    }
+
+    function getNewInterestRate(address _pair) public returns(uint256) {
+        address collateral = IResupplyPair(_pair).collateral();
+        (, IResupplyPair.CurrentRateInfo memory currentRateInfo,,) = IResupplyPair(_pair).addInterest(true);
+        address calculator = IResupplyPair(_pair).rateCalculator();
+        skip(1);
+        vm.prank(_pair);
+        (uint256 newRatePerSec, ) = InterestRateCalculatorV2(calculator).getNewRate(
+            collateral,
+            block.timestamp - uint256(currentRateInfo.lastTimestamp),
+            currentRateInfo.lastShares
+        );
+        return newRatePerSec * 60 * 60 * 24 * 365;
+    }
+
     // TODO: Test that tries to call `findPairPriceWeight` after making last pair update stale
     // TODO: Check actual interest rate calculation on each test
     // TODO: Call multiple times in same block
     // TODO: Create a fake oracle that lets me set price
     // TODO: add a test that goes from max to min and makes sure
+    // TODO: test triggers on reward claim, etc
 }
