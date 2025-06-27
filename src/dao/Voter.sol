@@ -21,9 +21,7 @@ interface IERC20 {
 contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     uint256 public immutable TOKEN_DECIMALS;
-    uint256 public constant VOTING_PERIOD = 1 weeks;
-    uint256 public constant EXECUTION_DELAY = 1 days;
-    uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
+    uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes votingPeriod
     uint256 public constant MAX_PCT = 10000;
     uint256 public constant MAX_DESCRIPTION_BYTES = 384;
 
@@ -44,6 +42,10 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public quorumPct;
     // Cooldown period between proposals for a given account
     uint256 public minTimeBetweenProposals = 1 days;
+    // Delay between proposal passage and its eligibility for execution
+    uint256 public executionDelay = 12 hours;
+    // Voting period for a proposal
+    uint256 public votingPeriod = 3 days;
 
     event ProposalCreated(
         address indexed account,
@@ -64,6 +66,8 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     event ProposalCreationMinPctSet(uint256 weight);
     event QuorumPctSet(uint256 weight);
     event MinTimeBetweenProposalsSet(uint256 cooldown);
+    event ExecutionDelaySet(uint256 delay);
+    event VotingPeriodSet(uint256 period);
 
     struct Proposal {
         uint16 epoch; // epoch which vote weights are based upon
@@ -220,7 +224,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
         Proposal memory proposal = proposalData[id];
         require(!proposal.processed, "Proposal already processed");
-        require(proposal.createdAt + VOTING_PERIOD > block.timestamp, "Voting period has closed");
+        require(proposal.createdAt + votingPeriod > block.timestamp, "Voting period has closed");
 
         // Reduce the account weight by the token decimals to help storage efficiency.
         uint256 accountWeight = staker.getAccountWeightAt(account, proposal.epoch) / 10 ** TOKEN_DECIMALS;
@@ -307,7 +311,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     function _canExecute(Proposal memory proposal) internal view returns (bool) {
         if (proposal.processed) return false;
-        if (block.timestamp < proposal.createdAt + VOTING_PERIOD + EXECUTION_DELAY) return false;
+        if (block.timestamp < proposal.createdAt + votingPeriod + executionDelay) return false;
         if (block.timestamp > proposal.createdAt + EXECUTION_DEADLINE) return false;
 
         // Ensure proposal has met quorum and received more weight in favor.
@@ -357,6 +361,27 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         emit MinTimeBetweenProposalsSet(_cooldown);
     }
 
+    /**
+        @notice Set the delay between proposal passage and its eligibility for execution
+        @param _delay The delay in seconds
+     */
+    function setExecutionDelay(uint256 _delay) external onlyOwner {
+        require(_delay > 1 hours, "Too low");
+        require(_delay <= 2 days, "Too high");
+        executionDelay = _delay;
+        emit ExecutionDelaySet(_delay);
+    }
+
+    /**
+        @notice Set the voting period for a proposal
+        @param _period The voting period in seconds
+     */
+    function setVotingPeriod(uint256 _period) external onlyOwner {
+        require(_period > 1 days, "Too low");
+        require(_period <= 1 weeks, "Too high");
+        votingPeriod = _period;
+        emit VotingPeriodSet(_period);
+    }
 
     /**
         @notice Overwrite the description text for an existing proposal
