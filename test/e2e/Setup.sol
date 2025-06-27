@@ -38,6 +38,8 @@ import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
+import { ReusdOracle } from "src/protocol/ReusdOracle.sol";
+import { FeeLogger } from "src/protocol/FeeLogger.sol";
 
 // Incentive Contracts
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
@@ -105,6 +107,8 @@ contract Setup is Test {
     ResupplyPair public testPair2;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
+    ReusdOracle public reUsdOracle;
+    FeeLogger public feeLogger;
 
     constructor() {
         _THIS = address(this);
@@ -252,10 +256,15 @@ contract Setup is Test {
         vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
 
+        reUsdOracle = new ReusdOracle("ReUsdOracle");
+        vm.prank(address(core));
+        registry.setAddress("REUSD_ORACLE", address(reUsdOracle));
         priceWatcher = new PriceWatcher(address(registry));
         vm.prank(address(core));
         registry.setAddress("PRICE_WATCHER", address(priceWatcher));
-
+        feeLogger = new FeeLogger(address(core), address(registry));
+        vm.prank(address(core));
+        registry.setAddress("FEE_LOGGER", address(feeLogger));
         rewardHandler = new RewardHandler(
             address(core),
             address(registry),
@@ -313,7 +322,7 @@ contract Setup is Test {
         );
         stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
         uint256 maxdistro = 2e17 / uint256( 365 days );
-        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
+        // stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
@@ -354,7 +363,7 @@ contract Setup is Test {
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));
         registry.setStaker(address(staker));
-        registry.setAddress("SREUSD", address(stakedStable));
+        // registry.setAddress("SREUSD", address(stakedStable));
         vm.stopPrank();
     }
 

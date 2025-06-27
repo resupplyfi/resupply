@@ -1,4 +1,5 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
@@ -101,7 +102,7 @@ contract VoterTest is Setup {
         uint256 propId = createSimpleProposal();
         vm.prank(user1);
         voter.voteForProposal(user1, propId);
-        skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+        skip(voter.votingPeriod() + voter.executionDelay());
 
         assertEq(voter.canExecute(propId), true);
         voter.executeProposal(propId);
@@ -136,11 +137,11 @@ contract VoterTest is Setup {
         
         assertEq(voter.quorumReached(proposalId), true);
         assertEq(voter.canExecute(proposalId), false);
-        skip(voter.VOTING_PERIOD());
+        skip(voter.votingPeriod());
         assertEq(voter.canExecute(proposalId), false);
         vm.expectRevert("Proposal cannot be executed");
         voter.executeProposal(proposalId);
-        skip(voter.EXECUTION_DELAY());
+        skip(voter.executionDelay());
 
         (
             ,
@@ -293,6 +294,33 @@ contract VoterTest is Setup {
 
         vm.expectRevert("Invalid value");
         voter.setMinCreateProposalPct(MAX_PCT+1);
+        vm.stopPrank();
+    }
+
+    function testFuzz_SetExecutionDelay(uint256 _delay) public {
+        // Valid range: > 1 hours and <= 2 days
+        vm.startPrank(address(core));
+        if (_delay > 1 hours && _delay <= 2 days) {
+            // Valid range - should succeed
+            voter.setExecutionDelay(_delay);
+            assertEq(voter.executionDelay(), _delay);
+        } else {
+            vm.expectRevert();
+            voter.setExecutionDelay(_delay);
+        }
+        vm.stopPrank();
+    }
+
+    function testFuzz_SetVotingPeriod(uint256 _period) public {
+        // Valid range: > 1 days and <= 1 weeks
+        vm.startPrank(address(core));
+        if (_period > 1 days && _period <= 1 weeks) {
+            voter.setVotingPeriod(_period);
+            assertEq(voter.votingPeriod(), _period);
+        } else {
+            vm.expectRevert();
+            voter.setVotingPeriod(_period);
+        }
         vm.stopPrank();
     }
 
