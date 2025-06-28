@@ -40,7 +40,6 @@ contract BadDebtPayerTest is Test {
         assertEq(address(badDebtPayer.pair()), PAIR);
         assertEq(address(badDebtPayer.token()), TOKEN);
         assertEq(badDebtPayer.BORROWER(), BORROWER);
-        assertEq(address(badDebtPayer.registry()), REGISTRY);
         
         // Check that token approval was set in constructor
         uint256 allowance = IERC20(TOKEN).allowance(address(badDebtPayer), PAIR);
@@ -128,10 +127,7 @@ contract BadDebtPayerTest is Test {
     function test_RecoverERC20() public {
         uint256 recoveryAmount = 1e18;
         deal(TOKEN, address(badDebtPayer), recoveryAmount);
-        IResupplyRegistry registry = IResupplyRegistry(REGISTRY);
-        address coreAddress = registry.core();
-        
-        uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
+        uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(core);
         uint256 initialBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
         
         console.log("Initial core balance:", initialCoreBalance);
@@ -139,7 +135,7 @@ contract BadDebtPayerTest is Test {
         
         badDebtPayer.recoverERC20(TOKEN);
 
-        uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
+        uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(core);
         uint256 finalBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
         
         console.log("Final core balance:", finalCoreBalance);
@@ -156,11 +152,9 @@ contract BadDebtPayerTest is Test {
             badDebtPayer.recoverERC20(TOKEN);
         }
         
-        IResupplyRegistry registry = IResupplyRegistry(REGISTRY);
-        address coreAddress = registry.core();
-        uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
+        uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(core);
         badDebtPayer.recoverERC20(TOKEN);
-        uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
+        uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(core);
         assertEq(finalCoreBalance, initialCoreBalance);
     }
 
