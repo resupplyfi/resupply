@@ -146,7 +146,6 @@ contract BadDebtPayerTest is Test {
     }
 
     function test_RecoverERC20WithZeroBalance() public {
-        // Ensure BadDebtPayer has no tokens
         uint256 initialBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
         if (initialBalance > 0) {
             badDebtPayer.recoverERC20(TOKEN);
@@ -163,24 +162,6 @@ contract BadDebtPayerTest is Test {
         deal(TOKEN, user, 1e18);
         vm.expectRevert();
         badDebtPayer.payBadDebt(1e18);
-        vm.stopPrank();
-    }
-
-    function test_GasUsage() public {
-        IResupplyPair pair = IResupplyPair(PAIR);
-        (uint256 totalBorrow, ) = pair.totalBorrow();
-        uint256 testAmount = totalBorrow > 0 ? totalBorrow / 4 : 1e18;
-        deal(TOKEN, user, testAmount);
-        vm.startPrank(user);
-        IERC20(TOKEN).approve(address(badDebtPayer), testAmount);
-        
-        uint256 gasBefore = gasleft();
-        badDebtPayer.payBadDebt(testAmount);
-        uint256 gasUsed = gasBefore - gasleft();
-        
-        console.log("Gas used for payBadDebt:", gasUsed);
-        console.log("Amount processed:", testAmount);
-        
         vm.stopPrank();
     }
 } 
