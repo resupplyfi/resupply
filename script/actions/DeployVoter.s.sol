@@ -16,7 +16,7 @@ contract DeployVoter is TenderlyHelper, CreateXHelper, BaseAction {
 
         deployVoter();
 
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(false);
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
     function deployVoter() public {

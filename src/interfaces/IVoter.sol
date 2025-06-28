@@ -88,4 +88,6 @@ interface IVoter {
     function getEpoch() external view returns (uint256);
     function setDelegateApproval(address delegate, bool approved) external;
     function isApprovedDelegate(address account, address delegate) external view returns (bool);
+    function votingPeriod() external view returns (uint256);
+    function executionDelay() external view returns (uint256);
 }
