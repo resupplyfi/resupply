@@ -79,8 +79,14 @@ contract RecoveryTest is Setup {
             "setLiquidationHandler(address)",
             currentLiquidationHandler
         );
+        // Action 7: Reset withdraw window
+        bytes memory resetWithdrawWindowCalldata = abi.encodeWithSignature(
+            "setWithdrawTimers(uint256,uint256)",
+            11 days,
+            3 days
+        );
         
-        IVoter.Action[] memory actions = new IVoter.Action[](6);
+        IVoter.Action[] memory actions = new IVoter.Action[](7);
         actions[0] = IVoter.Action({
             target: address(registry),
             data: setLiquidationHandlerCalldata
@@ -104,6 +110,10 @@ contract RecoveryTest is Setup {
         actions[5] = IVoter.Action({
             target: address(registry),
             data: restoreLiquidationHandlerCalldata
+        });
+        actions[6] = IVoter.Action({
+            target: address(insurancePool),
+            data: resetWithdrawWindowCalldata
         });
         
         // Record initial state
@@ -148,5 +158,7 @@ contract RecoveryTest is Setup {
         assertEq(registry.liquidationHandler(), currentLiquidationHandler, "Liquidation handler should be restored");
         (,,,,,, bool processed,, ) = voter.getProposalData(proposalId);
         assertTrue(processed, "Proposal should be marked as processed");
+        assertEq(insurancePool.withdrawTime(), 11 days, "Withdraw time should be set to 11 days");
+        assertEq(insurancePool.withdrawTimeLimit(), 3 days, "Withdraw time limit should be set to 3 days");
     }
 }

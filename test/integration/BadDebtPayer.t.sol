@@ -16,6 +16,7 @@ contract BadDebtPayerTest is Test {
     address public constant TOKEN = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
     address public constant BORROWER = 0x151aA63dbb7C605E7b0a173Ab7375e1450E79238;
     address public constant REGISTRY = 0x10101010E0C3171D894B71B3400668aF311e7D94;
+    address public core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
     
     // Test user
     address public user = address(0x1);
@@ -46,32 +47,11 @@ contract BadDebtPayerTest is Test {
         assertEq(allowance, type(uint256).max);
     }
 
-    function test_VoterAddress() public {
-        address voterAddress = badDebtPayer.voter();
-        console.log("Voter address:", voterAddress);
-        assertTrue(voterAddress != address(0), "Voter address should not be zero");
-        
-        // Verify it matches the registry's voter address
-        IResupplyRegistry registry = IResupplyRegistry(REGISTRY);
-        address registryVoter = registry.getAddress("VOTER");
-        assertEq(voterAddress, registryVoter);
-    }
-
     function test_PayBadDebtWithValidAmount() public {
-        // Get current pair state
         IResupplyPair pair = IResupplyPair(PAIR);
         (uint256 totalBorrow, uint256 totalShares) = pair.totalBorrow();
-        
-        console.log("Total borrow:", totalBorrow);
-        console.log("Total shares:", totalShares);
-        
-        // Calculate a valid amount (less than total borrow)
         uint256 validAmount = totalBorrow > 0 ? totalBorrow / 2 : 1e18;
-        
-        // Transfer tokens to user for testing
         deal(TOKEN, user, validAmount);
-        
-        // Record initial balances and pair state
         uint256 initialUserBalance = IERC20(TOKEN).balanceOf(user);
         uint256 initialBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
         uint256 initialBorrowerBalance = IERC20(TOKEN).balanceOf(BORROWER);
@@ -112,38 +92,23 @@ contract BadDebtPayerTest is Test {
     }
 
     function test_PayBadDebtWithExcessiveAmount() public {
-        // Get current pair state
         IResupplyPair pair = IResupplyPair(PAIR);
         (uint256 totalBorrow, uint256 totalShares) = pair.totalBorrow();
-        
-        // Use an amount greater than total borrow
         uint256 excessiveAmount = totalBorrow + 1e18;
-        
-        // Transfer tokens to user for testing
         deal(TOKEN, user, excessiveAmount);
-        
-        // Get voter address for overflow check
-        address voterAddress = badDebtPayer.voter();
-        uint256 initialVoterBalance = IERC20(TOKEN).balanceOf(voterAddress);
-        
-        console.log("Total borrow:", totalBorrow);
-        console.log("Excessive amount:", excessiveAmount);
-        console.log("Initial voter balance:", initialVoterBalance);
-        
-        // Call payBadDebt
+        uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(core);
+        console.log("Initial core balance:", initialCoreBalance);
         vm.startPrank(user);
         IERC20(TOKEN).approve(address(badDebtPayer), excessiveAmount);
         badDebtPayer.payBadDebt(excessiveAmount);
         vm.stopPrank();
-        
-        // Check that overflow was sent to voter
-        uint256 finalVoterBalance = IERC20(TOKEN).balanceOf(voterAddress);
+        uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(core);
         uint256 expectedOverflow = excessiveAmount - totalBorrow;
         
-        console.log("Final voter balance:", finalVoterBalance);
+        console.log("Final core balance:", finalCoreBalance);
         console.log("Expected overflow:", expectedOverflow);
         
-        assertEq(finalVoterBalance, initialVoterBalance + expectedOverflow);
+        assertEq(finalCoreBalance, initialCoreBalance + expectedOverflow);
         
         // BadDebtPayer should have no tokens left
         uint256 finalBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));

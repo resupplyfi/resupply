@@ -22,7 +22,7 @@ contract BadDebtPayer {
         if (_amount > totalBorrow) {
             uint256 overflow = _amount - totalBorrow;
             _amount -= overflow;
-            token.transfer(voter(), overflow);
+            token.transfer(registry.core(), overflow);
         }
         if (_amount > 0) {
             uint256 shares = pair.toBorrowShares(_amount, false, false);
@@ -32,9 +32,5 @@ contract BadDebtPayer {
 
     function recoverERC20(address _token) external {
         IERC20(_token).transfer(registry.core(), IERC20(_token).balanceOf(address(this)));
-    }
-
-    function voter() public view returns (address) {
-        return registry.getAddress("VOTER");
     }
 }
