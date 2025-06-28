@@ -11,6 +11,8 @@ contract BadDebtPayer {
     address public constant BORROWER = 0x151aA63dbb7C605E7b0a173Ab7375e1450E79238;
     IResupplyRegistry public constant registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
 
+    event BadDebtPaid(uint256 amount, uint256 shares);
+
     constructor() {
         token.approve(address(pair), type(uint256).max);
     }
@@ -18,15 +20,15 @@ contract BadDebtPayer {
     function payBadDebt(uint256 _amount) external {
         token.transferFrom(msg.sender, address(this), _amount);
         (uint256 totalBorrow, uint256 totalShares) = pair.totalBorrow();
-        uint256 totalDebt = totalBorrow * 1e18 / totalShares;
         if (_amount > totalBorrow) {
             uint256 overflow = _amount - totalBorrow;
             _amount -= overflow;
             token.transfer(registry.core(), overflow);
         }
         if (_amount > 0) {
-            uint256 shares = pair.toBorrowShares(_amount, false, false);
-            pair.repay(shares, BORROWER);
+            uint256 sharesToRepay = pair.toBorrowShares(_amount, false, false);
+            pair.repay(sharesToRepay, BORROWER);
+            emit BadDebtPaid(_amount, sharesToRepay);
         }
     }
 
