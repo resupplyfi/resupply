@@ -78,16 +78,10 @@ contract BadDebtPayerTest is Test {
         console.log("Final BadDebtPayer balance:", finalBadDebtPayerBalance);
         console.log("Final borrower balance:", finalBorrowerBalance);
         console.log("Final total borrow:", finalTotalBorrow);
-        
-        // User should have transferred tokens
+
         assertLt(finalUserBalance, initialUserBalance);
-        
-        // BadDebtPayer should have no tokens left (all used for repayment)
         assertEq(finalBadDebtPayerBalance, 0);
-        
-        // Total borrow in the pair should have decreased
         assertLt(finalTotalBorrow, initialTotalBorrow, "Total borrow should have decreased");
-        
         console.log("Borrow reduction:", initialTotalBorrow - finalTotalBorrow);
     }
 
@@ -116,33 +110,24 @@ contract BadDebtPayerTest is Test {
     }
 
     function test_PayBadDebtWithZeroAmount() public {
-        // Transfer some tokens to user
         deal(TOKEN, user, 1e18);
-        
-        // Record initial balances
         uint256 initialUserBalance = IERC20(TOKEN).balanceOf(user);
         uint256 initialBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
         
-        // Call payBadDebt with zero amount
         vm.startPrank(user);
         IERC20(TOKEN).approve(address(badDebtPayer), 0);
         badDebtPayer.payBadDebt(0);
         vm.stopPrank();
         
-        // Balances should remain unchanged
         uint256 finalUserBalance = IERC20(TOKEN).balanceOf(user);
         uint256 finalBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
-        
         assertEq(finalUserBalance, initialUserBalance);
         assertEq(finalBadDebtPayerBalance, initialBadDebtPayerBalance);
     }
 
     function test_RecoverERC20() public {
-        // Transfer some tokens to BadDebtPayer
         uint256 recoveryAmount = 1e18;
         deal(TOKEN, address(badDebtPayer), recoveryAmount);
-        
-        // Get core address from registry
         IResupplyRegistry registry = IResupplyRegistry(REGISTRY);
         address coreAddress = registry.core();
         
@@ -152,20 +137,15 @@ contract BadDebtPayerTest is Test {
         console.log("Initial core balance:", initialCoreBalance);
         console.log("Initial BadDebtPayer balance:", initialBadDebtPayerBalance);
         
-        // Call recoverERC20
         badDebtPayer.recoverERC20(TOKEN);
-        
-        // Check final balances
+
         uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
         uint256 finalBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
         
         console.log("Final core balance:", finalCoreBalance);
         console.log("Final BadDebtPayer balance:", finalBadDebtPayerBalance);
         
-        // Core should have received the tokens
         assertEq(finalCoreBalance, initialCoreBalance + recoveryAmount);
-        
-        // BadDebtPayer should have no tokens left
         assertEq(finalBadDebtPayerBalance, 0);
     }
 
@@ -176,44 +156,27 @@ contract BadDebtPayerTest is Test {
             badDebtPayer.recoverERC20(TOKEN);
         }
         
-        // Get core address from registry
         IResupplyRegistry registry = IResupplyRegistry(REGISTRY);
         address coreAddress = registry.core();
-        
         uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
-        
-        // Call recoverERC20 when BadDebtPayer has no balance
         badDebtPayer.recoverERC20(TOKEN);
-        
-        // Core balance should remain unchanged
         uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(coreAddress);
         assertEq(finalCoreBalance, initialCoreBalance);
     }
 
     function test_PayBadDebtRevertScenarios() public {
-        // Test with insufficient allowance
         vm.startPrank(user);
         deal(TOKEN, user, 1e18);
-        
-        // Don't approve tokens
         vm.expectRevert();
         badDebtPayer.payBadDebt(1e18);
-        
         vm.stopPrank();
     }
 
     function test_GasUsage() public {
-        // Get current pair state
         IResupplyPair pair = IResupplyPair(PAIR);
         (uint256 totalBorrow, ) = pair.totalBorrow();
-        
-        // Use a reasonable amount for gas testing
         uint256 testAmount = totalBorrow > 0 ? totalBorrow / 4 : 1e18;
-        
-        // Transfer tokens to user
         deal(TOKEN, user, testAmount);
-        
-        // Measure gas usage for payBadDebt
         vm.startPrank(user);
         IERC20(TOKEN).approve(address(badDebtPayer), testAmount);
         
@@ -225,14 +188,5 @@ contract BadDebtPayerTest is Test {
         console.log("Amount processed:", testAmount);
         
         vm.stopPrank();
-        
-        // Measure gas usage for recoverERC20
-        deal(TOKEN, address(badDebtPayer), 1e18);
-        
-        gasBefore = gasleft();
-        badDebtPayer.recoverERC20(TOKEN);
-        gasUsed = gasBefore - gasleft();
-        
-        console.log("Gas used for recoverERC20:", gasUsed);
     }
 } 
