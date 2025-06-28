@@ -43,7 +43,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     // Cooldown period between proposals for a given account
     uint256 public minTimeBetweenProposals = 1 days;
     // Delay between proposal passage and its eligibility for execution
-    uint256 public executionDelay = 12 hours;
+    uint256 public executionDelay = 6 hours;
     // Voting period for a proposal
     uint256 public votingPeriod = 3 days;
 

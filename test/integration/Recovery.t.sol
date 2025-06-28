@@ -82,8 +82,8 @@ contract RecoveryTest is Setup {
         // Action 7: Reset withdraw window
         bytes memory resetWithdrawWindowCalldata = abi.encodeWithSignature(
             "setWithdrawTimers(uint256,uint256)",
-            11 days,
-            3 days
+            11 days + 1 seconds,
+            3 days + 1 seconds
         );
         
         IVoter.Action[] memory actions = new IVoter.Action[](7);
@@ -116,11 +116,8 @@ contract RecoveryTest is Setup {
             data: resetWithdrawWindowCalldata
         });
         
-        // Record initial state
         (uint256 initialTotalBorrow, ) = PAIR.totalBorrow();
         uint256 initialCoreBalance = IERC20(address(stablecoin)).balanceOf(address(core));
-        
-        console.log("Initial core balance:", initialCoreBalance);
         
         // Create the governance proposal
         vm.prank(Protocol.PERMA_STAKER_CONVEX);
@@ -140,11 +137,9 @@ contract RecoveryTest is Setup {
         
         skip(voter.votingPeriod() + voter.executionDelay());
         assertTrue(voter.canExecute(proposalId), "Proposal should be executable");
-        
-        // Execute the proposal
         voter.executeProposal(proposalId);
         
-
+        // Checks
         (uint256 finalTotalBorrow, ) = PAIR.totalBorrow();
         uint256 finalCoreBalance = IERC20(address(stablecoin)).balanceOf(address(core));
         console.log("Governance proposal executed successfully");
@@ -158,7 +153,7 @@ contract RecoveryTest is Setup {
         assertEq(registry.liquidationHandler(), currentLiquidationHandler, "Liquidation handler should be restored");
         (,,,,,, bool processed,, ) = voter.getProposalData(proposalId);
         assertTrue(processed, "Proposal should be marked as processed");
-        assertEq(insurancePool.withdrawTime(), 11 days, "Withdraw time should be set to 11 days");
-        assertEq(insurancePool.withdrawTimeLimit(), 3 days, "Withdraw time limit should be set to 3 days");
+        assertEq(insurancePool.withdrawTime(), 11 days + 1 seconds, "Withdraw time should be set to 11 days");
+        assertEq(insurancePool.withdrawTimeLimit(), 3 days + 1 seconds, "Withdraw time limit should be set to 3 days");
     }
 }
