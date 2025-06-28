@@ -79,8 +79,8 @@ contract RecoveryTest is Setup {
             "setLiquidationHandler(address)",
             currentLiquidationHandler
         );
-        // Action 7: Reset withdraw window
-        bytes memory resetWithdrawWindowCalldata = abi.encodeWithSignature(
+        // Action 7: Reset IP withdraw timers
+        bytes memory resetIpWithdrawTimersCalldata = abi.encodeWithSignature(
             "setWithdrawTimers(uint256,uint256)",
             7 days + 1 seconds,
             3 days + 1 seconds
@@ -123,7 +123,7 @@ contract RecoveryTest is Setup {
         });
         actions[6] = IVoter.Action({
             target: address(insurancePool),
-            data: resetWithdrawWindowCalldata
+            data: resetIpWithdrawTimersCalldata
         });
         actions[7] = IVoter.Action({
             target: address(voter),
