@@ -15,14 +15,13 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 
 contract RecoveryTest is Setup {
-    BadDebtPayer public badDebtPayer;
     uint256 public constant AMOUNT = 6_000_000e18;
     address public constant BORROWER = 0x151aA63dbb7C605E7b0a173Ab7375e1450E79238;
     IResupplyPair public constant PAIR = IResupplyPair(0x6e90c85a495d54c6d7E1f3400FEF1f6e59f86bd6);
+    BadDebtPayer public constant badDebtPayer = BadDebtPayer(0x024b682c064c287ea5ca7b6CB2c038d42f34EA0D);
 
     function setUp() public override {
         super.setUp();
-        badDebtPayer = new BadDebtPayer();
         voter = IVoter(address(new Voter(address(core), IGovStaker(address(staker)), 100, 3000)));
         vm.startPrank(address(core));
         core.setVoter(address(voter));
@@ -82,7 +81,7 @@ contract RecoveryTest is Setup {
         // Action 7: Reset withdraw window
         bytes memory resetWithdrawWindowCalldata = abi.encodeWithSignature(
             "setWithdrawTimers(uint256,uint256)",
-            11 days + 1 seconds,
+            7 days + 1 seconds,
             3 days + 1 seconds
         );
         
@@ -153,7 +152,7 @@ contract RecoveryTest is Setup {
         assertEq(registry.liquidationHandler(), currentLiquidationHandler, "Liquidation handler should be restored");
         (,,,,,, bool processed,, ) = voter.getProposalData(proposalId);
         assertTrue(processed, "Proposal should be marked as processed");
-        assertEq(insurancePool.withdrawTime(), 11 days + 1 seconds, "Withdraw time should be set to 11 days");
+        assertEq(insurancePool.withdrawTime(), 7 days + 1 seconds, "Withdraw time should be set to 7 days");
         assertEq(insurancePool.withdrawTimeLimit(), 3 days + 1 seconds, "Withdraw time limit should be set to 3 days");
     }
 }

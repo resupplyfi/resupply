@@ -1,6 +1,19 @@
 {
   "contracts": [
     {
+      "name": "Voter",
+      "address": "0x11111111063874cE8dC6232cb5C1C849359476E6",
+      "constructorArgs": {
+        "types": ["address", "address", "uint256", "uint256"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x22222222E9fE38F6f1FC8C61b25228adB4D8B953",
+          "100",
+          "3000"
+        ]
+      }
+    },
+    {
       "name": "ResupplyPair",
       "address": "0xF4A6113FbD71Ac1825751A6fe844A156f60C83EF",
       "constructorArgs": {
@@ -113,19 +126,6 @@
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x22222222E9fE38F6f1FC8C61b25228adB4D8B953",
           "0x6666666677B06CB55EbF802BB12f8876360f919c"
-        ]
-      }
-    },
-    {
-      "name": "Voter",
-      "address": "0x11111111408bd67B92C4f74B9D3cF96f1fa412BC",
-      "constructorArgs": {
-        "types": ["address", "address", "uint256", "uint256"],
-        "values": [
-          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
-          "0x22222222E9fE38F6f1FC8C61b25228adB4D8B953",
-          "100",
-          "3000"
         ]
       }
     },

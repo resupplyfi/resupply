@@ -91,21 +91,24 @@ contract BadDebtPayerTest is Test {
         deal(TOKEN, user, excessiveAmount);
         uint256 initialCoreBalance = IERC20(TOKEN).balanceOf(core);
         console.log("Initial core balance:", initialCoreBalance);
+
         vm.startPrank(user);
         IERC20(TOKEN).approve(address(badDebtPayer), excessiveAmount);
         badDebtPayer.payBadDebt(excessiveAmount);
         vm.stopPrank();
+
         uint256 finalCoreBalance = IERC20(TOKEN).balanceOf(core);
         uint256 expectedOverflow = excessiveAmount - totalBorrow;
+        uint256 finalUserBalance = IERC20(TOKEN).balanceOf(address(user));
         
+        console.log("Final debt amount:", badDebtPayer.remainingBadDebt());
         console.log("Final core balance:", finalCoreBalance);
         console.log("Expected overflow:", expectedOverflow);
+        console.log("Final user balance:", finalUserBalance);
         
-        assertEq(finalCoreBalance, initialCoreBalance + expectedOverflow);
         
-        // BadDebtPayer should have no tokens left
-        uint256 finalBadDebtPayerBalance = IERC20(TOKEN).balanceOf(address(badDebtPayer));
-        assertEq(finalBadDebtPayerBalance, 0);
+        assertEq(finalCoreBalance, initialCoreBalance);
+        assertEq(finalUserBalance, expectedOverflow);
     }
 
     function test_PayBadDebtWithZeroAmount() public {
