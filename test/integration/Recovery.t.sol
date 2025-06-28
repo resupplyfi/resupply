@@ -19,13 +19,14 @@ contract RecoveryTest is Setup {
     address public constant BORROWER = 0x151aA63dbb7C605E7b0a173Ab7375e1450E79238;
     IResupplyPair public constant PAIR = IResupplyPair(0x6e90c85a495d54c6d7E1f3400FEF1f6e59f86bd6);
     BadDebtPayer public constant badDebtPayer = BadDebtPayer(0x024b682c064c287ea5ca7b6CB2c038d42f34EA0D);
+    address public constant VOTER = 0x11111111063874cE8dC6232cb5C1C849359476E6;
 
     function setUp() public override {
         super.setUp();
-        voter = IVoter(address(new Voter(address(core), IGovStaker(address(staker)), 100, 3000)));
+        voter = IVoter(VOTER);
         vm.startPrank(address(core));
-        core.setVoter(address(voter));
-        registry.setAddress("VOTER", address(voter));
+        core.setVoter(VOTER);
+        registry.setAddress("VOTER", VOTER);
         vm.stopPrank();
     }
 
@@ -84,8 +85,18 @@ contract RecoveryTest is Setup {
             7 days + 1 seconds,
             3 days + 1 seconds
         );
-        
-        IVoter.Action[] memory actions = new IVoter.Action[](7);
+        // Action 8: Set voter voting period to 7 days
+        bytes memory setVoterTimeCalldata = abi.encodeWithSignature(
+            "setVotingPeriod(uint256)",
+            7 days
+        );
+        // Action 9: Set voter execution delay to 1 day
+        bytes memory setExecutionDelayCalldata = abi.encodeWithSignature(
+            "setExecutionDelay(uint256)",
+            1 days
+        );
+
+        IVoter.Action[] memory actions = new IVoter.Action[](9);
         actions[0] = IVoter.Action({
             target: address(registry),
             data: setLiquidationHandlerCalldata
@@ -114,7 +125,15 @@ contract RecoveryTest is Setup {
             target: address(insurancePool),
             data: resetWithdrawWindowCalldata
         });
-        
+        actions[7] = IVoter.Action({
+            target: address(voter),
+            data: setVoterTimeCalldata
+        });
+        actions[8] = IVoter.Action({
+            target: address(voter),
+            data: setExecutionDelayCalldata
+        });
+
         (uint256 initialTotalBorrow, ) = PAIR.totalBorrow();
         uint256 initialCoreBalance = IERC20(address(stablecoin)).balanceOf(address(core));
         
@@ -154,5 +173,7 @@ contract RecoveryTest is Setup {
         assertTrue(processed, "Proposal should be marked as processed");
         assertEq(insurancePool.withdrawTime(), 7 days + 1 seconds, "Withdraw time should be set to 7 days");
         assertEq(insurancePool.withdrawTimeLimit(), 3 days + 1 seconds, "Withdraw time limit should be set to 3 days");
+        assertEq(voter.votingPeriod(), 7 days, "Voting period should be set to 7 days");
+        assertEq(voter.executionDelay(), 1 days, "Execution delay should be set to 1 day");
     }
 }
