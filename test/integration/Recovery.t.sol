@@ -43,6 +43,7 @@ contract RecoveryTest is Setup {
     }
 
     function test_RecoveryViaGovernance() public {
+        uint256 startingSupply = stablecoin.totalSupply();
         (uint256 totalBorrow, uint256 totalShares) = PAIR.totalBorrow();
         address currentLiquidationHandler = registry.liquidationHandler();
         
@@ -133,19 +134,19 @@ contract RecoveryTest is Setup {
         // Execute the proposal
         voter.executeProposal(proposalId);
         
-        // Check final state
+
         (uint256 finalTotalBorrow, ) = PAIR.totalBorrow();
         uint256 finalCoreBalance = IERC20(address(stablecoin)).balanceOf(address(core));
-        
+        console.log("Governance proposal executed successfully");
+        console.log("Borrow reduction:", initialTotalBorrow - finalTotalBorrow);
+        console.log("reUSD supply reduction:", startingSupply - stablecoin.totalSupply());
         console.log("Final total borrow:", finalTotalBorrow);
         console.log("Final core balance:", finalCoreBalance);
         
+        assertEq(stablecoin.totalSupply(), startingSupply - AMOUNT, "Stablecoin supply should be reduced by burn");
         assertLt(finalTotalBorrow, initialTotalBorrow, "Total borrow should have decreased");
         assertEq(registry.liquidationHandler(), currentLiquidationHandler, "Liquidation handler should be restored");
         (,,,,,, bool processed,, ) = voter.getProposalData(proposalId);
         assertTrue(processed, "Proposal should be marked as processed");
-        
-        console.log("Governance proposal executed successfully");
-        console.log("Borrow reduction:", initialTotalBorrow - finalTotalBorrow);
     }
 }
