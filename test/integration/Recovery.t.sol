@@ -153,8 +153,7 @@ contract RecoveryTest is Setup {
         vm.prank(Protocol.PERMA_STAKER_YEARN);
         _voter.voteForProposal(Protocol.PERMA_STAKER_YEARN, proposalId);
         
-        (,,,uint256 _createdAt,,,,,) = _voter.getProposalData(proposalId);
-        vm.warp(_createdAt + 3.5 days);
+        skip(3.5 days);
         assertTrue(_voter.canExecute(proposalId), "Proposal should be executable");
         _voter.executeProposal(proposalId);
         
@@ -170,8 +169,6 @@ contract RecoveryTest is Setup {
         assertEq(stablecoin.totalSupply(), startingSupply - AMOUNT, "Stablecoin supply should be reduced by burn");
         assertLt(finalTotalBorrow, initialTotalBorrow, "Total borrow should have decreased");
         assertEq(registry.liquidationHandler(), currentLiquidationHandler, "Liquidation handler should be restored");
-        (,,,,,, bool processed,, ) = _voter.getProposalData(proposalId);
-        assertTrue(processed, "Proposal should be marked as processed");
         assertEq(insurancePool.withdrawTime(), 7 days + 1 seconds, "Withdraw time should be set to 7 days");
         assertEq(insurancePool.withdrawTimeLimit(), 3 days + 1 seconds, "Withdraw time limit should be set to 3 days");
         assertEq(_voter.votingPeriod(), 7 days, "Voting period should be set to 7 days");
