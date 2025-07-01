@@ -8,10 +8,9 @@ import { BadDebtPayer } from "src/dao/misc/BadDebtPayer.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { Setup } from "test/integration/Setup.sol";
-import { IVoter } from "src/interfaces/IVoter.sol";
 import { Protocol } from "src/Constants.sol";
 import { Voter } from "src/dao/Voter.sol";
-import { IVoter } from "src/interfaces/IVoter.sol";
+import { IVoterDeprecated } from "src/interfaces/IVoterDeprecated.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 
 contract RecoveryTest is Setup {
@@ -20,10 +19,11 @@ contract RecoveryTest is Setup {
     IResupplyPair public constant PAIR = IResupplyPair(0x6e90c85a495d54c6d7E1f3400FEF1f6e59f86bd6);
     BadDebtPayer public constant badDebtPayer = BadDebtPayer(0x024b682c064c287ea5ca7b6CB2c038d42f34EA0D);
     address public constant VOTER = 0x11111111063874cE8dC6232cb5C1C849359476E6;
+    IVoterDeprecated public _voter;
 
     function setUp() public override {
         super.setUp();
-        voter = IVoter(VOTER);
+        _voter = IVoterDeprecated(VOTER);
         vm.startPrank(address(core));
         core.setVoter(VOTER);
         registry.setAddress("VOTER", VOTER);
@@ -96,40 +96,40 @@ contract RecoveryTest is Setup {
             1 days
         );
 
-        IVoter.Action[] memory actions = new IVoter.Action[](9);
-        actions[0] = IVoter.Action({
+        IVoterDeprecated.Action[] memory actions = new IVoterDeprecated.Action[](9);
+        actions[0] = IVoterDeprecated.Action({
             target: address(registry),
             data: setLiquidationHandlerCalldata
         });
-        actions[1] = IVoter.Action({
+        actions[1] = IVoterDeprecated.Action({
             target: address(insurancePool),
             data: burnAssetsCalldata
         });
-        actions[2] = IVoter.Action({
+        actions[2] = IVoterDeprecated.Action({
             target: address(stablecoin),
             data: mintCalldata
         });
-        actions[3] = IVoter.Action({
+        actions[3] = IVoterDeprecated.Action({
             target: address(stablecoin),
             data: approveCalldata
         });
-        actions[4] = IVoter.Action({
+        actions[4] = IVoterDeprecated.Action({
             target: address(badDebtPayer),
             data: payBadDebtCalldata
         });
-        actions[5] = IVoter.Action({
+        actions[5] = IVoterDeprecated.Action({
             target: address(registry),
             data: restoreLiquidationHandlerCalldata
         });
-        actions[6] = IVoter.Action({
+        actions[6] = IVoterDeprecated.Action({
             target: address(insurancePool),
             data: resetIpWithdrawTimersCalldata
         });
-        actions[7] = IVoter.Action({
+        actions[7] = IVoterDeprecated.Action({
             target: address(voter),
             data: setVoterTimeCalldata
         });
-        actions[8] = IVoter.Action({
+        actions[8] = IVoterDeprecated.Action({
             target: address(voter),
             data: setExecutionDelayCalldata
         });
@@ -139,7 +139,7 @@ contract RecoveryTest is Setup {
         
         // Create the governance proposal
         vm.prank(Protocol.PERMA_STAKER_CONVEX);
-        uint256 proposalId = voter.createNewProposal(
+        uint256 proposalId = _voter.createNewProposal(
             Protocol.PERMA_STAKER_CONVEX,
             actions,
             "Pay bad debt through governance"
@@ -149,13 +149,14 @@ contract RecoveryTest is Setup {
         
         // Simulate votes
         vm.prank(Protocol.PERMA_STAKER_CONVEX);
-        voter.voteForProposal(Protocol.PERMA_STAKER_CONVEX, proposalId);
+        _voter.voteForProposal(Protocol.PERMA_STAKER_CONVEX, proposalId);
         vm.prank(Protocol.PERMA_STAKER_YEARN);
-        voter.voteForProposal(Protocol.PERMA_STAKER_YEARN, proposalId);
+        _voter.voteForProposal(Protocol.PERMA_STAKER_YEARN, proposalId);
         
-        skip(voter.votingPeriod() + voter.executionDelay());
-        assertTrue(voter.canExecute(proposalId), "Proposal should be executable");
-        voter.executeProposal(proposalId);
+        (,,,uint256 _createdAt,,,,,) = _voter.getProposalData(proposalId);
+        vm.warp(_createdAt + 3.5 days);
+        assertTrue(_voter.canExecute(proposalId), "Proposal should be executable");
+        _voter.executeProposal(proposalId);
         
         // Checks
         (uint256 finalTotalBorrow, ) = PAIR.totalBorrow();
@@ -169,11 +170,11 @@ contract RecoveryTest is Setup {
         assertEq(stablecoin.totalSupply(), startingSupply - AMOUNT, "Stablecoin supply should be reduced by burn");
         assertLt(finalTotalBorrow, initialTotalBorrow, "Total borrow should have decreased");
         assertEq(registry.liquidationHandler(), currentLiquidationHandler, "Liquidation handler should be restored");
-        (,,,,,, bool processed,, ) = voter.getProposalData(proposalId);
+        (,,,,,, bool processed,, ) = _voter.getProposalData(proposalId);
         assertTrue(processed, "Proposal should be marked as processed");
         assertEq(insurancePool.withdrawTime(), 7 days + 1 seconds, "Withdraw time should be set to 7 days");
         assertEq(insurancePool.withdrawTimeLimit(), 3 days + 1 seconds, "Withdraw time limit should be set to 3 days");
-        assertEq(voter.votingPeriod(), 7 days, "Voting period should be set to 7 days");
-        assertEq(voter.executionDelay(), 1 days, "Execution delay should be set to 1 day");
+        assertEq(_voter.votingPeriod(), 7 days, "Voting period should be set to 7 days");
+        assertEq(_voter.executionDelay(), 1 days, "Execution delay should be set to 1 day");
     }
 }

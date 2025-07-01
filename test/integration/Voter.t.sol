@@ -10,7 +10,6 @@ import { Setup } from "test/integration/Setup.sol";
 import { MockPair } from "test/mocks/MockPair.sol";
 import { Voter } from "src/dao/Voter.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 
 contract VoterTest is Setup {
     MockPair pair;
@@ -28,7 +27,7 @@ contract VoterTest is Setup {
         pair = new MockPair(address(core));
 
         // Transfer ownership of the core contract to the new voter contract
-        address voterAddress = address(new Voter(address(core), IGovStaker(address(staker)), 100, 3000));
+        address voterAddress = address(new Voter(address(core), address(staker), 100, 3000, 0));
         voter = IVoter(voterAddress);
         vm.prank(address(core));
         core.setVoter(voterAddress);
@@ -131,28 +130,21 @@ contract VoterTest is Setup {
 
         assertEq(voter.quorumReached(proposalId), true);
         assertEq(voter.canExecute(proposalId), false);
-        skip(voter.VOTING_PERIOD());
+        IVoter.ProposalFullData memory proposal = voter.getProposalData(proposalId);
+        vm.warp(proposal.endsAt);
         assertEq(voter.canExecute(proposalId), false);
         vm.expectRevert("Proposal cannot be executed");
         voter.executeProposal(proposalId);
-        skip(voter.EXECUTION_DELAY());
+        vm.warp(proposal.executeAfter);
 
-        (
-            ,
-            uint256 _epoch,
-            uint256 _createdAt,
-            ,
-            uint256 _weightYes,
-            uint256 _weightNo,
-            bool _processed,
-            bool _executable,
-        ) = voter.getProposalData(proposalId);
-        assertEq(epoch, _epoch);
-        assertGt(_createdAt, 0);
-        assertGt(_weightYes, 0);
-        assertEq(_weightNo, 0);
-        assertEq(_processed, false);
-        assertEq(_executable, true);
+        proposal = voter.getProposalData(proposalId);
+        assertEq(proposal.description, "Test proposal");
+        assertEq(proposal.epoch, epoch);
+        assertGt(proposal.createdAt, 0);
+        assertGt(proposal.weightYes, 0);
+        assertEq(proposal.weightNo, 0);
+        assertEq(proposal.processed, false);
+        assertEq(proposal.executable, true);
         assertEq(voter.canExecute(proposalId), true);
 
         vm.expectEmit(true, false, false, true);
@@ -168,16 +160,15 @@ contract VoterTest is Setup {
     }
 
     function test_cancelProposal() public {
-        bool _processed;
         vm.prank(user1);
         uint256 propId = voter.createNewProposal(user1, buildProposalData(5), "Test proposal");
-        (,,,,,,_processed,,) = voter.getProposalData(propId);
-        assertEq(_processed, false);
+        IVoter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        assertEq(proposal.processed, false);
 
         vm.prank(address(core));
         voter.cancelProposal(propId);
-        (,,,,,,_processed,,) = voter.getProposalData(propId);
-        assertEq(_processed, true);
+        proposal = voter.getProposalData(propId);
+        assertEq(proposal.processed, true);
     }
 
     function test_CannotCancelProposalWithCancelerPayload() public {
@@ -206,8 +197,8 @@ contract VoterTest is Setup {
         voter.updateProposalDescription(propId, "New description");
         vm.prank(address(core));
         voter.updateProposalDescription(propId, "New description!");
-        (string memory _description,,,,,,,,) = voter.getProposalData(propId);
-        assertEq(_description, "New description!");
+        IVoter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        assertEq(proposal.description, "New description!");
     }
 
     function buildProposalData(uint256 _value) public view returns (IVoter.Action[] memory) {
@@ -324,6 +315,7 @@ contract VoterTest is Setup {
         voter.voteForProposal(user1, propId);
         vm.prank(user2);
         voter.voteForProposal(user2, propId);
-        skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+        IVoter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        vm.warp(proposal.executeAfter);
     }
 }

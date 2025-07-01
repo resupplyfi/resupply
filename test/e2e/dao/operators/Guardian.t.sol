@@ -82,8 +82,8 @@ contract GuardianTest is Setup {
 
     function test_CancelProposal() public {
         uint256 proposalId = 0;
-        (,,,bool processed,) = IVoter(address(voter)).proposalData(proposalId);
-        assertEq(processed, false);
+        IVoter.ProposalFullData memory proposal = IVoter(address(voter)).getProposalData(proposalId);
+        assertEq(proposal.processed, false);
 
         vm.prank(address(0xBABE));
         vm.expectRevert("!guardian");
@@ -91,8 +91,8 @@ contract GuardianTest is Setup {
 
         vm.prank(dev);
         guardian.cancelProposal(proposalId);
-        (,,,processed,) = IVoter(address(voter)).proposalData(proposalId);
-        assertEq(processed, true);
+        proposal = IVoter(address(voter)).getProposalData(proposalId);
+        assertEq(proposal.processed, true);
     }
 
     function test_VoterRevert() public {
