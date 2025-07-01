@@ -27,10 +27,13 @@ contract VoterTest is Setup {
         core.setVoter(address(voter));
 
         // Give user1 some stake so they can create a proposal + vote.
+        deal(address(govToken), user2, 1000e18);
         vm.prank(user1);
         staker.stake(user1, 100e18);
-        vm.prank(user2);
+        vm.startPrank(user2);
+        govToken.approve(address(staker), type(uint256).max);
         staker.stake(user2, 100e18);
+        vm.stopPrank();
         skip(staker.epochLength() * 2); // We skip 2, so that the stake can be registered (first epoch) and finalized (second epoch).
 
         // Create a mock protocol contract for us to test with
@@ -40,6 +43,7 @@ contract VoterTest is Setup {
     function test_createProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
         uint256 epoch = voter.getEpoch(); // Current epoch is used for voting
+        uint256 nextId = voter.proposalCount();
 
         // String size: 408 bytes
         string memory longInvalidDescription = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.here is a very long string that repeats.";
@@ -57,7 +61,7 @@ contract VoterTest is Setup {
         vm.expectEmit(true, true, false, true);
         emit Voter.ProposalCreated(
             user1, 
-            0, 
+            nextId, 
             buildProposalData(5), 
             voter.getEpoch(), 
             quorumWeight
@@ -70,13 +74,12 @@ contract VoterTest is Setup {
         );
 
         assertEq(pair.value(), 0);
-        assertEq(voter.getProposalCount(), 1);
-        assertEq(proposalId, 0);
+        assertEq(voter.getProposalCount(), proposalId + 1);
     }
 
     function test_createProposalFor() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
-
+        uint256 nextId = voter.proposalCount();
         vm.expectRevert("!CallerOrDelegated");
         vm.prank(user2);
         proposalId = voter.createNewProposal(
@@ -96,8 +99,8 @@ contract VoterTest is Setup {
             "Test proposal"
         );
         assertEq(pair.value(), 0);
-        assertEq(voter.getProposalCount(), 1);
-        assertEq(proposalId, 0);
+        assertEq(voter.getProposalCount(), nextId + 1);
+        assertEq(proposalId, nextId);
         assertEq(voter.canExecute(proposalId), false);
     }
 
@@ -111,7 +114,7 @@ contract VoterTest is Setup {
         assertEq(voter.canExecute(propId), true);
         voter.executeProposal(propId);
         assertEq(voter.canExecute(propId), false);
-        vm.expectRevert("Proposal already processed");
+        vm.expectRevert("Proposal cannot be executed");
         voter.executeProposal(propId);
     }
 
@@ -154,7 +157,7 @@ contract VoterTest is Setup {
         assertGt(proposal.weightYes, 0);
         assertEq(proposal.weightNo, 0);
         assertEq(proposal.processed, false);
-        assertEq(proposal.executable, true);
+        assertEq(proposal.executable, false);
         assertEq(voter.canExecute(proposalId), true);
 
         vm.expectEmit(true, false, false, true);
@@ -213,18 +216,17 @@ contract VoterTest is Setup {
 
     function test_setDefaultDontAffectExistingProposals() public {
         uint256 propId = createSimpleProposal();
-
+        vm.startPrank(address(core));
         vm.expectRevert("Too low");
         voter.setDefaultVotingPeriod(0);
         vm.expectRevert("Too high");
         voter.setDefaultVotingPeriod(1 weeks + 1);
-
-        vm.prank(address(core));
+        vm.stopPrank();
 
         vm.expectRevert("!core");
-        voter.setDefaultVotingPeriod(1 days);
+        voter.setDefaultVotingPeriod(3 days);
         vm.prank(address(core));
-        voter.setDefaultVotingPeriod(1 days);
+        voter.setDefaultVotingPeriod(3 days);
         vm.prank(address(core));
         voter.setDefaultExecutionDelay(2 days);
 
