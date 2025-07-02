@@ -66,7 +66,7 @@ contract sreUSDTest is Setup {
         feeDepositController = IFeeDepositController(address(fdcontroller));
         feeDeposit.setOperator(address(feeDepositController));
 
-        RewardHandler rewardHandlerAddress = new RewardHandler(
+        RewardHandler newRewardHandler = new RewardHandler(
             address(core),
             address(registry),
             address(insurancePool),
@@ -74,9 +74,18 @@ contract sreUSDTest is Setup {
             address(pairEmissionStream),
             address(ipEmissionStream),
             address(ipStableStream)
-            );
-        rewardHandler = IRewardHandler(address(rewardHandlerAddress));
-        registry.setRewardHandler(address(rewardHandler));
+        );
+        vm.startPrank(address(core));
+        debtReceiver.setApprovedClaimer(address(rewardHandler), false);
+        insuranceEmissionsReceiver.setApprovedClaimer(address(rewardHandler), false);
+        debtReceiver.setApprovedClaimer(address(newRewardHandler), true);
+        insuranceEmissionsReceiver.setApprovedClaimer(address(newRewardHandler), true);
+        registry.setRewardHandler(address(newRewardHandler));
+        vm.stopPrank();
+
+        rewardHandler = IRewardHandler(address(newRewardHandler));
+        vm.prank(address(core));
+        staker.setRewardsDistributor(address(stablecoin), address(newRewardHandler));
 
         //new interest calculator
         InterestRateCalculatorV2 calcv2 = new InterestRateCalculatorV2(
@@ -91,6 +100,7 @@ contract sreUSDTest is Setup {
         address[] memory pairs = registry.getAllPairAddresses();
         for (uint256 i = 0; i < pairs.length; i++) {
             //MUST add interest BEFORE switching
+            vm.prank(address(core));
             IResupplyPair(pairs[i]).setRateCalculator(address(calcv2),true);
         }
 

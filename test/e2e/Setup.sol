@@ -134,7 +134,6 @@ contract Setup is Test {
         registry.setRedemptionHandler(address(redemptionHandler));
         registry.setLiquidationHandler(address(liquidationHandler));
         registry.setInsurancePool(address(insurancePool));
-        registry.setFeeDeposit(address(feeDeposit));
         registry.setRewardHandler(address(rewardHandler));
         stablecoin.setOperator(address(registry), true);
         vm.stopPrank();
@@ -243,6 +242,17 @@ contract Setup is Test {
             address(stakingToken), 
             address(0)
         );
+
+        reUsdOracle = new ReusdOracle("ReUsdOracle");
+        vm.prank(address(core));
+        registry.setAddress("REUSD_ORACLE", address(reUsdOracle));
+        priceWatcher = new PriceWatcher(address(registry));
+        vm.prank(address(core));
+        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
+        feeLogger = new FeeLogger(address(core), address(registry));
+        vm.prank(address(core));
+        registry.setAddress("FEE_LOGGER", address(feeLogger));
+
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(
             address(core), 
@@ -256,15 +266,6 @@ contract Setup is Test {
         vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
 
-        reUsdOracle = new ReusdOracle("ReUsdOracle");
-        vm.prank(address(core));
-        registry.setAddress("REUSD_ORACLE", address(reUsdOracle));
-        priceWatcher = new PriceWatcher(address(registry));
-        vm.prank(address(core));
-        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
-        feeLogger = new FeeLogger(address(core), address(registry));
-        vm.prank(address(core));
-        registry.setAddress("FEE_LOGGER", address(feeLogger));
         rewardHandler = new RewardHandler(
             address(core),
             address(registry),
@@ -281,6 +282,13 @@ contract Setup is Test {
         debtReceiver.setApprovedClaimer(address(rewardHandler), true);
         insuranceEmissionsReceiver.setApprovedClaimer(address(rewardHandler), true);
         vm.stopPrank();
+
+        vm.prank(address(core));
+        registry.setFeeDeposit(address(feeDeposit));
+        uint256 maxdistro = 2e17 / uint256( 365 days );
+        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
+        vm.prank(address(core));
+        registry.setAddress("SREUSD", address(stakedStable));
     }
 
     function setInitialEmissionReceivers() public{
@@ -321,8 +329,6 @@ contract Setup is Test {
             "RSUP"
         );
         stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
-        uint256 maxdistro = 2e17 / uint256( 365 days );
-        // stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
@@ -363,7 +369,6 @@ contract Setup is Test {
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));
         registry.setStaker(address(staker));
-        // registry.setAddress("SREUSD", address(stakedStable));
         vm.stopPrank();
     }
 
