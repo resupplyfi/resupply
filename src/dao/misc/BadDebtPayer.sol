@@ -9,7 +9,7 @@ contract BadDebtPayer {
     IERC20 public constant token = IERC20(0x57aB1E0003F623289CD798B1824Be09a793e4Bec);
     address public constant BORROWER = 0x151aA63dbb7C605E7b0a173Ab7375e1450E79238;
 
-    event BadDebtPaid(uint256 amount, uint256 shares);
+    event BadDebtPaid(address indexed payer, uint256 amount, uint256 shares);
 
     constructor() {
         token.approve(address(pair), type(uint256).max);
@@ -24,7 +24,7 @@ contract BadDebtPayer {
             token.transferFrom(msg.sender, address(this), _amount);
             uint256 sharesToRepay = pair.toBorrowShares(_amount, false, false);
             pair.repay(sharesToRepay, BORROWER);
-            emit BadDebtPaid(_amount, sharesToRepay);
+            emit BadDebtPaid(msg.sender, _amount, sharesToRepay);
         }
     }
 

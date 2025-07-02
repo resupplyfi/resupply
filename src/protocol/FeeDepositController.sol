@@ -72,7 +72,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
 
         //log TOTAL fees for current epoch - 2 since the balance here is what was accrued two epochs ago
-        IFeeLogger(feeLogger).updateTotalFees(currentEpoch-2, balance);
+        IFeeLogger(feeLogger).logTotalFees(currentEpoch-2, balance);
 
         //max sure price watcher is up to date
         IPriceWatcher(priceWatcher).updatePriceData();

@@ -15,6 +15,7 @@ import { EpochTracker } from "src/dependencies/EpochTracker.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
 import { IFeeLogger } from "src/interfaces/IFeeLogger.sol";
+import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 
 //claim rewards for various contracts
 contract RewardHandler is CoreOwnable, EpochTracker {
@@ -187,7 +188,7 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         pairTimestamp[_pair] = block.timestamp;
         
         //log fees collected and set to the previous epoch
-        IFeeLogger(feeLogger).updateInterestFees(_pair, getEpoch() - 1, _amount);
+        IFeeLogger(feeLogger).logInterestFees(_pair, getEpoch() - 1, _amount);
 
         //set emission weights
         IRewards(pairEmissions).setWeight(_pair, rate);
@@ -224,6 +225,22 @@ contract RewardHandler is CoreOwnable, EpochTracker {
         if(debtEmissionsReceiver.claimableEmissions() > 0){
             debtEmissionsReceiver.claimEmissions(address(this));
             IRewards(pairEmissions).queueNewRewards(IERC20(emissionToken).balanceOf(address(this)));
+        }
+    }
+
+    //migrate state from old reward handler to new
+    function migrateState(address _oldRewardHandler, bool _migrateTimestamp, bool _migrateMinWeights) external onlyOwner{
+        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
+        for(uint256 i = 0; i < pairs.length; i++){
+            address pair = pairs[i];
+            uint256 _pairTimestamp = IRewardHandler(_oldRewardHandler).pairTimestamp(pair);
+            if(_migrateTimestamp && _pairTimestamp > 0){
+                pairTimestamp[pair] = _pairTimestamp;
+            }
+            uint256 _minimumWeights = IRewardHandler(_oldRewardHandler).minimumWeights(pair);
+            if(_migrateMinWeights && _minimumWeights > 0){
+                minimumWeights[pair] = _minimumWeights;
+            }
         }
     }
 }

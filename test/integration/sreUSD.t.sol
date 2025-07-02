@@ -76,6 +76,7 @@ contract sreUSDTest is Setup {
             address(ipStableStream)
         );
         vm.startPrank(address(core));
+        newRewardHandler.migrateState(address(rewardHandler), true, true);
         debtReceiver.setApprovedClaimer(address(rewardHandler), false);
         insuranceEmissionsReceiver.setApprovedClaimer(address(rewardHandler), false);
         debtReceiver.setApprovedClaimer(address(newRewardHandler), true);
@@ -160,18 +161,16 @@ contract sreUSDTest is Setup {
         rewardAmount = bound(rewardAmount, 1e18, 10_000e18);
         deposit(address(this), 1000e18);
 
-        // Advance to the start of new epoch
-        uint256 end = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + REWARDS_CYCLE_LENGTH;
-        vm.warp(end + 1);
+        // Advance by 2 epochs so that rewards are guaranteed to be distributed in the next epoch
+        advanceEpochs(checkIfOnEpochEdge() ? 2 : 1);
+        skip(1);
         airdropAsset(address(vault), rewardAmount);
         vault.syncRewardsAndDistribution();
 
         // Calc expected rewards
         (uint40 cycleEnd, uint40 lastSync, uint216 rewardCycleAmount) = vault.rewardsCycleData();
         uint256 expectedRewards = (uint256(rewardCycleAmount) * timeElapsed) / (cycleEnd - lastSync);
-        
         skip(timeElapsed);
-        assertGt(vault.previewDistributeRewards(), 0);
         uint256 actualRewards = vault.calculateRewardsToDistribute(
             LinearRewardsErc4626.RewardsCycleData({
                 cycleEnd: cycleEnd,
@@ -180,8 +179,9 @@ contract sreUSDTest is Setup {
             }),
             timeElapsed
         );
+        
         assertEq(actualRewards, expectedRewards);
-
+        assertGt(vault.previewDistributeRewards(), 0);
         simulateFeesAndAdvanceEpoch(10e18);
         vault.syncRewardsAndDistribution();
     }
@@ -195,8 +195,10 @@ contract sreUSDTest is Setup {
 
     function test_YieldArrivesInNextEpoch() public {
         deposit(address(this), 1000e18);
+        bool onEpochEdge = checkIfOnEpochEdge();
+        if(onEpochEdge) advanceEpochs(1);
         simulateFeesAndAdvanceEpoch(10e18);
-        skip(1); // Needed
+        skip(1);
         vault.syncRewardsAndDistribution();
         skip(1 days);
         assertGt(vault.previewDistributeRewards(), 0);
@@ -264,6 +266,16 @@ contract sreUSDTest is Setup {
     function advanceEpochs(uint256 epochs) public {
         uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH * epochs);
         vm.warp(newEpochTs);
+    }
+
+    /**
+     * Accounts for the epoch edge in sreUSD which prevents allocating rewards to the current epoch
+     * @return timestamp of the first timestamp which yield will begin streaming
+     */
+    function checkIfOnEpochEdge() public view returns (bool) {
+        uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH);
+        if(newEpochTs - block.timestamp < REWARDS_CYCLE_LENGTH / 40) return true;
+        return false;
     }
 
     // Helper function to deposit and return shares

@@ -13,4 +13,6 @@ interface IRewardHandler{
     function insuranceRevenue() external view returns(address);
     function debtEmissionsReceiver() external view returns(address);
     function insuranceEmissionReceiver() external view returns(address);
+    function pairTimestamp(address _pair) external view returns(uint256);
+    function minimumWeights(address _pair) external view returns(uint256);
 }

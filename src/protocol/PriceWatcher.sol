@@ -33,7 +33,7 @@ contract PriceWatcher is CoreOwnable{
     ) CoreOwnable( IResupplyRegistry(_registry).owner() ) {
         registry = _registry;
         oracle = IResupplyRegistry(_registry).getAddress("REUSD_ORACLE");
-
+        require(oracle != address(0), "invalid address");
         //start with at least 2 nodes of information
         _addUpdate(0, 0, 0);
         updatePriceData();
