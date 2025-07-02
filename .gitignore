@@ -16,7 +16,7 @@
 **/node_modules
 **/broadcast
 out
-data
+/data
 tenderly/
 snapshots
 abis/
