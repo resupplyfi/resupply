@@ -6,22 +6,24 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { RetentionIncentives } from "src/dao/RetentionIncentives.sol";
 import { RetentionReceiver } from "src/dao/emissions/receivers/RetentionReceiver.sol";
+import { RetentionProgramJsonParser } from "test/utils/RetentionProgramJsonParser.sol";
 
 contract RetentionTest is Setup {
+    string public constant RETENTION_JSON_FILE_PATH = "deployment/data/ip_retention_snapshot.json";
     RetentionIncentives public retention;
     RetentionReceiver public receiver;
 
     uint32 public constant REWARDS_CYCLE_LENGTH = 7 days;
     IERC20 public asset;
 
-    address userA;
-    address userB;
-    address userC;
+    address[] public retentionUsers;
+    uint256[] public retentionAmounts;
 
     function setUp() public override {
         super.setUp();
         asset = IERC20(address(stablecoin));
-
+        
+        _loadRetentionData(true); // true to print values to console
         //deploy retention
         retention = new RetentionIncentives(
             address(core),
@@ -43,24 +45,7 @@ contract RetentionTest is Setup {
 
         //set manager
         retention.setRewardHandler(address(receiver));
-
-        //add users
-        //TODO read from full user list
-        address[] memory users = new address[](3);
-        uint256[] memory balances = new uint256[](3);
-
-        users[0] = address(0x00c04AE980A41825FCb505797d394090295B5813);
-        users[1] = address(0x9D269CAF80970C7E854c99db8B0c20868825546b);
-        users[2] = address(0x6Da40065b15954A3a72375DdC2D57743EB301a05);
-
-        balances[0] = insurancePool.balanceOf(users[0]);
-        balances[1] = insurancePool.balanceOf(users[1]);
-        balances[2] = insurancePool.balanceOf(users[2]);
-
-        userA = users[0];
-        userB = users[1];
-        userC = users[2];
-        retention.setAddressBalances(users, balances);
+        retention.setAddressBalances(retentionUsers, retentionAmounts);
 
         //finalize
         retention.finalize();
@@ -97,7 +82,7 @@ contract RetentionTest is Setup {
 
     function test_balanceChange() public {
         //todo
-        printBalanceOfUser(userA);
+        printBalanceOfUser(retentionUsers[0]);
     }
 
     function printBalanceOfUser(address _account) public{
@@ -133,5 +118,17 @@ contract RetentionTest is Setup {
         vm.startPrank(user);
         amount = insurancePool.redeem(shares, user, user);
         vm.stopPrank();
+    }
+
+    function _loadRetentionData(bool print) internal {
+        RetentionProgramJsonParser.RetentionData memory data = 
+            RetentionProgramJsonParser.parseRetentionSnapshot(vm.readFile(RETENTION_JSON_FILE_PATH));
+        retentionUsers = data.users;
+        retentionAmounts = data.amounts;
+        if(print) {
+            for (uint256 i = 0; i < retentionUsers.length; i++) {
+                console.log(i, retentionUsers[i], retentionAmounts[i]);
+            }
+        }
     }
 }
