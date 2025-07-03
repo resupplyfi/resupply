@@ -32,7 +32,7 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
-import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
+import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
@@ -85,7 +85,7 @@ contract Setup is Test {
     StakedReUSD public stakedStable;
     BasicVaultOracle public oracle;
     UnderlyingOracle public underlyingoracle;
-    InterestRateCalculator public rateCalculator;
+    InterestRateCalculatorV2 public rateCalculator;
     ResupplyPairDeployer public deployer;
     RedemptionHandler public redemptionHandler;
     LiquidationHandler public liquidationHandler;
@@ -172,10 +172,12 @@ contract Setup is Test {
         );
         vm.stopPrank();
 
-        rateCalculator = new InterestRateCalculator(
-            "Base",
+        rateCalculator = new InterestRateCalculatorV2(
+            "V2",
             2e16 / uint256(365 days),//2%
-            2
+            5e17,
+            1e17,
+            address(priceWatcher)
         );
 
         oracle = new BasicVaultOracle("Basic Vault Oracle");

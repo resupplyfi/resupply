@@ -22,7 +22,7 @@ cache = true
 ffi = true
 
 # Filesystem permissions
-fs_permissions = [{ access = "read-write", path = "./"}]
+fs_permissions = [{ access = "read-write", path = "./"}, { access = "read-write", path = "../"}]
 
 # Ignored compiler warnings
 ignored_error_codes = [1878, 2519, 5574, 5667, 2072, 2018, 3420, 3860]
