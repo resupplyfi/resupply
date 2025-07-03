@@ -151,25 +151,26 @@ contract RetentionIncentives is CoreOwnable {
     }
 
     function _updateReward(address _account) internal{
-        //first checkpoint
+
         uint256 rewardPerToken = rewardPerToken();
         rewardPerTokenStored = rewardPerToken;
         lastUpdateTime = lastTimeRewardApplicable();
+        
         if (_account != address(0)) {
+            //first update earned rewards
             rewards[_account] = earned(_account);
             userRewardPerTokenPaid[_account] = rewardPerToken;
-        }
 
+            //update balances by looking at insurance pool
+            uint256 ipShares = IInsurancePool(insurancePool).balanceOf(_account);
+            uint256 currentBalance = _balances[_account];
+            if(ipShares < currentBalance){
+                emit WeightSet(_account, currentBalance, ipShares);
 
-        //update balances by looking at insurance pool
-        uint256 ipShares = IInsurancePool(insurancePool).balanceOf(_account);
-        uint256 currentBalance = _balances[_account];
-        if(ipShares < currentBalance){
-            emit WeightSet(_account, currentBalance, ipShares);
-
-            //shares went down, update
-            _balances[_account] = ipShares;
-            _totalSupply = _totalSupply + ipShares - currentBalance;
+                //shares went down, update
+                _balances[_account] = ipShares;
+                _totalSupply = _totalSupply + ipShares - currentBalance;
+            }
         }
     }
 
