@@ -29,6 +29,7 @@ contract SreUSDTest is Setup {
         vault = stakedStable;
         deal(address(govToken), address(user1), 1000e18);
         _makeInitialGovStakerDeposit();
+        assertEq(asset.balanceOf(address(vault)), 0);
     }
 
     function test_Initialization() public {
@@ -78,42 +79,40 @@ contract SreUSDTest is Setup {
         assertEq(vault.maxDistributionPerSecondPerAsset(), type(uint64).max);
     }
 
-    // function test_RewardsDistribution(uint256 timeElapsed, uint256 rewardAmount) public {
-    //     assertEq(asset.balanceOf(address(vault)), 0);
-    //     timeElapsed = bound(timeElapsed, 1, REWARDS_CYCLE_LENGTH);
-    //     rewardAmount = bound(rewardAmount, 1e18, 10_000e18);
-    //     deposit(address(this), 1000e18);
+    function test_RewardsDistribution(uint256 timeElapsed, uint256 rewardAmount) public {
+        assertEq(asset.balanceOf(address(vault)), 0);
+        timeElapsed = bound(timeElapsed, 1, REWARDS_CYCLE_LENGTH);
+        rewardAmount = bound(rewardAmount, 1e18, 10_000e18);
+        deposit(address(this), 1000e18);
 
-    //     // Advance by 2 epochs so that rewards are guaranteed to be distributed in the next epoch
-    //     advanceEpochs(checkIfOnEpochEdge() ? 2 : 1);
-    //     skip(1);
-    //     airdropAsset(address(vault), rewardAmount);
-    //     vault.syncRewardsAndDistribution();
+        // Advance epochs such that rewards are guaranteed to be distributed in the next epoch
+        advanceEpochs(checkIfOnEpochEdge() ? 2 : 1);
+        skip(1);
+        airdropAsset(address(vault), rewardAmount);
+        vault.syncRewardsAndDistribution();
 
-    //     // Calc expected rewards
-    //     (uint40 cycleEnd, uint40 lastSync, uint216 rewardCycleAmount) = vault.rewardsCycleData();
-    //     uint256 expectedRewards = (uint256(rewardCycleAmount) * timeElapsed) / (cycleEnd - lastSync);
-    //     skip(timeElapsed);
-    //     uint256 actualRewards = vault.calculateRewardsToDistribute(
-    //         LinearRewardsErc4626.RewardsCycleData({
-    //             cycleEnd: cycleEnd,
-    //             lastSync: lastSync,
-    //             rewardCycleAmount: rewardCycleAmount
-    //         }),
-    //         timeElapsed
-    //     );
-    //     console.log("actualRewards", actualRewards);
-    //     console.log("expectedRewards", expectedRewards);
-    //     console.log("timeElapsed", timeElapsed);
-    //     console.log("rewardCycleAmount", rewardCycleAmount);
-    //     console.log("rewardAmount", rewardAmount);
-    //     console.log("cycleEnd", cycleEnd);
-    //     console.log("lastSync", lastSync);
-    //     assertEq(actualRewards, expectedRewards);
-    //     assertGt(vault.previewDistributeRewards(), 0);
-    //     simulateFeesAndAdvanceEpoch(10e18);
-    //     vault.syncRewardsAndDistribution();
-    // }
+        // Calc expected rewards
+        (uint40 cycleEnd, uint40 lastSync, uint216 rewardCycleAmount) = vault.rewardsCycleData();
+        uint256 expectedRewards = (uint256(rewardCycleAmount) * timeElapsed) / (cycleEnd - lastSync);
+        skip(timeElapsed);
+        uint256 actualRewards = vault.calculateRewardsToDistribute(
+            LinearRewardsErc4626.RewardsCycleData({
+                cycleEnd: cycleEnd,
+                lastSync: lastSync,
+                rewardCycleAmount: rewardCycleAmount
+            }),
+            timeElapsed
+        );
+        uint256 _maxDistribution = (
+            vault.maxDistributionPerSecondPerAsset() * timeElapsed * vault.storedTotalAssets()
+        ) / vault.PRECISION();
+        if (expectedRewards > _maxDistribution) expectedRewards = _maxDistribution; // Cap rewards to max distribution
+
+        assertEq(actualRewards, expectedRewards);
+        assertGt(vault.previewDistributeRewards(), 0);
+        simulateFeesAndAdvanceEpoch(10e18);
+        vault.syncRewardsAndDistribution();
+    }
 
     function test_NoYieldWhenAddedInCurrentEpoch() public {
         deposit(address(this), 1000e18);
@@ -141,7 +140,7 @@ contract SreUSDTest is Setup {
         advanceEpochs(1); // Go to start of new epoch
         uint256 pps = vault.pricePerShare();
         (uint40 cycleEnd,,) = vault.rewardsCycleData();
-        uint256 nextEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + REWARDS_CYCLE_LENGTH;
+        uint256 nextEpochTs = vm.getBlockTimestamp() / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + REWARDS_CYCLE_LENGTH;
         vm.warp(nextEpochTs - 2 hours); // Go to end
         vault.syncRewardsAndDistribution();
         assertEq(vault.pricePerShare(), pps);
@@ -171,29 +170,13 @@ contract SreUSDTest is Setup {
         assertEq(vault.token(), address(vault));
     }
 
-    function test_PreviewSync() public {
-        /// TODO
-    }
-
-    function test_PreviewDistributeRewards() public {
-        /// TODO
-    }
-    
-    function test_RewardsBeforeDeposit() public {
-        /// TODO
-    }
-    
-    function test_MigrateFeeDepositAndFeeDepositController() public {
-        /// TODO
-    }
-
     function simulateFeesAndAdvanceEpoch(uint256 feeAmount) public {
         airdropAsset(address(feeDeposit), feeAmount);
         advanceEpochs(1);
     }
 
     function advanceEpochs(uint256 epochs) public {
-        uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH * epochs);
+        uint256 newEpochTs = vm.getBlockTimestamp() / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH * epochs);
         vm.warp(newEpochTs);
     }
 
@@ -202,8 +185,8 @@ contract SreUSDTest is Setup {
      * @return timestamp of the first timestamp which yield will begin streaming
      */
     function checkIfOnEpochEdge() public view returns (bool) {
-        uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH);
-        if(newEpochTs - block.timestamp < REWARDS_CYCLE_LENGTH / 40) return true;
+        uint256 newEpochTs = vm.getBlockTimestamp() / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH);
+        if(newEpochTs - vm.getBlockTimestamp() < REWARDS_CYCLE_LENGTH / 40) return true;
         return false;
     }
 

@@ -286,8 +286,15 @@ contract Setup is Test {
 
         vm.prank(address(core));
         registry.setFeeDeposit(address(feeDeposit));
-        uint256 maxdistro = 2e17 / uint256( 365 days );
-        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
+        stakedStable = new StakedReUSD(
+            address(core), 
+            address(registry), 
+            Constants.Mainnet.LAYERZERO_ENDPOINTV2, 
+            address(stablecoin), 
+            "Staked reUSD", 
+            "sreUSD", 
+            uint256(2e17) / 365 days // 20% apr max distribution rate
+        );
         vm.prank(address(core));
         registry.setAddress("SREUSD", address(stakedStable));
     }

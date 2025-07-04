@@ -25,7 +25,7 @@ contract SreUSDTest is Setup {
     IERC20 public asset;
 
     uint32 public constant REWARDS_CYCLE_LENGTH = 7 days;
-    uint256 public constant MAX_DISTRIBUTION_PER_SECOND_PER_ASSET = 1e18;
+    uint256 public constant MAX_DISTRIBUTION_PER_SECOND_PER_ASSET = uint256(2e17) / 365 days; // 20% apr max distribution rate;
     address[] public pairs;
 
     function setUp() public override {
@@ -179,7 +179,10 @@ contract SreUSDTest is Setup {
             }),
             timeElapsed
         );
-        
+        uint256 _maxDistribution = (
+            vault.maxDistributionPerSecondPerAsset() * timeElapsed * vault.storedTotalAssets()
+        ) / vault.PRECISION();
+        if (expectedRewards > _maxDistribution) expectedRewards = _maxDistribution; // Rewards are cap
         assertEq(actualRewards, expectedRewards);
         assertGt(vault.previewDistributeRewards(), 0);
         simulateFeesAndAdvanceEpoch(10e18);
@@ -212,7 +215,7 @@ contract SreUSDTest is Setup {
         advanceEpochs(1); // Go to start of new epoch
         uint256 pps = vault.pricePerShare();
         (uint40 cycleEnd,,) = vault.rewardsCycleData();
-        uint256 nextEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + REWARDS_CYCLE_LENGTH;
+        uint256 nextEpochTs = vm.getBlockTimestamp() / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + REWARDS_CYCLE_LENGTH;
         vm.warp(nextEpochTs - 2 hours); // Go to end
         vault.syncRewardsAndDistribution();
         assertEq(vault.pricePerShare(), pps);
@@ -264,7 +267,7 @@ contract SreUSDTest is Setup {
     }
 
     function advanceEpochs(uint256 epochs) public {
-        uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH * epochs);
+        uint256 newEpochTs = vm.getBlockTimestamp() / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH * epochs);
         vm.warp(newEpochTs);
     }
 
@@ -273,8 +276,8 @@ contract SreUSDTest is Setup {
      * @return timestamp of the first timestamp which yield will begin streaming
      */
     function checkIfOnEpochEdge() public view returns (bool) {
-        uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH);
-        if(newEpochTs - block.timestamp < REWARDS_CYCLE_LENGTH / 40) return true;
+        uint256 newEpochTs = vm.getBlockTimestamp() / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH);
+        if(newEpochTs - vm.getBlockTimestamp() < REWARDS_CYCLE_LENGTH / 40) return true;
         return false;
     }
 

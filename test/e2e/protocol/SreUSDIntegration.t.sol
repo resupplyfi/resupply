@@ -124,7 +124,6 @@ contract SreUSDIntegrationTest is PairTestBase {
     }
 
     function test_SreUSDYieldGeneration() public {
-        // Setup sreUSD deposits
         uint256 depositAmount = 1000e18;
         deal(address(asset), address(user1), depositAmount);
         vm.startPrank(address(user1));
