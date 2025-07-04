@@ -98,11 +98,6 @@ contract RetentionIncentives is CoreOwnable {
         _;
     }
 
-    function finalize() external onlyOwner{
-        isFinalized = true;
-        emit Finalize();
-    }
-
     function setRewardHandler(address _handler) external onlyOwner{
         require(_handler != address(0),"invalid address");
 
@@ -110,17 +105,16 @@ contract RetentionIncentives is CoreOwnable {
         emit SetRewardHandler(_handler);
     }
 
-    function setAddressBalances(address[] calldata _addressList, uint256[] calldata _balanceList) external onlyOwner{
+    //one time setter
+    function setAddressBalances(address[] calldata _addressList, uint256[] calldata _balanceList) external{
         require(!isFinalized, "finalized");
 
         uint256 tsupply = _totalSupply;
         uint256 length = _addressList.length;
         for(uint256 i; i < length; ){
-            uint256 prevBalance = _balances[_addressList[i]];
-            emit WeightSet(_addressList[i], prevBalance, _balanceList[i]);
+            emit WeightSet(_addressList[i], 0, _balanceList[i]);
 
             unchecked{
-                tsupply -= prevBalance;
                 originalBalanceOf[_addressList[i]] = _balanceList[i];
                 _balances[_addressList[i]] = _balanceList[i];
                 tsupply += _balanceList[i];
@@ -129,6 +123,9 @@ contract RetentionIncentives is CoreOwnable {
             }
         }
         _totalSupply = tsupply; //set supply
+
+        isFinalized = true;
+        emit Finalize();
     }
 
 
@@ -155,7 +152,7 @@ contract RetentionIncentives is CoreOwnable {
         uint256 rewardPerToken = rewardPerToken();
         rewardPerTokenStored = rewardPerToken;
         lastUpdateTime = lastTimeRewardApplicable();
-        
+
         if (_account != address(0)) {
             //first update earned rewards
             rewards[_account] = earned(_account);

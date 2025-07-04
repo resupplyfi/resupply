@@ -23,7 +23,7 @@ contract RetentionTest is Setup {
         super.setUp();
         asset = IERC20(address(stablecoin));
         
-        _loadRetentionData(true); // true to print values to console
+        _loadRetentionData(false); // true to print values to console
         //deploy retention
         retention = new RetentionIncentives(
             address(core),
@@ -31,24 +31,23 @@ contract RetentionTest is Setup {
             address(govToken),
             address(insurancePool)
         );
+        //set user balances
+        retention.setAddressBalances(retentionUsers, retentionAmounts);
 
         //deploy receiver
         receiver = new RetentionReceiver(
             address(core),
             address(registry),
             address(emissionsController),
-            address(retention)
+            address(retention),
+            34_255e18
         );
 
         // Setup new fee deposit controller
         vm.startPrank(address(core));
 
-        //set manager
+        //set reward manager
         retention.setRewardHandler(address(receiver));
-        retention.setAddressBalances(retentionUsers, retentionAmounts);
-
-        //finalize
-        retention.finalize();
 
         //set emission receiver and weights
         emissionsController.registerReceiver(address(receiver));
@@ -63,10 +62,10 @@ contract RetentionTest is Setup {
         receivers[2] = liqReceiverId;
         receivers[3] = retReceiverId;
         uint256[] memory weights = new uint256[](4);
-        weights[0] = 2000; //todo get finalized weighting
+        weights[0] = 1875;
         weights[1] = 2500;
         weights[2] = 5000;
-        weights[3] = 500; //todo get finalized weighting
+        weights[3] = 625;
         emissionsController.setReceiverWeights(receivers,weights);
 
         //treasury approval
@@ -75,9 +74,21 @@ contract RetentionTest is Setup {
         vm.stopPrank();
     }
 
-
     function test_totalEmissions() public {
-        //todo
+        uint256 startEpoch = receiver.getEpoch() + 1; //will begin the following epoch
+       for(uint256 i = 0; i < 53; i++){
+            advanceEpochs();
+        }
+        uint256 finalEpoch = receiver.getEpoch();
+        assertEq(finalEpoch - startEpoch, 52);
+        uint256 receiverDistributed = receiver.distributedRewards();
+        assertEq(receiverDistributed, receiver.MAX_REWARDS());
+        console.log("*** RETENTION PROGRAM FINISH ***");
+
+        //ensure new epochs still work and treasury grows
+        for(uint256 i = 0; i < 3; i++){
+            advanceEpochs();
+        }
     }
 
     function test_balanceChange() public {
@@ -93,10 +104,34 @@ contract RetentionTest is Setup {
         console.log("--------");
     }
 
+    function getNextEpochStart() internal view returns (uint256) {
+        // Calculate the next epoch boundary
+        uint256 nextEpochStart = (block.timestamp + REWARDS_CYCLE_LENGTH) / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH;
+        uint256 currentEpochStart = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH;
+        uint256 currentEpoch = block.timestamp / REWARDS_CYCLE_LENGTH;
+        uint256 nextEpoch = (block.timestamp + REWARDS_CYCLE_LENGTH) / REWARDS_CYCLE_LENGTH;
+        // console.log("------------- ", currentEpoch, " -------------");
+        // console.log("Current timestamp:", block.timestamp);
+        // console.log("Next epoch start:", nextEpochStart);
+        // console.log("Diff:", nextEpochStart - block.timestamp);
+        // console.log("Epoch length:", REWARDS_CYCLE_LENGTH);
+        // console.log("Current epoch start/end:", currentEpochStart, "-->", nextEpochStart);
+        return nextEpochStart;
+    }
 
-    function advanceEpochs(uint256 epochs) public {
-        uint256 newEpochTs = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH + (REWARDS_CYCLE_LENGTH * epochs);
-        vm.warp(newEpochTs);
+    function advanceEpochs() public {
+        vm.warp(getNextEpochStart());
+        uint256 receiverDistributedBefore = receiver.distributedRewards();
+        uint256 treasuryTokensBefore = govToken.balanceOf(address(treasury));
+        receiver.claimEmissions();
+        vestManager.claim(address(treasury));
+        console.log("--- advance epoch ----");
+        console.log("epoch: ", receiver.getEpoch());
+        uint256 receiverDistributed = receiver.distributedRewards();
+        uint256 treasuryTokens = govToken.balanceOf(address(treasury));
+        console.log("total distributed: ", receiverDistributed);
+        console.log("distributed change: ", receiverDistributed - receiverDistributedBefore);
+        console.log("treasury tokens change: ", treasuryTokens - treasuryTokensBefore);
     }
 
     // Helper function to deposit and return shares

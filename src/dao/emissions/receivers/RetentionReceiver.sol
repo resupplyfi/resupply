@@ -25,7 +25,7 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
     uint256 public lastEpoch;
 
 
-    constructor(address _core, address _registry, address _emissionsController, address _retentionRewards) 
+    constructor(address _core, address _registry, address _emissionsController, address _retentionRewards, uint256 _treasuryAllocation) 
         CoreOwnable(_core)
         EpochTracker(_core) 
     {
@@ -36,6 +36,7 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
 
         registry = IResupplyRegistry(_registry);
         retentionRewards = _retentionRewards;
+        treasuryAllocation = _treasuryAllocation;
 
         IERC20(govToken).approve(_retentionRewards, type(uint256).max);
     }
