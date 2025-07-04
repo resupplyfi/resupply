@@ -41,6 +41,10 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
         IERC20(govToken).approve(_retentionRewards, type(uint256).max);
     }
 
+    function setStartEpoch() external onlyOwner{
+        lastEpoch = getEpoch();
+    }
+
     function getReceiverId() external view returns (uint256 id) {
         id = emissionsController.receiverToId(address(this));
         if (id == 0) require(emissionsController.idToReceiver(id).receiver == address(this), "!registered");

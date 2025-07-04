@@ -71,17 +71,27 @@ contract RetentionTest is Setup {
         //treasury approval
         treasury.setTokenApproval(address(govToken), address(receiver), type(uint256).max);
 
+        receiver.setStartEpoch();
+
         vm.stopPrank();
     }
 
     function test_totalEmissions() public {
+
+        //claim fail until next epoch
+        vm.expectRevert();
+        receiver.claimEmissions();
+        uint256 receiverDistributed = receiver.distributedRewards();
+        //should not increase until next epoch
+        assertEq(receiverDistributed, 0);
+
         uint256 startEpoch = receiver.getEpoch() + 1; //will begin the following epoch
        for(uint256 i = 0; i < 53; i++){
             advanceEpochs();
         }
         uint256 finalEpoch = receiver.getEpoch();
         assertEq(finalEpoch - startEpoch, 52);
-        uint256 receiverDistributed = receiver.distributedRewards();
+        receiverDistributed = receiver.distributedRewards();
         assertEq(receiverDistributed, receiver.MAX_REWARDS());
         console.log("*** RETENTION PROGRAM FINISH ***");
 
@@ -92,8 +102,58 @@ contract RetentionTest is Setup {
     }
 
     function test_balanceChange() public {
-        //todo
+        //print balances
         printBalanceOfUser(retentionUsers[0]);
+
+        //deposit and redeposit
+        uint256 ipshares = insurancePool.balanceOf(retentionUsers[0]);
+        uint256 retshares = retention.balanceOf(retentionUsers[0]);
+        vm.startPrank(retentionUsers[0]);
+        insurancePool.exit();
+        skip(insurancePool.withdrawTime() + 1);
+
+        insurancePool.redeem(ipshares/2, retentionUsers[0], retentionUsers[0]);
+        console.log("redeem");
+        printBalanceOfUser(retentionUsers[0]);
+        assertEq(retshares, retention.balanceOf(retentionUsers[0])); // no change yet
+        
+        ipshares = insurancePool.balanceOf(retentionUsers[0]);
+        retention.user_checkpoint(retentionUsers[0]);
+        console.log("user_checkpoint");
+        printBalanceOfUser(retentionUsers[0]);
+        assertEq(ipshares, retention.balanceOf(retentionUsers[0])); // should now equal ip shares
+
+        stablecoin.approve(address(insurancePool), type(uint256).max);
+        insurancePool.deposit(stablecoin.balanceOf(retentionUsers[0]), retentionUsers[0]);
+        console.log("redeposit");
+        printBalanceOfUser(retentionUsers[0]);
+        retention.user_checkpoint(retentionUsers[0]);
+        console.log("user_checkpoint");
+        printBalanceOfUser(retentionUsers[0]);
+
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+
+        insurancePool.exit();
+        skip(insurancePool.withdrawTime() + 1);
+        printBalanceOfUser(retentionUsers[0]);
+        insurancePool.redeem(insurancePool.balanceOf(retentionUsers[0]), retentionUsers[0], retentionUsers[0]);
+        console.log("redeem all - earned grows until checkpoint");
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+        retention.user_checkpoint(retentionUsers[0]);
+        console.log("user_checkpoint");
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+        advanceEpochs();
+        printBalanceOfUser(retentionUsers[0]);
+
     }
 
     function printBalanceOfUser(address _account) public{
@@ -101,6 +161,7 @@ contract RetentionTest is Setup {
 
         console.log("IP balance: ", insurancePool.balanceOf(_account));
         console.log("retention balance: ", retention.balanceOf(_account));
+        console.log("earned balance: ", retention.earned(_account));
         console.log("--------");
     }
 
