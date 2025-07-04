@@ -1,5 +1,5 @@
 [profile.default]
-
+fork_block_number = 22826446
 # Project structure
 src = 'src'
 script = 'script'
@@ -54,6 +54,7 @@ build_info = false
 extra_output = []
 verbosity = 3
 isolate = true
+via_ir = false
 
 # Network configurations
 [rpc_endpoints]

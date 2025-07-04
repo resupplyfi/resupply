@@ -172,14 +172,6 @@ contract Setup is Test {
         );
         vm.stopPrank();
 
-        rateCalculator = new InterestRateCalculatorV2(
-            "V2",
-            2e16 / uint256(365 days),//2%
-            5e17,
-            1e17,
-            address(priceWatcher)
-        );
-
         oracle = new BasicVaultOracle("Basic Vault Oracle");
         underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
 
@@ -249,6 +241,13 @@ contract Setup is Test {
         vm.prank(address(core));
         registry.setAddress("REUSD_ORACLE", address(reUsdOracle));
         priceWatcher = new PriceWatcher(address(registry));
+        rateCalculator = new InterestRateCalculatorV2(
+            "V2", //suffix
+            2e16 / uint256(365 days), //2%
+            5e17, //rate ratio base
+            1e17, //rate ratio additional
+            address(priceWatcher) //price watcher
+        );
         vm.prank(address(core));
         registry.setAddress("PRICE_WATCHER", address(priceWatcher));
         feeLogger = new FeeLogger(address(core), address(registry));
@@ -259,10 +258,10 @@ contract Setup is Test {
         feeDepositController = new FeeDepositController(
             address(core), 
             address(registry),
-            200_000,
-            1000, 
-            500,
-            1500
+            200_000,    //max fee bonus ratio (1e6 = 100%)
+            1000,       //insurance split (in BPS)
+            500,        //treasury split (in BPS)
+            1500        //staked stable split (in BPS)
         );
         //attach fee deposit controller to fee deposit
         vm.prank(address(core));
@@ -411,16 +410,16 @@ contract Setup is Test {
         testPair2 = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_DEPRECATED), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID));
         
         //fraxlend
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD), address(0), uint256(0));
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SUSDE_FRXUSD), address(0), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), address(0), uint256(0));
+        // deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
+        // deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), address(0), uint256(0));
     }
 
     function deployCurvePools() public{

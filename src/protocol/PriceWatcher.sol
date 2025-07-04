@@ -97,6 +97,7 @@ contract PriceWatcher is CoreOwnable{
 
     function findPairPriceWeight(address _pair) external view returns(uint256){
         uint64 timestamp = uint64(block.timestamp);
+        
         //get pair's most recent timestamp on interest update
         (uint64 lastPairUpdate, ,) = IResupplyPair(_pair).currentRateInfo();
 
@@ -157,5 +158,10 @@ contract PriceWatcher is CoreOwnable{
         //at this point a price of 0.99000 has a weight of 0.010000 or 1e16
         //reduce precision to 1e6
         return uint64(weight / 1e10);
+    }
+
+    /// @notice Helper function to check if price watcher state data can be updated
+    function canUpdatePriceData() external view returns(bool){
+        return block.timestamp - latestPriceData().timestamp >= UPDATE_INTERVAL;
     }
 }

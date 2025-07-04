@@ -16,7 +16,7 @@ import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol"
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 
-contract sreUSDTest is Setup {
+contract SreUSDTest is Setup {
     StakedReUSD public vault;
     FeeLogger public feeLogger;
     PriceWatcher public priceWatcher;
