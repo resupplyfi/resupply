@@ -25,7 +25,7 @@ import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
-import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
+import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
@@ -82,7 +82,7 @@ contract Setup is Test {
     PermaStaker public permaStaker1;
     PermaStaker public permaStaker2;
     Stablecoin public stablecoin;
-    StakedReUSD public stakedStable;
+    SavingsReUSD public stakedStable;
     BasicVaultOracle public oracle;
     UnderlyingOracle public underlyingoracle;
     InterestRateCalculatorV2 public rateCalculator;
@@ -286,7 +286,7 @@ contract Setup is Test {
 
         vm.prank(address(core));
         registry.setFeeDeposit(address(feeDeposit));
-        stakedStable = new StakedReUSD(
+        stakedStable = new SavingsReUSD(
             address(core), 
             address(registry), 
             Constants.Mainnet.LAYERZERO_ENDPOINTV2, 

@@ -12,7 +12,7 @@ interface IPermastakerOperator {
     function createNewProposal(IVoter.Action[] calldata actions, string calldata description) external;
 }
 
-contract ProposeVote is TenderlyHelper, BaseAction {
+contract BurnBadDebt is TenderlyHelper, BaseAction {
     uint256 public constant AMOUNT = 6_000_000e18;
     address public constant deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
     address public constant voter = 0x11111111063874cE8dC6232cb5C1C849359476E6;

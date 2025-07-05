@@ -15,4 +15,5 @@ interface IRewardHandler{
     function insuranceEmissionReceiver() external view returns(address);
     function pairTimestamp(address _pair) external view returns(uint256);
     function minimumWeights(address _pair) external view returns(uint256);
+    function migrateState(address _oldRewardHandler, bool _migrateTimestamp, bool _migrateMinWeights) external;
 }
