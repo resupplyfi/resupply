@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
+import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/e2e/Setup.sol";
@@ -16,7 +16,7 @@ import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 
 contract SreUSDTest is Setup {
-    StakedReUSD public vault;
+    SavingsReUSD public vault;
     IERC20 public asset;
 
     uint32 public constant REWARDS_CYCLE_LENGTH = 7 days;

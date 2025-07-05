@@ -140,6 +140,12 @@ contract GuardianTest is Setup {
         assertEq(setRegistryAddress, false, "setRegistryAddress still set");
     }
 
+    function test_SetRegistryAddress() public {
+        vm.prank(dev);
+        guardian.setRegistryAddress("TEST", address(0x123));
+        assertEq(registry.getAddress("TEST"), address(0x123));
+    }
+
     function test_RecoverERC20() public {
         address token = address(stablecoin);
         address _guardian = guardian.guardian();
@@ -161,7 +167,6 @@ contract GuardianTest is Setup {
         );
     }
     
-
     function createSimpleProposal(address account) public returns (uint256) {
         IVoter.Action[] memory payload = new IVoter.Action[](1);
         payload[0] = IVoter.Action({

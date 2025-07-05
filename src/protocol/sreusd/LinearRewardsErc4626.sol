@@ -1,17 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.21;
-
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ======================== LinearRewardsErc4626 ======================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
+pragma solidity 0.8.28;
 
 import { ERC20, ERC4626 } from "src/libraries/solmate/ERC4626.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
@@ -20,9 +8,10 @@ import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 
-
-/// @title LinearRewardsErc4626
-/// @notice An ERC4626 Vault implementation with linear rewards
+/**
+ * @title LinearRewardsErc4626
+ * @notice An ERC4626 Vault implementation with linear rewards, adapted from code from Frax Finance's sfrxUSD
+ */
 abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     using SafeCastLib for *;
 
