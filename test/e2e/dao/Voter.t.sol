@@ -1,4 +1,5 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
@@ -17,25 +18,32 @@ contract VoterTest is Setup {
 
     function setUp() public override {
         super.setUp();
+
+        voter = new Voter(address(core), address(staker), 100, 3000, 10);
         
         MAX_PCT = voter.MAX_PCT();
-
-        // Create a mock protocol contract for us to test with
-        pair = new MockPair(address(core));
-
         // Transfer ownership of the core contract to the voter contract
         vm.prank(address(core));
         core.setVoter(address(voter));
 
         // Give user1 some stake so they can create a proposal + vote.
+        deal(address(govToken), user2, 1000e18);
         vm.prank(user1);
         staker.stake(user1, 100e18);
+        vm.startPrank(user2);
+        govToken.approve(address(staker), type(uint256).max);
+        staker.stake(user2, 100e18);
+        vm.stopPrank();
         skip(staker.epochLength() * 2); // We skip 2, so that the stake can be registered (first epoch) and finalized (second epoch).
+
+        // Create a mock protocol contract for us to test with
+        pair = new MockPair(address(core));
     }
 
     function test_createProposal() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
         uint256 epoch = voter.getEpoch(); // Current epoch is used for voting
+        uint256 nextId = voter.proposalCount();
 
         // String size: 408 bytes
         string memory longInvalidDescription = "here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats. here is a very long string that repeats.here is a very long string that repeats.";
@@ -53,7 +61,7 @@ contract VoterTest is Setup {
         vm.expectEmit(true, true, false, true);
         emit Voter.ProposalCreated(
             user1, 
-            0, 
+            nextId, 
             buildProposalData(5), 
             voter.getEpoch(), 
             quorumWeight
@@ -66,13 +74,12 @@ contract VoterTest is Setup {
         );
 
         assertEq(pair.value(), 0);
-        assertEq(voter.getProposalCount(), 1);
-        assertEq(proposalId, 0);
+        assertEq(voter.getProposalCount(), proposalId + 1);
     }
 
     function test_createProposalFor() public {
         uint256 proposalId = 69; // Set to a non-zero number to start with
-
+        uint256 nextId = voter.proposalCount();
         vm.expectRevert("!CallerOrDelegated");
         vm.prank(user2);
         proposalId = voter.createNewProposal(
@@ -92,8 +99,8 @@ contract VoterTest is Setup {
             "Test proposal"
         );
         assertEq(pair.value(), 0);
-        assertEq(voter.getProposalCount(), 1);
-        assertEq(proposalId, 0);
+        assertEq(voter.getProposalCount(), nextId + 1);
+        assertEq(proposalId, nextId);
         assertEq(voter.canExecute(proposalId), false);
     }
 
@@ -101,11 +108,14 @@ contract VoterTest is Setup {
         uint256 propId = createSimpleProposal();
         vm.prank(user1);
         voter.voteForProposal(user1, propId);
-        skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+        Voter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        vm.warp(proposal.executeAfter);
 
         assertEq(voter.canExecute(propId), true);
         voter.executeProposal(propId);
         assertEq(voter.canExecute(propId), false);
+        vm.expectRevert("Proposal cannot be executed");
+        voter.executeProposal(propId);
     }
 
     function test_voteForProposal() public {
@@ -133,31 +143,21 @@ contract VoterTest is Setup {
         voter.voteForProposal(user1, proposalId);
 
         vm.stopPrank();
-        
+        Voter.ProposalFullData memory proposal = voter.getProposalData(proposalId);
+
         assertEq(voter.quorumReached(proposalId), true);
         assertEq(voter.canExecute(proposalId), false);
-        skip(voter.VOTING_PERIOD());
+        vm.warp(proposal.endsAt);
         assertEq(voter.canExecute(proposalId), false);
         vm.expectRevert("Proposal cannot be executed");
         voter.executeProposal(proposalId);
-        skip(voter.EXECUTION_DELAY());
-
-        (
-            ,
-            uint256 _epoch,
-            uint256 _createdAt,
-            ,
-            uint256 _weightYes,
-            uint256 _weightNo,
-            bool _processed,
-            bool _executable,
-        ) = voter.getProposalData(proposalId);
-        assertEq(epoch, _epoch);
-        assertGt(_createdAt, 0);
-        assertGt(_weightYes, 0);
-        assertEq(_weightNo, 0);
-        assertEq(_processed, false);
-        assertEq(_executable, true);
+        vm.warp(proposal.executeAfter);
+        assertEq(epoch, proposal.epoch);
+        assertGt(proposal.createdAt, 0);
+        assertGt(proposal.weightYes, 0);
+        assertEq(proposal.weightNo, 0);
+        assertEq(proposal.processed, false);
+        assertEq(proposal.executable, false);
         assertEq(voter.canExecute(proposalId), true);
 
         vm.expectEmit(true, false, false, true);
@@ -173,16 +173,15 @@ contract VoterTest is Setup {
     }
 
     function test_cancelProposal() public {
-        bool _processed;
         vm.prank(user1);
         uint256 propId = voter.createNewProposal(user1, buildProposalData(5), "Test proposal");
-        (,,,,,,_processed,,) = voter.getProposalData(propId);
-        assertEq(_processed, false);
+        Voter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        assertEq(proposal.processed, false);
 
         vm.prank(address(core));
         voter.cancelProposal(propId);
-        (,,,,,,_processed,,) = voter.getProposalData(propId);
-        assertEq(_processed, true);
+        proposal = voter.getProposalData(propId);
+        assertEq(proposal.processed, true);
     }
 
     function test_CannotCancelProposalWithCancelerPayload() public {
@@ -211,9 +210,77 @@ contract VoterTest is Setup {
         voter.updateProposalDescription(propId, "New description");
         vm.prank(address(core));
         voter.updateProposalDescription(propId, "New description!");
-        (string memory _description,,,,,,,,) = voter.getProposalData(propId);
-        assertEq(_description, "New description!");
+        Voter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        assertEq(proposal.description, "New description!");
     }
+
+    function test_setDefaultDontAffectExistingProposals() public {
+        uint256 propId = createSimpleProposal();
+        vm.startPrank(address(core));
+        vm.expectRevert("Too low");
+        voter.setDefaultVotingPeriod(0);
+        vm.expectRevert("Too high");
+        voter.setDefaultVotingPeriod(1 weeks + 1);
+        vm.stopPrank();
+
+        vm.expectRevert("!core");
+        voter.setDefaultVotingPeriod(3 days);
+        vm.prank(address(core));
+        voter.setDefaultVotingPeriod(3 days);
+        vm.prank(address(core));
+        voter.setDefaultExecutionDelay(2 days);
+
+        // Ensure the default values don't affect existing proposals
+        Voter.ProposalFullData memory proposal = voter.getProposalData(propId);
+        assertNotEq(1 days, proposal.endsAt - proposal.createdAt);
+        assertNotEq(2 days, proposal.executeAfter - proposal.endsAt);
+    }
+
+    function test_FuzzSetExecutionDelay(uint256 _delay) public {
+        // Valid range: > 1 hours and <= 2 days
+        vm.startPrank(address(core));
+        if (_delay > 1 hours && _delay <= 2 days) {
+            // Valid range - should succeed
+            voter.setDefaultExecutionDelay(_delay);
+            assertEq(voter.defaultExecutionDelay(), _delay);
+        } else {
+            vm.expectRevert();
+            voter.setDefaultExecutionDelay(_delay);
+        }
+        vm.stopPrank();
+    }
+
+    function test_FuzzSetVotingPeriod(uint256 _period) public {
+        // Valid range: > 1 days and <= 1 weeks
+        vm.startPrank(address(core));
+        if (_period > 1 days && _period <= 1 weeks) {
+            voter.setDefaultVotingPeriod(_period);
+            assertEq(voter.defaultVotingPeriod(), _period);
+        } else {
+            vm.expectRevert();
+            voter.setDefaultVotingPeriod(_period);
+        }
+        vm.stopPrank();
+    }
+
+    function test_SetQuorumPct() public {
+        vm.expectRevert("!core");
+        voter.setQuorumPct(5000);
+
+        vm.startPrank(address(core));
+        voter.setQuorumPct(5000);
+
+        vm.expectRevert("Too low");
+        voter.setQuorumPct(0);
+
+        vm.expectRevert("Invalid value");
+        voter.setQuorumPct(MAX_PCT+1);
+        vm.stopPrank();
+    }
+
+    /// ----------------------------
+    /// Helper functions
+    /// ----------------------------
 
     function buildProposalData(uint256 _value) public view returns (Voter.Action[] memory) {
         Voter.Action[] memory payload = new Voter.Action[](1);
@@ -293,21 +360,6 @@ contract VoterTest is Setup {
 
         vm.expectRevert("Invalid value");
         voter.setMinCreateProposalPct(MAX_PCT+1);
-        vm.stopPrank();
-    }
-
-    function test_SetQuorumPct() public {
-        vm.expectRevert("!core");
-        voter.setQuorumPct(5000);
-
-        vm.startPrank(address(core));
-        voter.setQuorumPct(5000);
-
-        vm.expectRevert("Too low");
-        voter.setQuorumPct(0);
-
-        vm.expectRevert("Invalid value");
-        voter.setQuorumPct(MAX_PCT+1);
         vm.stopPrank();
     }
 

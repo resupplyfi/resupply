@@ -13,9 +13,9 @@ contract FeeLogger is CoreOwnable {
     mapping(uint256 => uint256) public epochInterestFees;
     mapping(uint256 => uint256) public epochTotalFees;
 
-    event UpdateEpochTotalFees(uint256 indexed epoch, uint256 fees);
-    event UpdateEpochInterestFees(uint256 indexed epoch, uint256 fees);
-    event UpdatePairEpochFees(address indexed pair, uint256 indexed epoch, uint256 fees);
+    event LoggedEpochTotalFees(uint256 indexed epoch, uint256 fees);
+    event LoggedEpochInterestFees(uint256 indexed epoch, uint256 fees);
+    event LoggedPairEpochFees(address indexed pair, uint256 indexed epoch, uint256 fees);
 
     constructor(
         address _core,
@@ -24,7 +24,7 @@ contract FeeLogger is CoreOwnable {
         registry = _registry;
     }
 
-    function updateTotalFees(uint256 _epoch, uint256 _amount) external{
+    function logTotalFees(uint256 _epoch, uint256 _amount) external{
         address feeDeposit = IResupplyRegistry(registry).feeDeposit();
         require(msg.sender == IFeeDeposit(feeDeposit).operator()
             || msg.sender == owner(), "!feeDepositOperator");
@@ -33,10 +33,10 @@ contract FeeLogger is CoreOwnable {
         //write total fees for epoch
         epochTotalFees[_epoch] = _amount;
 
-        emit UpdateEpochTotalFees(_epoch, _amount);
+        emit LoggedEpochTotalFees(_epoch, _amount);
     }
     
-    function updateInterestFees(address _pair, uint256 _epoch, uint256 _amount) external{
+    function logInterestFees(address _pair, uint256 _epoch, uint256 _amount) external{
         require(msg.sender == IResupplyRegistry(registry).rewardHandler()
             || msg.sender == owner(), "!rewardHandler");
 
@@ -47,7 +47,7 @@ contract FeeLogger is CoreOwnable {
         uint256 total = epochInterestFees[_epoch] + _amount;
         epochInterestFees[_epoch] = total;
 
-        emit UpdateEpochInterestFees(_epoch, total);
-        emit UpdatePairEpochFees(_pair, _epoch, _amount);
+        emit LoggedEpochInterestFees(_epoch, total);
+        emit LoggedPairEpochFees(_pair, _epoch, _amount);
     }
 }

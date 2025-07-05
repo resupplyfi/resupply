@@ -40,6 +40,7 @@ contract InterestRateCalculatorV2 is IRateCalculator {
         rateRatioBase = _rateRatioBase;
         rateRatioAdditional = _rateRatioAdditional;
         priceWatcher = _priceWatcher;
+        require(priceWatcher != address(0), "PriceWatcher must be set");
     }
 
     /// @notice The ```name``` function returns the name of the rate contract

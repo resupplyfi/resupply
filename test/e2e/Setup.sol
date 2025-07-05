@@ -25,19 +25,21 @@ import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
-import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
+import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
-import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
+import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
+import { ReusdOracle } from "src/protocol/ReusdOracle.sol";
+import { FeeLogger } from "src/protocol/FeeLogger.sol";
 
 // Incentive Contracts
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
@@ -80,10 +82,10 @@ contract Setup is Test {
     PermaStaker public permaStaker1;
     PermaStaker public permaStaker2;
     Stablecoin public stablecoin;
-    StakedReUSD public stakedStable;
+    SavingsReUSD public stakedStable;
     BasicVaultOracle public oracle;
     UnderlyingOracle public underlyingoracle;
-    InterestRateCalculator public rateCalculator;
+    InterestRateCalculatorV2 public rateCalculator;
     ResupplyPairDeployer public deployer;
     RedemptionHandler public redemptionHandler;
     LiquidationHandler public liquidationHandler;
@@ -105,6 +107,8 @@ contract Setup is Test {
     ResupplyPair public testPair2;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
+    ReusdOracle public reUsdOracle;
+    FeeLogger public feeLogger;
 
     constructor() {
         _THIS = address(this);
@@ -130,7 +134,6 @@ contract Setup is Test {
         registry.setRedemptionHandler(address(redemptionHandler));
         registry.setLiquidationHandler(address(liquidationHandler));
         registry.setInsurancePool(address(insurancePool));
-        registry.setFeeDeposit(address(feeDeposit));
         registry.setRewardHandler(address(rewardHandler));
         stablecoin.setOperator(address(registry), true);
         vm.stopPrank();
@@ -168,12 +171,6 @@ contract Setup is Test {
             bytes4(keccak256("collateralContract()")) // collateralLookupSig
         );
         vm.stopPrank();
-
-        rateCalculator = new InterestRateCalculator(
-            "Base",
-            2e16 / uint256(365 days),//2%
-            2
-        );
 
         oracle = new BasicVaultOracle("Basic Vault Oracle");
         underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
@@ -239,22 +236,36 @@ contract Setup is Test {
             address(stakingToken), 
             address(0)
         );
+
+        reUsdOracle = new ReusdOracle("ReUsdOracle");
+        vm.prank(address(core));
+        registry.setAddress("REUSD_ORACLE", address(reUsdOracle));
+        priceWatcher = new PriceWatcher(address(registry));
+        rateCalculator = new InterestRateCalculatorV2(
+            "V2", //suffix
+            2e16 / uint256(365 days), //2%
+            5e17, //rate ratio base
+            1e17, //rate ratio additional
+            address(priceWatcher) //price watcher
+        );
+        vm.prank(address(core));
+        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
+        feeLogger = new FeeLogger(address(core), address(registry));
+        vm.prank(address(core));
+        registry.setAddress("FEE_LOGGER", address(feeLogger));
+
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(
             address(core), 
             address(registry),
-            200_000,
-            1000, 
-            500,
-            1500
+            200_000,    //max fee bonus ratio (1e6 = 100%)
+            1000,       //insurance split (in BPS)
+            500,        //treasury split (in BPS)
+            1500        //staked stable split (in BPS)
         );
         //attach fee deposit controller to fee deposit
         vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
-
-        priceWatcher = new PriceWatcher(address(registry));
-        vm.prank(address(core));
-        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
 
         rewardHandler = new RewardHandler(
             address(core),
@@ -272,6 +283,20 @@ contract Setup is Test {
         debtReceiver.setApprovedClaimer(address(rewardHandler), true);
         insuranceEmissionsReceiver.setApprovedClaimer(address(rewardHandler), true);
         vm.stopPrank();
+
+        vm.prank(address(core));
+        registry.setFeeDeposit(address(feeDeposit));
+        stakedStable = new SavingsReUSD(
+            address(core), 
+            address(registry), 
+            Constants.Mainnet.LAYERZERO_ENDPOINTV2, 
+            address(stablecoin), 
+            "Staked reUSD", 
+            "sreUSD", 
+            uint256(2e17) / 365 days // 20% apr max distribution rate
+        );
+        vm.prank(address(core));
+        registry.setAddress("SREUSD", address(stakedStable));
     }
 
     function setInitialEmissionReceivers() public{
@@ -312,8 +337,6 @@ contract Setup is Test {
             "RSUP"
         );
         stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
-        uint256 maxdistro = 2e17 / uint256( 365 days );
-        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
@@ -325,7 +348,7 @@ contract Setup is Test {
         );
         assertEq(address(vestManager), vestManagerAddress);
         
-        voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
+        voter = new Voter(address(core), address(staker), 100, 3000, 10);
         stakingToken = govToken;
 
         vm.prank(address(core));
@@ -354,7 +377,6 @@ contract Setup is Test {
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));
         registry.setStaker(address(staker));
-        registry.setAddress("SREUSD", address(stakedStable));
         vm.stopPrank();
     }
 
@@ -395,16 +417,16 @@ contract Setup is Test {
         testPair2 = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
         deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_DEPRECATED), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
+        // deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID));
         
         //fraxlend
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD), address(0), uint256(0));
         deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SUSDE_FRXUSD), address(0), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), address(0), uint256(0));
+        // deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
+        // deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), address(0), uint256(0));
     }
 
     function deployCurvePools() public{

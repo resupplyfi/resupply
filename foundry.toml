@@ -1,5 +1,4 @@
 [profile.default]
-
 # Project structure
 src = 'src'
 script = 'script'

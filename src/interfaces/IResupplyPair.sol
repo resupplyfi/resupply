@@ -113,7 +113,7 @@ interface IResupplyPair {
 
     error BadSwapper(  );
     error BorrowerSolvent(  );
-    error FeesAlreadyDistributed(  );
+    error FeesAlreadyWithdrawn(  );
     error IncorrectStakeBalance(  );
     error Insolvent( uint256 _borrow,uint256 _collateral,uint256 _exchangeRate );
     error InsufficientBorrowAmount(  );
