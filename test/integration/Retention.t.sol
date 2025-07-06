@@ -97,7 +97,7 @@ contract RetentionTest is Setup {
         console.log("starting epoch: ", startEpoch);
        for(uint256 i = 0; i < 52; i++){
             advanceEpochs();
-        }f
+        }
         uint256 finalEpoch = receiver.getEpoch();
         assertEq(finalEpoch - startEpoch, 52);
         receiverDistributed = receiver.distributedRewards();
