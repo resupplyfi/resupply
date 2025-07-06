@@ -67,10 +67,8 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
 
         //pull from treasury
         address treasury = registry.treasury();
-        uint256 amountToPull = govToken.balanceOf(treasury);
         uint256 treasuryAllocation = treasuryAllocationPerEpoch * epochsSince;
-        amountToPull = treasuryAllocation > amountToPull ? amountToPull : treasuryAllocation;
-        govToken.safeTransferFrom(treasury, address(this), amountToPull);
+        govToken.safeTransferFrom(treasury, address(this), treasuryAllocation);
 
         //check cap
         amount = govToken.balanceOf(address(this));
