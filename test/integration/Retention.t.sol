@@ -224,7 +224,6 @@ contract RetentionTest is Setup {
 
     function printBalanceOfUser(address _account) public{
         console.log("----user balance----");
-
         console.log("IP balance: ", insurancePool.balanceOf(_account));
         console.log("retention balance: ", retention.balanceOf(_account));
         console.log("earned balance: ", retention.earned(_account));
