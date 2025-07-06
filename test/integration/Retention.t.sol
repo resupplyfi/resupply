@@ -165,8 +165,30 @@ contract RetentionTest is Setup {
 
     }
 
+    function test_UserClaim() public {
+        address user = retentionUsers[0];
+        receiver.claimEmissions();
+        vestManager.claim(address(treasury));
+        advanceEpochAndClaim();
+        uint256 userBalance = govToken.balanceOf(user);
+        uint256 userEarned = retention.earned(user);
+        uint256 retentionBalance = govToken.balanceOf(address(retention));
+        printBalanceOfUser(user);
+        assertGt(userEarned, 0, "User should have earned rewards");
+        vm.prank(user);
+        retention.getReward();
+        uint256 userBalance2 = govToken.balanceOf(user);
+        vm.prank(user);
+        retention.getReward();
+
+        assertGt(govToken.balanceOf(user), userBalance, "Balance should increase on claim");
+        assertEq(userBalance2, govToken.balanceOf(user), "Balance shouldnt increase on double claim");
+        assertEq(govToken.balanceOf(address(retention)), retentionBalance - userEarned, "Retention balance should decrease by user earned");
+        assertEq(retention.earned(user), 0, "User earned should be 0");
+    }
+
     function test_TreasuryIsIlliquid() public {
-        // 
+        // Should never revert if treasury is illiquid
         uint256 treasuryBalance = govToken.balanceOf(address(treasury));
         vm.prank(address(treasury));
         govToken.transfer(address(core), treasuryBalance);
