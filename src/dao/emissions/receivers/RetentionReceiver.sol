@@ -19,13 +19,14 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
     address public retentionRewards;
 
     uint256 public constant MAX_REWARDS = 2_500_000e18;
-    uint256 public immutable treasuryAllocation;
+    uint256 public treasuryWeeklyAllocation;
 
     uint256 public distributedRewards;
     uint256 public lastEpoch;
 
+    event TreasuryWeeklyAllocationSet(uint256 _treasuryWeeklyAllocation);
 
-    constructor(address _core, address _registry, address _emissionsController, address _retentionRewards, uint256 _treasuryAllocation) 
+    constructor(address _core, address _registry, address _emissionsController, address _retentionRewards, uint256 _treasuryWeeklyAllocation) 
         CoreOwnable(_core)
         EpochTracker(_core) 
     {
@@ -36,7 +37,7 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
 
         registry = IResupplyRegistry(_registry);
         retentionRewards = _retentionRewards;
-        treasuryAllocation = _treasuryAllocation;
+        treasuryWeeklyAllocation = _treasuryWeeklyAllocation;
 
         IERC20(govToken).approve(_retentionRewards, type(uint256).max);
     }
@@ -62,7 +63,9 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
 
         //pull from treasury
         address treasury = registry.treasury();
-        govToken.safeTransferFrom(treasury, address(this), treasuryAllocation);
+        uint256 amountToPull = govToken.balanceOf(treasury);
+        amountToPull = treasuryWeeklyAllocation > amountToPull ? amountToPull : treasuryWeeklyAllocation;
+        govToken.safeTransferFrom(treasury, address(this), amountToPull);
 
         //check cap
         amount = govToken.balanceOf(address(this));
@@ -87,6 +90,15 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
     function claimableEmissions() external view returns (uint256) {
         (, uint256 allocated) = emissionsController.allocated(address(this));
         return allocated;
+    }
+
+    function setTreasuryWeeklyAllocation(uint256 _treasuryWeeklyAllocation) external onlyOwner {
+        treasuryWeeklyAllocation = _treasuryWeeklyAllocation;
+        emit TreasuryWeeklyAllocationSet(_treasuryWeeklyAllocation);
+    }
+
+    function sweepERC20(address token) external onlyOwner {
+        IERC20(token).safeTransfer(registry.treasury(), IERC20(token).balanceOf(address(this)));
     }
 
 }

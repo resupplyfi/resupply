@@ -95,8 +95,8 @@ contract RetentionTest is Setup {
 
         uint256 startEpoch = receiver.getEpoch();
         console.log("starting epoch: ", startEpoch);
-       for(uint256 i = 0; i < 52; i++){
-            advanceEpochs();
+        for(uint256 i = 0; i < 52; i++){
+            advanceEpochAndClaim();
         }
         uint256 finalEpoch = receiver.getEpoch();
         assertEq(finalEpoch - startEpoch, 52);
@@ -106,7 +106,7 @@ contract RetentionTest is Setup {
 
         //ensure new epochs still work and treasury grows
         for(uint256 i = 0; i < 3; i++){
-            advanceEpochs();
+            advanceEpochAndClaim();
         }
     }
 
@@ -140,11 +140,11 @@ contract RetentionTest is Setup {
         console.log("user_checkpoint");
         printBalanceOfUser(retentionUsers[0]);
 
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
 
         insurancePool.exit();
@@ -152,17 +152,74 @@ contract RetentionTest is Setup {
         printBalanceOfUser(retentionUsers[0]);
         insurancePool.redeem(insurancePool.balanceOf(retentionUsers[0]), retentionUsers[0], retentionUsers[0]);
         console.log("redeem all - earned grows until checkpoint");
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
         retention.user_checkpoint(retentionUsers[0]);
         console.log("user_checkpoint");
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
-        advanceEpochs();
+        advanceEpochAndClaim();
         printBalanceOfUser(retentionUsers[0]);
 
+    }
+
+    function test_TreasuryIsIlliquid() public {
+        // 
+        uint256 treasuryBalance = govToken.balanceOf(address(treasury));
+        vm.prank(address(treasury));
+        govToken.transfer(address(core), treasuryBalance);
+        assertEq(govToken.balanceOf(address(treasury)), 0);
+
+        uint256 totalRewards = govToken.balanceOf(address(retention));
+        vm.warp(getNextEpochStart());
+        receiver.claimEmissions();
+        assertEq(govToken.balanceOf(address(treasury)), 0);
+        assertGt(govToken.balanceOf(address(retention)), totalRewards, "Retention rewards shouldve gone up");
+    }
+
+    function test_OverFlowIsNeverDistributed() public {
+        uint256 TOO_MANY_EPOCHS = 60;
+        for(uint256 i = 0; i < TOO_MANY_EPOCHS; i++){
+            advanceEpochAndClaim();
+        }
+        uint256 retentionBalance = govToken.balanceOf(address(retention));
+        console.log("Total RSUP distributed to retention: ", retentionBalance);
+        assertEq(govToken.balanceOf(address(receiver)), 0);
+        assertEq(retentionBalance, receiver.MAX_REWARDS(), "Retention rewards should be exactly max");
+    }
+
+    function test_setTreasuryWeeklyAllocation() public {
+        uint256 initialAllocation = receiver.treasuryWeeklyAllocation();
+        uint256 newAllocation = 50_000e18;
+        
+        // Test permissions
+        vm.expectRevert();
+        vm.prank(address(1));
+        receiver.setTreasuryWeeklyAllocation(newAllocation);
+        
+        // Call with owner
+        vm.prank(address(core));
+        vm.expectEmit(true, true, true, true);
+        emit RetentionReceiver.TreasuryWeeklyAllocationSet(newAllocation);
+        receiver.setTreasuryWeeklyAllocation(newAllocation);
+        assertEq(receiver.treasuryWeeklyAllocation(), newAllocation, "Allocation should be updated");
+        
+        // Test setting to zero
+        vm.prank(address(core));
+        receiver.setTreasuryWeeklyAllocation(0);
+        assertEq(receiver.treasuryWeeklyAllocation(), 0, "Allocation should be set to zero");
+
+        advanceEpochAndClaim();
+        
+        // Test large number
+        uint256 largeAllocation = 1_000_000e18;
+        vm.prank(address(core));
+        receiver.setTreasuryWeeklyAllocation(largeAllocation);
+        assertEq(receiver.treasuryWeeklyAllocation(), largeAllocation, "Allocation should handle large numbers");
+
+        advanceEpochAndClaim();
     }
 
     function printBalanceOfUser(address _account) public{
@@ -175,21 +232,10 @@ contract RetentionTest is Setup {
     }
 
     function getNextEpochStart() internal view returns (uint256) {
-        // Calculate the next epoch boundary
-        uint256 nextEpochStart = (block.timestamp + REWARDS_CYCLE_LENGTH) / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH;
-        uint256 currentEpochStart = block.timestamp / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH;
-        uint256 currentEpoch = block.timestamp / REWARDS_CYCLE_LENGTH;
-        uint256 nextEpoch = (block.timestamp + REWARDS_CYCLE_LENGTH) / REWARDS_CYCLE_LENGTH;
-        // console.log("------------- ", currentEpoch, " -------------");
-        // console.log("Current timestamp:", block.timestamp);
-        // console.log("Next epoch start:", nextEpochStart);
-        // console.log("Diff:", nextEpochStart - block.timestamp);
-        // console.log("Epoch length:", REWARDS_CYCLE_LENGTH);
-        // console.log("Current epoch start/end:", currentEpochStart, "-->", nextEpochStart);
-        return nextEpochStart;
+        return (vm.getBlockTimestamp() + REWARDS_CYCLE_LENGTH) / REWARDS_CYCLE_LENGTH * REWARDS_CYCLE_LENGTH;
     }
 
-    function advanceEpochs() public {
+    function advanceEpochAndClaim() public {
         vm.warp(getNextEpochStart());
         uint256 receiverDistributedBefore = receiver.distributedRewards();
         uint256 treasuryTokensBefore = govToken.balanceOf(address(treasury));
@@ -201,7 +247,9 @@ contract RetentionTest is Setup {
         uint256 treasuryTokens = govToken.balanceOf(address(treasury));
         console.log("total distributed: ", receiverDistributed);
         console.log("distributed change: ", receiverDistributed - receiverDistributedBefore);
-        console.log("treasury tokens change: ", treasuryTokens - treasuryTokensBefore);
+        if (treasuryTokens > treasuryTokensBefore) {
+            console.log("treasury tokens change: ", treasuryTokens - treasuryTokensBefore);
+        }
     }
 
     // Helper function to deposit and return shares
