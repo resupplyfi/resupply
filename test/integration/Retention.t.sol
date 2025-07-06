@@ -212,34 +212,34 @@ contract RetentionTest is Setup {
         assertEq(retentionBalance, receiver.MAX_REWARDS(), "Retention rewards should be exactly max");
     }
 
-    function test_setTreasuryWeeklyAllocation() public {
-        uint256 initialAllocation = receiver.treasuryWeeklyAllocation();
+    function test_setTreasuryAllocationPerEpoch() public {
+        uint256 initialAllocation = receiver.treasuryAllocationPerEpoch();
         uint256 newAllocation = 50_000e18;
         
         // Test permissions
         vm.expectRevert();
         vm.prank(address(1));
-        receiver.setTreasuryWeeklyAllocation(newAllocation);
+        receiver.setTreasuryAllocationPerEpoch(newAllocation);
         
         // Call with owner
         vm.prank(address(core));
         vm.expectEmit(true, true, true, true);
-        emit RetentionReceiver.TreasuryWeeklyAllocationSet(newAllocation);
-        receiver.setTreasuryWeeklyAllocation(newAllocation);
-        assertEq(receiver.treasuryWeeklyAllocation(), newAllocation, "Allocation should be updated");
+        emit RetentionReceiver.TreasuryAllocationPerEpochSet(newAllocation);
+        receiver.setTreasuryAllocationPerEpoch(newAllocation);
+        assertEq(receiver.treasuryAllocationPerEpoch(), newAllocation, "Allocation should be updated");
         
         // Test setting to zero
         vm.prank(address(core));
-        receiver.setTreasuryWeeklyAllocation(0);
-        assertEq(receiver.treasuryWeeklyAllocation(), 0, "Allocation should be set to zero");
+        receiver.setTreasuryAllocationPerEpoch(0);
+        assertEq(receiver.treasuryAllocationPerEpoch(), 0, "Allocation should be set to zero");
 
         advanceEpochAndClaim();
         
         // Test large number
         uint256 largeAllocation = 1_000_000e18;
         vm.prank(address(core));
-        receiver.setTreasuryWeeklyAllocation(largeAllocation);
-        assertEq(receiver.treasuryWeeklyAllocation(), largeAllocation, "Allocation should handle large numbers");
+        receiver.setTreasuryAllocationPerEpoch(largeAllocation);
+        assertEq(receiver.treasuryAllocationPerEpoch(), largeAllocation, "Allocation should handle large numbers");
 
         advanceEpochAndClaim();
     }

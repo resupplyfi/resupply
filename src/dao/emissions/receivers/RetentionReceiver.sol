@@ -19,14 +19,14 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
     address public retentionRewards;
 
     uint256 public constant MAX_REWARDS = 2_500_000e18;
-    uint256 public treasuryWeeklyAllocation;
+    uint256 public treasuryAllocationPerEpoch;
 
     uint256 public distributedRewards;
     uint256 public lastEpoch;
 
-    event TreasuryWeeklyAllocationSet(uint256 _treasuryWeeklyAllocation);
+    event TreasuryAllocationPerEpochSet(uint256 _treasuryAllocationPerEpoch);
 
-    constructor(address _core, address _registry, address _emissionsController, address _retentionRewards, uint256 _treasuryWeeklyAllocation) 
+    constructor(address _core, address _registry, address _emissionsController, address _retentionRewards, uint256 _treasuryAllocationPerEpoch) 
         CoreOwnable(_core)
         EpochTracker(_core) 
     {
@@ -37,7 +37,7 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
 
         registry = IResupplyRegistry(_registry);
         retentionRewards = _retentionRewards;
-        treasuryWeeklyAllocation = _treasuryWeeklyAllocation;
+        treasuryAllocationPerEpoch = _treasuryAllocationPerEpoch;
 
         IERC20(govToken).approve(_retentionRewards, type(uint256).max);
     }
@@ -53,7 +53,11 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
 
     function claimEmissions() external returns (uint256 amount) {
         //once per epoch
-        require(lastEpoch < getEpoch(),"!new epoch");
+        uint256 _lastEpoch = lastEpoch;
+        uint256 epochsSince;
+        if(_lastEpoch == 0) epochsSince = 1;
+        else epochsSince = getEpoch() - _lastEpoch;
+        require(epochsSince > 0,"!new epoch");
         lastEpoch = getEpoch();
 
         //pull from emissions
@@ -64,7 +68,8 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
         //pull from treasury
         address treasury = registry.treasury();
         uint256 amountToPull = govToken.balanceOf(treasury);
-        amountToPull = treasuryWeeklyAllocation > amountToPull ? amountToPull : treasuryWeeklyAllocation;
+        uint256 treasuryAllocation = treasuryAllocationPerEpoch * epochsSince;
+        amountToPull = treasuryAllocation > amountToPull ? amountToPull : treasuryAllocation;
         govToken.safeTransferFrom(treasury, address(this), amountToPull);
 
         //check cap
@@ -92,9 +97,9 @@ contract RetentionReceiver is CoreOwnable, EpochTracker {
         return allocated;
     }
 
-    function setTreasuryWeeklyAllocation(uint256 _treasuryWeeklyAllocation) external onlyOwner {
-        treasuryWeeklyAllocation = _treasuryWeeklyAllocation;
-        emit TreasuryWeeklyAllocationSet(_treasuryWeeklyAllocation);
+    function setTreasuryAllocationPerEpoch(uint256 _treasuryAllocationPerEpoch) external onlyOwner {
+        treasuryAllocationPerEpoch = _treasuryAllocationPerEpoch;
+        emit TreasuryAllocationPerEpochSet(_treasuryAllocationPerEpoch);
     }
 
     function sweepERC20(address token) external onlyOwner {
