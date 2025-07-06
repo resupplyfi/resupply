@@ -14,6 +14,7 @@ contract RetentionTest is Setup {
     RetentionReceiver public receiver;
 
     uint32 public constant REWARDS_CYCLE_LENGTH = 7 days;
+    uint256 public constant TREASURY_WEEKLY_ALLOCATION = 34_255e18;
     IERC20 public asset;
 
     address[] public retentionUsers;
@@ -40,7 +41,7 @@ contract RetentionTest is Setup {
             address(registry),
             address(emissionsController),
             address(retention),
-            34_255e18
+            TREASURY_WEEKLY_ALLOCATION
         );
 
         // Setup new fee deposit controller
@@ -71,24 +72,32 @@ contract RetentionTest is Setup {
         //treasury approval
         treasury.setTokenApproval(address(govToken), address(receiver), type(uint256).max);
 
-        receiver.setStartEpoch();
-
         vm.stopPrank();
     }
 
     function test_totalEmissions() public {
 
-        //claim fail until next epoch
+        vm.startPrank(address(core));
+        //test that claim fails until approval is set
+        treasury.setTokenApproval(address(govToken), address(receiver), 0);
         vm.expectRevert();
+        receiver.claimEmissions();
+
+        treasury.setTokenApproval(address(govToken), address(receiver), type(uint256).max);
+        vm.stopPrank();
+
+        //claim first epoch from treasaury only
         receiver.claimEmissions();
         uint256 receiverDistributed = receiver.distributedRewards();
         //should not increase until next epoch
-        assertEq(receiverDistributed, 0);
+        console.log("first week distribution: ", receiverDistributed);
+        assertEq(receiverDistributed, TREASURY_WEEKLY_ALLOCATION);
 
-        uint256 startEpoch = receiver.getEpoch() + 1; //will begin the following epoch
-       for(uint256 i = 0; i < 53; i++){
+        uint256 startEpoch = receiver.getEpoch();
+        console.log("starting epoch: ", startEpoch);
+       for(uint256 i = 0; i < 52; i++){
             advanceEpochs();
-        }
+        }f
         uint256 finalEpoch = receiver.getEpoch();
         assertEq(finalEpoch - startEpoch, 52);
         receiverDistributed = receiver.distributedRewards();
