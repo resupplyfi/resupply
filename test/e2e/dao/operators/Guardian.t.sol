@@ -81,18 +81,18 @@ contract GuardianTest is Setup {
     }
 
     function test_CancelProposal() public {
-        uint256 proposalId = 0;
-        (,,,bool processed,) = IVoter(address(voter)).proposalData(proposalId);
-        assertEq(processed, false);
+        uint256 proposalId = voter.proposalCount() - 1;
+        IVoter.ProposalFullData memory proposal = IVoter(address(voter)).getProposalData(proposalId);
+        assertEq(proposal.processed, false);
 
         vm.prank(address(0xBABE));
         vm.expectRevert("!guardian");
-        guardian.cancelProposal(0);
+        guardian.cancelProposal(proposalId);
 
         vm.prank(dev);
         guardian.cancelProposal(proposalId);
-        (,,,processed,) = IVoter(address(voter)).proposalData(proposalId);
-        assertEq(processed, true);
+        proposal = IVoter(address(voter)).getProposalData(proposalId);
+        assertEq(proposal.processed, true);
     }
 
     function test_VoterRevert() public {
@@ -140,6 +140,12 @@ contract GuardianTest is Setup {
         assertEq(setRegistryAddress, false, "setRegistryAddress still set");
     }
 
+    function test_SetRegistryAddress() public {
+        vm.prank(dev);
+        guardian.setRegistryAddress("TEST", address(0x123));
+        assertEq(registry.getAddress("TEST"), address(0x123));
+    }
+
     function test_RecoverERC20() public {
         address token = address(stablecoin);
         address _guardian = guardian.guardian();
@@ -161,7 +167,6 @@ contract GuardianTest is Setup {
         );
     }
     
-
     function createSimpleProposal(address account) public returns (uint256) {
         IVoter.Action[] memory payload = new IVoter.Action[](1);
         payload[0] = IVoter.Action({
