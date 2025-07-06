@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-/**
- *Submitted for verification at Etherscan.io on 2020-07-17
- */
-
 /*
    ____            __   __        __   _
   / __/__ __ ___  / /_ / /  ___  / /_ (_)__ __
@@ -67,6 +63,7 @@ contract RetentionIncentives is CoreOwnable {
     uint256 public queuedRewards;
     uint256 public currentRewards;
     uint256 public historicalRewards;
+    address public operator;
 
     bool public isFinalized;
     address public rewardHandler;
@@ -98,6 +95,11 @@ contract RetentionIncentives is CoreOwnable {
         _;
     }
 
+    modifier onlyOperator() {
+        require(msg.sender == owner() || msg.sender == operator, "!operator");
+        _;
+    }
+
     function setRewardHandler(address _handler) external onlyOwner{
         require(_handler != address(0),"invalid address");
 
@@ -106,15 +108,19 @@ contract RetentionIncentives is CoreOwnable {
     }
 
     //one time setter
-    function setAddressBalances(address[] calldata _addressList, uint256[] calldata _balanceList) external{
+    function setAddressBalances(address[] calldata _addressList, uint256[] calldata _balanceList) external {
         require(!isFinalized, "finalized");
 
-        uint256 tsupply = _totalSupply;
+        uint256 tsupply;
+        require(_totalSupply == 0, "!tsupply");
         uint256 length = _addressList.length;
+        require(length == _balanceList.length, "!length");
+        
         for(uint256 i; i < length; ){
             emit WeightSet(_addressList[i], 0, _balanceList[i]);
 
             unchecked{
+                require(originalBalanceOf[_addressList[i]] == 0, "!duplicate");
                 originalBalanceOf[_addressList[i]] = _balanceList[i];
                 _balances[_addressList[i]] = _balanceList[i];
                 tsupply += _balanceList[i];
@@ -161,6 +167,7 @@ contract RetentionIncentives is CoreOwnable {
             //update balances by looking at insurance pool
             uint256 ipShares = IInsurancePool(insurancePool).balanceOf(_account);
             uint256 currentBalance = _balances[_account];
+            
             if(ipShares < currentBalance){
                 emit WeightSet(_account, currentBalance, ipShares);
 
@@ -170,8 +177,8 @@ contract RetentionIncentives is CoreOwnable {
             }
         }
     }
-
-    function checkpoint_multiple(address[] calldata _accounts) external{
+    
+    function checkpoint_multiple(address[] calldata _accounts) external onlyOperator {
 
         uint256 length = _accounts.length;
         for(uint256 i; i < length; ){
