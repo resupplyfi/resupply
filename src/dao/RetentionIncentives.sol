@@ -199,7 +199,7 @@ contract RetentionIncentives is CoreOwnable {
     }
 
     //checkpoint a given user
-    function user_checkpoint(address _account) public updateReward(_account){
+    function user_checkpoint(address _account) public updateReward(_account) onlyOperator {
 
     }
 
