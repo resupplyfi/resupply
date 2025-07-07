@@ -75,7 +75,7 @@ contract RetentionIncentives is CoreOwnable {
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
     mapping(address => uint256) private _balances;
-    mapping(address => uint256) private originalBalanceOf;
+    mapping(address => uint256) public originalBalanceOf;
     mapping(address => address) public rewardRedirect;
     
     event RewardAdded(uint256 reward);
