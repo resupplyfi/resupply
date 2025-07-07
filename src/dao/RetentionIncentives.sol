@@ -82,6 +82,7 @@ contract RetentionIncentives is CoreOwnable {
 
     event Finalize();
     event SetRewardHandler(address indexed handler);
+    event SetOperator(address indexed operator);
 
     constructor(address _core, address _registry, address _rewardToken, address _insurancePool) CoreOwnable(_core){
         registry = _registry;
@@ -105,6 +106,13 @@ contract RetentionIncentives is CoreOwnable {
 
         rewardHandler = _handler;
         emit SetRewardHandler(_handler);
+    }
+
+    function setOperator(address _operator) external onlyOwner{
+        require(_operator != address(0),"!zeroaddress");
+
+        operator = _operator;
+        emit SetOperator(_operator);
     }
 
     //one time setter
