@@ -8,7 +8,7 @@ import { DeploymentConfig } from "src/Constants.sol";
 // DAO Contracts
 import { Test } from "lib/forge-std/src/Test.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
@@ -54,9 +54,12 @@ import { ISimpleReceiverFactory } from "src/interfaces/ISimpleReceiverFactory.so
 
 // Others
 import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 
 
 contract Setup is Test {
+    using SafeERC20 for IERC20;
     address public user = address(0x1);
     ICore public core = ICore(Protocol.CORE);
     IGovStaker public staker = IGovStaker(Protocol.GOV_STAKER);
@@ -85,6 +88,7 @@ contract Setup is Test {
     ISimpleReceiverFactory public receiverFactory = ISimpleReceiverFactory(Protocol.SIMPLE_RECEIVER_FACTORY);
     ISimpleReceiver public debtReceiver = ISimpleReceiver(Protocol.DEBT_RECEIVER);
     ISimpleReceiver public insuranceEmissionsReceiver = ISimpleReceiver(Protocol.INSURANCE_POOL_RECEIVER);
+    ISimpleReceiver public liquidityEmissionsReceiver = ISimpleReceiver(Protocol.LIQUIDITY_INCENTIVES_RECEIVER);
     ISwapper public defaultSwapper = ISwapper(Protocol.SWAPPER);
     IERC20 public frxusdToken = IERC20(Mainnet.FRXUSD_ERC20);
     IERC20 public crvusdToken = IERC20(Mainnet.CRVUSD_ERC20);
@@ -101,4 +105,18 @@ contract Setup is Test {
     constructor() {}
 
     function setUp() public virtual {}
+
+    function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
+        deal(address(scrvusd), address(this), _amountIn);
+        IERC20(address(scrvusd)).forceApprove(address(swapPoolsCrvUsd), type(uint256).max);
+        ICurveExchange(address(swapPoolsCrvUsd)).exchange(0,1, _amountIn, 0, address(this));
+        _newprice = ICurveExchange(address(swapPoolsCrvUsd)).get_dy(0, 1, 100e18);
+    }
+
+    function sellReUSD(uint256 _amountIn) public returns(uint256 _newprice){
+        deal(address(stablecoin), address(this), _amountIn);
+        IERC20(address(stablecoin)).forceApprove(address(swapPoolsCrvUsd), type(uint256).max);
+        ICurveExchange(address(swapPoolsCrvUsd)).exchange(1,0, _amountIn, 0, address(this));
+        _newprice = ICurveExchange(address(swapPoolsCrvUsd)).get_dy(0, 1, 100e18);
+    }
 }

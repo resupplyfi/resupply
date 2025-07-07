@@ -14,7 +14,10 @@ interface IEmissionsController {
     function receiverToId(address receiver) external view returns (uint256);
     function idToReceiver(uint256 id) external view returns (Receiver memory);
     function allocated(address receiver) external view returns (uint256, uint256);
-
+    function setReceiverWeights(uint256[] memory _receiverIds, uint256[] memory _newWeights) external;
+    function registerReceiver(address _receiver) external;
+    function nextReceiverId() external view returns (uint256);
+    
     // State-changing functions
     function fetchEmissions() external returns (uint256);
     function setEmissionsSplits(uint256 _amount) external;
