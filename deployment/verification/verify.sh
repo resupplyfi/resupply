@@ -23,8 +23,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Iterate through contracts using index
-for i in $(seq 0 $((num_contracts-1))); do
+# Iterate through contracts backwards (most recent first)
+for i in $(seq $((num_contracts-1)) -1 0); do
     # Extract contract information using specific index
     name=$(jq -r ".contracts[$i].name" "$VERIFICATION_JSON")
     address=$(jq -r ".contracts[$i].address" "$VERIFICATION_JSON")

@@ -23,6 +23,7 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     uint256[] public retentionAmounts;
 
     uint256 public constant TREASURY_WEEKLY_ALLOCATION = 34_255e18;
+    uint256 public constant FINAL_SUPPLY = 38297485116207462898268702;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -33,7 +34,15 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
 
         RetentionIncentives incentives = RetentionIncentives(retention);
         //set user balances
-        incentives.setAddressBalances(retentionUsers, retentionAmounts);
+        addToBatch(
+            address(incentives), 
+            abi.encodeWithSelector(incentives.setAddressBalances.selector, 
+                retentionUsers, 
+                retentionAmounts
+            )
+        );
+        require(incentives.isFinalized(), "incentives not finalized");
+        require(incentives.totalSupply() == FINAL_SUPPLY, "incentives total supply not correct");
 
         deployReceiver(retention);
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
