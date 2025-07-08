@@ -8,6 +8,8 @@ interface IResupplyPairDeployer {
     error ProtocolNameTooLong();
     error ProtocolNotFound();
     error WhitelistedDeployersOnly();
+    error NotEnoughSharesBurned();
+
     event LogDeploy(
         address indexed address_,
         address indexed collateral,
@@ -23,7 +25,8 @@ interface IResupplyPairDeployer {
         bytes4 borrowTokenSig,
         bytes4 collateralTokenSig
     );
-    event ShareBurnerUpdated(address indexed _shareBurner, uint256 _minShareBurnAmount);
+    event ShareBurnSettingsUpdated(uint256 _amountToBurn, uint256 _minShareBurnAmount);
+    event OperatorSet(address indexed _operator, bool _approved);
 
     function addSupportedProtocol(
         string memory _protocolName,
@@ -81,6 +84,8 @@ interface IResupplyPairDeployer {
 
     function registry() external view returns (address);
 
+    function deployedPairs(address _pairAddress) external view returns (bool);
+
     function setCreationCode(bytes memory _creationCode) external;
 
     function supportedProtocols(uint256)
@@ -94,8 +99,8 @@ interface IResupplyPairDeployer {
 
     function supportedProtocolsLength() external view returns (uint256);
     function getBorrowAndCollateralTokens(uint256 _protocolId, address _collateral) external view returns (address _borrowToken, address _collateralToken);
-    
-    function setShareBurner(address _shareBurner, uint256 _minShareBurnAmount) external;
+
+    function setShareBurnSettings(uint256 _amountToBurn, uint256 _minShareBurnAmount) external;
 
     function updateSupportedProtocol(
         uint256 protocolId,

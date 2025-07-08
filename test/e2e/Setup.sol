@@ -22,7 +22,6 @@ import { VestManager } from "src/dao/tge/VestManager.sol";
 import { Treasury } from "src/dao/Treasury.sol";
 import { PermaStaker } from "src/dao/tge/PermaStaker.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
-import { ShareBurner } from "src/protocol/misc/ShareBurner.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
@@ -110,7 +109,6 @@ contract Setup is Test {
     ResupplyPair public testPair2;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
-    ShareBurner public shareBurner;
     FeeLogger public feeLogger;
     ReusdOracle public reusdOracle;
     
@@ -124,7 +122,6 @@ contract Setup is Test {
         deployProtocolContracts();
         deployRewardsContracts();
         setInitialEmissionReceivers();
-        _setOperatorPermissions(); // Needed for the deployer to be able to add pairs to the registry
         deployCurvePools();
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
@@ -154,16 +151,15 @@ contract Setup is Test {
         vm.label(address(treasury), "Treasury");
     }
 
-    function deployProtocolContracts() public {
-        shareBurner = new ShareBurner();
-        deal(address(shareBurner.crvusd()), address(shareBurner), 100e18);
-        deal(address(shareBurner.frxusd()), address(shareBurner), 100e18);
+    function deployProtocolContracts() public {        
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
-            address(shareBurner)
+            address(core)
         );
+        deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
+        deal(address(Constants.Mainnet.SFRXUSD_ERC20), address(deployer), 100e18);
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
@@ -393,7 +389,8 @@ contract Setup is Test {
             _stakingId
         );
         vm.stopPrank();
-
+        vm.prank(address(core));
+        registry.addPair(_pairAddress);
         p = ResupplyPair(_pairAddress);
         // ensure default state is written
         assertGt(p.minimumBorrowAmount(), 0);
@@ -595,16 +592,5 @@ contract Setup is Test {
         schedule[3] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_2;
         schedule[4] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_1;
         return schedule;
-    }
-
-    function _setOperatorPermissions() internal {
-        vm.prank(address(core));
-        core.setOperatorPermissions(
-            address(deployer), // caller
-            address(registry), // target
-            IResupplyRegistry.addPair.selector, // selector
-            true,
-            IAuthHook(address(0))
-        );
     }
 }

@@ -7,13 +7,13 @@ pragma solidity 0.8.28;
  */
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "src/libraries/SafeERC20.sol";
-import { IShareBurner } from "src/interfaces/IShareBurner.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 
@@ -24,9 +24,11 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
-    IShareBurner public shareBurner;
     uint256 public minShareBurnAmount = 1e17;
+    uint256 public amountToBurn = 1e18;
     Protocol[] public supportedProtocols;
+    mapping(address => bool) public operators;
+    mapping(address => bool) public deployedPairs;
     mapping(
         uint256 protocolId => mapping(
         address borrowToken => mapping(
@@ -68,12 +70,19 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes customConfigData
     );
 
-    event ShareBurnerUpdated(address indexed _shareBurner, uint256 _minShareBurnAmount);
+    event ShareBurnSettingsUpdated(uint256 _amountToBurn, uint256 _minShareBurnAmount);
+    event OperatorSet(address indexed _operator, bool _approved);
 
-    constructor(address _core, address _registry, address _govToken, address _shareBurner) CoreOwnable(_core){
+    modifier onlyOperator() {
+        if(!operators[msg.sender]) revert WhitelistedDeployersOnly();
+        _;
+    }
+
+    constructor(address _core, address _registry, address _govToken, address _initialOperator) CoreOwnable(_core){
         registry = _registry;
         govToken = _govToken;
-        shareBurner = IShareBurner(_shareBurner);
+        _setOperator(_initialOperator, true);
+        _setOperator(address(core), true);
         address _previousPairDeployer = IResupplyRegistry(registry).getAddress("DEPLOYER");
         if(_previousPairDeployer != address(0)) {
             _migrateState(_previousPairDeployer);
@@ -193,6 +202,15 @@ contract ResupplyPairDeployer is CoreOwnable {
         return length;
     }
 
+    function setOperator(address _operator, bool _approved) external onlyOwner {
+        _setOperator(_operator, _approved);
+    }
+
+    function _setOperator(address _operator, bool _approved) internal {
+        operators[_operator] = _approved;
+        emit OperatorSet(_operator, _approved);
+    }
+
     function updateSupportedProtocol(
         uint256 protocolId,
         string memory _protocolName,
@@ -209,10 +227,10 @@ contract ResupplyPairDeployer is CoreOwnable {
         return protocolId;
     }
 
-    function setShareBurner(address _shareBurner, uint256 _minShareBurnAmount) external onlyOwner {
-        shareBurner = IShareBurner(_shareBurner);
+    function setShareBurnSettings(uint256 _amountToBurn, uint256 _minShareBurnAmount) external onlyOwner {
+        amountToBurn = _amountToBurn;
         minShareBurnAmount = _minShareBurnAmount;
-        emit ShareBurnerUpdated(_shareBurner, _minShareBurnAmount);
+        emit ShareBurnSettingsUpdated(_amountToBurn, _minShareBurnAmount);
     }
 
     function platformNameById(
@@ -264,6 +282,13 @@ contract ResupplyPairDeployer is CoreOwnable {
         return _pairAddress;
     }
 
+    function _burnShares(address _borrowToken, address _collateral, uint256 amountToBurn) internal {
+        IERC20(_borrowToken).approve(address(_collateral), amountToBurn);
+        IERC4626(_collateral).deposit(amountToBurn, address(this));
+        uint256 _balance = IERC20(_collateral).balanceOf(address(this));
+        if(_balance < minShareBurnAmount) revert NotEnoughSharesBurned();
+    }
+
     // Migrate state from previous pair deployer
     function _migrateState(address _previousPairDeployer) internal {
         IResupplyPairDeployer _deployer = IResupplyPairDeployer(_previousPairDeployer);
@@ -295,6 +320,7 @@ contract ResupplyPairDeployer is CoreOwnable {
                 (address _borrowToken, address _collateralToken) = getBorrowAndCollateralTokens(k, _collateral);
                 if(_borrowToken != address(0) && _collateralToken != address(0)){
                     collateralId[k][_borrowToken][_collateralToken] = _deployer.collateralId(k, _borrowToken, _collateralToken);
+                    break;
                 }
             }
         }
@@ -311,7 +337,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @param _underlyingStaking The address of the underlying staking contract
     /// @param _underlyingStakingId The ID of the underlying staking contract
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external onlyOwner returns (address _pairAddress) {
+    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external onlyOperator returns (address _pairAddress) {
         (address _collateral,,,,,,,) = abi.decode(
             _configData,
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
@@ -324,20 +350,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
-
+        deployedPairs[_pairAddress] = true;
         emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
 
-        _addPairToRegistry(_pairAddress);
-        address _shareBurner = address(shareBurner);
-        if (_shareBurner != address(0)) {
-            shareBurner.burn();
-            uint256 _balance = IERC20(_collateral).balanceOf(_shareBurner);
-            require(_balance > minShareBurnAmount, "Not enough shares burned");
-        }
-    }
-
-    function _addPairToRegistry(address _pairAddress) internal {
-        core.execute(address(registry), abi.encodeWithSelector(IResupplyRegistry.addPair.selector, _pairAddress));
+        // Burn shares
+        _burnShares(_borrowToken, _collateral, amountToBurn);
     }
 
     /// @notice Returns the deterministic address of a pair that would be deployed with the given parameters
@@ -389,4 +406,5 @@ contract ResupplyPairDeployer is CoreOwnable {
     error ProtocolNameEmpty();
     error ProtocolNameTooLong();
     error ProtocolAlreadyExists();
+    error NotEnoughSharesBurned();
 }

@@ -30,7 +30,6 @@ import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
-import { IShareBurner } from "src/interfaces/IShareBurner.sol";
 
 // Protocol Contracts
 import { IStablecoin } from "src/interfaces/IStablecoin.sol";
@@ -102,11 +101,12 @@ contract Setup is Test {
     IERC20 public sfrxusd = IERC20(Mainnet.SFRXUSD_ERC20);
     IERC20 public scrvusd = IERC20(Mainnet.SCRVUSD_ERC20);
     address public lzEndpoint = address(Mainnet.LAYERZERO_ENDPOINTV2);
-    IShareBurner public shareBurner = IShareBurner(Protocol.SHARE_BURNER);
 
     constructor() {}
 
-    function setUp() public virtual {}
+    function setUp() public virtual {
+        
+    }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
         deal(address(scrvusd), address(this), _amountIn);

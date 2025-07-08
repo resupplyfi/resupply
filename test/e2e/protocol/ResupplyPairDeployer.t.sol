@@ -94,7 +94,7 @@ contract ResupplyPairDeployerTest is Setup {
 
     function test_DeployPermissions(address _deployer) public {
         ResupplyPair pair;
-        vm.expectRevert("!core");
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.WhitelistedDeployersOnly.selector));
         pair = _deployPairAs(
             _deployer,
             0,
@@ -111,6 +111,23 @@ contract ResupplyPairDeployerTest is Setup {
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertNotEq(address(pair), address(0));
+    }
+
+    function test_SetShareBurnSettings() public {
+        vm.expectRevert();
+        deployer.setShareBurnSettings(1e18, 1e17);
+
+        vm.prank(address(core));
+        deployer.setShareBurnSettings(1e18, 1e22);
+
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.NotEnoughSharesBurned.selector));
+        _deployPairAs(
+            address(core),
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            Mainnet.CONVEX_BOOSTER,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
     }
 
     function _deployPairAs(address _deployer, uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal returns(ResupplyPair){
@@ -130,6 +147,10 @@ contract ResupplyPairDeployerTest is Setup {
             _staking,
             _stakingId
         );
+        if(_pairAddress != address(0)) {
+            vm.prank(address(core));
+            registry.addPair(_pairAddress);
+        }
         return ResupplyPair(_pairAddress);
     }
 
