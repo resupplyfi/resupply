@@ -37,7 +37,7 @@ contract SetRedemptionFeeShare is BaseAction {
         uint256 prevProtocolRedemptionFee;
         uint256 newProtocolRedemptionFee = 0.2e18;
         for (uint256 i = 0; i < pairs.length; i++) {
-            // IResupplyPair(pairs[i]).setProtocolRedemptionFee(address(calcv2),true);
+            // IResupplyPair(pairs[i]).setProtocolRedemptionFee(newProtocolRedemptionFee);
             prevProtocolRedemptionFee = IResupplyPair(pairs[i]).protocolRedemptionFee();
             actions[i] = IVoter.Action({
                 target: pairs[i],
