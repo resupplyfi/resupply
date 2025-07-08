@@ -455,7 +455,7 @@
       "name": "RetentionIncentives",
       "address": "0xB9415639618e70aBb71A0F4F8bbB2643Bf337892",
       "constructorArgs": {
-        "types": ["address", "address"],
+        "types": ["address", "address", "address", "address"],
         "values": [
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x10101010E0C3171D894B71B3400668aF311e7D94",
@@ -468,13 +468,13 @@
       "name": "RetentionReceiver",
       "address": "0x6E7D5dade33f76F480EA38E3c47f870de74906F1",
       "constructorArgs": {
-        "types": ["address", "address"],
+        "types": ["address", "address", "address", "address", "uint256"],
         "values": [
           "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
           "0x10101010E0C3171D894B71B3400668aF311e7D94",
           "0x33333333df05b0D52edD13D230461E5A0f5a4706",
           "0xB9415639618e70aBb71A0F4F8bbB2643Bf337892",
-          "34255000000000000000000"
+          34255000000000000000000
         ]
       }
     }
