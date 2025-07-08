@@ -16,7 +16,6 @@ interface IPermastakerOperator {
 
 contract SetRedemptionFeeShare is BaseAction {
     address public constant deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
-    uint256 public constant TREASURY_WEEKLY_ALLOCATION = 34_255e18;
     IPermastakerOperator public constant PERMA_STAKER_OPERATOR = IPermastakerOperator(0x3419b3FfF84b5FBF6Eec061bA3f9b72809c955Bf);
     address[] public pairs;
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
