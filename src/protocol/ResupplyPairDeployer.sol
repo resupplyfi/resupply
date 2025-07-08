@@ -81,7 +81,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     }
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
-        return (1, 0, 0);
+        return (1, 1, 0);
     }
 
     // ============================================================================================
@@ -266,7 +266,6 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     // Migrate state from previous pair deployer
     function _migrateState(address _previousPairDeployer) internal {
-        if (_previousPairDeployer == address(0)) return;
         IResupplyPairDeployer _deployer = IResupplyPairDeployer(_previousPairDeployer);
         contractAddress1 = _deployer.contractAddress1();
         contractAddress2 = _deployer.contractAddress2();
@@ -306,6 +305,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
+    /// @dev Each deployment also registers the pair in the registry, activating the specified borrow limit.
     /// @param _protocolId The ID of the supported protocol
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _initialBorrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
     /// @param _underlyingStaking The address of the underlying staking contract
@@ -358,7 +358,6 @@ contract ResupplyPairDeployer is CoreOwnable {
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
         );
         (string memory _name,,) = getNextName(_protocolId, _collateral);
-
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(
             _name,
@@ -366,7 +365,6 @@ contract ResupplyPairDeployer is CoreOwnable {
             _underlyingStaking,
             _underlyingStakingId
         );
-
         bytes memory creationCode = SSTORE2.read(contractAddress1);
         if (contractAddress2 != address(0)) {
             creationCode = BytesLib.concat(creationCode, SSTORE2.read(contractAddress2));
@@ -375,10 +373,8 @@ contract ResupplyPairDeployer is CoreOwnable {
             creationCode,
             abi.encode(core, _configData, _immutables, _customConfigData)
         );
-
         bytes32 salt = keccak256(abi.encodePacked(core, _configData, _immutables, _customConfigData));
         bytes32 _hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(bytecode)));
-
         return address(uint160(uint256(_hash)));
     }
 
