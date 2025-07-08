@@ -7,16 +7,12 @@ import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/e2e/Setup.sol";
 import {console2} from "forge-std/console2.sol";
 import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     address public curveLendCollat = Mainnet.CURVELEND_SFRXUSD_CRVUSD;
     
     function setUp() public override {
         super.setUp();
-        _setOperatorPermissions(); // Needed for the deployer to be able to add pairs to the registry
     }
 
     function test_SetAndGetValidProtocolData() public {
@@ -75,7 +71,7 @@ contract ResupplyPairDeployerTest is Setup {
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertGt(address(pair).code.length, 0);
-        assertEq(IResupplyRegistry(address(registry)).pairsByName(pair.name()), address(pair));
+        assertEq(registry.pairsByName(pair.name()), address(pair));
     }
 
     function test_predictPairAddress() public {
@@ -154,16 +150,5 @@ contract ResupplyPairDeployerTest is Setup {
             _stakingId
         );
         return _pairAddress;
-    }
-
-    function _setOperatorPermissions() internal {
-        vm.prank(address(core));
-        core.setOperatorPermissions(
-            address(deployer), // caller
-            address(registry), // target
-            IResupplyRegistry.addPair.selector, // selector
-            true,
-            IAuthHook(address(0))
-        );
     }
 }

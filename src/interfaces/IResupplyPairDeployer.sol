@@ -92,6 +92,9 @@ interface IResupplyPairDeployer {
             bytes4 collateralTokenSig
         );
 
+    function supportedProtocolsLength() external view returns (uint256);
+    function getBorrowAndCollateralTokens(uint256 _protocolId, address _collateral) external view returns (address _borrowToken, address _collateralToken);
+    
     function setShareBurner(address _shareBurner, uint256 _minShareBurnAmount) external;
 
     function updateSupportedProtocol(

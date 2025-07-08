@@ -23,6 +23,8 @@ import { Treasury } from "src/dao/Treasury.sol";
 import { PermaStaker } from "src/dao/tge/PermaStaker.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ShareBurner } from "src/protocol/misc/ShareBurner.sol";
+import { IAuthHook } from "src/interfaces/IAuthHook.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
@@ -122,6 +124,7 @@ contract Setup is Test {
         deployProtocolContracts();
         deployRewardsContracts();
         setInitialEmissionReceivers();
+        _setOperatorPermissions(); // Needed for the deployer to be able to add pairs to the registry
         deployCurvePools();
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
@@ -391,9 +394,6 @@ contract Setup is Test {
         );
         vm.stopPrank();
 
-        vm.startPrank(address(core));
-        registry.addPair(_pairAddress);
-        vm.stopPrank();
         p = ResupplyPair(_pairAddress);
         // ensure default state is written
         assertGt(p.minimumBorrowAmount(), 0);
@@ -597,4 +597,14 @@ contract Setup is Test {
         return schedule;
     }
 
+    function _setOperatorPermissions() internal {
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(deployer), // caller
+            address(registry), // target
+            IResupplyRegistry.addPair.selector, // selector
+            true,
+            IAuthHook(address(0))
+        );
+    }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Setup } from "test/e2e/Setup.sol";
+import { Setup } from "test/integration/Setup.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -12,10 +12,14 @@ import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
 contract GuardianTest is Setup {
     Guardian public guardian;
+    address[] public pairs;
+    address public dev = address(0xc4ad);
 
     function setUp() public override {
         super.setUp();
-        deployDefaultLendingPairs();
+        pairs = registry.getAllPairAddresses();
+        testPair = IResupplyPair(pairs[0]);
+        testPair2 = IResupplyPair(pairs[1]);
         staker.epochLength();
         guardian = new Guardian(address(core), address(registry));
 
@@ -31,8 +35,8 @@ contract GuardianTest is Setup {
         registry.setAddress("VOTER", address(voter));
         vm.stopPrank();
 
-        stakeAndSkip(user1, 1_000_000e18);
-        createSimpleProposal(user1);
+        stakeAndSkip(user, 1_000_000e18);
+        createSimpleProposal(user);
     }
 
     function test_SetGuardian() public {
@@ -81,7 +85,7 @@ contract GuardianTest is Setup {
     }
 
     function test_CancelProposal() public {
-        uint256 proposalId = 0;
+        uint256 proposalId = IVoter(address(voter)).getProposalCount() - 1;
         (,,,bool processed,) = IVoter(address(voter)).proposalData(proposalId);
         assertEq(processed, false);
 
@@ -103,7 +107,7 @@ contract GuardianTest is Setup {
         assertEq(core.voter(), guardian.guardian());
 
         vm.prank(address(core));
-        core.setVoter(address(user1));
+        core.setVoter(address(user));
 
         // revoke permission
         setPermission(address(core), ICore.setVoter.selector, false);

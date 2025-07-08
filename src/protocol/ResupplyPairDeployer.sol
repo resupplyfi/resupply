@@ -14,6 +14,8 @@ import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { SafeERC20 } from "src/libraries/SafeERC20.sol";
 import { IShareBurner } from "src/interfaces/IShareBurner.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
@@ -72,6 +74,10 @@ contract ResupplyPairDeployer is CoreOwnable {
         registry = _registry;
         govToken = _govToken;
         shareBurner = IShareBurner(_shareBurner);
+        address _previousPairDeployer = IResupplyRegistry(registry).getAddress("DEPLOYER");
+        if(_previousPairDeployer != address(0)) {
+            _migrateState(_previousPairDeployer);
+        }
     }
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
@@ -97,19 +103,8 @@ contract ResupplyPairDeployer is CoreOwnable {
         uint256 _protocolId,
         address _collateral
     ) public view returns (string memory _name, address _borrowToken, address _collateralToken) {
-        uint256 length = supportedProtocols.length;
-        if (_protocolId >= length) revert ProtocolNotFound();
-        Protocol memory pData = supportedProtocols[_protocolId];
-
-        // Get token addresses using protocol-specific function signatures
-        (bool successBorrow, bytes memory borrowData) = _collateral.staticcall(abi.encodeWithSelector(pData.borrowTokenSig));
-        (bool successCollat, bytes memory collatData) = _collateral.staticcall(abi.encodeWithSelector(pData.collateralTokenSig));
-        
-        require(successBorrow && borrowData.length >= 32, "Borrow token lookup failed");
-        require(successCollat && collatData.length >= 32, "Collateral token lookup failed");
-        
-        _borrowToken = abi.decode(borrowData, (address));
-        _collateralToken = abi.decode(collatData, (address));
+        (_borrowToken, _collateralToken) = getBorrowAndCollateralTokens(_protocolId, _collateral);
+        require(_borrowToken != address(0) && _collateralToken != address(0), "Invalid borrow or collateral token lookup");
         
         string memory borrowSymbol = IERC20(_borrowToken).safeSymbol();
         string memory collatSymbol = IERC20(_collateralToken).safeSymbol();
@@ -119,7 +114,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         _name = string(
             abi.encodePacked(
                 "Resupply Pair (",
-                pData.protocolName,
+                supportedProtocols[_protocolId].protocolName,
                 ": ",
                 borrowSymbol,
                 "/",
@@ -131,6 +126,22 @@ contract ResupplyPairDeployer is CoreOwnable {
         if(IResupplyRegistry(registry).pairsByName(_name) != address(0)){
             revert NonUniqueName();
         }
+    }
+
+    function getBorrowAndCollateralTokens(
+        uint256 _protocolId,
+        address _collateral
+    ) public view returns (address _borrowToken, address _collateralToken) {
+        uint256 length = supportedProtocols.length;
+        if (_protocolId >= length) revert ProtocolNotFound();
+        Protocol memory pData = supportedProtocols[_protocolId];
+
+        // Get token addresses using protocol-specific function signatures
+        (bool successBorrow, bytes memory borrowData) = _collateral.staticcall(abi.encodeWithSelector(pData.borrowTokenSig));
+        (bool successCollat, bytes memory collatData) = _collateral.staticcall(abi.encodeWithSelector(pData.collateralTokenSig));
+        
+        if(successBorrow && borrowData.length >= 32) _borrowToken = abi.decode(borrowData, (address));
+        if(successCollat && collatData.length >= 32) _collateralToken = abi.decode(collatData, (address));
     }
 
     // ============================================================================================
@@ -210,6 +221,10 @@ contract ResupplyPairDeployer is CoreOwnable {
         return supportedProtocols[protocolId].protocolName;
     }
 
+    function supportedProtocolsLength() external view returns (uint256) {
+        return supportedProtocols.length;
+    }
+
     // ============================================================================================
     // Functions: Internal Methods
     // ============================================================================================
@@ -249,6 +264,89 @@ contract ResupplyPairDeployer is CoreOwnable {
         return _pairAddress;
     }
 
+    // Migrate state from previous pair deployer
+    function _migrateState(address _previousPairDeployer) internal {
+        if (_previousPairDeployer == address(0)) return;
+        IResupplyPairDeployer _deployer = IResupplyPairDeployer(_previousPairDeployer);
+        contractAddress1 = _deployer.contractAddress1();
+        contractAddress2 = _deployer.contractAddress2();
+        uint256 i = 0;
+        while (true) {
+            try _deployer.supportedProtocols(i) returns (
+                string memory protocolName, bytes4 borrowTokenSig, bytes4 collateralTokenSig
+            ) {
+                supportedProtocols.push(Protocol({
+                    protocolName: protocolName,
+                    borrowTokenSig: borrowTokenSig,
+                    collateralTokenSig: collateralTokenSig
+                }));
+                i++;
+            } catch {
+                break; // reached the end of the supported protocols
+            }
+        }
+        
+        // Migrate collateral IDs
+        address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
+        uint256 length = pairs.length;
+        for (uint256 i = 0; i < length; i++) {
+            address _pair = pairs[i];
+            address _collateral = IResupplyPair(_pair).collateral();
+            for (uint256 k = 0; k < supportedProtocols.length; k++) {
+                (address _borrowToken, address _collateralToken) = getBorrowAndCollateralTokens(k, _collateral);
+                if(_borrowToken != address(0) && _collateralToken != address(0)){
+                    collateralId[k][_borrowToken][_collateralToken] = _deployer.collateralId(k, _borrowToken, _collateralToken);
+                }
+            }
+        }
+    }
+
+    // ============================================================================================
+    // Functions: External Methods
+    // ============================================================================================
+
+    /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
+    /// @param _protocolId The ID of the supported protocol
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _initialBorrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _underlyingStaking The address of the underlying staking contract
+    /// @param _underlyingStakingId The ID of the underlying staking contract
+    /// @return _pairAddress The address to which the Pair was deployed
+    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external onlyOwner returns (address _pairAddress) {
+        (address _collateral,,,,,,,) = abi.decode(
+            _configData,
+            (address, address, address, uint256, uint256, uint256, uint256, uint256)
+        );
+
+        (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_protocolId, _collateral);
+        collateralId[_protocolId][_borrowToken][_collateralToken]++;
+
+        bytes memory _immutables = abi.encode(registry);
+        bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
+
+        _pairAddress = _deploy(_configData, _immutables, _customConfigData);
+
+        emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
+
+        _addPairToRegistry(_pairAddress);
+        address _shareBurner = address(shareBurner);
+        if (_shareBurner != address(0)) {
+            shareBurner.burn();
+            uint256 _balance = IERC20(_collateral).balanceOf(_shareBurner);
+            require(_balance > minShareBurnAmount, "Not enough shares burned");
+        }
+    }
+
+    function _addPairToRegistry(address _pairAddress) internal {
+        core.execute(address(registry), abi.encodeWithSelector(IResupplyRegistry.addPair.selector, _pairAddress));
+    }
+
+    /// @notice Returns the deterministic address of a pair that would be deployed with the given parameters
+    /// @dev The predicted address will change for the same parameters if a deployment occurs after the call
+    /// @param _protocolId The ID of the supported protocol
+    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _initialBorrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
+    /// @param _underlyingStaking The address of the underlying staking contract
+    /// @param _underlyingStakingId The ID of the underlying staking contract
+    /// @return _pairAddress The predicted address of the Pair
     function predictPairAddress(
         uint256 _protocolId,
         bytes memory _configData,
@@ -282,46 +380,6 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes32 _hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(bytecode)));
 
         return address(uint160(uint256(_hash)));
-    }
-
-    // ============================================================================================
-    // Functions: External Deploy Methods
-    // ============================================================================================
-
-    /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
-    /// @param _protocolId The ID of the supported protocol
-    /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _initialBorrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
-    /// @param _underlyingStaking The address of the underlying staking contract
-    /// @param _underlyingStakingId The ID of the underlying staking contract
-    /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external onlyOwner returns (address _pairAddress) {
-        (address _collateral,,,,,,,) = abi.decode(
-            _configData,
-            (address, address, address, uint256, uint256, uint256, uint256, uint256)
-        );
-
-        (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_protocolId, _collateral);
-        
-        collateralId[_protocolId][_borrowToken][_collateralToken]++;
-
-        bytes memory _immutables = abi.encode(registry);
-        bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
-
-        _pairAddress = _deploy(_configData, _immutables, _customConfigData);
-
-        emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
-
-        _addPairToRegistry(_pairAddress);
-        address _shareBurner = address(shareBurner);
-        if (_shareBurner != address(0)) {
-            shareBurner.burn();
-            uint256 _balance = IERC20(_collateral).balanceOf(_shareBurner);
-            require(_balance > minShareBurnAmount, "Not enough shares burned");
-        }
-    }
-
-    function _addPairToRegistry(address _pairAddress) internal {
-        core.execute(address(registry), abi.encodeWithSelector(IResupplyRegistry.addPair.selector, _pairAddress));
     }
 
     // ============================================================================================
