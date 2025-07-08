@@ -23,7 +23,7 @@ interface IResupplyPairDeployer {
         bytes4 borrowTokenSig,
         bytes4 collateralTokenSig
     );
-    event SetOperator(address indexed _op, bool _valid);
+    event ShareBurnerUpdated(address indexed _shareBurner, uint256 _minShareBurnAmount);
 
     function addSupportedProtocol(
         string memory _protocolName,
@@ -43,6 +43,10 @@ interface IResupplyPairDeployer {
 
     function core() external view returns (address);
 
+    function shareBurner() external view returns (address);
+
+    function minShareBurnAmount() external view returns (uint256);
+
     function deploy(
         uint256 _protocolId,
         bytes memory _configData,
@@ -50,18 +54,23 @@ interface IResupplyPairDeployer {
         uint256 _underlyingStakingId
     ) external returns (address _pairAddress);
 
-    function getNextName(uint256 _protocolId, address _collateral)
-        external
-        view
-        returns (
-            string memory _name,
-            address _borrowToken,
-            address _collateralToken
-        );
+    function getNextName(
+        uint256 _protocolId,
+        address _collateral
+    ) external view returns (
+        string memory _name,
+        address _borrowToken,
+        address _collateralToken
+    );
+
+    function predictPairAddress(
+        uint256 _protocolId,
+        bytes memory _configData,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external view returns (address);
 
     function govToken() external view returns (address);
-
-    function operators(address) external view returns (bool);
 
     function owner() external view returns (address);
 
@@ -74,8 +83,6 @@ interface IResupplyPairDeployer {
 
     function setCreationCode(bytes memory _creationCode) external;
 
-    function setOperator(address _operator, bool _valid) external;
-
     function supportedProtocols(uint256)
         external
         view
@@ -84,6 +91,8 @@ interface IResupplyPairDeployer {
             bytes4 borrowTokenSig,
             bytes4 collateralTokenSig
         );
+
+    function setShareBurner(address _shareBurner, uint256 _minShareBurnAmount) external;
 
     function updateSupportedProtocol(
         uint256 protocolId,

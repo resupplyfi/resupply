@@ -7,12 +7,13 @@ pragma solidity 0.8.28;
  */
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
+import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
-import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { SafeERC20 } from "../libraries/SafeERC20.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { SafeERC20 } from "src/libraries/SafeERC20.sol";
+import { IShareBurner } from "src/interfaces/IShareBurner.sol";
 
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
@@ -21,6 +22,8 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
+    IShareBurner public shareBurner;
+    uint256 public minShareBurnAmount = 1e17;
     Protocol[] public supportedProtocols;
     mapping(
         uint256 protocolId => mapping(
@@ -31,7 +34,6 @@ contract ResupplyPairDeployer is CoreOwnable {
     // immutable contracts
     address public immutable registry;
     address public immutable govToken;
-    mapping(address => bool) public operators;
 
     struct Protocol {
         string protocolName;
@@ -64,15 +66,12 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes customConfigData
     );
 
-    event SetOperator(address indexed _op, bool _valid);
+    event ShareBurnerUpdated(address indexed _shareBurner, uint256 _minShareBurnAmount);
 
-    constructor(address _core, address _registry, address _govToken, address _initialoperator) CoreOwnable(_core){
+    constructor(address _core, address _registry, address _govToken, address _shareBurner) CoreOwnable(_core){
         registry = _registry;
         govToken = _govToken;
-        operators[_initialoperator] = true;
-        operators[_core] = true;
-        emit SetOperator(_core, true);
-        emit SetOperator(_initialoperator, true);
+        shareBurner = IShareBurner(_shareBurner);
     }
 
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
@@ -138,11 +137,6 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Functions: Setters
     // ============================================================================================
 
-    function setOperator(address _operator, bool _valid) external onlyOwner{
-        operators[_operator] = _valid;
-        emit SetOperator(_operator, _valid);
-    }
-
     /// @notice The ```setCreationCode``` function sets the bytecode for the ResupplyPair
     /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
     /// @param _creationCode The creationCode for the Resupply Pair
@@ -204,6 +198,12 @@ contract ResupplyPairDeployer is CoreOwnable {
         return protocolId;
     }
 
+    function setShareBurner(address _shareBurner, uint256 _minShareBurnAmount) external onlyOwner {
+        shareBurner = IShareBurner(_shareBurner);
+        minShareBurnAmount = _minShareBurnAmount;
+        emit ShareBurnerUpdated(_shareBurner, _minShareBurnAmount);
+    }
+
     function platformNameById(
         uint256 protocolId
     ) external view returns (string memory) {
@@ -249,6 +249,41 @@ contract ResupplyPairDeployer is CoreOwnable {
         return _pairAddress;
     }
 
+    function predictPairAddress(
+        uint256 _protocolId,
+        bytes memory _configData,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external view returns (address) {
+        (address _collateral,,,,,,,) = abi.decode(
+            _configData,
+            (address, address, address, uint256, uint256, uint256, uint256, uint256)
+        );
+        (string memory _name,,) = getNextName(_protocolId, _collateral);
+
+        bytes memory _immutables = abi.encode(registry);
+        bytes memory _customConfigData = abi.encode(
+            _name,
+            govToken,
+            _underlyingStaking,
+            _underlyingStakingId
+        );
+
+        bytes memory creationCode = SSTORE2.read(contractAddress1);
+        if (contractAddress2 != address(0)) {
+            creationCode = BytesLib.concat(creationCode, SSTORE2.read(contractAddress2));
+        }
+        bytes memory bytecode = abi.encodePacked(
+            creationCode,
+            abi.encode(core, _configData, _immutables, _customConfigData)
+        );
+
+        bytes32 salt = keccak256(abi.encodePacked(core, _configData, _immutables, _customConfigData));
+        bytes32 _hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(bytecode)));
+
+        return address(uint160(uint256(_hash)));
+    }
+
     // ============================================================================================
     // Functions: External Deploy Methods
     // ============================================================================================
@@ -259,11 +294,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @param _underlyingStaking The address of the underlying staking contract
     /// @param _underlyingStakingId The ID of the underlying staking contract
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external returns (address _pairAddress) {
-        if (!operators[msg.sender]) {
-            revert WhitelistedDeployersOnly();
-        }
-
+    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external onlyOwner returns (address _pairAddress) {
         (address _collateral,,,,,,,) = abi.decode(
             _configData,
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
@@ -279,6 +310,18 @@ contract ResupplyPairDeployer is CoreOwnable {
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
 
         emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
+
+        _addPairToRegistry(_pairAddress);
+        address _shareBurner = address(shareBurner);
+        if (_shareBurner != address(0)) {
+            shareBurner.burn();
+            uint256 _balance = IERC20(_collateral).balanceOf(_shareBurner);
+            require(_balance > minShareBurnAmount, "Not enough shares burned");
+        }
+    }
+
+    function _addPairToRegistry(address _pairAddress) internal {
+        core.execute(address(registry), abi.encodeWithSelector(IResupplyRegistry.addPair.selector, _pairAddress));
     }
 
     // ============================================================================================
