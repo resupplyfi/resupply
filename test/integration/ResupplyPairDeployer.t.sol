@@ -15,7 +15,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IAuthHook} from "src/interfaces/IAuthHook.sol";
 import {IResupplyRegistry} from "src/interfaces/IResupplyRegistry.sol";
-import {ICurveLendingVault} from "src/interfaces/ICurveLendingVault.sol";
+import {ICurveLendingVault} from "src/interfaces/curve/ICurveLendingVault.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     using Strings for uint256;

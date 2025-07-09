@@ -54,14 +54,14 @@ import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { ISimpleReceiverFactory } from "src/interfaces/ISimpleReceiverFactory.sol";
 
 // Others
-import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ICurveOneWayLendingFactory } from "src/interfaces/ICurveOneWayLendingFactory.sol";
-import { ICurveFactory } from "src/interfaces/ICurveFactory.sol";
-import { ICurveGaugeController } from "src/interfaces/ICurveGaugeController.sol";
-import { ICurveEscrow } from "src/interfaces/ICurveEscrow.sol";
-import { IConvexPoolManager } from "src/interfaces/IConvexPoolManager.sol";
-import { IConvexStaking } from "src/interfaces/IConvexStaking.sol";
+import { ICurveOneWayLendingFactory } from "src/interfaces/curve/ICurveOneWayLendingFactory.sol";
+import { ICurveFactory } from "src/interfaces/curve/ICurveFactory.sol";
+import { ICurveGaugeController } from "src/interfaces/curve/ICurveGaugeController.sol";
+import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
+import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 
 
 contract Setup is Test {

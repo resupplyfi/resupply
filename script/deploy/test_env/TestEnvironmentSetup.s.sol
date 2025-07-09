@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseDeploy } from "script/deploy/dependencies/BaseDeploy.s.sol";
 import { DeployResupply } from "script/deploy/DeployResupply.s.sol";
 import { ICore } from "src/interfaces/ICore.sol";
-import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";

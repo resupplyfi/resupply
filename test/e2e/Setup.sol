@@ -49,15 +49,15 @@ import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceiverFactory.sol";
 
 // Others
-import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { FeeLogger } from "src/protocol/FeeLogger.sol";
 import { ReusdOracle } from "src/protocol/ReusdOracle.sol";
-import { ICurveOneWayLendingFactory } from "src/interfaces/ICurveOneWayLendingFactory.sol";
-import { IConvexPoolManager } from "src/interfaces/IConvexPoolManager.sol";
-import { IConvexStaking } from "src/interfaces/IConvexStaking.sol";
-import { ICurveFactory } from "src/interfaces/ICurveFactory.sol";
-import { ICurveEscrow } from "src/interfaces/ICurveEscrow.sol";
-import { ICurveGaugeController } from "src/interfaces/ICurveGaugeController.sol";
+import { ICurveOneWayLendingFactory } from "src/interfaces/curve/ICurveOneWayLendingFactory.sol";
+import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
+import { ICurveFactory } from "src/interfaces/curve/ICurveFactory.sol";
+import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
+import { ICurveGaugeController } from "src/interfaces/curve/ICurveGaugeController.sol";
 
 
 contract Setup is Test {

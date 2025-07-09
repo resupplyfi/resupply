@@ -8,7 +8,7 @@ import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { ICurvePool } from "src/interfaces/ICurvePool.sol";
+import { ICurvePool } from "src/interfaces/curve/ICurvePool.sol";
 import { console } from "forge-std/console.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
