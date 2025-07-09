@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/integration/Setup.sol";
 import {console2} from "forge-std/console2.sol";
+import {console} from "lib/forge-std/src/console.sol";
 import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
 import {IResupplyPair} from "src/interfaces/IResupplyPair.sol";
 import {IResupplyPairDeployer} from "src/interfaces/IResupplyPairDeployer.sol";
@@ -14,6 +15,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IAuthHook} from "src/interfaces/IAuthHook.sol";
 import {IResupplyRegistry} from "src/interfaces/IResupplyRegistry.sol";
+import {ICurveLendingVault} from "src/interfaces/curve/ICurveLendingVault.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     using Strings for uint256;
@@ -97,11 +99,10 @@ contract ResupplyPairDeployerTest is Setup {
         console2.log("Current collateral ID:", currentCollateralId);
         
         // Deploy a new pair with the same collateral
-        ResupplyPair newPair = _deployPairAs(
+        ResupplyPair newPair = deployLendingPairAs(
             address(core),
             _protocolId,
             _collateral,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         
@@ -163,11 +164,10 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_deployLendingPair() public {
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertGt(pair.protocolRedemptionFee(), 0);
@@ -177,11 +177,10 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_AtomicRegisterOnDeploy() public {
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertGt(address(pair).code.length, 0);
@@ -192,15 +191,13 @@ contract ResupplyPairDeployerTest is Setup {
         address pairAddress = _predictPairAddress(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         console2.log("Predicted Pair Address: ", pairAddress);
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertEq(pairAddress, address(pair));
@@ -209,19 +206,17 @@ contract ResupplyPairDeployerTest is Setup {
     function test_DeployPermissions(address _deployer) public {
         ResupplyPair pair;
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.WhitelistedDeployersOnly.selector));
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             _deployer,
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
 
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertNotEq(address(pair), address(0));
@@ -231,30 +226,27 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(
             IResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
         ));
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
-            address(0),
             uint256(0)
         );
 
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(address(pair));
         assertEq(protocolId, 0);
         assertEq(deployTime, uint40(block.timestamp));
 
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             address(core),
             1,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
-            address(0),
             uint256(0)
         );
         (protocolId, deployTime) = deployer.deployInfo(address(pair));
@@ -262,31 +254,36 @@ contract ResupplyPairDeployerTest is Setup {
         assertEq(deployTime, uint40(block.timestamp));
     }
 
-    function _deployPairAs(address _deployer, uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal returns(ResupplyPair){
-        vm.prank(_deployer);
-        address _pairAddress = deployer.deploy(
-            _protocolId,
-            abi.encode(
-                _collateral,
-                address(oracle),
-                address(rateCalculator),
-                DeploymentConfig.DEFAULT_MAX_LTV, //max ltv 75%
-                DeploymentConfig.DEFAULT_BORROW_LIMIT,
-                DeploymentConfig.DEFAULT_LIQ_FEE,
-                DeploymentConfig.DEFAULT_MINT_FEE,
-                DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-            ),
-            _staking,
-            _stakingId
-        );
-        if(_pairAddress != address(0)) {
-            vm.prank(address(core));
-            registry.addPair(_pairAddress);
-        }
-        return ResupplyPair(_pairAddress);
+    function test_SharePriceManipulation() public {
+        uint256 AIRDROP_AMOUNT = 10_000e18;
+        IERC20 crvusd = IERC20(Mainnet.CRVUSD_ERC20);
+        address curveLendCollat = 0x865377367054516e17014CcdED1e7d814EDC9ce4; // DOLA
+        (address _vault, address gauge, uint256 convexPoolId) = deployCurveLendingVaultAndGauge(address(curveLendCollat));
+        ICurveLendingVault vault = ICurveLendingVault(_vault);
+        address controller = vault.controller();
+        assertNotEq(_vault, address(0));
+
+        deal(Mainnet.CRVUSD_ERC20, address(this), 1_000_000e18);
+        crvusd.approve(_vault, type(uint256).max);
+        vault.deposit(1e18, address(this));
+        uint256 originalSharePrice = vault.convertToAssets(1e18);
+
+        // Airdrop to the vault controller to inflate share value
+        crvusd.transfer(vault.controller(), AIRDROP_AMOUNT);
+        uint256 newSharePrice = vault.convertToAssets(1e18);
+        assertGt(newSharePrice, originalSharePrice);
+
+        // Reverts 
+        vm.expectRevert();
+        deployLendingPair(0, _vault, convexPoolId);
+        
+        // Clear the airdrop amount from controller to get pps back to normal
+        vm.prank(vault.controller());
+        crvusd.transfer(address(this), AIRDROP_AMOUNT);
+        deployLendingPair(0, _vault, convexPoolId);
     }
 
-    function _predictPairAddress(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal view returns(address){
+    function _predictPairAddress(uint256 _protocolId, address _collateral, uint256 _stakingId) internal view returns(address){
         address _pairAddress = deployer.predictPairAddress(
             _protocolId,
             abi.encode(
@@ -299,7 +296,7 @@ contract ResupplyPairDeployerTest is Setup {
                 DeploymentConfig.DEFAULT_MINT_FEE,
                 DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
-            _staking,
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _stakingId
         );
         return _pairAddress;

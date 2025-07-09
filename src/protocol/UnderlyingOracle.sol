@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { ICurveOracle } from "../interfaces/ICurveOracle.sol";
-import { IChainlinkOracle } from "../interfaces/IChainlinkOracle.sol";
+import { ICurveOracle } from "src/interfaces/curve/ICurveOracle.sol";
+import { IChainlinkOracle } from "src/interfaces/chainlink/IChainlinkOracle.sol";
 
 
 contract UnderlyingOracle {

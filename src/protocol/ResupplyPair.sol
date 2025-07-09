@@ -10,16 +10,16 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { ResupplyPairConstants } from "./pair/ResupplyPairConstants.sol";
-import { ResupplyPairCore } from "./pair/ResupplyPairCore.sol";
+import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
+import { ResupplyPairCore } from "src/protocol/pair/ResupplyPairCore.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { VaultAccount, VaultAccountingLibrary } from "../libraries/VaultAccount.sol";
-import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
-import { ISwapper } from "../interfaces/ISwapper.sol";
-import { IFeeDeposit } from "../interfaces/IFeeDeposit.sol";
-import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
-import { IConvexStaking } from "../interfaces/IConvexStaking.sol";
-import { EpochTracker } from "../dependencies/EpochTracker.sol";
+import { VaultAccount, VaultAccountingLibrary } from "src/libraries/VaultAccount.sol";
+import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
+import { ISwapper } from "src/interfaces/ISwapper.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
+import { EpochTracker } from "src/dependencies/EpochTracker.sol";
 
 contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using VaultAccountingLibrary for VaultAccount;

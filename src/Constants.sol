@@ -20,7 +20,6 @@ library Protocol {
     address constant TREASURY = 0x4444444455bF42de586A88426E5412971eA48324;
     address constant PAIR_DEPLOYER = 0x5555555524De7C56C1B20128dbEAace47d2C0417;
     address constant INTEREST_RATE_CALCULATOR = 0x77777777729C405efB6Ac823493e6111F0070D67;
-    address constant SHARE_BURNER = 0xa1ce0D868Dae7ead278b7491161d3AE2DfD981b1;
 
     // Operators
     address constant OPERATOR_GUARDIAN = 0x0950000dd946D519B53424830075364e90B7eFB1;
@@ -140,7 +139,11 @@ library Mainnet {
     address internal constant SFRXUSD_ERC20 = 0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6;
     address internal constant CRVUSD_ERC20 = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
     address internal constant SCRVUSD_ERC20 = 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367;
+
+    // Curve Misc
     address internal constant CURVE_STABLE_FACTORY = 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf;
+    address internal constant CURVE_ESCROW = 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2;
+    address internal constant CURVE_GAUGE_CONTROLLER = 0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB;
 
     //fraxlend
     address internal constant FRAXLEND_SFRXETH_FRXUSD = 0xaB3cb84c310186B2Fa4B4503624A5D90b5DcB22D;
@@ -150,6 +153,7 @@ library Mainnet {
     address internal constant FRAXLEND_SCRVUSD_FRXUSD = 0x8087346b8865e5B0bF9F8A49742c2D83f6a50a6c;
 
     //curvelend
+    address internal constant CURVE_ONE_WAY_LENDING_FACTORY = 0xeA6876DDE9e3467564acBeE1Ed5bac88783205E0;
     address internal constant CURVELEND_SDOLA_CRVUSD = 0x14361C243174794E2207296a6AD59bb0Dec1d388;
     address internal constant CURVELEND_SUSDE_CRVUSD = 0x4a7999c55d3a93dAf72EA112985e57c2E3b9e95D;
     address internal constant CURVELEND_USDE_CRVUSD = 0xc687141c18F20f7Ba405e45328825579fDdD3195;
@@ -173,6 +177,9 @@ library Mainnet {
 
     // LayerZero
     address internal constant LAYERZERO_ENDPOINTV2 = 0x1a44076050125825900e736c501f859c50fE728c;
+
+    // Convex
+    address internal constant CONVEX_POOL_MANAGER = 0x6D3a388e310aaA498430d1Fe541d6d64ddb423de;
 }
 
 library Sepolia {

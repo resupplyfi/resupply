@@ -18,7 +18,7 @@ import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 import { GovToken } from "src/dao/GovToken.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
-import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 
 contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     address public crvusdPool;

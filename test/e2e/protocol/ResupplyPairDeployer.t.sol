@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Protocol, Mainnet} from "src/Constants.sol";
+import {Protocol, Mainnet, DeploymentConfig} from "src/Constants.sol";
 import {Test} from "forge-std/Test.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/e2e/Setup.sol";
@@ -62,11 +62,10 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_deployLendingPair() public {
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertGt(pair.protocolRedemptionFee(), 0);
@@ -76,11 +75,10 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_AtomicRegisterOnDeploy() public {
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertGt(address(pair).code.length, 0);
@@ -95,11 +93,10 @@ contract ResupplyPairDeployerTest is Setup {
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         console2.log("Predicted Pair Address: ", pairAddress);
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertEq(pairAddress, address(pair));
@@ -108,19 +105,17 @@ contract ResupplyPairDeployerTest is Setup {
     function test_DeployPermissions(address _deployer) public {
         ResupplyPair pair;
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.WhitelistedDeployersOnly.selector));
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             _deployer,
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
 
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         assertNotEq(address(pair), address(0));
@@ -130,65 +125,32 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(
             ResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
         ));
-        ResupplyPair pair = _deployPairAs(
+        ResupplyPair pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
-            address(0),
             uint256(0)
         );
 
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(address(pair));
         assertEq(protocolId, 0);
         assertEq(deployTime, uint40(block.timestamp));
 
-        pair = _deployPairAs(
+        pair = deployLendingPairAs(
             address(core),
             1,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
-            address(0),
             uint256(0)
         );
         (protocolId, deployTime) = deployer.deployInfo(address(pair));
         assertEq(protocolId, 1);
         assertEq(deployTime, uint40(block.timestamp));
-    }
-
-    function _deployPairAs(
-        address _deployer, 
-        uint256 _protocolId, 
-        address _collateral, 
-        address _staking, 
-        uint256 _stakingId
-    ) internal returns(ResupplyPair){
-        vm.prank(_deployer);
-        address _pairAddress = deployer.deploy(
-            _protocolId,
-            abi.encode(
-                _collateral,
-                address(oracle),
-                address(rateCalculator),
-                DEFAULT_MAX_LTV, //max ltv 75%
-                DEFAULT_BORROW_LIMIT,
-                DEFAULT_LIQ_FEE,
-                DEFAULT_MINT_FEE,
-                DEFAULT_PROTOCOL_REDEMPTION_FEE
-            ),
-            _staking,
-            _stakingId
-        );
-        if(_pairAddress != address(0)) {
-            vm.prank(address(core));
-            registry.addPair(_pairAddress);
-        }
-        return ResupplyPair(_pairAddress);
     }
 
     function _predictPairAddress(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal view returns(address){
@@ -198,11 +160,11 @@ contract ResupplyPairDeployerTest is Setup {
                 _collateral,
                 address(oracle),
                 address(rateCalculator),
-                DEFAULT_MAX_LTV, //max ltv 75%
-                DEFAULT_BORROW_LIMIT,
-                DEFAULT_LIQ_FEE,
-                DEFAULT_MINT_FEE,
-                DEFAULT_PROTOCOL_REDEMPTION_FEE
+                DeploymentConfig.DEFAULT_MAX_LTV, //max ltv 75%
+                DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                DeploymentConfig.DEFAULT_LIQ_FEE,
+                DeploymentConfig.DEFAULT_MINT_FEE,
+                DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
             _staking,
             _stakingId
