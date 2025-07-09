@@ -8,14 +8,15 @@ pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { SafeERC20 } from "src/libraries/SafeERC20.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
+import { IResupplyPairDeployerDeprecated } from "src/interfaces/IResupplyPairDeployerDeprecated.sol";
 
 contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
@@ -24,11 +25,9 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Storage
     address public contractAddress1;
     address public contractAddress2;
-    uint256 public minShareBurnAmount = 1e17;
-    uint256 public amountToBurn = 1e18;
     Protocol[] public supportedProtocols;
     mapping(address => bool) public operators;
-    mapping(address => bool) public deployedPairs;
+    mapping(address => DeployInfo) public deployInfo;
     mapping(
         uint256 protocolId => mapping(
         address borrowToken => mapping(
@@ -41,6 +40,8 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     struct Protocol {
         string protocolName;
+        uint80 amountToBurn;
+        uint80 minShareBurnAmount;
         bytes4 borrowTokenSig;
         bytes4 collateralTokenSig;
     }
@@ -51,6 +52,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes4 borrowTokenSig, 
         bytes4 collateralTokenSig
     );
+
+    struct DeployInfo {
+        uint40 protocolId;
+        uint40 deployTime;
+    }
 
     /// @notice Emits when a new pair is deployed
     /// @param address_ The address of the pair
@@ -70,8 +76,8 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes customConfigData
     );
 
-    event ShareBurnSettingsUpdated(uint256 _amountToBurn, uint256 _minShareBurnAmount);
     event OperatorSet(address indexed _operator, bool _approved);
+    event StateMigrated(address indexed _previousPairDeployer);
 
     modifier onlyOperator() {
         if(!operators[msg.sender]) revert WhitelistedDeployersOnly();
@@ -113,10 +119,10 @@ contract ResupplyPairDeployer is CoreOwnable {
         address _collateral
     ) public view returns (string memory _name, address _borrowToken, address _collateralToken) {
         (_borrowToken, _collateralToken) = getBorrowAndCollateralTokens(_protocolId, _collateral);
-        require(_borrowToken != address(0) && _collateralToken != address(0), "Invalid borrow or collateral token lookup");
+        if(_borrowToken == address(0) || _collateralToken == address(0)) revert InvalidBorrowOrCollateralTokenLookup();
         
-        string memory borrowSymbol = IERC20(_borrowToken).safeSymbol();
-        string memory collatSymbol = IERC20(_collateralToken).safeSymbol();
+        string memory borrowSymbol = IERC20Metadata(_borrowToken).symbol();
+        string memory collatSymbol = IERC20Metadata(_collateralToken).symbol();
 
         uint256 _collateralId = collateralId[_protocolId][_borrowToken][_collateralToken] + 1;
 
@@ -137,6 +143,8 @@ contract ResupplyPairDeployer is CoreOwnable {
         }
     }
 
+    /// @notice The `getBorrowAndCollateralTokens` function returns the underlying borrow and collateral tokens for a particular collateral
+    /// @dev This function does not revert, but will return (address(0), address(0)) if unable to lookup the tokens
     function getBorrowAndCollateralTokens(
         uint256 _protocolId,
         address _collateral
@@ -158,7 +166,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // ============================================================================================
 
     /// @notice The ```setCreationCode``` function sets the bytecode for the ResupplyPair
-    /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 24kb
+    /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 13kb
     /// @param _creationCode The creationCode for the Resupply Pair
     function setCreationCode(bytes calldata _creationCode) external onlyOwner{
         // If the creation code is larger than 13kb, split it into two parts
@@ -180,9 +188,13 @@ contract ResupplyPairDeployer is CoreOwnable {
     /// @return The ID of the newly added protocol
     function addSupportedProtocol(
         string memory _protocolName,
+        uint256 _amountToBurn,
+        uint256 _minShareBurnAmount,
         bytes4 _borrowTokenSig,
         bytes4 _collateralTokenSig
     ) external onlyOwner returns (uint256) {
+        if (_amountToBurn < 1e17) revert InvalidAmountToBurn();
+        if (_minShareBurnAmount < 1e17) revert InvalidMinShareBurnAmount();
         if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
         
@@ -195,6 +207,8 @@ contract ResupplyPairDeployer is CoreOwnable {
         }
         supportedProtocols.push(Protocol({
             protocolName: _protocolName,
+            amountToBurn: uint80(_amountToBurn),
+            minShareBurnAmount: uint80(_minShareBurnAmount),
             borrowTokenSig: _borrowTokenSig,
             collateralTokenSig: _collateralTokenSig
         }));
@@ -214,6 +228,8 @@ contract ResupplyPairDeployer is CoreOwnable {
     function updateSupportedProtocol(
         uint256 protocolId,
         string memory _protocolName,
+        uint256 _amountToBurn,
+        uint256 _minShareBurnAmount,
         bytes4 _borrowTokenSig,
         bytes4 _collateralTokenSig
     ) external onlyOwner returns (uint256) {
@@ -221,16 +237,12 @@ contract ResupplyPairDeployer is CoreOwnable {
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
         if (protocolId >= supportedProtocols.length) revert ProtocolNotFound();
         supportedProtocols[protocolId].protocolName = _protocolName;
+        supportedProtocols[protocolId].amountToBurn = uint80(_amountToBurn);
+        supportedProtocols[protocolId].minShareBurnAmount = uint80(_minShareBurnAmount);
         supportedProtocols[protocolId].borrowTokenSig = _borrowTokenSig;
         supportedProtocols[protocolId].collateralTokenSig = _collateralTokenSig;
         emit ProtocolUpdated(protocolId, _protocolName, _borrowTokenSig, _collateralTokenSig);
         return protocolId;
-    }
-
-    function setShareBurnSettings(uint256 _amountToBurn, uint256 _minShareBurnAmount) external onlyOwner {
-        amountToBurn = _amountToBurn;
-        minShareBurnAmount = _minShareBurnAmount;
-        emit ShareBurnSettingsUpdated(_amountToBurn, _minShareBurnAmount);
     }
 
     function platformNameById(
@@ -282,25 +294,27 @@ contract ResupplyPairDeployer is CoreOwnable {
         return _pairAddress;
     }
 
-    function _burnShares(address _borrowToken, address _collateral, uint256 amountToBurn) internal {
-        IERC20(_borrowToken).approve(address(_collateral), amountToBurn);
-        IERC4626(_collateral).deposit(amountToBurn, address(this));
+    function _burnShares(address _borrowToken, address _collateral, uint256 _amountToBurn, uint256 _minShareBurnAmount) internal {
+        IERC20(_borrowToken).forceApprove(address(_collateral), _amountToBurn);
+        IERC4626(_collateral).deposit(_amountToBurn, address(this));
         uint256 _balance = IERC20(_collateral).balanceOf(address(this));
-        if(_balance < minShareBurnAmount) revert NotEnoughSharesBurned();
+        if(_balance < _minShareBurnAmount) revert NotEnoughSharesBurned();
     }
 
     // Migrate state from previous pair deployer
     function _migrateState(address _previousPairDeployer) internal {
-        IResupplyPairDeployer _deployer = IResupplyPairDeployer(_previousPairDeployer);
+        IResupplyPairDeployerDeprecated _deployer = IResupplyPairDeployerDeprecated(_previousPairDeployer);
         contractAddress1 = _deployer.contractAddress1();
         contractAddress2 = _deployer.contractAddress2();
         uint256 i = 0;
-        while (true) {
+        while(true) {
             try _deployer.supportedProtocols(i) returns (
                 string memory protocolName, bytes4 borrowTokenSig, bytes4 collateralTokenSig
             ) {
                 supportedProtocols.push(Protocol({
                     protocolName: protocolName,
+                    amountToBurn: 1e18,
+                    minShareBurnAmount: i == 0 ? 1e20 : 1e17,
                     borrowTokenSig: borrowTokenSig,
                     collateralTokenSig: collateralTokenSig
                 }));
@@ -324,6 +338,7 @@ contract ResupplyPairDeployer is CoreOwnable {
                 }
             }
         }
+        emit StateMigrated(_previousPairDeployer);
     }
 
     // ============================================================================================
@@ -350,11 +365,21 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
         _pairAddress = _deploy(_configData, _immutables, _customConfigData);
-        deployedPairs[_pairAddress] = true;
+
+        deployInfo[_pairAddress] = DeployInfo({
+            protocolId: uint40(_protocolId),
+            deployTime: uint40(block.timestamp)
+        });
+        
         emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
 
         // Burn shares
-        _burnShares(_borrowToken, _collateral, amountToBurn);
+        _burnShares(
+            _borrowToken, 
+            _collateral, 
+            supportedProtocols[_protocolId].amountToBurn, 
+            supportedProtocols[_protocolId].minShareBurnAmount
+        );
     }
 
     /// @notice Returns the deterministic address of a pair that would be deployed with the given parameters
@@ -407,4 +432,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     error ProtocolNameTooLong();
     error ProtocolAlreadyExists();
     error NotEnoughSharesBurned();
+    error InvalidBorrowOrCollateralTokenLookup();
+    error InvalidAmountToBurn();
+    error InvalidMinShareBurnAmount();
 }

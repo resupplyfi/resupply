@@ -34,7 +34,7 @@ contract ResupplyPairDeployerTest is Setup {
         vm.prank(address(core));
         registry.setAddress("DEPLOYER", address(deployer));
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
-        deal(address(Mainnet.SFRXUSD_ERC20), address(deployer), 100e18);
+        deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
     }
 
     function test_StateMigrated() public {
@@ -132,7 +132,7 @@ contract ResupplyPairDeployerTest is Setup {
     function test_SetAndGetValidProtocolData() public {
         // Test setting valid protocol data
         vm.prank(address(core));
-        uint256 platformId = deployer.addSupportedProtocol("TestProtocol", bytes4(0), bytes4(0));
+        uint256 platformId = deployer.addSupportedProtocol("TestProtocol", 1e18, 1e17, bytes4(0), bytes4(0));
         
         // Verify the data was set correctly
         string memory name = deployer.platformNameById(platformId);
@@ -143,7 +143,7 @@ contract ResupplyPairDeployerTest is Setup {
         string memory longName = "ThisIsAnExtremelyLongProtocolNameThatShouldDefinitelyExceedAnyReasonableLimit";
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNameTooLong.selector));
         vm.prank(address(core));
-        deployer.addSupportedProtocol(longName, bytes4(0), bytes4(0));
+        deployer.addSupportedProtocol(longName, 1e18, 1e17, bytes4(0), bytes4(0));
     }
 
     function test_ValidGetName() public {
@@ -157,9 +157,9 @@ contract ResupplyPairDeployerTest is Setup {
 
     function test_updateProtocolData() public {
         vm.prank(address(core));
-        uint256 protocolId = deployer.addSupportedProtocol("TestProtocol", bytes4(0), bytes4(0));
+        uint256 protocolId = deployer.addSupportedProtocol("TestProtocol", 1e18, 1e17, bytes4(0), bytes4(0));
         vm.prank(address(core));
-        deployer.updateSupportedProtocol(protocolId, "TestProtocol2", bytes4(0), bytes4(0));
+        deployer.updateSupportedProtocol(protocolId, "TestProtocol2", 1e18, 1e17, bytes4(0), bytes4(0));
     }
 
     function test_deployLendingPair() public {
@@ -227,21 +227,39 @@ contract ResupplyPairDeployerTest is Setup {
         assertNotEq(address(pair), address(0));
     }
 
-    function test_SetShareBurnSettings() public {
-        vm.expectRevert();
-        deployer.setShareBurnSettings(1e18, 1e17);
+    function test_DeployInfoSet() public {
+        vm.expectRevert(abi.encodeWithSelector(
+            IResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
+        ));
+        ResupplyPair pair = _deployPairAs(
+            address(core),
+            0,
+            Mainnet.FRAXLEND_SFRXETH_FRXUSD,
+            address(0),
+            uint256(0)
+        );
 
-        vm.prank(address(core));
-        deployer.setShareBurnSettings(1e18, 1e22);
-
-        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.NotEnoughSharesBurned.selector));
-        _deployPairAs(
+        pair = _deployPairAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
+        (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(address(pair));
+        assertEq(protocolId, 0);
+        assertEq(deployTime, uint40(block.timestamp));
+
+        pair = _deployPairAs(
+            address(core),
+            1,
+            Mainnet.FRAXLEND_SFRXETH_FRXUSD,
+            address(0),
+            uint256(0)
+        );
+        (protocolId, deployTime) = deployer.deployInfo(address(pair));
+        assertEq(protocolId, 1);
+        assertEq(deployTime, uint40(block.timestamp));
     }
 
     function _deployPairAs(address _deployer, uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal returns(ResupplyPair){

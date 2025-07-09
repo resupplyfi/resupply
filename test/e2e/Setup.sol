@@ -159,17 +159,21 @@ contract Setup is Test {
             address(core)
         );
         deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
-        deal(address(Constants.Mainnet.SFRXUSD_ERC20), address(deployer), 100e18);
+        deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
         deployer.addSupportedProtocol(
             "CurveLend",
+            1e18,
+            1e17,
             bytes4(keccak256("asset()")),           // borrowLookupSig
             bytes4(keccak256("collateral_token()")) // collateralLookupSig
         );
         deployer.addSupportedProtocol(
             "Fraxlend",
+            1e18,
+            1e17,
             bytes4(keccak256("asset()")),           // borrowLookupSig
             bytes4(keccak256("collateralContract()")) // collateralLookupSig
         );
