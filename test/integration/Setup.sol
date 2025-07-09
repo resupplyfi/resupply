@@ -104,7 +104,9 @@ contract Setup is Test {
 
     constructor() {}
 
-    function setUp() public virtual {}
+    function setUp() public virtual {
+        
+    }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
         deal(address(scrvusd), address(this), _amountIn);

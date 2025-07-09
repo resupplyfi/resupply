@@ -22,6 +22,8 @@ import { VestManager } from "src/dao/tge/VestManager.sol";
 import { Treasury } from "src/dao/Treasury.sol";
 import { PermaStaker } from "src/dao/tge/PermaStaker.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
+import { IAuthHook } from "src/interfaces/IAuthHook.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
@@ -48,6 +50,8 @@ import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceive
 
 // Others
 import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { FeeLogger } from "src/protocol/FeeLogger.sol";
+import { ReusdOracle } from "src/protocol/ReusdOracle.sol";
 
 
 contract Setup is Test {
@@ -105,7 +109,9 @@ contract Setup is Test {
     ResupplyPair public testPair2;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
-
+    FeeLogger public feeLogger;
+    ReusdOracle public reusdOracle;
+    
     constructor() {
         _THIS = address(this);
     }
@@ -124,13 +130,11 @@ contract Setup is Test {
         frxusdToken = IERC20(address(Constants.Mainnet.FRXUSD_ERC20));
         crvusdToken = IERC20(address(Constants.Mainnet.CRVUSD_ERC20));
 
-
         // Setup registry
         vm.startPrank(address(core));
         registry.setRedemptionHandler(address(redemptionHandler));
         registry.setLiquidationHandler(address(liquidationHandler));
         registry.setInsurancePool(address(insurancePool));
-        registry.setFeeDeposit(address(feeDeposit));
         registry.setRewardHandler(address(rewardHandler));
         stablecoin.setOperator(address(registry), true);
         vm.stopPrank();
@@ -147,23 +151,29 @@ contract Setup is Test {
         vm.label(address(treasury), "Treasury");
     }
 
-    function deployProtocolContracts() public {
+    function deployProtocolContracts() public {        
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
-            dev
+            address(core)
         );
+        deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
+        deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
         deployer.addSupportedProtocol(
             "CurveLend",
+            1e18,
+            1e17,
             bytes4(keccak256("asset()")),           // borrowLookupSig
             bytes4(keccak256("collateral_token()")) // collateralLookupSig
         );
         deployer.addSupportedProtocol(
             "Fraxlend",
+            1e18,
+            1e17,
             bytes4(keccak256("asset()")),           // borrowLookupSig
             bytes4(keccak256("collateralContract()")) // collateralLookupSig
         );
@@ -239,7 +249,6 @@ contract Setup is Test {
             address(stakingToken), 
             address(0)
         );
-        feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         feeDepositController = new FeeDepositController(
             address(core), 
             address(registry),
@@ -251,10 +260,6 @@ contract Setup is Test {
         //attach fee deposit controller to fee deposit
         vm.prank(address(core));
         feeDeposit.setOperator(address(feeDepositController));
-
-        priceWatcher = new PriceWatcher(address(registry));
-        vm.prank(address(core));
-        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
 
         rewardHandler = new RewardHandler(
             address(core),
@@ -312,8 +317,6 @@ contract Setup is Test {
             "RSUP"
         );
         stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
-        uint256 maxdistro = 2e17 / uint256( 365 days );
-        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
         assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
@@ -351,11 +354,24 @@ contract Setup is Test {
         assertEq(permaStaker1.owner(), user1);
         assertEq(permaStaker2.owner(), user2);
 
+        uint256 maxdistro = 2e17 / uint256( 365 days );
+        feeLogger = new FeeLogger(address(core), address(registry));
+        reusdOracle = new ReusdOracle("Reusd Oracle");
+        vm.prank(address(core));
+        registry.setAddress("REUSD_ORACLE", address(reusdOracle));
+        priceWatcher = new PriceWatcher(address(registry));
+        feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));
         registry.setStaker(address(staker));
-        registry.setAddress("SREUSD", address(stakedStable));
+        registry.setAddress("FEE_LOGGER", address(feeLogger));
+        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
+        registry.setFeeDeposit(address(feeDeposit));
         vm.stopPrank();
+
+        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
+        vm.prank(address(core));
+        registry.setAddress("SREUSD", address(stakedStable));
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(ResupplyPair p){
@@ -377,10 +393,8 @@ contract Setup is Test {
             _stakingId
         );
         vm.stopPrank();
-
-        vm.startPrank(address(core));
+        vm.prank(address(core));
         registry.addPair(_pairAddress);
-        vm.stopPrank();
         p = ResupplyPair(_pairAddress);
         // ensure default state is written
         assertGt(p.minimumBorrowAmount(), 0);
@@ -583,5 +597,4 @@ contract Setup is Test {
         schedule[4] = DeploymentConfig.EMISSIONS_SCHEDULE_YEAR_1;
         return schedule;
     }
-
 }
