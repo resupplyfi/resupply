@@ -9,7 +9,8 @@ import { PairTestBase } from "./PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
-import { Vm } from "forge-std/Vm.sol";
+import { ICurveLendingVault } from "src/interfaces/ICurveLendingVault.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 
 contract PairTest is PairTestBase {
     function setUp() public override {

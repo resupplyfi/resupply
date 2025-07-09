@@ -22,4 +22,5 @@ interface IConvexStaking {
     function rewardToken() external view returns (address _rewardToken);
     function token() external view returns (address _token);
     function balanceOf(address account) external view returns (uint256);
+    function poolLength() external view returns (uint256);
 }
