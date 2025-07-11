@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
-import { IStakedFrax } from "../interfaces/IStakedFrax.sol";
+import { IStakedFrax } from "../interfaces/frax/IStakedFrax.sol";
 import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
 
 /// @title Calculate rates based on the underlying vaults with some floor settings

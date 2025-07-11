@@ -10,9 +10,12 @@ import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IRewards } from "src/interfaces/IRewards.sol";
 import { IConvexPoolUtil } from "src/interfaces/convex/IConvexPoolUtil.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
+import { ICurveLend } from "src/interfaces/curve/ICurveLend.sol";
+import { IFraxLend } from "../interfaces/frax/IFraxLend.sol";
 import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
+import { IStakedFrax } from "src/interfaces/frax/IStakedFrax.sol";
 
 
 /*
@@ -21,6 +24,7 @@ This is a utility library which is mainly used for off chain calculations
 contract Utilities is ResupplyPairConstants{
 
     address public constant convexPoolUtil = address(0x5Fba69a794F395184b5760DAf1134028608e5Cd1);
+    address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
 
     address public immutable registry;
     uint32 public constant TYPE_UNDEFINED = 0;
@@ -32,16 +36,53 @@ contract Utilities is ResupplyPairConstants{
         registry = _registry;
     }
 
-    function getPairInterestRate(address _pair) external returns(uint256 _rate){
-       (uint64 lastTimestamp, , uint128 lastShares) = IResupplyPair(_pair).currentRateInfo();
-       address rateCalculator = IResupplyPair(_pair).rateCalculator();
-       uint256 deltaTime = block.timestamp - lastTimestamp;
+    function sfrxusdRates() public view returns(uint256 fraxPerSecond){
+        //on fraxtal need to get pricefeed, on mainnet check directly on sfrxusd
+        IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(sfrxusd).rewardsCycleData();
+        uint256 sfrxusdtotal = IStakedFrax(sfrxusd).storedTotalAssets();
+        if(sfrxusdtotal == 0){
+            sfrxusdtotal = 1;
+        }
+        uint256 maxsfrxusdDistro = IStakedFrax(sfrxusd).maxDistributionPerSecondPerAsset();
+        fraxPerSecond = rdata.rewardCycleAmount / (rdata.cycleEnd - rdata.lastSync);
+        fraxPerSecond = fraxPerSecond * 1e18 / sfrxusdtotal;
+        fraxPerSecond = fraxPerSecond > maxsfrxusdDistro ? maxsfrxusdDistro : fraxPerSecond;
+    }
 
-       (_rate, ) = IRateCalculator(rateCalculator).getNewRate(
-            IResupplyPair(_pair).collateral(),
-            deltaTime,
-            lastShares
-        );
+    function getUnderlyingSupplyRate(address _pair) public view returns(uint256 _rate){
+        address collateral = IResupplyPair(_pair).collateral();
+
+        uint256 rate;
+
+        (bool success, ) = collateral.staticcall(abi.encodeWithSelector(bytes4(keccak256("collateral_token()"))));
+        if(success){
+            //curvelend
+            rate = ICurveLend(collateral).lend_apr() / (365 * 86400);
+        }else{
+            //fraxlend
+            (,,,IFraxLend.CurrentRateInfo memory rateInfo, IFraxLend.VaultAccount memory _totalAsset, IFraxLend.VaultAccount memory _totalBorrow) 
+                        = IFraxLend(collateral).previewAddInterest();
+                        
+            if(_totalAsset.amount > 0){
+                rate = rateInfo.ratePerSec * _totalBorrow.amount / _totalAsset.amount;
+                uint256 protocoltake = rate * rateInfo.feeToProtocolRate / 1e5;
+                rate -= protocoltake;
+            }
+        }
+    }
+
+    function getPairInterestRate(address _pair) external returns(uint256 _rate){
+       uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
+
+       uint256 rateRatio = 0.5e18;
+       //TODO: dynamic rate ratio for sreusd
+
+       underlyingRate = underlyingRate * rateRatio / 1e18;
+       uint256 sfrxusdRate = sfrxusdRates() * rateRatio / 1e18;
+       uint256 minimumRate = 2e16 / uint256(365 days);
+       _rate = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
+
+       _rate = underlyingRate > _rate ? underlyingRate : _rate;
     }
 
     //get swap amount out of a given route
