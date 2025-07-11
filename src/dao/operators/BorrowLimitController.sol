@@ -66,6 +66,7 @@ contract BorrowLimitController is CoreOwnable {
         //check if pair current borrow is between prev and end (and not paused etc)
         uint256 currentBorrowLimit = IResupplyPair(_pair).borrowLimit();
         require(limitInfo.startTime > 0, "no ramp info");
+        require(currentBorrowLimit > 0, "cant ramp paused pair");
         require(currentBorrowLimit >= limitInfo.prevBorrowLimit && currentBorrowLimit <= limitInfo.targetBorrowLimit, "current borrow limit outside of range");
         //check if ramp is already finished
         require(!limitInfo.finished, "already finished");
