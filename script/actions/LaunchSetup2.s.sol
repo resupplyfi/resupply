@@ -6,7 +6,7 @@ import { Protocol, VMConstants } from "src/Constants.sol";
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { ICurvePool } from "src/interfaces/ICurvePool.sol";
+import { ICurvePool } from "src/interfaces/curve/ICurvePool.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";

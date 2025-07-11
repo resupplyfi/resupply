@@ -44,6 +44,7 @@ import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { ILiquidationHandler } from "src/interfaces/ILiquidationHandler.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { ISwapper } from "src/interfaces/ISwapper.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 // Incentive Contracts
 import { ISimpleRewardStreamer } from "src/interfaces/ISimpleRewardStreamer.sol";
@@ -53,9 +54,14 @@ import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { ISimpleReceiverFactory } from "src/interfaces/ISimpleReceiverFactory.sol";
 
 // Others
-import { ICurveExchange } from "src/interfaces/ICurveExchange.sol";
+import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import { ICurveOneWayLendingFactory } from "src/interfaces/curve/ICurveOneWayLendingFactory.sol";
+import { ICurveFactory } from "src/interfaces/curve/ICurveFactory.sol";
+import { ICurveGaugeController } from "src/interfaces/curve/ICurveGaugeController.sol";
+import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
+import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 
 
 contract Setup is Test {
@@ -104,7 +110,9 @@ contract Setup is Test {
 
     constructor() {}
 
-    function setUp() public virtual {}
+    function setUp() public virtual {
+        setPairImplementation();
+    }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
         deal(address(scrvusd), address(this), _amountIn);
@@ -118,5 +126,82 @@ contract Setup is Test {
         IERC20(address(stablecoin)).forceApprove(address(swapPoolsCrvUsd), type(uint256).max);
         ICurveExchange(address(swapPoolsCrvUsd)).exchange(1,0, _amountIn, 0, address(this));
         _newprice = ICurveExchange(address(swapPoolsCrvUsd)).get_dy(0, 1, 100e18);
+    }
+
+    function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+        return deployLendingPairAs(address(core), _protocolId, _collateral, _stakingId);
+    }
+
+    function deployLendingPairAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+        vm.startPrank(address(_deployer));
+        address _pairAddress = deployer.deploy(
+            _protocolId,
+            abi.encode(
+                _collateral,
+                address(oracle),
+                address(rateCalculator),
+                DeploymentConfig.DEFAULT_MAX_LTV, //max ltv 75%
+                DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                DeploymentConfig.DEFAULT_LIQ_FEE,
+                DeploymentConfig.DEFAULT_MINT_FEE,
+                DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+            ),
+            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? _stakingId : 0
+        );
+        if(_pairAddress == address(0)) {
+            vm.stopPrank();
+            return ResupplyPair(address(0));
+        }
+        registry.addPair(_pairAddress);
+        p = ResupplyPair(_pairAddress);
+        // ensure default state is written
+        assertGt(p.minimumBorrowAmount(), 0);
+        assertGt(p.minimumRedemption(), 0);
+        assertGt(p.minimumLeftoverDebt(), 0);
+        vm.stopPrank();
+        return p;
+    }
+
+    function deployCurveLendingVaultAndGauge(
+        address _collateral
+    ) public returns(address vault, address gauge, uint256 convexPoolId){
+        // default values taken from https://etherscan.io/tx/0xe1d3e1c4fef7753e5fff72dfb96861e0fec455d17ebfce04a2858b9169c462b7
+        vault = ICurveOneWayLendingFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
+            Constants.Mainnet.CRVUSD_ERC20, //borrowed token
+            _collateral,        //collateral token
+            285,                //A
+            2000000000000000,   //fee
+            13000000000000000,  //loan discount
+            10000000000000000,  //liquidation discount
+            0x88822eE517Bfe9A1b97bf200b0b6D3F356488fF2, //price oracle
+            "sDOLA-Long2",      //name
+            31709791,           //min borrow rate
+            31709791            //max borrow rate
+        );
+        (gauge, convexPoolId) = _deployAndConfigureGauge(vault);
+    }
+
+    function _deployAndConfigureGauge(address _vault) public returns(address gauge, uint256 convexPoolId){
+        gauge = ICurveFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
+        ICurveGaugeController gaugeController = ICurveGaugeController(Constants.Mainnet.CURVE_GAUGE_CONTROLLER);
+        // We need to put some weight on this gauge via gauge controller, so we lock some CRV
+        deal(Constants.Mainnet.CRV_ERC20, address(this), 1_000_000e18);
+        IERC20(Constants.Mainnet.CRV_ERC20).approve(Constants.Mainnet.CURVE_ESCROW, type(uint256).max);
+        ICurveEscrow(Constants.Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, block.timestamp + 200 weeks);
+        vm.prank(gaugeController.admin());
+        gaugeController.add_gauge(gauge, 1);
+        gaugeController.vote_for_gauge_weights(gauge, 10_000);
+
+        // Add the gauge to convex
+        IConvexPoolManager(Constants.Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
+        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
+        convexPoolId = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolLength() - 1;
+    }
+
+    function setPairImplementation() public {
+        vm.startPrank(address(core));
+        deployer.setCreationCode(type(ResupplyPair).creationCode);
+        vm.stopPrank();
     }
 }

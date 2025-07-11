@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IConvexStaking } from "src/interfaces/IConvexStaking.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IRewards } from "src/interfaces/IRewards.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";

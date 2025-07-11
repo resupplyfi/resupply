@@ -1,6 +1,6 @@
 pragma solidity 0.8.28;
 
-interface IResupplyPairDeployer {
+interface IResupplyPairDeployerDeprecated {
     error Create2Failed();
     error NonUniqueName();
     error ProtocolAlreadyExists();
@@ -33,8 +33,8 @@ interface IResupplyPairDeployer {
         bytes4 borrowTokenSig,
         bytes4 collateralTokenSig
     );
+    event ShareBurnSettingsUpdated(uint256 _amountToBurn, uint256 _minShareBurnAmount);
     event OperatorSet(address indexed _operator, bool _approved);
-    event StateMigrated(address indexed _previousPairDeployer);
 
     function addSupportedProtocol(
         string memory _protocolName,
@@ -103,14 +103,14 @@ interface IResupplyPairDeployer {
         view
         returns (
             string memory protocolName,
-            uint256 amountToBurn,
-            uint256 minShareBurnAmount,
             bytes4 borrowTokenSig,
             bytes4 collateralTokenSig
         );
 
     function supportedProtocolsLength() external view returns (uint256);
     function getBorrowAndCollateralTokens(uint256 _protocolId, address _collateral) external view returns (address _borrowToken, address _collateralToken);
+
+    function setShareBurnSettings(uint256 _amountToBurn, uint256 _minShareBurnAmount) external;
 
     function updateSupportedProtocol(
         uint256 protocolId,
