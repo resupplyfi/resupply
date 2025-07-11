@@ -62,11 +62,10 @@ contract Utilities is ResupplyPairConstants{
             //fraxlend
             (,,,IFraxLend.CurrentRateInfo memory rateInfo, IFraxLend.VaultAccount memory _totalAsset, IFraxLend.VaultAccount memory _totalBorrow) 
                         = IFraxLend(collateral).previewAddInterest();
-                        
+            
+            uint256 fraxlendRate = rateInfo.ratePerSec * (1e5 - rateInfo.feeToProtocolRate) / 1e5;
             if(_totalAsset.amount > 0){
-                rate = rateInfo.ratePerSec * _totalBorrow.amount / _totalAsset.amount;
-                uint256 protocoltake = rate * rateInfo.feeToProtocolRate / 1e5;
-                rate -= protocoltake;
+                rate = fraxlendRate * _totalBorrow.amount / _totalAsset.amount;
             }
         }
     }
