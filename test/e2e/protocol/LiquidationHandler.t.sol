@@ -31,6 +31,9 @@ contract LiquidationHandlerTest is PairTestBase {
         stablecoin.approve(address(insurancePool), type(uint256).max);
 
         depositToInsurancePool(1_000_000e18);
+
+        vm.prank(pair.owner());
+        pair.setBorrowLimit(5_000_000e18);
     }
 
     
@@ -161,6 +164,8 @@ contract LiquidationHandlerTest is PairTestBase {
     }
 
     function buildLiquidatablePosition() public {
+        vm.prank(pair.owner());
+        pair.setBorrowLimit(50_000e18);
         uint256 DEFAULT_BORROW_AMOUNT = 5_000e18;
         uint256 borrowAmount = pair.minimumBorrowAmount() > DEFAULT_BORROW_AMOUNT ? pair.minimumBorrowAmount() : DEFAULT_BORROW_AMOUNT;
         borrow(pair, borrowAmount, calculateMinUnderlyingNeededForBorrow(borrowAmount)); // borrow while adding collateral

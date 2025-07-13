@@ -12,6 +12,9 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 contract PairTestFeeFlow is PairTestBase {
     function setUp() public override {
         super.setUp();
+
+        vm.prank(pair.owner());
+        pair.setBorrowLimit(50_000e18);
     }
 
     /*

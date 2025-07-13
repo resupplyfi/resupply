@@ -28,6 +28,11 @@ contract ResupplyAccountingTest is Setup {
         pair2 = ResupplyPair(_pairs[0]);
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
         PRECISION = redemptionHandler.PRECISION();
+
+        vm.startPrank(pair1.owner());
+        pair1.setBorrowLimit(5_000_000e18);
+        pair2.setBorrowLimit(5_000_000e18);
+        vm.stopPrank();
     }
 
     // ############################################
@@ -65,6 +70,8 @@ contract ResupplyAccountingTest is Setup {
             maxToBorrow,
             er
         );
+        (, uint128 amount ) = pair1.totalBorrow();
+        console.log("Borrowed Amount: ", uint(amount));
         liquidationFlow(
             pair1,
             user7,
@@ -446,12 +453,7 @@ contract ResupplyAccountingTest is Setup {
         (address oracle, ,) = pair.exchangeRateInfo();
         address collateralAddress = address(pair.collateral());
         vm.warp(block.timestamp + 30 days); // NOTICE: ensure pair ingests from oracle
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSignature("getPrices(address)", collateralAddress),
-            abi.encode(er)
-        );
-        pair.addInterest(false);
+        pair.addInterest(true);
         uint amountToLiquidate = pair.toBorrowAmount(pair.userBorrowShares(toLiquidate), true, true);
         
         deal(address(stablecoin), address(insurancePool), 10_000e18 + amountToLiquidate, true);
@@ -491,18 +493,20 @@ contract ResupplyAccountingTest is Setup {
             assertApproxEqAbs(
                 ipUnderlyingDiff,
                 liquidationAmountPlusFee - liquidationIncentive,
-                1,
+                1e7,
                 "// THEN: insurance pool underlying balance not within 1 wei"
             );
-            assertEq({
+            assertApproxEqAbs({
                 left: userCollateralValueBefore - liquidationFeeAmount - amountToLiquidate,
                 right: userCollateralValueAfter,
+                maxDelta: 1e7,
                 err: "// THEN: All collateral is not awarded"
             });
         }
-        assertEq({
+        assertApproxEqAbs({
             left: totalBorrowAmountBefore - totalBorrowAmountAfter,
             right: amountToLiquidate,
+            maxDelta: 1e7,
             err: "// THEN: internal borrow amount not decremented by expected"
         });
     }

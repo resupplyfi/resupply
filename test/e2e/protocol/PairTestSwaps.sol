@@ -15,6 +15,9 @@ import { Vm } from "forge-std/Vm.sol";
 contract PairTestSwaps is PairTestBase {
     function setUp() public override {
         super.setUp();
+        
+        vm.prank(pair.owner());
+        pair.setBorrowLimit(5_000_000e18);
     }
 
     /*
