@@ -134,7 +134,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
             uint256 additionalFeeRatio = maxAdditionalFeeRatio * distroWeight.avgWeighting / 1e6;
             additionalFeeRatio = 1e6 + additionalFeeRatio; //turn something like 10% or 0.1 to 1.1
 
-            stakedStableAmount = (feesInInterest * 1e16 / additionalFeeRatio) - feesInInterest;
+            stakedStableAmount = feesInInterest - (feesInInterest * 1e16 / additionalFeeRatio);
             balance -= stakedStableAmount;
         }
 
