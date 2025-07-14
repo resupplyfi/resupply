@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.28;
 
+import { Protocol} from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
@@ -11,7 +12,6 @@ import { FeeLogger } from "src/protocol/FeeLogger.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
 import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
-
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -67,7 +67,7 @@ contract sreUSDTest is Setup {
         feeDeposit.setOperator(address(feeDepositController));
         
         RewardHandler rewardHandlerAddress = RewardHandler(
-            0xdBF41092e1E310a2B48B0895095EfF6d341D8F00
+            Protocol.REWARD_HANDLER
         );
         rewardHandler = IRewardHandler(address(rewardHandlerAddress));
         registry.setRewardHandler(address(rewardHandler));
@@ -191,7 +191,6 @@ contract sreUSDTest is Setup {
         deposit(address(this), 1000e18);
         airdropAsset(address(vault), 10e18);
 
-        vm.prank(insuranceEmissionsReceiver.owner());
         vault.syncRewardsAndDistribution();
         advanceEpochs(1); // Go to start of new epoch
         uint256 pps = vault.pricePerShare();
