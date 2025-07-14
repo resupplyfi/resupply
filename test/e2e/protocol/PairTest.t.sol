@@ -358,7 +358,7 @@ contract PairTest is PairTestBase {
         uint256 claimableFees = pair.claimableOtherFees();
         assertGt(claimableFees, 0);
 
-        vm.expectRevert(ResupplyPair.FeesAlreadyDistributed.selector);
+        vm.expectRevert(ResupplyPair.FeesAlreadyWithdrawn.selector);
         (uint256 fees, uint256 otherFees) = pair.withdrawFees();
         uint256 currentEpoch = pair.getEpoch();
 
