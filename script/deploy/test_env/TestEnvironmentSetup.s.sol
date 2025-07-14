@@ -33,8 +33,7 @@ contract TestEnvironmentSetup is DeployResupply {
     function deployExtraPair() public {
         bytes memory result = _executeCore(
             address(pairDeployer),
-            abi.encodeWithSelector(
-                ResupplyPairDeployer.deploy.selector,
+            abi.encodeWithSignature("deploy(uint256,bytes,address,uint256)",
                 0,
                 abi.encode(
                     Constants.Mainnet.CURVELEND_SDOLA_CRVUSD,

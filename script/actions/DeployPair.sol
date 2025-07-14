@@ -79,7 +79,7 @@ contract DeployPair is BaseAction {
         bytes memory result;
         result = _executeCore(
             address(Protocol.PAIR_DEPLOYER),
-            abi.encodeWithSelector(ResupplyPairDeployer.deploy.selector,
+            abi.encodeWithSignature("deploy(uint256,bytes,address,uint256)",
                 _protocolId,
                 configdata,
                 _staking,
