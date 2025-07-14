@@ -65,16 +65,10 @@ contract sreUSDTest is Setup {
         );
         feeDepositController = IFeeDepositController(address(fdcontroller));
         feeDeposit.setOperator(address(feeDepositController));
-
-        RewardHandler rewardHandlerAddress = new RewardHandler(
-            address(core),
-            address(registry),
-            address(insurancePool),
-            address(debtReceiver),
-            address(pairEmissionStream),
-            address(ipEmissionStream),
-            address(ipStableStream)
-            );
+        
+        RewardHandler rewardHandlerAddress = RewardHandler(
+            0xdBF41092e1E310a2B48B0895095EfF6d341D8F00
+        );
         rewardHandler = IRewardHandler(address(rewardHandlerAddress));
         registry.setRewardHandler(address(rewardHandler));
 
@@ -196,6 +190,8 @@ contract sreUSDTest is Setup {
         advanceEpochs(1); // Go to start of new epoch
         deposit(address(this), 1000e18);
         airdropAsset(address(vault), 10e18);
+
+        vm.prank(insuranceEmissionsReceiver.owner());
         vault.syncRewardsAndDistribution();
         advanceEpochs(1); // Go to start of new epoch
         uint256 pps = vault.pricePerShare();

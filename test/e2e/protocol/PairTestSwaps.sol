@@ -17,7 +17,7 @@ contract PairTestSwaps is PairTestBase {
         super.setUp();
         
         vm.prank(pair.owner());
-        pair.setBorrowLimit(type(uint256).max);
+        pair.setBorrowLimit(type(uint128).max);
     }
 
     /*

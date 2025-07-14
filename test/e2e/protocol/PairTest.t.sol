@@ -17,7 +17,7 @@ contract PairTest is PairTestBase {
         super.setUp();
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
         vm.prank(pair.owner());
-        pair.setBorrowLimit(type(uint256).max);
+        pair.setBorrowLimit(type(uint128).max);
     }
 
     function test_AddCollateral() public {
