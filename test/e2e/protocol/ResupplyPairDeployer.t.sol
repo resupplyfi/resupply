@@ -171,4 +171,104 @@ contract ResupplyPairDeployerTest is Setup {
         );
         return _pairAddress;
     }
+
+    function test_SetDefaultConfigData() public {
+        address newOracle = address(0x123);
+        address newRateCalculator = address(0x456);
+        uint256 newMaxLTV = 8000; // 80%
+        uint256 newBorrowLimit = 50_000_000e18;
+        uint256 newLiquidationFee = 500; // 0.5%
+        uint256 newMintFee = 100; // 0.1%
+        uint256 newProtocolRedemptionFee = 300; // 0.3%
+
+        vm.prank(address(core));
+        deployer.setDefaultConfigData(
+            newOracle,
+            newRateCalculator,
+            newMaxLTV,
+            newBorrowLimit,
+            newLiquidationFee,
+            newMintFee,
+            newProtocolRedemptionFee
+        );
+
+        assertEq(deployer.defaultConfigData().oracle, newOracle);
+        assertEq(deployer.defaultConfigData().rateCalculator, newRateCalculator);
+        assertEq(deployer.defaultConfigData().maxLTV, newMaxLTV);
+        assertEq(deployer.defaultConfigData().initialBorrowLimit, newBorrowLimit);
+        assertEq(deployer.defaultConfigData().liquidationFee, newLiquidationFee);
+        assertEq(deployer.defaultConfigData().mintFee, newMintFee);
+        assertEq(deployer.defaultConfigData().protocolRedemptionFee, newProtocolRedemptionFee);
+    }
+
+    function test_SetInvalidDefaultConfigData() public {
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.InvalidConfigData.selector));
+        vm.prank(address(core));
+        deployer.setDefaultConfigData(
+            address(0), // invalid oracle
+            address(rateCalculator),
+            8000,
+            50_000_000e18,
+            500,
+            100,
+            300
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.InvalidConfigData.selector));
+        vm.prank(address(core));
+        deployer.setDefaultConfigData(
+            address(oracle),
+            address(0), // invalid rate calculator
+            8000,
+            50_000_000e18,
+            500,
+            100,
+            300
+        );
+    }
+
+    function test_DeployWithDefaults() public {
+        // Deploy using the overloaded function with defaults
+        vm.prank(address(core));
+        address pairAddress = deployer.deploy(
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            Mainnet.CONVEX_BOOSTER,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+
+        ResupplyPair pair = ResupplyPair(pairAddress);
+        assertGt(address(pair).code.length, 0);
+        assertEq(address(pair.collateral()), Mainnet.CURVELEND_SFRXUSD_CRVUSD);
+        
+        // Verify the pair uses default config values
+        (address oracle,,) = pair.exchangeRateInfo();
+        assertEq(oracle, deployer.defaultConfigData().oracle);
+        assertEq(address(pair.rateCalculator()), deployer.defaultConfigData().rateCalculator);
+        assertEq(pair.maxLTV(), deployer.defaultConfigData().maxLTV);
+        assertEq(pair.borrowLimit(), deployer.defaultConfigData().initialBorrowLimit);
+        assertEq(pair.liquidationFee(), deployer.defaultConfigData().liquidationFee);
+        assertEq(pair.mintFee(), deployer.defaultConfigData().mintFee);
+        assertEq(pair.protocolRedemptionFee(), deployer.defaultConfigData().protocolRedemptionFee);
+    }
+
+    function test_PredictPairAddressWithDefaults() public {
+        address predictedAddress = deployer.predictPairAddress(
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            Mainnet.CONVEX_BOOSTER,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+
+        // Deploy the pair and verify the address matches
+        vm.prank(address(core));
+        address actualAddress = deployer.deploy(
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            Mainnet.CONVEX_BOOSTER,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+
+        assertEq(predictedAddress, actualAddress);
+    }
 }

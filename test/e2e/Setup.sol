@@ -153,11 +153,29 @@ contract Setup is Test {
     }
 
     function deployProtocolContracts() public {        
+        rateCalculator = new InterestRateCalculator(
+            "Base",
+            2e16 / uint256(365 days),//2%
+            2
+        );
+
+        oracle = new BasicVaultOracle("Basic Vault Oracle");
+        underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
+
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
-            address(core)
+            address(core),
+            ResupplyPairDeployer.ConfigData({
+                oracle: address(oracle),
+                rateCalculator: address(rateCalculator),
+                maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
+                initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
+                mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
+                protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+            })
         );
         deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
@@ -179,15 +197,6 @@ contract Setup is Test {
             bytes4(keccak256("collateralContract()")) // collateralLookupSig
         );
         vm.stopPrank();
-
-        rateCalculator = new InterestRateCalculator(
-            "Base",
-            2e16 / uint256(365 days),//2%
-            2
-        );
-
-        oracle = new BasicVaultOracle("Basic Vault Oracle");
-        underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
 
         redemptionHandler = new RedemptionHandler(address(core),address(registry), address(underlyingoracle));
     }

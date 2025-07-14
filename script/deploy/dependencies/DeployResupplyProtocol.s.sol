@@ -455,7 +455,7 @@ contract DeployResupplyProtocol is BaseDeploy {
         bytes memory result;
         result = _executeCore(
             address(pairDeployer),
-            abi.encodeWithSelector(ResupplyPairDeployer.deploy.selector,
+            abi.encodeWithSignature("deploy(uint256,bytes,address,uint256)",
                 _protocolId,
                 abi.encode(
                     _collateral,
