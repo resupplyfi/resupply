@@ -407,7 +407,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         assembly {
             _pairAddress := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        if (_pairAddress == address(0)) revert Create2Failed();
+        if (_pairAddress == address(0) || _pairAddress.code.length == 0) revert Create2Failed();
 
         return _pairAddress;
     }

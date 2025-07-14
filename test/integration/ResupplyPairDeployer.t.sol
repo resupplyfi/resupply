@@ -44,6 +44,8 @@ contract ResupplyPairDeployerTest is Setup {
         )));
         vm.prank(address(core));
         registry.setAddress("DEPLOYER", address(deployer));
+        vm.prank(address(core));
+        deployer.setCreationCode(type(ResupplyPair).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
     }

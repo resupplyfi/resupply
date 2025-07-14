@@ -16,6 +16,8 @@ interface IFraxLend {
         uint128 shares;
     }
 
+    function addInterest(bool) external;
+
     function previewAddInterest()
         external
         view

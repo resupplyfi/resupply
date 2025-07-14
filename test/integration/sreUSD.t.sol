@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.28;
 
+import { Protocol} from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
@@ -11,7 +12,6 @@ import { FeeLogger } from "src/protocol/FeeLogger.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
 import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
-
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -65,16 +65,10 @@ contract sreUSDTest is Setup {
         );
         feeDepositController = IFeeDepositController(address(fdcontroller));
         feeDeposit.setOperator(address(feeDepositController));
-
-        RewardHandler rewardHandlerAddress = new RewardHandler(
-            address(core),
-            address(registry),
-            address(insurancePool),
-            address(debtReceiver),
-            address(pairEmissionStream),
-            address(ipEmissionStream),
-            address(ipStableStream)
-            );
+        
+        RewardHandler rewardHandlerAddress = RewardHandler(
+            Protocol.REWARD_HANDLER
+        );
         rewardHandler = IRewardHandler(address(rewardHandlerAddress));
         registry.setRewardHandler(address(rewardHandler));
 
@@ -196,6 +190,7 @@ contract sreUSDTest is Setup {
         advanceEpochs(1); // Go to start of new epoch
         deposit(address(this), 1000e18);
         airdropAsset(address(vault), 10e18);
+
         vault.syncRewardsAndDistribution();
         advanceEpochs(1); // Go to start of new epoch
         uint256 pps = vault.pricePerShare();

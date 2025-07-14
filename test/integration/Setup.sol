@@ -111,6 +111,7 @@ contract Setup is Test {
     constructor() {}
 
     function setUp() public virtual {
+        vm.createSelectFork(vm.envString("MAINNET_URL"));
         setPairImplementation();
     }
 
@@ -201,7 +202,7 @@ contract Setup is Test {
 
     function setPairImplementation() public {
         vm.startPrank(address(core));
-        deployer.setCreationCode(type(ResupplyPair).creationCode);
+        deployer.setCreationCode(hex"");
         vm.stopPrank();
     }
 }
