@@ -67,6 +67,7 @@ interface IResupplyRegistry {
     function setVestManager(address _newAddress) external;
     function setDefaultSwappers(address[] memory _swappers) external;
     function collateralId(address _collateral) external view returns(uint256);
+    function core() external view returns(address);
 
     error NameMustBeUnique();
     error ProtectedKey(string key);

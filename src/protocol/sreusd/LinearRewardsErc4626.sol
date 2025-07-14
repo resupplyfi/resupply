@@ -1,17 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.21;
-
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// ======================== LinearRewardsErc4626 ======================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
+pragma solidity 0.8.28;
 
 import { ERC20, ERC4626 } from "src/libraries/solmate/ERC4626.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
@@ -21,8 +9,10 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 
 
-/// @title LinearRewardsErc4626
-/// @notice An ERC4626 Vault implementation with linear rewards
+/**
+ * @title LinearRewardsErc4626
+ * @notice An ERC4626 Vault implementation with linear rewards, adapted from code from Frax Finance's sfrxUSD
+ */
 abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     using SafeCastLib for *;
 
@@ -53,8 +43,6 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     /// @notice The precision of the underlying asset
     uint256 public immutable UNDERLYING_PRECISION;
 
-    /// @param _core The core address
-    /// @param _registry The registry address
     /// @param _core The core address
     /// @param _registry The registry address
     /// @param _underlying The erc20 asset deposited
@@ -131,11 +119,13 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
             storedTotalAssets += _rewardToDistribute;
             emit DistributeRewards({ rewardsToDistribute: _rewardToDistribute });
         }
+        
+        lastRewardsDistribution = block.timestamp;
     }
 
     /// @notice The ```previewSyncRewards``` function returns the updated rewards cycle data without updating the state
     /// @return _newRewardsCycleData The updated rewards cycle data
-    function previewSyncRewards() public view virtual returns (RewardsCycleData memory _newRewardsCycleData, bool _update) {
+    function previewSyncRewards() public view virtual returns (RewardsCycleData memory _newRewardsCycleData) {
         RewardsCycleData memory _rewardsCycleData = rewardsCycleData;
 
         uint256 _timestamp = block.timestamp;
@@ -155,13 +145,12 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
             _cycleEnd += REWARDS_CYCLE_LENGTH.safeCastTo40();
         }
 
-        _rewardsCycleData.cycleEnd = _cycleEnd;
-        //only sync if a new distribution epoch has been completed
-        if(lastDistributedEpoch <= cycleEndEpoch) return (_rewardsCycleData, false);
-
-        _rewardsCycleData.lastSync = _timestamp.safeCastTo40();
+        // Write return values
         _rewardsCycleData.rewardCycleAmount = _newRewards.safeCastTo216();
-        return (_rewardsCycleData, true);
+        _rewardsCycleData.lastSync = _timestamp.safeCastTo40();
+        _rewardsCycleData.cycleEnd = _cycleEnd;
+
+        return _rewardsCycleData;
     }
 
     /// @notice The ```_syncRewards``` function is used to update the rewards cycle data

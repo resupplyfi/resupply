@@ -1,17 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.21;
-
-// ====================================================================
-// |     ______                   _______                             |
-// |    / _____________ __  __   / ____(_____  ____ _____  ________   |
-// |   / /_  / ___/ __ `| |/_/  / /_  / / __ \/ __ `/ __ \/ ___/ _ \  |
-// |  / __/ / /  / /_/ _>  <   / __/ / / / / / /_/ / / / / /__/  __/  |
-// | /_/   /_/   \__,_/_/|_|  /_/   /_/_/ /_/\__,_/_/ /_/\___/\___/   |
-// |                                                                  |
-// ====================================================================
-// =========================== StakedFrxUSD ===========================
-// ====================================================================
-// Frax Finance: https://github.com/FraxFinance
+pragma solidity 0.8.28;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { OFTCore } from "@layerzerolabs/oft-evm/contracts/OFTCore.sol";
@@ -20,9 +8,11 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
 import { LinearRewardsErc4626, ERC20 } from "./LinearRewardsErc4626.sol";
 
-/// @title Staked reUSD
-/// @notice A ERC4626 Vault implementation with linear rewards, rewards can be capped
-contract StakedReUSD is LinearRewardsErc4626, OFTCore {
+/**
+ * @title Savings reUSD
+ * @notice ERC4626 Vault implementation with linear rewards, adapted from code from Frax Finance's sfrxUSD
+ */
+contract SavingsReUSD is LinearRewardsErc4626, OFTCore {
     using SafeCastLib for *;
 
     /// @notice The maximum amount of rewards that can be distributed per second per 1e18 asset

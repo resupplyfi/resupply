@@ -38,7 +38,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_SetPairBorrowLimitRamp() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
@@ -47,14 +47,14 @@ contract BorrowLimitControllerTest is Setup {
         
         assertEq(targetBorrowLimit, newBorrowLimit, "Target borrow limit not set correctly");
         assertEq(prevBorrowLimit, initialBorrowLimit, "Previous borrow limit not set correctly");
-        assertEq(startTime, uint64(block.timestamp), "Start time not set correctly");
+        assertEq(startTime, uint64(vm.getBlockTimestamp()), "Start time not set correctly");
         assertEq(endTimeStored, uint64(endTime), "End time not set correctly");
         assertEq(finished, false, "Should not be finished initially");
     }
 
     function test_SetPairBorrowLimitRampOnlyOwner() public {
         uint256 newBorrowLimit = 100_000e18;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(user1);
         vm.expectRevert("!core");
@@ -64,7 +64,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_SetPairBorrowLimitRampCanOnlyRampUp() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 lowerBorrowLimit = initialBorrowLimit / 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         vm.expectRevert("can only ramp up");
@@ -74,7 +74,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_SetPairBorrowLimitRampRateLimit() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 6 days; // Less than 7 days
+        uint256 endTime = vm.getBlockTimestamp() + 6 days; // Less than 7 days
 
         vm.prank(address(core));
         vm.expectRevert("rate of change too high");
@@ -84,7 +84,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_UpdatePairBorrowLimit() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
@@ -107,7 +107,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_UpdatePairBorrowLimitAlreadyFinished() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
@@ -126,7 +126,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_UpdatePairBorrowLimitOutsideRange() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
@@ -142,7 +142,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_CancelRamp() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
@@ -168,7 +168,7 @@ contract BorrowLimitControllerTest is Setup {
     function test_CompleteRamp() public {
         uint256 initialBorrowLimit = testPair.borrowLimit();
         uint256 newBorrowLimit = initialBorrowLimit * 2;
-        uint256 endTime = block.timestamp + 10 days;
+        uint256 endTime = vm.getBlockTimestamp() + 10 days;
 
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
