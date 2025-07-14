@@ -9,6 +9,7 @@ import { IOracle } from "src/interfaces/IOracle.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { Setup } from "test/e2e/Setup.sol";
+import { IFraxLend } from "src/interfaces/frax/IFraxLend.sol";
 import "src/Constants.sol" as Constants;
 
 contract ResupplyAccountingTest is Setup {
@@ -51,6 +52,7 @@ contract ResupplyAccountingTest is Setup {
     // ############################################
 
     function test_fuzz_liquidate(uint128 collateralAmount) public {
+        IFraxLend(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD).addInterest(false);
         pair1.addInterest(false);
         /// @notice Bound
         collateralAmount = uint96(bound(collateralAmount, 2_000e18, 5_000_000e18));
@@ -453,9 +455,15 @@ contract ResupplyAccountingTest is Setup {
         (address oracle, ,) = pair.exchangeRateInfo();
         address collateralAddress = address(pair.collateral());
         vm.warp(block.timestamp + 30 days); // NOTICE: ensure pair ingests from oracle
-        pair.addInterest(true);
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSignature("getPrices(address)", collateralAddress),
+            abi.encode(er)
+        );
+        pair.addInterest(false);
+        IFraxLend(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD).addInterest(false);
         uint amountToLiquidate = pair.toBorrowAmount(pair.userBorrowShares(toLiquidate), true, true);
-        
+        (, , uint er) = ResupplyPair(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD).exchangeRateInfo();
         deal(address(stablecoin), address(insurancePool), 10_000e18 + amountToLiquidate, true);
 
         /// Values to derive state change from
@@ -488,25 +496,28 @@ contract ResupplyAccountingTest is Setup {
             err: "// THEN: insurance pool stable not decremented by expected"
         });
 
-        uint256 liquidationAmountPlusFee = amountToLiquidate + liquidationFeeAmount;
+        /// @notice Oracle mock only changes the Resupply's pairs interpretation of the er of underlying
+        ///         not the actual conversion rate internally of the underlying
+        uint256 liquidationAmountPlusFee = ((1e36 / er) * amountToLiquidate) / 1e18 + liquidationFeeAmount;
+        console.log(liquidationAmountPlusFee, userCollateralValueBefore);
         if (userCollateralValueBefore > liquidationAmountPlusFee) {
             assertApproxEqAbs(
                 ipUnderlyingDiff,
                 liquidationAmountPlusFee - liquidationIncentive,
-                1e7,
+                1,
                 "// THEN: insurance pool underlying balance not within 1 wei"
             );
             assertApproxEqAbs({
                 left: userCollateralValueBefore - liquidationFeeAmount - amountToLiquidate,
                 right: userCollateralValueAfter,
-                maxDelta: 1e7,
+                maxDelta: 1,
                 err: "// THEN: All collateral is not awarded"
             });
         }
         assertApproxEqAbs({
             left: totalBorrowAmountBefore - totalBorrowAmountAfter,
             right: amountToLiquidate,
-            maxDelta: 1e7,
+            maxDelta: 1,
             err: "// THEN: internal borrow amount not decremented by expected"
         });
     }

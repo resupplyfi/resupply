@@ -15,9 +15,6 @@ import { Vm } from "forge-std/Vm.sol";
 contract PairTestSwaps is PairTestBase {
     function setUp() public override {
         super.setUp();
-        
-        vm.prank(pair.owner());
-        pair.setBorrowLimit(type(uint128).max);
     }
 
     /*
@@ -30,6 +27,12 @@ contract PairTestSwaps is PairTestBase {
         address[] memory _pairs = registry.getAllPairAddresses();
         ResupplyPair fraxresupply = ResupplyPair(_pairs[_pairs.length - 1]); 
         ResupplyPair curveresupply = ResupplyPair(_pairs[0]); 
+
+        vm.prank(fraxresupply.owner());
+        fraxresupply.setBorrowLimit(type(uint128).max);
+
+        vm.prank(curveresupply.owner());
+        curveresupply.setBorrowLimit(type(uint128).max);
         
         IERC20 crvusd = curveresupply.underlying();
         IERC20 frxusd = fraxresupply.underlying();
