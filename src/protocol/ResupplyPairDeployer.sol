@@ -274,6 +274,10 @@ contract ResupplyPairDeployer is CoreOwnable {
         uint256 _protocolRedemptionFee
     ) internal {
         if(_oracle == address(0) || _rateCalculator == address(0)) revert InvalidConfigData();
+        if(_maxLTV > 1e5) revert InvalidConfigData();
+        if(_liquidationFee > 1e5) revert InvalidConfigData();
+        if(_mintFee > 1e5) revert InvalidConfigData();
+        if(_protocolRedemptionFee > 1e18) revert InvalidConfigData();
         _defaultConfigData = ConfigData({
             oracle: _oracle,
             rateCalculator: _rateCalculator,
@@ -471,7 +475,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _configData,
         address _underlyingStaking,
         uint256 _underlyingStakingId
-    ) external onlyOperator returns (address _pairAddress) {
+    ) public onlyOperator returns (address _pairAddress) {
         (address _collateral,,,,,,,) = abi.decode(
             _configData,
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
@@ -514,9 +518,6 @@ contract ResupplyPairDeployer is CoreOwnable {
         address _underlyingStaking,
         uint256 _underlyingStakingId
     ) external onlyOperator returns (address _pairAddress) {
-        (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_protocolId, _collateral);
-        collateralId[_protocolId][_borrowToken][_collateralToken]++;
-
         bytes memory _configData = abi.encode(
             _collateral,
             _defaultConfigData.oracle,
@@ -528,25 +529,7 @@ contract ResupplyPairDeployer is CoreOwnable {
             _defaultConfigData.protocolRedemptionFee
         );
 
-        bytes memory _immutables = abi.encode(registry);
-        bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
-
-        _pairAddress = _deploy(_configData, _immutables, _customConfigData);
-
-        deployInfo[_pairAddress] = DeployInfo({
-            protocolId: uint40(_protocolId),
-            deployTime: uint40(block.timestamp)
-        });
-        
-        emit LogDeploy(_pairAddress, _collateral, _protocolId, _name, _configData, _immutables, _customConfigData);
-
-        // Burn shares
-        _burnShares(
-            _borrowToken, 
-            _collateral, 
-            supportedProtocols[_protocolId].amountToBurn, 
-            supportedProtocols[_protocolId].minShareBurnAmount
-        );
+        _pairAddress = deploy(_protocolId, _configData, _underlyingStaking, _underlyingStakingId);
     }
 
     /// @notice Returns the deterministic address of a pair that would be deployed with the given parameters
@@ -561,7 +544,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _configData,
         address _underlyingStaking,
         uint256 _underlyingStakingId
-    ) external view returns (address) {
+    ) public view returns (address) {
         (address _collateral,,,,,,,) = abi.decode(
             _configData,
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
@@ -599,9 +582,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         address _collateral,
         address _underlyingStaking,
         uint256 _underlyingStakingId
-    ) external view returns (address) {
-        (string memory _name,,) = getNextName(_protocolId, _collateral);
-        
+    ) external view returns (address) {        
         bytes memory _configData = abi.encode(
             _collateral,
             _defaultConfigData.oracle,
@@ -612,26 +593,7 @@ contract ResupplyPairDeployer is CoreOwnable {
             _defaultConfigData.mintFee,
             _defaultConfigData.protocolRedemptionFee
         );
-        
-        bytes memory _immutables = abi.encode(registry);
-        bytes memory _customConfigData = abi.encode(
-            _name,
-            govToken,
-            _underlyingStaking,
-            _underlyingStakingId
-        );
-        
-        bytes memory creationCode = SSTORE2.read(contractAddress1);
-        if (contractAddress2 != address(0)) {
-            creationCode = BytesLib.concat(creationCode, SSTORE2.read(contractAddress2));
-        }
-        bytes memory bytecode = abi.encodePacked(
-            creationCode,
-            abi.encode(core, _configData, _immutables, _customConfigData)
-        );
-        bytes32 salt = keccak256(abi.encodePacked(core, _configData, _immutables, _customConfigData));
-        bytes32 _hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(bytecode)));
-        return address(uint160(uint256(_hash)));
+        return predictPairAddress(_protocolId, _configData, _underlyingStaking, _underlyingStakingId);
     }
 
     // ============================================================================================
