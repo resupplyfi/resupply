@@ -188,8 +188,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // Metadata
             name = _name;
 
-            // Instantiate Interest
-            _addInterest();
+            // Manually initialize rate info
+            currentRateInfo = CurrentRateInfo({
+                lastTimestamp: uint64(block.timestamp),
+                ratePerSec: 0,
+                lastShares: 0
+            });
             // Instantiate Exchange Rate
             _updateExchangeRate();
         }
