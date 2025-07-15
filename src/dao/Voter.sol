@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
-import { EpochTracker } from '../dependencies/EpochTracker.sol';
-import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
-import { IGovStaker } from '../interfaces/IGovStaker.sol';
+import { DelegatedOps } from 'src/dependencies/DelegatedOps.sol';
+import { EpochTracker } from 'src/dependencies/EpochTracker.sol';
+import { CoreOwnable } from 'src/dependencies/CoreOwnable.sol';
+import { IGovStaker } from 'src/interfaces/IGovStaker.sol';
 import { ICore } from '../interfaces/ICore.sol';
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 
@@ -21,15 +21,13 @@ interface IERC20 {
 contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     uint256 public immutable TOKEN_DECIMALS;
-    uint256 public constant VOTING_PERIOD = 1 weeks;
-    uint256 public constant EXECUTION_DELAY = 1 days;
-    uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Includes VOTING_PERIOD
+    uint256 public constant EXECUTION_DEADLINE = 3 weeks; // Inclusive of voting period
     uint256 public constant MAX_PCT = 10000;
     uint256 public constant MAX_DESCRIPTION_BYTES = 384;
 
     IGovStaker public immutable staker;
 
-    Proposal[] public proposalData;
+    mapping(uint256 id => Proposal proposal) public proposalData;
     // Proposal ID -> payload
     mapping(uint256 id => Action[] payload) public proposalPayload;
     // Proposal ID -> description
@@ -44,6 +42,12 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     uint256 public quorumPct;
     // Cooldown period between proposals for a given account
     uint256 public minTimeBetweenProposals = 1 days;
+    // Default delay between proposal passage and its eligibility for execution
+    uint256 public defaultExecutionDelay = 1 days;
+    // Default voting period for a proposal
+    uint256 public defaultVotingPeriod = 7 days;
+    // Proposal ID counter
+    uint256 public proposalCount;
 
     event ProposalCreated(
         address indexed account,
@@ -64,15 +68,33 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     event ProposalCreationMinPctSet(uint256 weight);
     event QuorumPctSet(uint256 weight);
     event MinTimeBetweenProposalsSet(uint256 cooldown);
+    event ExecutionDelaySet(uint256 delay);
+    event VotingPeriodSet(uint256 period);
 
+    // Single storage slot struct for processing proposal data
     struct Proposal {
-        uint16 epoch; // epoch which vote weights are based upon
-        uint32 createdAt; // timestamp when the proposal was created
-        uint40 quorumWeight; // amount of weight required for the proposal to become executable
-        bool processed; // set to true once the proposal is processed
-        Vote results; //  amount of weight currently voting on either side
+        uint16 epoch;           // epoch which vote weights are based upon
+        uint32 createdAt;       // timestamp of proposal creation
+        uint32 endsAt;          // timestamp of voting period end
+        uint32 executeAfter;    // timestamp of proposal execution eligibility
+        uint40 quorumWeight;    // amount of weight required for the proposal to become executable
+        bool processed;         // set to true once the proposal is processed
+        Vote results;           // amount of weight currently voting on either side
     }
-
+    // Helper struct for full proposal data
+    struct ProposalFullData {
+        string description;
+        uint256 epoch;
+        uint256 createdAt;
+        uint256 endsAt;
+        uint256 executeAfter;
+        uint256 quorumWeight;
+        uint256 weightYes;
+        uint256 weightNo;
+        bool processed;
+        bool executable;
+        Action[] payload;
+    }
     struct Vote {
         uint40 weightYes;
         uint40 weightNo;
@@ -89,24 +111,41 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param _staker Address of the staker contract
         @param _minCreateProposalPct Percent (in BPS) of total weight required to create a proposal
         @param _quorumPct Percent (in BPS) of total weight that must vote for a proposal before it can be executed
+        @param _startingProposalId ID of the first proposal to be created in this contract, all preceeding numbers are assumed to be 
+            processed on a prior voting contract.
     */
     constructor(
         address _core,
-        IGovStaker _staker,
+        address _staker,
         uint256 _minCreateProposalPct,
-        uint256 _quorumPct
+        uint256 _quorumPct,
+        uint256 _startingProposalId
     ) CoreOwnable(_core) EpochTracker(_core) {
-        staker = _staker;
+        require(_startingProposalId < 50, "Starting proposal ID too high");
+        staker = IGovStaker(_staker);
         minCreateProposalPct = _minCreateProposalPct;
         quorumPct = _quorumPct;
-        TOKEN_DECIMALS = IERC20(_staker.stakeToken()).decimals();
+        TOKEN_DECIMALS = IERC20(staker.stakeToken()).decimals();
+        proposalCount = _startingProposalId;
+        for (uint256 i = 0; i < _startingProposalId; i++) {
+            proposalData[i] = Proposal({
+                epoch: 0,
+                createdAt: 0,
+                endsAt: 0,
+                executeAfter: 0,
+                quorumWeight: 0, 
+                processed: true,
+                results: Vote(0, 0)
+            });
+            proposalDescription[i] = "Proposal data unavailable, please reference prior voting contract.";
+        }
     }
 
     /**
         @notice The total number of votes created
      */
     function getProposalCount() external view returns (uint256) {
-        return proposalData.length;
+        return proposalCount;
     }
 
     function minCreateProposalWeight() public view returns (uint256) {
@@ -116,33 +155,22 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
 
     /**
         @notice Gets information on a specific proposal
-        @dev Fetching the description can be expensive. 
-            On chain integrations should consider accessing proposalData directly.
      */
-    function getProposalData(uint256 id) external view returns (
-        string memory description,
-        uint256 epoch,
-        uint256 createdAt,
-        uint256 quorumWeight,
-        uint256 weightYes,
-        uint256 weightNo,
-        bool processed,
-        bool executable,
-        Action[] memory payload
-    ){
+    function getProposalData(uint256 id) external view returns (ProposalFullData memory){
         Proposal memory proposal = proposalData[id];
-        payload = proposalPayload[id];
-        return (
-            proposalDescription[id],
-            proposal.epoch,
-            proposal.createdAt,
-            proposal.quorumWeight,
-            proposal.results.weightYes,
-            proposal.results.weightNo,
-            proposal.processed,
-            _canExecute(proposal),
-            payload
-        );
+        return ProposalFullData({
+            description: proposalDescription[id],
+            epoch: proposal.epoch,
+            createdAt: proposal.createdAt,
+            endsAt: proposal.endsAt,
+            executeAfter: proposal.executeAfter,
+            quorumWeight: proposal.quorumWeight,
+            weightYes: proposal.results.weightYes,
+            weightNo: proposal.results.weightNo,
+            processed: proposal.processed,
+            executable: _canExecute(proposal),
+            payload: proposalPayload[id]
+        });
     }
 
     /**
@@ -172,16 +200,17 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         uint256 totalWeight = staker.getTotalWeightAt(epoch) / 10 ** TOKEN_DECIMALS;
         uint40 quorumWeight = uint40((totalWeight * quorumPct) / MAX_PCT);
         require(quorumWeight > 0, "Too little stake weight");
-        uint256 proposalId = proposalData.length;
-        proposalData.push(
-            Proposal({
-                epoch: uint16(epoch),
-                createdAt: uint32(block.timestamp),
-                quorumWeight: quorumWeight,
-                processed: false,
-                results: Vote(0, 0)
-            })
-        );
+        uint256 proposalId = proposalCount++; // increment after assignment
+        uint32 endsAt = uint32(block.timestamp + defaultVotingPeriod);
+        proposalData[proposalId] = Proposal({
+            epoch: uint16(epoch),
+            createdAt: uint32(block.timestamp),
+            endsAt: endsAt,
+            executeAfter: uint32(endsAt + defaultExecutionDelay),
+            quorumWeight: quorumWeight,
+            processed: false,
+            results: Vote(0, 0)
+        });
         for (uint256 i = 0; i < payload.length; i++) {
             proposalPayload[proposalId].push(payload[i]);
         }
@@ -214,13 +243,13 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     }
 
     function _voteForProposal(address account, uint256 id, uint256 pctYes, uint256 pctNo) internal {
-        require(id < proposalData.length, "Invalid ID");
+        require(id < proposalCount, "Invalid ID");
         Vote memory vote = accountVoteWeights[account][id];
         require(vote.weightYes + vote.weightNo == 0, "Already voted");
 
         Proposal memory proposal = proposalData[id];
         require(!proposal.processed, "Proposal already processed");
-        require(proposal.createdAt + VOTING_PERIOD > block.timestamp, "Voting period has closed");
+        require(proposal.createdAt + proposal.endsAt > block.timestamp, "Voting period has closed");
 
         // Reduce the account weight by the token decimals to help storage efficiency.
         uint256 accountWeight = staker.getAccountWeightAt(account, proposal.epoch) / 10 ** TOKEN_DECIMALS;
@@ -247,7 +276,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @dev Can cancel any time prior to execution
      */
     function cancelProposal(uint256 id) external onlyOwner {
-        require(id < proposalData.length, "Invalid ID");
+        require(id < proposalCount, "Invalid ID");
         require(!proposalData[id].processed, "Proposal already processed");
         if (proposalPayload[id].length == 1) require(!_containsProposalCancelerPayload(proposalPayload[id]), "Contains canceler payload");
         proposalData[id].processed = true;
@@ -285,7 +314,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param id Proposal ID
      */
     function executeProposal(uint256 id) external {
-        require(id < proposalData.length, "Invalid proposalID");
+        require(id < proposalCount, "Invalid proposalID");
 
         Proposal memory proposal = proposalData[id];
         require(_canExecute(proposal), "Proposal cannot be executed");
@@ -301,24 +330,23 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
     }
 
     function canExecute(uint256 id) external view returns (bool) {
-        require(id < proposalData.length, "Invalid proposalID");
+        require(id < proposalCount, "Invalid proposalID");
         return _canExecute(proposalData[id]);
     }
 
     function _canExecute(Proposal memory proposal) internal view returns (bool) {
         if (proposal.processed) return false;
-        if (block.timestamp < proposal.createdAt + VOTING_PERIOD + EXECUTION_DELAY) return false;
+        if (block.timestamp < proposal.executeAfter) return false;
         if (block.timestamp > proposal.createdAt + EXECUTION_DEADLINE) return false;
 
         // Ensure proposal has met quorum and received more weight in favor.
         if (!_quorumReached(proposal.quorumWeight, proposal.results)) return false;
         if (proposal.results.weightYes <= proposal.results.weightNo) return false;
-        
         return true;
     }
 
     function quorumReached(uint256 id) external view returns (bool) {
-        require(id < proposalData.length, "Invalid proposalID");
+        require(id < proposalCount, "Invalid proposalID");
         Proposal memory proposal = proposalData[id];
         return _quorumReached(proposal.quorumWeight, proposal.results);
     }
@@ -357,6 +385,29 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         emit MinTimeBetweenProposalsSet(_cooldown);
     }
 
+    /**
+        @notice Set the default delay between proposal passage and its eligibility for execution
+        @dev Value is not applied to in-flight proposals
+        @param _delay The delay in seconds
+     */
+    function setDefaultExecutionDelay(uint256 _delay) external onlyOwner {
+        require(_delay > 1 hours, "Too low");
+        require(_delay <= 2 days, "Too high");
+        defaultExecutionDelay = _delay;
+        emit ExecutionDelaySet(_delay);
+    }
+
+    /**
+        @notice Set the default voting period for a proposal
+        @dev Value is not applied to in-flight proposals
+        @param _period The voting period in seconds
+     */
+    function setDefaultVotingPeriod(uint256 _period) external onlyOwner {
+        require(_period > 1 days, "Too low");
+        require(_period <= 1 weeks, "Too high");
+        defaultVotingPeriod = _period;
+        emit VotingPeriodSet(_period);
+    }
 
     /**
         @notice Overwrite the description text for an existing proposal
@@ -364,7 +415,7 @@ contract Voter is CoreOwnable, DelegatedOps, EpochTracker {
         @param description New description text for the proposal
      */
     function updateProposalDescription(uint256 id, string calldata description) external onlyOwner {
-        require(id < proposalData.length, "Invalid ID");
+        require(id < proposalCount, "Invalid ID");
         require(bytes(description).length <= MAX_DESCRIPTION_BYTES, "Description too long");
         proposalDescription[id] = description;
         emit ProposalDescriptionUpdated(id, description);
