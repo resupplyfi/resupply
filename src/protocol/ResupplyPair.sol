@@ -34,7 +34,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     address public immutable convexBooster;
     uint256 public convexPid;
     
-    error FeesAlreadyWithdrawn();
+    error FeesAlreadyDistributed();
     error IncorrectStakeBalance();
 
     /// @param _core Core contract address
@@ -332,7 +332,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         //current epoch must be greater than last claimed epoch
         //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)
         if(currentEpoch <= lastFeeEpoch || currentEpoch != lastDistributedEpoch){
-            revert FeesAlreadyWithdrawn();
+            revert FeesAlreadyDistributed();
         }
 
         lastFeeEpoch = currentEpoch;
