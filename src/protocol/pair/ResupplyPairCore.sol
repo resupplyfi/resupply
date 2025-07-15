@@ -33,7 +33,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
         _major = 3;
         _minor = 0;
-        _patch = 3;
+        _patch = 4;
     }
 
     // ============================================================================================
