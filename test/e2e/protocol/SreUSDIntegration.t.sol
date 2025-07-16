@@ -137,7 +137,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         uint256 initialPPS = stakedStable.pricePerShare();
         
         // Generate fees over multiple epochs
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 4; i++) {
             address pair = pairs[0];
             uint256 borrowAmount = 10_000e18;
             borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
