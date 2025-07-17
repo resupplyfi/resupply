@@ -46,6 +46,10 @@ contract RetentionTest is Setup {
         vm.stopPrank();
     }
 
+    function test_CanCallClaimImmediately() public {
+        receiver.claimEmissions();
+    }
+
     function test_totalEmissions() public {
         advanceEpochAndClaim();
         vm.startPrank(address(core));
