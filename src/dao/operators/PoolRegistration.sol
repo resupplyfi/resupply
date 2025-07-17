@@ -33,5 +33,4 @@ contract PoolRegistration is CoreOwnable {
             )
         );
     }
-
 }
