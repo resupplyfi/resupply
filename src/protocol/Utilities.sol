@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { Protocol } from "src/Constants.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
@@ -16,7 +17,8 @@ import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IStakedFrax } from "src/interfaces/frax/IStakedFrax.sol";
-
+import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
+import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculatorV2.sol";
 
 /*
 This is a utility library which is mainly used for off chain calculations
@@ -51,13 +53,10 @@ contract Utilities is ResupplyPairConstants{
 
     function getUnderlyingSupplyRate(address _pair) public view returns(uint256 _rate){
         address collateral = IResupplyPair(_pair).collateral();
-
-        uint256 rate;
-
         (bool success, ) = collateral.staticcall(abi.encodeWithSelector(bytes4(keccak256("collateral_token()"))));
         if(success){
             //curvelend
-            rate = ICurveLend(collateral).lend_apr() / (365 * 86400);
+            _rate = ICurveLend(collateral).lend_apr() / (365 * 86400);
         }else{
             //fraxlend
             (,,,IFraxLend.CurrentRateInfo memory rateInfo, IFraxLend.VaultAccount memory _totalAsset, IFraxLend.VaultAccount memory _totalBorrow) 
@@ -65,23 +64,35 @@ contract Utilities is ResupplyPairConstants{
             
             uint256 fraxlendRate = rateInfo.ratePerSec * (1e5 - rateInfo.feeToProtocolRate) / 1e5;
             if(_totalAsset.amount > 0){
-                rate = fraxlendRate * _totalBorrow.amount / _totalAsset.amount;
+                _rate = fraxlendRate * _totalBorrow.amount / _totalAsset.amount;
             }
         }
     }
 
-    function getPairInterestRate(address _pair) external returns(uint256 _rate){
-       uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
+    function getPairInterestRate(address _pair) external returns(uint256 _ratePerSecond){
+        IInterestRateCalculatorV2 calculator = IInterestRateCalculatorV2(IResupplyPair(_pair).rateCalculator());
+        uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
 
-       uint256 rateRatio = 0.5e18;
-       //TODO: dynamic rate ratio for sreusd
+        uint256 rateRatio;
+        try calculator.rateRatio() returns (uint256 ratio) {rateRatio = ratio;}
+        catch {return 0;} // Handle case where dummy calculator is used
+        
+        
+        // Incorporate price weight if using V2 calculator
+        if(address(calculator) != Protocol.INTEREST_RATE_CALCULATOR){
+            uint256 rateRatioBase = calculator.rateRatioBase();
+            uint256 rateRatioAdditional = calculator.rateRatioAdditional();
+            address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
+            uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
+            rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        }
 
-       underlyingRate = underlyingRate * rateRatio / 1e18;
-       uint256 sfrxusdRate = sfrxusdRates() * rateRatio / 1e18;
+       underlyingRate = underlyingRate / rateRatio;
+       uint256 sfrxusdRate = sfrxusdRates() / rateRatio;
        uint256 minimumRate = 2e16 / uint256(365 days);
-       _rate = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
+       _ratePerSecond = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
 
-       _rate = underlyingRate > _rate ? underlyingRate : _rate;
+       _ratePerSecond = underlyingRate > _ratePerSecond ? underlyingRate : _ratePerSecond;
     }
 
     //get swap amount out of a given route
