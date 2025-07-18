@@ -71,26 +71,31 @@ contract Utilities is ResupplyPairConstants{
     function getPairInterestRate(address _pair) external view returns(uint256 _ratePerSecond){
         IInterestRateCalculatorV2 calculator = IInterestRateCalculatorV2(IResupplyPair(_pair).rateCalculator());
         uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
-
+        uint256 minimumRate;
         uint256 rateRatio;
-        try calculator.rateRatio() returns (uint256 ratio) {rateRatio = ratio;}
+        try calculator.minimumRate() returns (uint256 rate) {minimumRate = rate;}
         catch {return 0;} // Handle case where dummy calculator is used
         
-        // Incorporate price weight if using V2 calculator
-        if(address(calculator) != INTEREST_RATE_CALCULATORV1){
-            uint256 rateRatioBase = calculator.rateRatioBase();
-            uint256 rateRatioAdditional = calculator.rateRatioAdditional();
-            address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
-            uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
-            rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        // V1 calculator
+        if(address(calculator) == INTEREST_RATE_CALCULATORV1){
+            rateRatio = calculator.rateRatio();
+            if(rateRatio == 0) return 0;
+            uint256 sfrxusdRate = sfrxusdRates() / rateRatio;
+            _ratePerSecond = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
+            return underlyingRate > _ratePerSecond ? underlyingRate : _ratePerSecond;
         }
 
-       underlyingRate = underlyingRate / rateRatio;
-       uint256 sfrxusdRate = sfrxusdRates() / rateRatio;
-       uint256 minimumRate = 2e16 / uint256(365 days);
-       _ratePerSecond = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
-
-       _ratePerSecond = underlyingRate > _ratePerSecond ? underlyingRate : _ratePerSecond;
+        // V2 calculator
+        uint256 rateRatioBase = calculator.rateRatioBase();
+        uint256 rateRatioAdditional = calculator.rateRatioAdditional();
+        address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
+        uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
+        rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        if(rateRatio == 0) return 0;
+        underlyingRate = underlyingRate * rateRatio / 1e18;
+        uint256 floorRate = sfrxusdRates() * rateRatio / 1e18;
+        floorRate = floorRate > minimumRate ? floorRate : minimumRate;
+        _ratePerSecond = underlyingRate > floorRate ? underlyingRate : floorRate;
     }
 
     //get swap amount out of a given route

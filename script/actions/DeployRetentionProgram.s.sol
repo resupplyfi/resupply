@@ -7,10 +7,7 @@ import { SafeHelper } from "script/utils/SafeHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
-import { ICore } from "src/interfaces/ICore.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { RetentionIncentives } from "src/dao/RetentionIncentives.sol";
-import { RetentionReceiver } from "src/dao/emissions/receivers/RetentionReceiver.sol";
 import { RetentionProgramJsonParser } from "test/utils/RetentionProgramJsonParser.sol";
 
 contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
