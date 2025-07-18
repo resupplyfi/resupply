@@ -16,13 +16,14 @@ import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IStakedFrax } from "src/interfaces/frax/IStakedFrax.sol";
-
+import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
+import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculatorV2.sol";
 
 /*
 This is a utility library which is mainly used for off chain calculations
 */
 contract Utilities is ResupplyPairConstants{
-
+    address public constant INTEREST_RATE_CALCULATORV1 = address(0x77777777729C405efB6Ac823493e6111F0070D67);
     address public constant convexPoolUtil = address(0x5Fba69a794F395184b5760DAf1134028608e5Cd1);
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
 
@@ -51,13 +52,10 @@ contract Utilities is ResupplyPairConstants{
 
     function getUnderlyingSupplyRate(address _pair) public view returns(uint256 _rate){
         address collateral = IResupplyPair(_pair).collateral();
-
-        uint256 rate;
-
         (bool success, ) = collateral.staticcall(abi.encodeWithSelector(bytes4(keccak256("collateral_token()"))));
         if(success){
             //curvelend
-            rate = ICurveLend(collateral).lend_apr() / (365 * 86400);
+            _rate = ICurveLend(collateral).lend_apr() / (365 * 86400);
         }else{
             //fraxlend
             (,,,IFraxLend.CurrentRateInfo memory rateInfo, IFraxLend.VaultAccount memory _totalAsset, IFraxLend.VaultAccount memory _totalBorrow) 
@@ -65,23 +63,38 @@ contract Utilities is ResupplyPairConstants{
             
             uint256 fraxlendRate = rateInfo.ratePerSec * (1e5 - rateInfo.feeToProtocolRate) / 1e5;
             if(_totalAsset.amount > 0){
-                rate = fraxlendRate * _totalBorrow.amount / _totalAsset.amount;
+                _rate = fraxlendRate * _totalBorrow.amount / _totalAsset.amount;
             }
         }
     }
 
-    function getPairInterestRate(address _pair) external returns(uint256 _rate){
-       uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
+    function getPairInterestRate(address _pair) external view returns(uint256 _ratePerSecond){
+        IInterestRateCalculatorV2 calculator = IInterestRateCalculatorV2(IResupplyPair(_pair).rateCalculator());
+        uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
+        uint256 minimumRate;
+        uint256 rateRatio;
+        try calculator.minimumRate() returns (uint256 rate) {minimumRate = rate;}
+        catch {return 0;} // Handle case where dummy calculator is used
+        
+        // V1 calculator
+        if(address(calculator) == INTEREST_RATE_CALCULATORV1){
+            //v1 is constant 50%
+            rateRatio = 0.5e18;
+        }else{
+            //for v2 (and any future versions) use a conbination of base+additional
+            //with a price weight applied
+            uint256 rateRatioBase = calculator.rateRatioBase();
+            uint256 rateRatioAdditional = calculator.rateRatioAdditional();
+            address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
+            uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
+            rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        }
 
-       uint256 rateRatio = 0.5e18;
-       //TODO: dynamic rate ratio for sreusd
-
-       underlyingRate = underlyingRate * rateRatio / 1e18;
-       uint256 sfrxusdRate = sfrxusdRates() * rateRatio / 1e18;
-       uint256 minimumRate = 2e16 / uint256(365 days);
-       _rate = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
-
-       _rate = underlyingRate > _rate ? underlyingRate : _rate;
+        //get greater of underlying, sfrxusd, or minimum
+        underlyingRate = underlyingRate * rateRatio / 1e18;
+        uint256 floorRate = sfrxusdRates() * rateRatio / 1e18;
+        floorRate = floorRate > minimumRate ? floorRate : minimumRate;
+        _ratePerSecond = underlyingRate > floorRate ? underlyingRate : floorRate;
     }
 
     //get swap amount out of a given route

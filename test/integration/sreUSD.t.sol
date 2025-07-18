@@ -15,6 +15,7 @@ import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { Utilities } from "src/protocol/Utilities.sol";
 
 contract SreUSDTest is Setup {
     SavingsReUSD public vault;
@@ -296,5 +297,24 @@ contract SreUSDTest is Setup {
         deal(address(asset), address(user), amount);
         vm.prank(address(user));
         asset.transfer(to, amount);
+    }
+
+    function test_GetPairInterestRates() public {
+        // This helps us test our utilities contract with the new sreusd config
+        Utilities utilities = new Utilities(address(registry));
+        address[] memory pairs = registry.getAllPairAddresses();
+        console.log("Number of pairs:", pairs.length);
+        
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address pair = pairs[i];
+            uint256 underlyingRate = utilities.getUnderlyingSupplyRate(pair);
+            uint256 sfrxusdRate = utilities.sfrxusdRates();
+            uint256 rate = utilities.getPairInterestRate(pair);
+            console.log("--------------------------------");
+            console.log("Pair", pair, IResupplyPair(pair).name());
+            console.log("%18e", underlyingRate * 365 * 86400, "underlying apr");
+            console.log("%18e", sfrxusdRate * 365 * 86400, "sfrxusd apr");
+            console.log("%18e", rate * 365 * 86400, "pair APR");
+        }
     }
 }
