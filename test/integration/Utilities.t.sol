@@ -25,8 +25,8 @@ contract UtilitiesTest is Setup {
             uint256 rate = utilities.getPairInterestRate(pair);
             console.log("--------------------------------");
             console.log("Pair", pair);
-            console.log("%18e", underlyingRate * 365 * 86400, "underlyingRate");
-            console.log("%18e", sfrxusdRate * 365 * 86400, "sfrxusdRate");
+            console.log("%18e", underlyingRate * 365 * 86400, "underlying apr");
+            console.log("%18e", sfrxusdRate * 365 * 86400, "sfrxusd apr");
             console.log("%18e", rate * 365 * 86400, "pair APR");
         }
     }
