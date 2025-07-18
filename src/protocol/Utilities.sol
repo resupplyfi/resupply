@@ -78,20 +78,19 @@ contract Utilities is ResupplyPairConstants{
         
         // V1 calculator
         if(address(calculator) == INTEREST_RATE_CALCULATORV1){
-            rateRatio = calculator.rateRatio();
-            if(rateRatio == 0) return 0;
-            uint256 sfrxusdRate = sfrxusdRates() / rateRatio;
-            _ratePerSecond = sfrxusdRate > minimumRate ? sfrxusdRate : minimumRate;
-            return underlyingRate > _ratePerSecond ? underlyingRate : _ratePerSecond;
+            //v1 is constant 50%
+            rateRatio = 0.5e18;
+        }else{
+            //for v2 (and any future versions) use a conbination of base+additional
+            //with a price weight applied
+            uint256 rateRatioBase = calculator.rateRatioBase();
+            uint256 rateRatioAdditional = calculator.rateRatioAdditional();
+            address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
+            uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
+            rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
         }
 
-        // V2 calculator
-        uint256 rateRatioBase = calculator.rateRatioBase();
-        uint256 rateRatioAdditional = calculator.rateRatioAdditional();
-        address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
-        uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
-        rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
-        if(rateRatio == 0) return 0;
+        //get greater of underlying, sfrxusd, or minimum
         underlyingRate = underlyingRate * rateRatio / 1e18;
         uint256 floorRate = sfrxusdRates() * rateRatio / 1e18;
         floorRate = floorRate > minimumRate ? floorRate : minimumRate;
