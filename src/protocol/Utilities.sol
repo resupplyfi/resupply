@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol } from "src/Constants.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
@@ -24,7 +23,7 @@ import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculato
 This is a utility library which is mainly used for off chain calculations
 */
 contract Utilities is ResupplyPairConstants{
-
+    address public constant INTEREST_RATE_CALCULATORV1 = address(0x77777777729C405efB6Ac823493e6111F0070D67);
     address public constant convexPoolUtil = address(0x5Fba69a794F395184b5760DAf1134028608e5Cd1);
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
 
@@ -69,7 +68,7 @@ contract Utilities is ResupplyPairConstants{
         }
     }
 
-    function getPairInterestRate(address _pair) external returns(uint256 _ratePerSecond){
+    function getPairInterestRate(address _pair) external view returns(uint256 _ratePerSecond){
         IInterestRateCalculatorV2 calculator = IInterestRateCalculatorV2(IResupplyPair(_pair).rateCalculator());
         uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
 
@@ -77,9 +76,8 @@ contract Utilities is ResupplyPairConstants{
         try calculator.rateRatio() returns (uint256 ratio) {rateRatio = ratio;}
         catch {return 0;} // Handle case where dummy calculator is used
         
-        
         // Incorporate price weight if using V2 calculator
-        if(address(calculator) != Protocol.INTEREST_RATE_CALCULATOR){
+        if(address(calculator) != INTEREST_RATE_CALCULATORV1){
             uint256 rateRatioBase = calculator.rateRatioBase();
             uint256 rateRatioAdditional = calculator.rateRatioAdditional();
             address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
