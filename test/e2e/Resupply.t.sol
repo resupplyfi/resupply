@@ -8,6 +8,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
+import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { IFraxLend } from "src/interfaces/frax/IFraxLend.sol";
 import "src/Constants.sol" as Constants;
@@ -209,7 +210,7 @@ contract ResupplyAccountingTest is Setup {
         uint256 minimumRedeem = pair.minimumRedemption();
 
         if (amountToRedeem < minimumRedeem) {
-            vm.expectRevert(ResupplyPairConstants.MinimumRedemption.selector);
+            vm.expectRevert(IResupplyPairErrors.MinimumRedemption.selector);
             redemptionHandler.redeemFromPair(
                 address(pair), 
                 amountToRedeem, 
@@ -223,7 +224,7 @@ contract ResupplyAccountingTest is Setup {
             totalBorrowAmount <= debtReduction ||
             totalBorrowAmount - debtReduction < pair.minimumLeftoverDebt()
         ) {
-            vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+            vm.expectRevert(IResupplyPairErrors.InsufficientDebtToRedeem.selector);
             redemptionHandler.redeemFromPair(
                 address(pair), 
                 amountToRedeem, 
@@ -367,7 +368,7 @@ contract ResupplyAccountingTest is Setup {
         if (amountToBorrow > pair.totalDebtAvailable()) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    ResupplyPairConstants.InsufficientDebtAvailable.selector,
+                    IResupplyPairErrors.InsufficientDebtAvailable.selector,
                     pair.totalDebtAvailable(),
                     amountToBorrow
                 )
@@ -376,7 +377,7 @@ contract ResupplyAccountingTest is Setup {
         } else if (amountToBorrow > maxDebtToIssue) {
             vm.expectRevert(
                 abi.encodeWithSelector(
-                    ResupplyPairConstants.Insolvent.selector,
+                    IResupplyPairErrors.Insolvent.selector,
                     amountToBorrow,
                     collat,
                     er
@@ -385,7 +386,7 @@ contract ResupplyAccountingTest is Setup {
             vm.prank(user);
             pair.borrow(amountToBorrow, 0, user);
         } else if (amountToBorrow < pair.minimumBorrowAmount()) {
-            vm.expectRevert(ResupplyPairConstants.InsufficientBorrowAmount.selector);
+            vm.expectRevert(IResupplyPairErrors.InsufficientBorrowAmount.selector);
             pair.borrow(amountToBorrow, 0, user);
         } else {
             vm.prank(user);
