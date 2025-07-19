@@ -43,13 +43,12 @@ contract BorrowLimitControllerTest is Setup {
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
 
-        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored, bool finished) = borrowController.pairLimits(address(testPair));
+        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored) = borrowController.pairLimits(address(testPair));
         
         assertEq(targetBorrowLimit, newBorrowLimit, "Target borrow limit not set correctly");
         assertEq(prevBorrowLimit, initialBorrowLimit, "Previous borrow limit not set correctly");
         assertEq(startTime, uint64(block.timestamp), "Start time not set correctly");
         assertEq(endTimeStored, uint64(endTime), "End time not set correctly");
-        assertEq(finished, false, "Should not be finished initially");
     }
 
     function test_SetPairBorrowLimitRampOnlyOwner() public {
@@ -150,13 +149,12 @@ contract BorrowLimitControllerTest is Setup {
         vm.prank(address(core));
         borrowController.cancelRamp(address(testPair));
 
-        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored, bool finished) = borrowController.pairLimits(address(testPair));
+        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored) = borrowController.pairLimits(address(testPair));
         
         assertEq(targetBorrowLimit, 0, "Target borrow limit should be reset");
         assertEq(prevBorrowLimit, 0, "Previous borrow limit should be reset");
         assertEq(startTime, 0, "Start time should be reset");
         assertEq(endTimeStored, 0, "End time should be reset");
-        assertEq(finished, true, "Should be marked as finished");
     }
 
     function test_CancelRampOnlyOwner() public {
@@ -180,7 +178,7 @@ contract BorrowLimitControllerTest is Setup {
         uint256 finalBorrowLimit = testPair.borrowLimit();
         assertEq(finalBorrowLimit, newBorrowLimit, "Should reach target borrow limit");
 
-        (,,, , bool finished) = borrowController.pairLimits(address(testPair));
-        assertEq(finished, true, "Should be marked as finished");
+        (,,uint64 startTime,) = borrowController.pairLimits(address(testPair));
+        assertEq(startTime, 0, "Should be marked as finished by 0 in starttime");
     }
 } 
