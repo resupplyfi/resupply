@@ -1,6 +1,8 @@
 pragma solidity 0.8.28;
 
-interface IResupplyPair {
+import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
+
+interface IResupplyPair is IResupplyPairErrors {
     
     struct CurrentRateInfo {
         uint64 lastTimestamp;
@@ -111,25 +113,6 @@ interface IResupplyPair {
     function version(  ) external pure returns (uint256 _major, uint256 _minor, uint256 _patch) ;
     function withdrawFees(  ) external  returns (uint256 _fees, uint256 _otherFees) ;
 
-    error BadSwapper(  );
-    error BorrowerSolvent(  );
-    error FeesAlreadyWithdrawn(  );
-    error IncorrectStakeBalance(  );
-    error Insolvent( uint256 _borrow,uint256 _collateral,uint256 _exchangeRate );
-    error InsufficientBorrowAmount(  );
-    error InsufficientDebtAvailable( uint256 _assets,uint256 _request );
-    error InsufficientDebtToRedeem(  );
-    error InvalidLiquidator(  );
-    error InvalidParameter(  );
-    error InvalidPath( address _expected,address _actual );
-    error InvalidReceiver(  );
-    error InvalidRedemptionHandler(  );
-    error MinimumRedemption(  );
-    error OnlyProtocolOrOwner(  );
-    error ReentrancyGuardReentrantCall(  );
-    error SafeCastOverflowedUintDowncast( uint8 bits,uint256 value );
-    error SafeERC20FailedOperation( address token );
-    error SlippageTooHigh( uint256 _minOut,uint256 _actual );
     event AddCollateral( address indexed borrower,uint256 collateralAmount ) ;
     event AddInterest( uint256 interestEarned,uint256 rate ) ;
     event Borrow( address indexed _borrower,address indexed _receiver,uint256 _borrowAmount,uint256 _sharesAdded,uint256 _mintFees ) ;
