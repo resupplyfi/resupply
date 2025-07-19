@@ -548,7 +548,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     event UpdateExchangeRate(uint256 exchangeRate);
 
     /// @notice The ```updateExchangeRate``` function is the external implementation of _updateExchangeRate.
-    /// @dev This function is invoked at most once per block as these queries can be expensive
+    /// @dev This function only writes to state when a change in exchange rate occurs
     /// @return _exchangeRate The exchange rate
     function updateExchangeRate()
         external
@@ -559,7 +559,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```_updateExchangeRate``` function retrieves the latest exchange rate. i.e how much collateral to buy 1e18 asset.
-    /// @dev This function is invoked at most once per block as these queries can be expensive
+    /// @dev This function only writes to state when a change in exchange rate occurs
     /// @return _exchangeRate The exchange rate
     function _updateExchangeRate()
         internal
