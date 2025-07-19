@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { console } from "lib/forge-std/src/console.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
+import { IVoterDeprecated } from "src/interfaces/IVoterDeprecated.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
@@ -86,7 +88,7 @@ contract GuardianTest is Setup {
 
     function test_CancelProposal() public {
         uint256 proposalId = IVoter(address(voter)).getProposalCount() - 1;
-        (,,,bool processed,) = IVoter(address(voter)).proposalData(proposalId);
+        (,,,,,,bool processed,,) = IVoterDeprecated(address(voter)).getProposalData(proposalId);
         assertEq(processed, false);
 
         vm.prank(address(0xBABE));
@@ -95,7 +97,7 @@ contract GuardianTest is Setup {
 
         vm.prank(dev);
         guardian.cancelProposal(proposalId);
-        (,,,processed,) = IVoter(address(voter)).proposalData(proposalId);
+        (,,,,,,processed,,) = IVoterDeprecated(address(voter)).getProposalData(proposalId);
         assertEq(processed, true);
     }
 

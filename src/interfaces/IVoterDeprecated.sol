@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-interface IVoter {
+interface IVoterDeprecated {
     struct Vote {
         uint40 weightYes;
         uint40 weightNo;
@@ -15,25 +15,9 @@ interface IVoter {
     struct Proposal {
         uint16 epoch;
         uint32 createdAt;
-        uint32 endsAt;
-        uint32 executeAfter;
         uint40 quorumWeight;
         bool processed;
         Vote results;
-    }
-
-    struct ProposalFullData {
-        string description;
-        uint256 epoch;
-        uint256 createdAt;
-        uint256 endsAt;
-        uint256 executeAfter;
-        uint256 quorumWeight;
-        uint256 weightYes;
-        uint256 weightNo;
-        bool processed;
-        bool executable;
-        Action[] payload;
     }
 
     event ProposalCreated(
@@ -70,12 +54,20 @@ interface IVoter {
     function getProposalCount() external view returns (uint256);
     function minCreateProposalWeight() external view returns (uint256);
     function minTimeBetweenProposals() external view returns (uint256);
-    function getProposalData(uint256 id) external view returns (ProposalFullData memory);
+    function getProposalData(uint256 id) external view returns (
+        string memory description,
+        uint256 epoch,
+        uint256 createdAt,
+        uint256 quorumWeight,
+        uint256 weightYes,
+        uint256 weightNo,
+        bool processed,
+        bool executable,
+        Action[] memory payload
+    );
     function proposalData(uint256 _id) external view returns (
         uint16 epoch,
         uint32 createdAt,
-        uint32 endsAt,
-        uint32 executeAfter,
         uint40 quorumWeight,
         bool processed,
         Vote memory results
@@ -96,6 +88,6 @@ interface IVoter {
     function getEpoch() external view returns (uint256);
     function setDelegateApproval(address delegate, bool approved) external;
     function isApprovedDelegate(address account, address delegate) external view returns (bool);
-    function defaultVotingPeriod() external view returns (uint256);
-    function defaultExecutionDelay() external view returns (uint256);
+    function votingPeriod() external view returns (uint256);
+    function executionDelay() external view returns (uint256);
 }
