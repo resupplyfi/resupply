@@ -62,6 +62,8 @@ import { ICurveGaugeController } from "src/interfaces/curve/ICurveGaugeControlle
 import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
 import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol";
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
+import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
+import { IRetentionIncentives } from "src/interfaces/IRetentionIncentives.sol";
 
 
 contract Setup is Test {
@@ -107,6 +109,9 @@ contract Setup is Test {
     IERC20 public sfrxusd = IERC20(Mainnet.SFRXUSD_ERC20);
     IERC20 public scrvusd = IERC20(Mainnet.SCRVUSD_ERC20);
     address public lzEndpoint = address(Mainnet.LAYERZERO_ENDPOINTV2);
+    IRetentionReceiver public retentionReceiver = IRetentionReceiver(Protocol.RETENTION_RECEIVER);
+    IRetentionIncentives public retention = IRetentionIncentives(Protocol.RETENTION_INCENTIVES);
+
 
     constructor() {}
 

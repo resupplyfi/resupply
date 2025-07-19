@@ -10,4 +10,12 @@ contract MockReUsdOracle {
     function setPrice(uint256 _price) public {
         price = _price;
     }
+
+    function priceAsCrvusd() external view returns (uint256) {
+        return price;
+    }
+
+    function priceAsFrxusd() external view returns (uint256) {
+        return price;
+    }
 }
