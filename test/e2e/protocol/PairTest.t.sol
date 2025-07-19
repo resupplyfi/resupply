@@ -8,9 +8,9 @@ import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { ICurveLendingVault } from "src/interfaces/curve/ICurveLendingVault.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
+import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 
 contract PairTest is PairTestBase {
     function setUp() public override {
@@ -295,7 +295,7 @@ contract PairTest is PairTestBase {
         // We expect this to revert because the total remaining debt is less than `minimumLeftoverDebt`
         (, uint amt) = pair.totalBorrow();
 
-        vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
+        vm.expectRevert(IResupplyPairErrors.InsufficientDebtToRedeem.selector);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             borrowAmount, // add some to force revert
@@ -358,7 +358,7 @@ contract PairTest is PairTestBase {
         uint256 claimableFees = pair.claimableOtherFees();
         assertGt(claimableFees, 0);
 
-        vm.expectRevert(ResupplyPair.FeesAlreadyWithdrawn.selector);
+        vm.expectRevert(IResupplyPairErrors.FeesAlreadyDistributed.selector);
         (uint256 fees, uint256 otherFees) = pair.withdrawFees();
         uint256 currentEpoch = pair.getEpoch();
 
@@ -402,7 +402,7 @@ contract PairTest is PairTestBase {
         vm.stopPrank();
         assertEq(pair.borrowLimit(), 0);
         vm.expectRevert(
-            abi.encodeWithSelector(ResupplyPairConstants.InsufficientDebtAvailable.selector, 0, borrowAmount)
+            abi.encodeWithSelector(IResupplyPairErrors.InsufficientDebtAvailable.selector, 0, borrowAmount)
         );
         pair.borrow(borrowAmount, 20_000e18, address(this));
         // ensure double pause does not set previous to 0.
