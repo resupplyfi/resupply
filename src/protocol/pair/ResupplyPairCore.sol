@@ -22,9 +22,9 @@ import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 import { IMintable } from "../../interfaces/IMintable.sol";
+import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 
-
-abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, RewardDistributorMultiEpoch {
+abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, RewardDistributorMultiEpoch, IResupplyPairErrors {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;

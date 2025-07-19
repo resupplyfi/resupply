@@ -10,7 +10,6 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { ResupplyPairCore } from "src/protocol/pair/ResupplyPairCore.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "src/libraries/VaultAccount.sol";
@@ -33,9 +32,6 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     // Staking Info
     address public immutable convexBooster;
     uint256 public convexPid;
-    
-    error FeesAlreadyWithdrawn();
-    error IncorrectStakeBalance();
 
     /// @param _core Core contract address
     /// @param _configData config data
