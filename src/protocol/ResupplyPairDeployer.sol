@@ -413,10 +413,11 @@ contract ResupplyPairDeployer is CoreOwnable {
     }
 
     function _burnShares(address _borrowToken, address _collateral, uint256 _amountToBurn, uint256 _minShareBurnAmount) internal {
+        uint256 _balanceBefore = IERC20(_collateral).balanceOf(address(this));
         IERC20(_borrowToken).forceApprove(address(_collateral), _amountToBurn);
         IERC4626(_collateral).deposit(_amountToBurn, address(this));
-        uint256 _balance = IERC20(_collateral).balanceOf(address(this));
-        if(_balance < _minShareBurnAmount) revert NotEnoughSharesBurned();
+        uint256 _balanceDelta = IERC20(_collateral).balanceOf(address(this)) - _balanceBefore;
+        if(_balanceDelta < _minShareBurnAmount) revert NotEnoughSharesBurned();
     }
 
     // Migrate state from previous pair deployer
