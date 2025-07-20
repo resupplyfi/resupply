@@ -311,8 +311,8 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes4 _borrowTokenSig,
         bytes4 _collateralTokenSig
     ) external onlyOwner returns (uint256) {
-        if (_amountToBurn < 1e17) revert InvalidAmountToBurn();
-        if (_minShareBurnAmount < 1e17) revert InvalidMinShareBurnAmount();
+        if (_amountToBurn < 1e17 || _amountToBurn > type(uint80).max) revert InvalidAmountToBurn();
+        if (_minShareBurnAmount < 1e17 || _minShareBurnAmount > type(uint80).max) revert InvalidMinShareBurnAmount();
         if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
         
@@ -351,9 +351,20 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes4 _borrowTokenSig,
         bytes4 _collateralTokenSig
     ) external onlyOwner returns (uint256) {
+        if (_amountToBurn < 1e17 || _amountToBurn > type(uint80).max) revert InvalidAmountToBurn();
+        if (_minShareBurnAmount < 1e17 || _minShareBurnAmount > type(uint80).max) revert InvalidMinShareBurnAmount();
         if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
         if (protocolId >= supportedProtocols.length) revert ProtocolNotFound();
+        
+        // Ensure protocol name is unique
+        uint256 length = supportedProtocols.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (i != protocolId && keccak256(bytes(supportedProtocols[i].protocolName)) == keccak256(bytes(_protocolName))) {
+                revert ProtocolAlreadyExists();
+            }
+        }
+        
         supportedProtocols[protocolId].protocolName = _protocolName;
         supportedProtocols[protocolId].amountToBurn = uint80(_amountToBurn);
         supportedProtocols[protocolId].minShareBurnAmount = uint80(_minShareBurnAmount);
@@ -477,10 +488,22 @@ contract ResupplyPairDeployer is CoreOwnable {
         address _underlyingStaking,
         uint256 _underlyingStakingId
     ) public onlyOperator returns (address _pairAddress) {
-        (address _collateral,,,,,,,) = abi.decode(
-            _configData,
-            (address, address, address, uint256, uint256, uint256, uint256, uint256)
-        );
+        (
+            address _collateral,
+            address _oracle,
+            address _rateCalculator,
+            uint256 _maxLTV,
+            uint256 _initialBorrowLimit,
+            uint256 _liquidationFee,
+            uint256 _mintFee,
+            uint256 _protocolRedemptionFee
+        ) = abi.decode(_configData, (address, address, address, uint256, uint256, uint256, uint256, uint256));
+
+        if(_oracle == address(0) || _rateCalculator == address(0)) revert InvalidConfigData();
+        if(_maxLTV > 1e5) revert InvalidConfigData();
+        if(_liquidationFee > 1e5) revert InvalidConfigData();
+        if(_mintFee > 1e5) revert InvalidConfigData();
+        if(_protocolRedemptionFee > 1e18) revert InvalidConfigData();
 
         (string memory _name, address _borrowToken, address _collateralToken) = getNextName(_protocolId, _collateral);
         collateralId[_protocolId][_borrowToken][_collateralToken]++;
