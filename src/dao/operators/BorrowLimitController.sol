@@ -92,4 +92,25 @@ contract BorrowLimitController is CoreOwnable {
         );
     }
 
+    function previewNewBorrowLimit(address _pair) external view returns (uint256) {
+        PairBorrowLimit memory limitInfo = pairLimits[_pair];
+
+        uint256 currentBorrowLimit = IResupplyPair(_pair).borrowLimit();
+        if (
+            limitInfo.startTime == 0 ||
+            currentBorrowLimit == 0 ||
+            currentBorrowLimit < limitInfo.prevBorrowLimit ||
+            currentBorrowLimit > limitInfo.targetBorrowLimit
+        ) return currentBorrowLimit;
+
+        uint256 dt = (block.timestamp - limitInfo.startTime) * 10_000 / (limitInfo.endTime - limitInfo.startTime);
+        if (dt >= 10_000) {
+            dt = 10_000;
+        }
+
+        uint256 borrowDelta = limitInfo.targetBorrowLimit - limitInfo.prevBorrowLimit;
+        uint256 newBorrow = ((borrowDelta * dt) / 10_000) + limitInfo.prevBorrowLimit;
+        return newBorrow;
+    }
+
 }

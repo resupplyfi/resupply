@@ -91,7 +91,9 @@ contract BorrowLimitControllerTest is Setup {
         // Skip 5 days (50% of the ramp period)
         skip(5 days);
 
+        uint256 previewAmt = borrowController.previewNewBorrowLimit(address(testPair));
         borrowController.updatePairBorrowLimit(address(testPair));
+        assertEq(previewAmt, testPair.borrowLimit(), "Preview borrow limit not correct");
         uint256 currentBorrowLimit = testPair.borrowLimit();
         uint256 expectedBorrowLimit = initialBorrowLimit + ((newBorrowLimit - initialBorrowLimit) * 5000) / 10000;
         
@@ -115,7 +117,9 @@ contract BorrowLimitControllerTest is Setup {
         skip(11 days);
 
         // First update should work and mark as finished
+        uint256 previewAmt = borrowController.previewNewBorrowLimit(address(testPair));
         borrowController.updatePairBorrowLimit(address(testPair));
+        assertEq(previewAmt, testPair.borrowLimit(), "Preview borrow limit not correct");
 
         // Second update should fail due to start time being cleared from prior update
         vm.expectRevert("no ramp info");
