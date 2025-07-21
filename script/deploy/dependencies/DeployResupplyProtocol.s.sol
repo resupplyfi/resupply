@@ -32,7 +32,7 @@ contract DeployResupplyProtocol is BaseDeploy {
             deployer
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("ResupplyPairDeployer.sol:ResupplyPairDeployer"), constructorArgs);
-        bytes32 salt = CreateX.SALT_PAIR_DEPLOYER;
+        bytes32 salt = CreateX.SALT_PAIR_DEPLOYER_V2;
         address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         if (!addressHasCode(predictedAddress)) {
             addToBatch(

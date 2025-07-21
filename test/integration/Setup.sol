@@ -83,7 +83,7 @@ contract Setup is Test {
     IBasicVaultOracle public oracle = IBasicVaultOracle(Protocol.BASIC_VAULT_ORACLE);
     IUnderlyingOracle public underlyingoracle = IUnderlyingOracle(Protocol.UNDERLYING_ORACLE);
     IInterestRateCalculator public rateCalculator = IInterestRateCalculator(Protocol.INTEREST_RATE_CALCULATOR);
-    IResupplyPairDeployer public deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER);
+    IResupplyPairDeployer public deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     IRedemptionHandler public redemptionHandler = IRedemptionHandler(Protocol.REDEMPTION_HANDLER);
     ILiquidationHandler public liquidationHandler = ILiquidationHandler(Protocol.LIQUIDATION_HANDLER);
     IRewardHandler public rewardHandler = IRewardHandler(Protocol.REWARD_HANDLER);
@@ -117,7 +117,8 @@ contract Setup is Test {
 
     function setUp() public virtual {
         vm.createSelectFork(vm.envString("MAINNET_URL"));
-        setPairImplementation();
+        deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
+        clearPairImplementation();
     }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
@@ -205,7 +206,7 @@ contract Setup is Test {
         convexPoolId = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolLength() - 1;
     }
 
-    function setPairImplementation() public {
+    function clearPairImplementation() public {
         vm.startPrank(address(core));
         deployer.setCreationCode(hex"");
         vm.stopPrank();

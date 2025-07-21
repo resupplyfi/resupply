@@ -129,4 +129,6 @@ interface IResupplyPairDeployer {
             uint256 _minor,
             uint256 _patch
         );
+
+    function operators(address) external view returns (bool);
 }
