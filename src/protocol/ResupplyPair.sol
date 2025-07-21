@@ -328,7 +328,7 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         //current epoch must be greater than last claimed epoch
         //current epoch must be equal to the FeeDeposit prev distributed epoch (FeeDeposit must distribute first)
         if(currentEpoch <= lastFeeEpoch || currentEpoch != lastDistributedEpoch){
-            revert FeesAlreadyWithdrawn();
+            revert FeesAlreadyDistributed();
         }
 
         lastFeeEpoch = currentEpoch;
