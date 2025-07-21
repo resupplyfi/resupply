@@ -117,8 +117,8 @@ contract BorrowLimitControllerTest is Setup {
         // First update should work and mark as finished
         borrowController.updatePairBorrowLimit(address(testPair));
 
-        // Second update should fail
-        vm.expectRevert("already finished");
+        // Second update should fail due to start time being cleared from prior update
+        vm.expectRevert("no ramp info");
         borrowController.updatePairBorrowLimit(address(testPair));
     }
 
