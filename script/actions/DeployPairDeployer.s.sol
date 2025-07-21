@@ -27,13 +27,13 @@ contract DeployPairDeployer is SafeHelper, CreateXHelper, BaseAction {
     function deployPairDeployer() public {
         // 1 Deploy new pair deployer
         // 2 Set new pair deployer on registry
-        bytes32 salt = CreateX.SALT_PAIR_DEPLOYER;
+        bytes32 salt = CreateX.SALT_PAIR_DEPLOYER_V2;
         (address[] memory previouslyDeployedPairs, ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo) = DeployInfo.getDeployInfo();
         bytes memory constructorArgs = abi.encode(
             Protocol.CORE,
             Protocol.REGISTRY,
             Protocol.GOV_TOKEN,
-            address(deployer),
+            deployer,
             ResupplyPairDeployer.ConfigData({
                 oracle: Protocol.BASIC_VAULT_ORACLE,
                 rateCalculator: Protocol.INTEREST_RATE_CALCULATOR_V2,
@@ -52,7 +52,10 @@ contract DeployPairDeployer is SafeHelper, CreateXHelper, BaseAction {
             encodeCREATE3Deployment(salt, bytecode)
         );
         address pairDeployer = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(pairDeployer == Protocol.PAIR_DEPLOYER_V2, "wrong address");
         console.log("pair deployer deployed at", pairDeployer);
+        console.log("operator set", address(deployer));
+        console.log("Num pairs loaded:", previouslyDeployedPairs.length);
         require(pairDeployer.code.length > 0, "deployment failed");
         
         // Set address in registry
@@ -64,6 +67,8 @@ contract DeployPairDeployer is SafeHelper, CreateXHelper, BaseAction {
                 pairDeployer
             )
         );
+        console.log("registry address", registry.getAddress("PAIR_DEPLOYER"));
         require(registry.getAddress("PAIR_DEPLOYER") == pairDeployer, "registry not updated");
+        require(IResupplyPairDeployer(pairDeployer).operators(address(deployer)), "operator not set");
     }
 }
