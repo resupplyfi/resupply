@@ -118,8 +118,11 @@ contract ResupplyPairDeployer is CoreOwnable {
         address _registry, 
         address _govToken, 
         address _initialOperator,
-        ConfigData memory _defaultConfigData
+        ConfigData memory _defaultConfigData,
+        address[] memory _previouslyDeployedPairs,
+        DeployInfo[] memory _previouslyDeployedPairsInfo
     ) CoreOwnable(_core){
+        require(_previouslyDeployedPairs.length == _previouslyDeployedPairsInfo.length, "lengths must match");
         registry = _registry;
         govToken = _govToken;
         _setOperator(_initialOperator, true);
@@ -136,9 +139,10 @@ contract ResupplyPairDeployer is CoreOwnable {
             _defaultConfigData.protocolRedemptionFee
         );
         
-        address _previousPairDeployer = IResupplyRegistry(registry).getAddress("DEPLOYER");
-        if(_previousPairDeployer != address(0)) {
-            _migrateState(_previousPairDeployer);
+        if(_previouslyDeployedPairs.length > 0){
+            address _previousPairDeployer = IResupplyRegistry(registry).getAddress("PAIR_DEPLOYER");
+            require(_previousPairDeployer != address(0), "previous deployer not found");
+            _migrateState(_previousPairDeployer, _previouslyDeployedPairs, _previouslyDeployedPairsInfo);
         }
     }
 
@@ -432,11 +436,12 @@ contract ResupplyPairDeployer is CoreOwnable {
     }
 
     // Migrate state from previous pair deployer
-    function _migrateState(address _previousPairDeployer) internal {
+    function _migrateState(address _previousPairDeployer, address[] memory _previouslyDeployedPairs, DeployInfo[] memory _previouslyDeployedPairsInfo) internal {
         IResupplyPairDeployerDeprecated _deployer = IResupplyPairDeployerDeprecated(_previousPairDeployer);
         contractAddress1 = _deployer.contractAddress1();
         contractAddress2 = _deployer.contractAddress2();
         uint256 i = 0;
+        // Migrate supported protocols
         while(true) {
             try _deployer.supportedProtocols(i) returns (
                 string memory protocolName, bytes4 borrowTokenSig, bytes4 collateralTokenSig
@@ -457,16 +462,21 @@ contract ResupplyPairDeployer is CoreOwnable {
         // Migrate collateral IDs
         address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
         uint256 length = pairs.length;
+        require(length == _previouslyDeployedPairs.length, "lengths must match");
         for (uint256 i = 0; i < length; i++) {
+            require(pairs[i] == _previouslyDeployedPairs[i], "pair mismatch");
             address _pair = pairs[i];
             address _collateral = IResupplyPair(_pair).collateral();
-            for (uint256 k = 0; k < supportedProtocols.length; k++) {
-                (address _borrowToken, address _collateralToken) = getBorrowAndCollateralTokens(k, _collateral);
-                if(_borrowToken != address(0) && _collateralToken != address(0)){
-                    collateralId[k][_borrowToken][_collateralToken] = _deployer.collateralId(k, _borrowToken, _collateralToken);
-                    break;
-                }
-            }
+            DeployInfo memory _deployInfo = _previouslyDeployedPairsInfo[i];
+            uint256 protocolId = _deployInfo.protocolId;
+            (address _borrowToken, address _collateralToken) = getBorrowAndCollateralTokens(protocolId, _collateral);
+            require(_borrowToken != address(0) && _collateralToken != address(0), "invalid protocol id");
+            collateralId[protocolId][_borrowToken][_collateralToken] = _deployer.collateralId(protocolId, _borrowToken, _collateralToken);
+            require(_deployInfo.deployTime > 0, "deploy time not set");
+            deployInfo[_pair] = DeployInfo({
+                protocolId: uint40(protocolId),
+                deployTime: uint40(_deployInfo.deployTime)
+            });
         }
         emit StateMigrated(_previousPairDeployer);
     }

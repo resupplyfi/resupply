@@ -16,6 +16,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IAuthHook} from "src/interfaces/IAuthHook.sol";
 import {IResupplyRegistry} from "src/interfaces/IResupplyRegistry.sol";
 import {ICurveLendingVault} from "src/interfaces/curve/ICurveLendingVault.sol";
+import {DeployInfo} from "test/utils/DeployInfo.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     using Strings for uint256;
@@ -26,12 +27,16 @@ contract ResupplyPairDeployerTest is Setup {
         super.setUp();
         originalDeployer = deployer;
         vm.prank(address(core));
-        registry.setAddress("DEPLOYER", address(deployer));
+        registry.setAddress("PAIR_DEPLOYER", address(deployer));
+        (
+            address[] memory previouslyDeployedPairs, 
+            ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo
+        ) = DeployInfo.getDeployInfo();
         deployer = IResupplyPairDeployer(address(new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
-            address(core),
+            address(deployer),
             ResupplyPairDeployer.ConfigData({
                 oracle: address(oracle),
                 rateCalculator: address(rateCalculator),
@@ -40,14 +45,41 @@ contract ResupplyPairDeployerTest is Setup {
                 liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
                 mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
                 protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-            })
+            }),
+            previouslyDeployedPairs,
+            previouslyDeployedPairsInfo
         )));
-        vm.prank(address(core));
-        registry.setAddress("DEPLOYER", address(deployer));
         vm.prank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
+    }
+
+    function test_StateDoesntMigrate() public {
+        deployer = IResupplyPairDeployer(address(new ResupplyPairDeployer(
+            address(core),
+            address(registry),
+            address(govToken),
+            address(deployer),
+            ResupplyPairDeployer.ConfigData({
+                oracle: address(oracle),
+                rateCalculator: address(rateCalculator),
+                maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
+                initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
+                mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
+                protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+            }),
+            new address[](0),
+            new ResupplyPairDeployer.DeployInfo[](0)
+        )));
+        address[] memory pairs = registry.getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address _pair = pairs[i];
+            (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(_pair);
+            assertEq(protocolId, 0);
+            assertEq(deployTime, 0);
+        }
     }
 
     function test_StateMigrated() public {
@@ -68,12 +100,13 @@ contract ResupplyPairDeployerTest is Setup {
             IResupplyPair pair = IResupplyPair(_pair);
             address _collateral = pair.collateral();
             uint256 _protocolId = getProtocolId(_collateral);
-            
+            (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(_pair);
+            assertEq(protocolId, _protocolId);
+            assertGt(deployTime, 0);
             // Verify that the collateral ID exists (should be > 0 for existing pairs)
             (_borrowToken, _collateralToken) = deployer.getBorrowAndCollateralTokens(_protocolId, _collateral);
             uint256 collateralId = deployer.collateralId(_protocolId, _borrowToken, _collateralToken);
             assertGt(collateralId, 0, "Collateral ID should be migrated for existing pair");
-            
             console2.log("Pair", i, ":", _pair);
             console2.log("  Protocol ID:", _protocolId);
             console2.log("  Collateral:", _collateral);
@@ -312,4 +345,5 @@ contract ResupplyPairDeployerTest is Setup {
         );
         return _pairAddress;
     }
+
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-interface IGuardianOperator {
+interface IOperatorGuardian {
     function setRegistryAddress(string memory key, address value) external;
     function setGuardian(address guardian) external;
     function pauseAllPairs() external;
