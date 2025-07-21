@@ -155,7 +155,8 @@ contract Setup is Test {
     function deployProtocolContracts() public {
         oracle = new BasicVaultOracle("Basic Vault Oracle");
         underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
-
+        address[] memory previouslyDeployedPairs;
+        ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo;
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
@@ -169,7 +170,9 @@ contract Setup is Test {
                 liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
                 mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
                 protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-            })
+            }),
+            previouslyDeployedPairs,
+            previouslyDeployedPairsInfo
         );
         deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
