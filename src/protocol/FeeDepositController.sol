@@ -55,20 +55,15 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         uint256 _treasurySplit,
         uint256 _stakedStableSplit
     ) CoreOwnable(_core) EpochTracker(_core){
+        require(_maxAdditionalFee <= 1e6, "invalid ratio");
         registry = _registry;
+        maxAdditionalFeeRatio = _maxAdditionalFee;
+        emit MaxAdditionalFeeRatioSet(_maxAdditionalFee);
         feeToken = IResupplyRegistry(_registry).token();
         priceWatcher = IResupplyRegistry(_registry).getAddress("PRICE_WATCHER");
         feeLogger = IFeeLogger(IResupplyRegistry(_registry).getAddress("FEE_LOGGER"));
-        require(_insuranceSplit + _treasurySplit <= BPS, "invalid splits");
-        splits.insurance = uint40(_insuranceSplit);
-        splits.treasury = uint40(_treasurySplit);
-        splits.stakedStable = uint40(_stakedStableSplit);
-        splits.platform = uint40(BPS - splits.insurance - splits.treasury - splits.stakedStable);
-        emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), splits.platform, uint40(_stakedStableSplit));
-
-        require(_maxAdditionalFee <= 1e6, "invalid ratio");
-        maxAdditionalFeeRatio = _maxAdditionalFee;
-        emit MaxAdditionalFeeRatioSet(_maxAdditionalFee);
+        uint40 _platformSplit = uint40(BPS - _insuranceSplit - _treasurySplit - _stakedStableSplit);
+        _setSplits(_insuranceSplit, _treasurySplit, _platformSplit, _stakedStableSplit);
     }
 
     function distribute() external{
@@ -89,7 +84,6 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         uint256 stakedStableAmount;
 
         //process weighted fees for sreusd
-
         //first need to look at weighting differences for currentEpoch-2 (which was logged at the beginning of epoch-1)
         //and currentEpoch-1 (which is logged now but the data being logged is for the previous epoch)
         //ex. if getEpoch is 2, we need to find and record the avg weight during epoch 1.
@@ -106,7 +100,6 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
             uint64 dt = prevWeight.timestamp - prevData.timestamp;
             prevData.timestamp = prevData.timestamp + dt;
             prevData.totalWeight = prevData.totalWeight + (prevData.weight * dt);
-
 
             //get latest data and extrapolate a new data point that uses latest's weight and the time difference between
             //latest and block.timestamp 
@@ -178,8 +171,13 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     /// @param _insuranceSplit The percentage (in BPS) to send to insurance pool
     /// @param _treasurySplit The percentage (in BPS) to send to treasury
     /// @param _platformSplit The percentage (in BPS) to send to platform stakers
+    /// @param _stakedStableSplit The percentage (in BPS) to send to staked stable
     function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit, uint256 _stakedStableSplit) external onlyOwner {
-        require(_insuranceSplit + _treasurySplit + _platformSplit == BPS, "invalid splits");
+        _setSplits(_insuranceSplit, _treasurySplit, _platformSplit, _stakedStableSplit);
+    }
+
+    function _setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit, uint256 _stakedStableSplit) internal {
+        require(_insuranceSplit + _treasurySplit + _platformSplit + _stakedStableSplit == BPS, "invalid splits");
         splits.insurance = uint40(_insuranceSplit);
         splits.treasury = uint40(_treasurySplit);
         splits.platform = uint40(_platformSplit);
