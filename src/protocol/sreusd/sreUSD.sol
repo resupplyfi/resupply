@@ -38,6 +38,7 @@ contract SavingsReUSD is LinearRewardsErc4626, OFTCore {
         OFTCore(IERC20Metadata(_underlying).decimals(), _lzEndpoint, _core)
         Ownable(_core)
     {
+        if (_maxDistributionPerSecondPerAsset > type(uint64).max) _maxDistributionPerSecondPerAsset = type(uint64).max;
         maxDistributionPerSecondPerAsset = _maxDistributionPerSecondPerAsset;
     }
 
