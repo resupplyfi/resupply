@@ -16,7 +16,7 @@ interface IResupplyPairErrors {
     error MinimumRedemption();
     error InsufficientBorrowAmount();
     error OnlyProtocolOrOwner();
-    error InvalidOraclePrice();
+    error InvalidExchangeRate();
     error FeesAlreadyDistributed();
     error IncorrectStakeBalance();
 }

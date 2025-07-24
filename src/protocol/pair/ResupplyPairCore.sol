@@ -574,18 +574,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Get the latest exchange rate from the oracle
         uint256 priceFromOracle = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateral));
-        //all prices should *normally* be within the 1e18 (or 1e15 for curvelend) range
-        //reject any prices that are well beyond that
-        if(priceFromOracle > 1e22){
-            revert InvalidOraclePrice();
-        }
 
         //convert price of collateral as debt is priced in terms of collateral amount (inverse)
         _exchangeRate = 1e36 / priceFromOracle;
+        if (_exchangeRate == 0) revert InvalidExchangeRate();
         
         //skip storage writes if value doesnt change
         if (_exchangeRate != _exchangeRateInfo.exchangeRate) {
-
             // Effects: Bookkeeping and write to storage
             _exchangeRateInfo.lastTimestamp = uint96(block.timestamp);
             _exchangeRateInfo.exchangeRate = _exchangeRate;
