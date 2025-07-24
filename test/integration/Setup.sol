@@ -136,10 +136,10 @@ contract Setup is Test {
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
-        return deployLendingPairAs(address(core), _protocolId, _collateral, _stakingId);
+        return deployLendingPairWithCustomConfigAs(address(core), _protocolId, _collateral, _stakingId);
     }
 
-    function deployLendingPairAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deploy(
             _protocolId,
@@ -153,6 +153,28 @@ contract Setup is Test {
                 DeploymentConfig.DEFAULT_MINT_FEE,
                 DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
+            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? _stakingId : 0
+        );
+        if(_pairAddress == address(0)) {
+            vm.stopPrank();
+            return ResupplyPair(address(0));
+        }
+        registry.addPair(_pairAddress);
+        p = ResupplyPair(_pairAddress);
+        // ensure default state is written
+        assertGt(p.minimumBorrowAmount(), 0);
+        assertGt(p.minimumRedemption(), 0);
+        assertGt(p.minimumLeftoverDebt(), 0);
+        vm.stopPrank();
+        return p;
+    }
+
+    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+        vm.startPrank(address(_deployer));
+        address _pairAddress = deployer.deployWithDefaultConfig(
+            _protocolId,
+            _collateral,
             _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );

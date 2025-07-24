@@ -143,8 +143,7 @@ contract ResupplyPairDeployerTest is Setup {
         console2.log("Current collateral ID:", currentCollateralId);
         
         // Deploy a new pair with the same collateral
-        ResupplyPair newPair = deployLendingPairAs(
-            address(core),
+        ResupplyPair newPair = deployLendingPair(
             _protocolId,
             _collateral,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -208,8 +207,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_deployLendingPair() public {
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -221,8 +219,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_AtomicRegisterOnDeploy() public {
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -238,8 +235,7 @@ contract ResupplyPairDeployerTest is Setup {
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         console2.log("Predicted Pair Address: ", pairAddress);
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -249,15 +245,31 @@ contract ResupplyPairDeployerTest is Setup {
 
     function test_DeployPermissions(address _deployer) public {
         ResupplyPair pair;
-        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.WhitelistedDeployersOnly.selector));
-        pair = deployLendingPairAs(
-            _deployer,
+        address someGuy = address(0x123);
+        // Deployer is not approved
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ApprovedDeployersOnly.selector));
+        pair = deployLendingPairWithDefaultConfigAs(
+            someGuy,
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
 
-        pair = deployLendingPairAs(
+        // Approve guy to deploy
+        vm.prank(address(core));
+        deployer.setApprovedDeployer(someGuy, true);
+
+        // Approved deployers cannot deploy with custom config
+        vm.expectRevert("!core");
+        pair = deployLendingPairWithCustomConfigAs(
+            someGuy,
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+
+        // Deployer can deploy with default config
+        pair = deployLendingPairWithDefaultConfigAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
@@ -270,15 +282,13 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(
             IResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
         ));
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
             uint256(0)
         );
 
-        pair = deployLendingPairAs(
-            address(core),
+        pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -287,8 +297,7 @@ contract ResupplyPairDeployerTest is Setup {
         assertEq(protocolId, 0);
         assertEq(deployTime, uint40(block.timestamp));
 
-        pair = deployLendingPairAs(
-            address(core),
+        pair = deployLendingPair(
             1,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
             uint256(0)
