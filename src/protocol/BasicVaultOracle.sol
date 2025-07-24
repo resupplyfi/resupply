@@ -21,6 +21,9 @@ contract BasicVaultOracle {
     /// @return _price is share to asset ratio
     function getPrices(address _vault) external view returns (uint256 _price) {
         _price = IERC4626(_vault).convertToAssets(1e18);
+        //all prices should *normally* be within the 1e18 (or 1e15 for curvelend) range
+        //reject any prices that are well beyond that
+        require(_price < 1e22, "Price out of bounds");
     }
 
     function decimals() external pure returns (uint8) {
