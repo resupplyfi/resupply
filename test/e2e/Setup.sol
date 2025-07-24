@@ -389,10 +389,10 @@ contract Setup is Test {
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
-        return deployLendingPairAs(address(core), _protocolId, _collateral, _stakingId);
+        return deployLendingPairWithCustomConfigAs(address(core), _protocolId, _collateral, _stakingId);
     }
 
-    function deployLendingPairAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deploy(
             _protocolId,
@@ -421,6 +421,17 @@ contract Setup is Test {
         assertGt(p.minimumLeftoverDebt(), 0);
         vm.stopPrank();
         return p;
+    }
+
+    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair){
+        vm.prank(address(_deployer));
+        address _pairAddress = deployer.deployWithDefaultConfig(
+            _protocolId,
+            _collateral,
+            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? _stakingId : 0
+        );
+        return ResupplyPair(_pairAddress);
     }
 
     function deployDefaultLendingPairs() public{
