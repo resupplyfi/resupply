@@ -529,7 +529,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _configData,
         address _underlyingStaking,
         uint256 _underlyingStakingId
-    ) public onlyOwner returns (address _pairAddress) {
+    ) external onlyOwner returns (address _pairAddress) {
         _pairAddress = _deploy(_protocolId, _configData, _underlyingStaking, _underlyingStakingId);
     }
 
@@ -599,7 +599,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         return address(uint160(uint256(_hash)));
     }
 
-    /// @notice Returns the deterministic address of a pair that would be deployed with default config data
+    /// @notice Returns the deterministic address of a deployed pair using default config data
     /// @dev The predicted address will change for the same parameters if a deployment occurs after the call
     /// @param _protocolId The ID of the supported protocol
     /// @param _collateral The address of the collateral token
