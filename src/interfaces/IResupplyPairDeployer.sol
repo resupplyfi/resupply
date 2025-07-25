@@ -98,6 +98,13 @@ interface IResupplyPairDeployer {
         uint256 _underlyingStakingId
     ) external view returns (address);
 
+    function predictPairAddress(
+        uint256 _protocolId,
+        address _collateral,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external view returns (address);
+
     function govToken() external view returns (address);
 
     function owner() external view returns (address);

@@ -229,18 +229,26 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_predictPairAddress() public {
-        address pairAddress = _predictPairAddress(
+        address pairAddressViaCustomConfig = _predictPairAddressWithCustomConfig(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
-        console2.log("Predicted Pair Address: ", pairAddress);
+        address predictedAddressViaDefaultConfig = _predictPairAddressWithDefaultConfig(
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            Mainnet.CONVEX_BOOSTER,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+        assertEq(pairAddressViaCustomConfig, predictedAddressViaDefaultConfig);
+        console2.log("Predicted Pair Address: ", pairAddressViaCustomConfig);
         ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
-        assertEq(pairAddress, address(pair));
+        assertEq(pairAddressViaCustomConfig, address(pair));
+        assertEq(predictedAddressViaDefaultConfig, address(pair));
     }
 
     function test_DeployPermissions(address _deployer) public {
@@ -336,8 +344,8 @@ contract ResupplyPairDeployerTest is Setup {
         deployLendingPair(0, _vault, convexPoolId);
     }
 
-    function _predictPairAddress(uint256 _protocolId, address _collateral, uint256 _stakingId) internal view returns(address){
-        address _pairAddress = deployer.predictPairAddress(
+    function _predictPairAddressWithCustomConfig(uint256 _protocolId, address _collateral, uint256 _stakingId) internal view returns(address){
+        return deployer.predictPairAddress(
             _protocolId,
             abi.encode(
                 _collateral,
@@ -352,7 +360,15 @@ contract ResupplyPairDeployerTest is Setup {
             _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _stakingId
         );
-        return _pairAddress;
+    }
+
+    function _predictPairAddressWithDefaultConfig(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal view returns(address){
+        return deployer.predictPairAddress(
+            _protocolId,
+            _collateral,
+            _staking,
+            _stakingId
+        );
     }
 
 }
