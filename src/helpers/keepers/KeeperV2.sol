@@ -7,13 +7,25 @@ import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol"
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IEmissionsController } from "src/interfaces/IEmissionsController.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @custom:oz-upgrades-from Keeper
-contract KeeperV2 is Initializable {
+contract KeeperV2 is UUPSUpgradeable {
     IResupplyRegistry public constant registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
     uint256 public constant startTime = 1741824000;
     uint256 public constant epochLength = 1 weeks;
+    address public owner;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "!owner");
+        _;
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner {}
+
+    function setOwner(address _owner) external onlyOwner {
+        owner = _owner;
+    }
 
     function work() external {
         if (canDistributeWeeklyFees()) _getFeeDepositController().distribute();

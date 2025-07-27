@@ -3,18 +3,19 @@ pragma solidity 0.8.28;
 
 import { ICore } from "src/interfaces/ICore.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
-import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
+import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
 
-contract TreasuryManager is CoreOwnable {
+contract TreasuryManagerUpgradeable is BaseUpgradeableOperator {
     using SafeERC20 for IERC20;
 
-    address public constant core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
+    ICore public constant core = ICore(CORE);
     address public constant treasury = 0x4444444455bF42de586A88426E5412971eA48324;
     address public constant prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
+
     address public manager;
     ISimpleReceiver public lpIncentivesReceiver;
 
@@ -35,6 +36,11 @@ contract TreasuryManager is CoreOwnable {
     modifier onlyManager() {
         require(msg.sender == manager, "!manager");
         _;
+    }
+
+    function initialize(address _manager) external initializer {
+        manager = _manager;
+        emit ManagerSet(manager);
     }
 
     function retrieveToken(address _token, address _to) external onlyManager {
@@ -201,9 +207,5 @@ contract TreasuryManager is CoreOwnable {
         (bool authorized,) = core.operatorPermissions(address(this), target, selector);
         if (!authorized) (authorized,) = core.operatorPermissions(address(this), address(0), selector);
         return authorized;
-    }
-
-    function owner() public view returns (address) {
-        return address(core);
     }
 }
