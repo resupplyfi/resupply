@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { DeploymentConfig } from "src/Constants.sol";
 
@@ -153,7 +152,7 @@ contract Setup is Test {
                 DeploymentConfig.DEFAULT_MINT_FEE,
                 DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
-            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
         if(_pairAddress == address(0)) {
@@ -175,7 +174,7 @@ contract Setup is Test {
         address _pairAddress = deployer.deployWithDefaultConfig(
             _protocolId,
             _collateral,
-            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
         if(_pairAddress == address(0)) {
@@ -196,8 +195,8 @@ contract Setup is Test {
         address _collateral
     ) public returns(address vault, address gauge, uint256 convexPoolId){
         // default values taken from https://etherscan.io/tx/0xe1d3e1c4fef7753e5fff72dfb96861e0fec455d17ebfce04a2858b9169c462b7
-        vault = ICurveOneWayLendingFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
-            Constants.Mainnet.CRVUSD_ERC20, //borrowed token
+        vault = ICurveOneWayLendingFactory(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
+            Mainnet.CRVUSD_ERC20, //borrowed token
             _collateral,        //collateral token
             285,                //A
             2000000000000000,   //fee
@@ -212,20 +211,20 @@ contract Setup is Test {
     }
 
     function _deployAndConfigureGauge(address _vault) public returns(address gauge, uint256 convexPoolId){
-        gauge = ICurveFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
-        ICurveGaugeController gaugeController = ICurveGaugeController(Constants.Mainnet.CURVE_GAUGE_CONTROLLER);
+        gauge = ICurveFactory(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
+        ICurveGaugeController gaugeController = ICurveGaugeController(Mainnet.CURVE_GAUGE_CONTROLLER);
         // We need to put some weight on this gauge via gauge controller, so we lock some CRV
-        deal(Constants.Mainnet.CRV_ERC20, address(this), 1_000_000e18);
-        IERC20(Constants.Mainnet.CRV_ERC20).approve(Constants.Mainnet.CURVE_ESCROW, type(uint256).max);
-        ICurveEscrow(Constants.Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, block.timestamp + 200 weeks);
+        deal(Mainnet.CRV_ERC20, address(this), 1_000_000e18);
+        IERC20(Mainnet.CRV_ERC20).approve(Mainnet.CURVE_ESCROW, type(uint256).max);
+        ICurveEscrow(Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, block.timestamp + 200 weeks);
         vm.prank(gaugeController.admin());
         gaugeController.add_gauge(gauge, 1);
         gaugeController.vote_for_gauge_weights(gauge, 10_000);
 
         // Add the gauge to convex
-        IConvexPoolManager(Constants.Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
-        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
-        convexPoolId = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolLength() - 1;
+        IConvexPoolManager(Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
+        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
+        convexPoolId = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolLength() - 1;
     }
 
     function clearPairImplementation() public {

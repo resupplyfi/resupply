@@ -1,44 +1,64 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Setup } from "test/e2e/Setup.sol";
-import { TreasuryManager } from "src/dao/operators/TreasuryManager.sol";
-import { ICore } from "src/interfaces/ICore.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IAuthHook } from "src/interfaces/IAuthHook.sol";
-import { ITreasury } from "src/interfaces/ITreasury.sol";
+import { console } from "forge-std/console.sol";
+import { Protocol, DeploymentConfig } from "src/Constants.sol";
+import { TreasuryManagerUpgradeable } from "src/dao/operators/TreasuryManagerUpgradeable.sol";
+import { Upgrades, UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
+import { BaseUpgradeableOperatorTest } from "test/utils/BaseUpgradeableOperator.sol";
 import { IPrismaCore } from "src/interfaces/prisma/IPrismaCore.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAuthHook } from "src/interfaces/IAuthHook.sol";
+import { ITreasury } from "src/interfaces/ITreasury.sol";
+import { ICore } from "src/interfaces/ICore.sol";
+import { Setup } from "test/e2e/Setup.sol";
 
-contract TreasuryManagerTest is Setup {
+contract TreasuryManagerUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     address public token;
-    TreasuryManager public treasuryManager;
+    TreasuryManagerUpgradeable public treasuryManager;
+    ISimpleReceiver public receiver;
     uint256 public constant TEST_AMOUNT = 1000e18;
     address public prismaFeeReceiver = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     IPrismaCore public prismaCore = IPrismaCore(0x5d17eA085F2FF5da3e6979D5d26F1dBaB664ccf8);
-    ISimpleReceiver public receiver;
 
     event TokenRetrieved(address indexed token, address indexed to, uint256 amount);
     event ETHRetrieved(address indexed to, uint256 amount);
     event TokenApprovalSet(address indexed token, address indexed spender, uint256 amount);
     event ExecutionPerformed(address indexed target, bytes data);
 
-    
     function setUp() public override {
         super.setUp();
+        deployProxyAndImplementation();
+        treasuryManager = TreasuryManagerUpgradeable(proxy);
         token = address(stablecoin);
-        treasuryManager = new TreasuryManager(address(core), address(treasury));
         setCorePermissions();
         transferPrismaOwnership();
         deal(token, address(treasury), TEST_AMOUNT);
     }
 
+    // Implement abstract functions from BaseUpgradeableOperatorTest
+    function initialize() internal override {TreasuryManagerUpgradeable(proxy).initialize(address(this));}
+    function getContractNameV1() internal view override returns (string memory) {return "TreasuryManagerUpgradeable.sol:TreasuryManagerUpgradeable";}
+    function getContractNameV2() internal view override returns (string memory) {return "TreasuryManagerUpgradeable.sol:TreasuryManagerUpgradeable";}
+    function getInitializerData() internal view override returns (bytes memory) {return abi.encodeCall(TreasuryManagerUpgradeable.initialize, address(this));}
+
+    function test_TreasuryManagerSet() public {
+        assertEq(treasuryManager.manager(), address(this));
+        assertEq(TreasuryManagerUpgradeable(proxy).manager(), address(this));
+    }
+
+    function test_TreasuryManagerSet_NotOwner() public {
+        vm.prank(address(1));
+        vm.expectRevert("!owner");
+        TreasuryManagerUpgradeable(proxy).setManager(address(1));
+    }
+
     function test_RetrieveToken() public {
         address recipient = address(123);
-        vm.prank(dev);
         treasuryManager.retrieveToken(token, recipient);
         assertEq(IERC20(token).balanceOf(recipient), TEST_AMOUNT);
     }
@@ -46,7 +66,6 @@ contract TreasuryManagerTest is Setup {
     function test_RetrieveTokenExact() public {
         address recipient = address(123);
         uint256 amount = TEST_AMOUNT / 2;
-        vm.prank(dev);
         treasuryManager.retrieveTokenExact(token, recipient, amount);
         assertEq(IERC20(token).balanceOf(recipient), amount);
     }
@@ -54,7 +73,6 @@ contract TreasuryManagerTest is Setup {
     function test_RetrieveETH() public {
         address recipient = address(123);
         deal(address(treasury), TEST_AMOUNT);
-        vm.prank(dev);
         treasuryManager.retrieveETH(recipient);
         assertEq(recipient.balance, TEST_AMOUNT);
     }
@@ -63,27 +81,27 @@ contract TreasuryManagerTest is Setup {
         address recipient = address(123);
         deal(address(treasury), TEST_AMOUNT);
         uint256 amount = TEST_AMOUNT / 2;
-        vm.prank(dev);
         treasuryManager.retrieveETHExact(recipient, amount);
         assertEq(recipient.balance, amount);
     }
 
     function test_SetTokenApproval() public {
+        console.log("manager", treasuryManager.manager());
+        console.log("core", address(core));
+        console.log("core", address(treasuryManager.core()));
         address spender = address(123);
-        vm.prank(dev);
         treasuryManager.setTokenApproval(token, spender, TEST_AMOUNT);
         assertEq(IERC20(token).allowance(address(treasury), spender), TEST_AMOUNT);
     }
 
     function test_TransferTokenFromPrismaFeeReceiver() public {
         deal(address(stablecoin), prismaFeeReceiver, 100e18);
-        vm.prank(dev);
         treasuryManager.transferTokenFromPrismaFeeReceiver(address(stablecoin), address(user1), 100e18);
         assertEq(stablecoin.balanceOf(address(user1)), 100e18);
     }
 
     function test_ApproveTokenFromPrismaFeeReceiver() public {
-        vm.prank(dev);
+        console.log("manager", treasuryManager.manager());
         treasuryManager.approveTokenFromPrismaFeeReceiver(address(stablecoin), address(user1), 100e18);
         assertEq(stablecoin.allowance(address(prismaFeeReceiver), address(user1)), 100e18);
     }
@@ -91,7 +109,6 @@ contract TreasuryManagerTest is Setup {
     function test_Execute() public {
         address target = address(stablecoin);
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, address(0x123), 100);
-        vm.prank(dev);
         (bool success,) = treasuryManager.execute(target, data);
         assertTrue(success);
     }
@@ -99,7 +116,6 @@ contract TreasuryManagerTest is Setup {
     function test_SafeExecute() public {
         deal(token, address(treasury), TEST_AMOUNT);
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, address(0xBEEF), 100);
-        vm.prank(dev);
         bytes memory result = treasuryManager.safeExecute(token, data);
         bool success = abi.decode(result, (bool));
         assertTrue(success);
@@ -114,7 +130,6 @@ contract TreasuryManagerTest is Setup {
     function test_FailedExecute() public {
         address target = address(core);
         bytes memory data = abi.encodeWithSelector(IERC20.transfer.selector, address(0xBEEF), 100);
-        vm.prank(dev);
         (bool success,) = treasuryManager.execute(target, data);
         assertFalse(success);
     }
@@ -124,7 +139,6 @@ contract TreasuryManagerTest is Setup {
         address manager = treasuryManager.manager();
         uint256 balance = govToken.balanceOf(address(treasuryManager));
         skip(epochLength);
-        vm.prank(dev);
         treasuryManager.claimLpIncentives();
         assertGt(govToken.balanceOf(manager),balance);
     }
@@ -133,32 +147,21 @@ contract TreasuryManagerTest is Setup {
         address manager = treasuryManager.manager();
         uint256 startBalance = IERC20(token).balanceOf(manager);
         deal(token, address(treasuryManager), TEST_AMOUNT);
-        vm.prank(dev);
         treasuryManager.recoverERC20(IERC20(token));
         assertGt(IERC20(token).balanceOf(manager), startBalance);
     }
 
     function test_ViewPermissions() public {
-        (
-            bool retrieveToken, 
-            bool retrieveTokenExact, 
-            bool retrieveETH, 
-            bool retrieveETHExact, 
-            bool setTokenApproval, 
-            bool execute, 
-            bool safeExecute,
-            bool transferTokenFromPrismaFeeReceiver,
-            bool approveTokenFromPrismaFeeReceiver
-        ) = treasuryManager.viewPermissions();
-        assertEq(retrieveToken, true, "retrieveToken permission not set");
-        assertEq(retrieveTokenExact, true, "retrieveTokenExact permission not set");
-        assertEq(retrieveETH, true, "retrieveETH permission not set");
-        assertEq(retrieveETHExact, true, "retrieveETHExact permission not set");
-        assertEq(setTokenApproval, true, "setTokenApproval permission not set");
-        assertEq(execute, true, "execute permission not set");
-        assertEq(safeExecute, true, "safeExecute permission not set");
-        assertEq(transferTokenFromPrismaFeeReceiver, true, "transferTokenFromPrismaFeeReceiver permission not set");
-        assertEq(approveTokenFromPrismaFeeReceiver, true, "approveTokenFromPrismaFeeReceiver permission not set");
+        TreasuryManagerUpgradeable.Permissions memory p = treasuryManager.viewPermissions();
+        assertEq(p.retrieveToken, true, "retrieveToken permission not set");
+        assertEq(p.retrieveTokenExact, true, "retrieveTokenExact permission not set");
+        assertEq(p.retrieveETH, true, "retrieveETH permission not set");
+        assertEq(p.retrieveETHExact, true, "retrieveETHExact permission not set");
+        assertEq(p.setTokenApproval, true, "setTokenApproval permission not set");
+        assertEq(p.execute, true, "execute permission not set");
+        assertEq(p.safeExecute, true, "safeExecute permission not set");
+        assertEq(p.transferTokenFromPrismaFeeReceiver, true, "transferTokenFromPrismaFeeReceiver permission not set");
+        assertEq(p.approveTokenFromPrismaFeeReceiver, true, "approveTokenFromPrismaFeeReceiver permission not set");
 
         setPermission(address(treasury), ITreasury.retrieveToken.selector, false);
         setPermission(address(treasury), ITreasury.retrieveTokenExact.selector, false);
@@ -170,26 +173,16 @@ contract TreasuryManagerTest is Setup {
         setPermission(address(prismaFeeReceiver), bytes4(keccak256("transferToken(address,address,uint256)")), false);
         setPermission(address(prismaFeeReceiver), bytes4(keccak256("setTokenApproval(address,address,uint256)")), false);
 
-        (
-            retrieveToken, 
-            retrieveTokenExact, 
-            retrieveETH, 
-            retrieveETHExact, 
-            setTokenApproval, 
-            execute, 
-            safeExecute, 
-            transferTokenFromPrismaFeeReceiver, 
-            approveTokenFromPrismaFeeReceiver
-        ) = treasuryManager.viewPermissions();
-        assertEq(retrieveToken, false, "retrieveToken still set");
-        assertEq(retrieveTokenExact, false, "retrieveTokenExact still set");
-        assertEq(retrieveETH, false, "retrieveETH still set");
-        assertEq(retrieveETHExact, false, "retrieveETHExact still set");
-        assertEq(setTokenApproval, false, "setTokenApproval still set");
-        assertEq(execute, false, "execute still set");
-        assertEq(safeExecute, false, "safeExecute still set");
-        assertEq(transferTokenFromPrismaFeeReceiver, false, "transferTokenFromPrismaFeeReceiver still set");
-        assertEq(approveTokenFromPrismaFeeReceiver, false, "approveTokenFromPrismaFeeReceiver still set");
+        p = treasuryManager.viewPermissions();
+        assertEq(p.retrieveToken, false, "retrieveToken still set");
+        assertEq(p.retrieveTokenExact, false, "retrieveTokenExact still set");
+        assertEq(p.retrieveETH, false, "retrieveETH still set");
+        assertEq(p.retrieveETHExact, false, "retrieveETHExact still set");
+        assertEq(p.setTokenApproval, false, "setTokenApproval still set");
+        assertEq(p.execute, false, "execute still set");
+        assertEq(p.safeExecute, false, "safeExecute still set");
+        assertEq(p.transferTokenFromPrismaFeeReceiver, false, "transferTokenFromPrismaFeeReceiver still set");
+        assertEq(p.approveTokenFromPrismaFeeReceiver, false, "approveTokenFromPrismaFeeReceiver still set");
     }
 
     function setPermission(address target, bytes4 selector, bool authorized) public {
@@ -225,7 +218,6 @@ contract TreasuryManagerTest is Setup {
         skip(epochLength);
         vm.prank(address(core));
         receiver.setApprovedClaimer(address(treasuryManager), true);
-        vm.prank(dev);
         treasuryManager.setLpIncentivesReceiver(address(receiver));
     }
 
@@ -263,8 +255,9 @@ contract TreasuryManagerTest is Setup {
             true,
             IAuthHook(address(0)) // auth hook
         );
-        treasuryManager.setManager(dev);
         vm.stopPrank();
+        vm.prank(treasuryManager.owner());
+        treasuryManager.setManager(address(this));
     }
 
     function transferPrismaOwnership() public {
