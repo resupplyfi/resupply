@@ -22,9 +22,9 @@ import { WriteOffToken } from "../WriteOffToken.sol";
 import { IERC4626 } from "../../interfaces/IERC4626.sol";
 import { CoreOwnable } from "../../dependencies/CoreOwnable.sol";
 import { IMintable } from "../../interfaces/IMintable.sol";
+import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 
-
-abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, RewardDistributorMultiEpoch {
+abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, RewardDistributorMultiEpoch, IResupplyPairErrors {
     using VaultAccountingLibrary for VaultAccount;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -552,7 +552,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     event UpdateExchangeRate(uint256 exchangeRate);
 
     /// @notice The ```updateExchangeRate``` function is the external implementation of _updateExchangeRate.
-    /// @dev This function is invoked at most once per block as these queries can be expensive
+    /// @dev This function only writes to state when a change in exchange rate occurs
     /// @return _exchangeRate The exchange rate
     function updateExchangeRate()
         external
@@ -563,7 +563,7 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
     }
 
     /// @notice The ```_updateExchangeRate``` function retrieves the latest exchange rate. i.e how much collateral to buy 1e18 asset.
-    /// @dev This function is invoked at most once per block as these queries can be expensive
+    /// @dev This function only writes to state when a change in exchange rate occurs
     /// @return _exchangeRate The exchange rate
     function _updateExchangeRate()
         internal
@@ -574,18 +574,13 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
         // Get the latest exchange rate from the oracle
         uint256 priceFromOracle = IOracle(_exchangeRateInfo.oracle).getPrices(address(collateral));
-        //all prices should *normally* be within the 1e18 (or 1e15 for curvelend) range
-        //reject any prices that are well beyond that
-        if(priceFromOracle > 1e22){
-            revert InvalidOraclePrice();
-        }
 
         //convert price of collateral as debt is priced in terms of collateral amount (inverse)
         _exchangeRate = 1e36 / priceFromOracle;
+        if (_exchangeRate == 0) revert InvalidExchangeRate();
         
         //skip storage writes if value doesnt change
         if (_exchangeRate != _exchangeRateInfo.exchangeRate) {
-
             // Effects: Bookkeeping and write to storage
             _exchangeRateInfo.lastTimestamp = uint96(block.timestamp);
             _exchangeRateInfo.exchangeRate = _exchangeRate;

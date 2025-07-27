@@ -96,7 +96,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         advanceEpochs(1);
 
         // Step 2
-        setPeg(0.99e18);
+        setPeg(0.995e18);
         IResupplyPair(pair).addInterest(false);
         console.log("Step 2 rate:", rate, "--->", getInterestRate(pair));
         assertLt(rate, getInterestRate(pair), "Rate should decrease when off peg");
@@ -104,14 +104,22 @@ contract SreUSDIntegrationTest is PairTestBase {
         advanceEpochs(1);
         
         // Step 3
-        setPeg(0.98e18);
+        setPeg(0.99e18);
         IResupplyPair(pair).addInterest(false);
         console.log("Step 3 rate:", rate, "--->", getInterestRate(pair));
         assertLt(rate, getInterestRate(pair), "Rate should decrease when off peg");
         rate = getInterestRate(pair);
         advanceEpochs(1);
 
-        // Step 4: Back to peg
+        // Step 4: Peg is lowered, but off-peg weight is clamped at 1e16 so should produce same rate as step 3
+        setPeg(0.98e18);
+        IResupplyPair(pair).addInterest(false);
+        console.log("Step 3 rate:", rate, "--->", getInterestRate(pair));
+        assertEq(rate, getInterestRate(pair), "Rate should decrease when off peg");
+        rate = getInterestRate(pair);
+        advanceEpochs(1);
+
+        // Step 5: Back to peg
         setPeg(1e18);
         IResupplyPair(pair).addInterest(false);
         console.log("Step 4 rate:", rate, "--->", getInterestRate(pair));

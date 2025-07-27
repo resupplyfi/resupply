@@ -43,13 +43,12 @@ contract BorrowLimitControllerTest is Setup {
         vm.prank(address(core));
         borrowController.setPairBorrowLimitRamp(address(testPair), newBorrowLimit, endTime);
 
-        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored, bool finished) = borrowController.pairLimits(address(testPair));
+        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored) = borrowController.pairLimits(address(testPair));
         
         assertEq(targetBorrowLimit, newBorrowLimit, "Target borrow limit not set correctly");
         assertEq(prevBorrowLimit, initialBorrowLimit, "Previous borrow limit not set correctly");
         assertEq(startTime, uint64(vm.getBlockTimestamp()), "Start time not set correctly");
         assertEq(endTimeStored, uint64(endTime), "End time not set correctly");
-        assertEq(finished, false, "Should not be finished initially");
     }
 
     function test_SetPairBorrowLimitRampOnlyOwner() public {
@@ -92,7 +91,9 @@ contract BorrowLimitControllerTest is Setup {
         // Skip 5 days (50% of the ramp period)
         skip(5 days);
 
+        uint256 previewAmt = borrowController.previewNewBorrowLimit(address(testPair));
         borrowController.updatePairBorrowLimit(address(testPair));
+        assertEq(previewAmt, testPair.borrowLimit(), "Preview borrow limit not correct");
         uint256 currentBorrowLimit = testPair.borrowLimit();
         uint256 expectedBorrowLimit = initialBorrowLimit + ((newBorrowLimit - initialBorrowLimit) * 5000) / 10000;
         
@@ -116,10 +117,12 @@ contract BorrowLimitControllerTest is Setup {
         skip(11 days);
 
         // First update should work and mark as finished
+        uint256 previewAmt = borrowController.previewNewBorrowLimit(address(testPair));
         borrowController.updatePairBorrowLimit(address(testPair));
+        assertEq(previewAmt, testPair.borrowLimit(), "Preview borrow limit not correct");
 
-        // Second update should fail
-        vm.expectRevert("already finished");
+        // Second update should fail due to start time being cleared from prior update
+        vm.expectRevert("no ramp info");
         borrowController.updatePairBorrowLimit(address(testPair));
     }
 
@@ -150,13 +153,12 @@ contract BorrowLimitControllerTest is Setup {
         vm.prank(address(core));
         borrowController.cancelRamp(address(testPair));
 
-        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored, bool finished) = borrowController.pairLimits(address(testPair));
+        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 startTime, uint64 endTimeStored) = borrowController.pairLimits(address(testPair));
         
         assertEq(targetBorrowLimit, 0, "Target borrow limit should be reset");
         assertEq(prevBorrowLimit, 0, "Previous borrow limit should be reset");
         assertEq(startTime, 0, "Start time should be reset");
         assertEq(endTimeStored, 0, "End time should be reset");
-        assertEq(finished, true, "Should be marked as finished");
     }
 
     function test_CancelRampOnlyOwner() public {
@@ -180,7 +182,7 @@ contract BorrowLimitControllerTest is Setup {
         uint256 finalBorrowLimit = testPair.borrowLimit();
         assertEq(finalBorrowLimit, newBorrowLimit, "Should reach target borrow limit");
 
-        (,,, , bool finished) = borrowController.pairLimits(address(testPair));
-        assertEq(finished, true, "Should be marked as finished");
+        (,,uint64 startTime,) = borrowController.pairLimits(address(testPair));
+        assertEq(startTime, 0, "Should be marked as finished by 0 in starttime");
     }
 } 

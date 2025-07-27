@@ -8,11 +8,11 @@ import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { CreateX } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
-import { IGuardianOperator } from "src/interfaces/IGuardianOperator.sol";
+import { IOperatorGuardian } from "src/interfaces/operators/IOperatorGuardian.sol";
 
 contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
-    IGuardianOperator public guardianOperator = IGuardianOperator(Protocol.OPERATOR_GUARDIAN);
+    IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN);
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -139,7 +139,7 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         addToBatch(
             address(guardianOperator),
             abi.encodeWithSelector(
-                IGuardianOperator.setRegistryAddress.selector,
+                IOperatorGuardian.setRegistryAddress.selector,
                 key,
                 value
             )

@@ -16,6 +16,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IAuthHook} from "src/interfaces/IAuthHook.sol";
 import {IResupplyRegistry} from "src/interfaces/IResupplyRegistry.sol";
 import {ICurveLendingVault} from "src/interfaces/curve/ICurveLendingVault.sol";
+import {DeployInfo} from "test/utils/DeployInfo.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     using Strings for uint256;
@@ -26,12 +27,16 @@ contract ResupplyPairDeployerTest is Setup {
         super.setUp();
         originalDeployer = deployer;
         vm.prank(address(core));
-        registry.setAddress("DEPLOYER", address(deployer));
+        registry.setAddress("PAIR_DEPLOYER", address(deployer));
+        (
+            address[] memory previouslyDeployedPairs, 
+            ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo
+        ) = DeployInfo.getDeployInfo();
         deployer = IResupplyPairDeployer(address(new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
-            address(core),
+            address(deployer),
             ResupplyPairDeployer.ConfigData({
                 oracle: address(oracle),
                 rateCalculator: address(rateCalculator),
@@ -40,14 +45,41 @@ contract ResupplyPairDeployerTest is Setup {
                 liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
                 mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
                 protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-            })
+            }),
+            previouslyDeployedPairs,
+            previouslyDeployedPairsInfo
         )));
-        vm.prank(address(core));
-        registry.setAddress("DEPLOYER", address(deployer));
         vm.prank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
+    }
+
+    function test_StateDoesntMigrate() public {
+        deployer = IResupplyPairDeployer(address(new ResupplyPairDeployer(
+            address(core),
+            address(registry),
+            address(govToken),
+            address(deployer),
+            ResupplyPairDeployer.ConfigData({
+                oracle: address(oracle),
+                rateCalculator: address(rateCalculator),
+                maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
+                initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
+                mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
+                protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+            }),
+            new address[](0),
+            new ResupplyPairDeployer.DeployInfo[](0)
+        )));
+        address[] memory pairs = registry.getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address _pair = pairs[i];
+            (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(_pair);
+            assertEq(protocolId, 0);
+            assertEq(deployTime, 0);
+        }
     }
 
     function test_StateMigrated() public {
@@ -68,12 +100,13 @@ contract ResupplyPairDeployerTest is Setup {
             IResupplyPair pair = IResupplyPair(_pair);
             address _collateral = pair.collateral();
             uint256 _protocolId = getProtocolId(_collateral);
-            
+            (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(_pair);
+            assertEq(protocolId, _protocolId);
+            assertGt(deployTime, 0);
             // Verify that the collateral ID exists (should be > 0 for existing pairs)
             (_borrowToken, _collateralToken) = deployer.getBorrowAndCollateralTokens(_protocolId, _collateral);
             uint256 collateralId = deployer.collateralId(_protocolId, _borrowToken, _collateralToken);
             assertGt(collateralId, 0, "Collateral ID should be migrated for existing pair");
-            
             console2.log("Pair", i, ":", _pair);
             console2.log("  Protocol ID:", _protocolId);
             console2.log("  Collateral:", _collateral);
@@ -110,8 +143,7 @@ contract ResupplyPairDeployerTest is Setup {
         console2.log("Current collateral ID:", currentCollateralId);
         
         // Deploy a new pair with the same collateral
-        ResupplyPair newPair = deployLendingPairAs(
-            address(core),
+        ResupplyPair newPair = deployLendingPair(
             _protocolId,
             _collateral,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -175,8 +207,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_deployLendingPair() public {
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -188,8 +219,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_AtomicRegisterOnDeploy() public {
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -199,32 +229,55 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_predictPairAddress() public {
-        address pairAddress = _predictPairAddress(
+        address pairAddressViaCustomConfig = _predictPairAddressWithCustomConfig(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
-        console2.log("Predicted Pair Address: ", pairAddress);
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        address predictedAddressViaDefaultConfig = _predictPairAddressWithDefaultConfig(
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            Mainnet.CONVEX_BOOSTER,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+        assertEq(pairAddressViaCustomConfig, predictedAddressViaDefaultConfig);
+        console2.log("Predicted Pair Address: ", pairAddressViaCustomConfig);
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
-        assertEq(pairAddress, address(pair));
+        assertEq(pairAddressViaCustomConfig, address(pair));
+        assertEq(predictedAddressViaDefaultConfig, address(pair));
     }
 
     function test_DeployPermissions(address _deployer) public {
         ResupplyPair pair;
-        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.WhitelistedDeployersOnly.selector));
-        pair = deployLendingPairAs(
-            _deployer,
+        address someGuy = address(0x123);
+        // Deployer is not approved
+        vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ApprovedDeployersOnly.selector));
+        pair = deployLendingPairWithDefaultConfigAs(
+            someGuy,
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
 
-        pair = deployLendingPairAs(
+        // Approve guy to deploy
+        vm.prank(address(core));
+        deployer.setApprovedDeployer(someGuy, true);
+
+        // Approved deployers cannot deploy with custom config
+        vm.expectRevert("!core");
+        pair = deployLendingPairWithCustomConfigAs(
+            someGuy,
+            0,
+            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
+            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
+        );
+
+        // Deployer can deploy with default config
+        pair = deployLendingPairWithDefaultConfigAs(
             address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
@@ -237,15 +290,13 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(
             IResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
         ));
-        ResupplyPair pair = deployLendingPairAs(
-            address(core),
+        ResupplyPair pair = deployLendingPair(
             0,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
             uint256(0)
         );
 
-        pair = deployLendingPairAs(
-            address(core),
+        pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -254,8 +305,7 @@ contract ResupplyPairDeployerTest is Setup {
         assertEq(protocolId, 0);
         assertEq(deployTime, uint40(block.timestamp));
 
-        pair = deployLendingPairAs(
-            address(core),
+        pair = deployLendingPair(
             1,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
             uint256(0)
@@ -294,8 +344,8 @@ contract ResupplyPairDeployerTest is Setup {
         deployLendingPair(0, _vault, convexPoolId);
     }
 
-    function _predictPairAddress(uint256 _protocolId, address _collateral, uint256 _stakingId) internal view returns(address){
-        address _pairAddress = deployer.predictPairAddress(
+    function _predictPairAddressWithCustomConfig(uint256 _protocolId, address _collateral, uint256 _stakingId) internal view returns(address){
+        return deployer.predictPairAddress(
             _protocolId,
             abi.encode(
                 _collateral,
@@ -310,6 +360,15 @@ contract ResupplyPairDeployerTest is Setup {
             _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _stakingId
         );
-        return _pairAddress;
     }
+
+    function _predictPairAddressWithDefaultConfig(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal view returns(address){
+        return deployer.predictPairAddress(
+            _protocolId,
+            _collateral,
+            _staking,
+            _stakingId
+        );
+    }
+
 }

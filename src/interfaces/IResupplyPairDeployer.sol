@@ -7,7 +7,8 @@ interface IResupplyPairDeployer {
     error ProtocolNameEmpty();
     error ProtocolNameTooLong();
     error ProtocolNotFound();
-    error WhitelistedDeployersOnly();
+    error WhitelistedDeployersOnly(); // deprecated
+    error ApprovedDeployersOnly();
     error NotEnoughSharesBurned();
     error InvalidBorrowOrCollateralTokenLookup();
     error InvalidAmountToBurn();
@@ -33,8 +34,13 @@ interface IResupplyPairDeployer {
         bytes4 borrowTokenSig,
         bytes4 collateralTokenSig
     );
-    event OperatorSet(address indexed _operator, bool _approved);
+    event OperatorSet(address indexed _operator, bool _approved); // deprecated
+    event ApprovedDeployerSet(address indexed _deployer, bool _approved);
     event StateMigrated(address indexed _previousPairDeployer);
+
+    function operators(address) external view returns (bool); // deprecated
+    
+    function approvedDeployers(address) external view returns (bool);
 
     function addSupportedProtocol(
         string memory _protocolName,
@@ -43,6 +49,8 @@ interface IResupplyPairDeployer {
         bytes4 _borrowTokenSig,
         bytes4 _collateralTokenSig
     ) external returns (uint256);
+
+    function setApprovedDeployer(address _deployer, bool _approved) external;
 
     function collateralId(
         uint256 protocolId,
@@ -67,6 +75,13 @@ interface IResupplyPairDeployer {
         uint256 _underlyingStakingId
     ) external returns (address _pairAddress);
 
+    function deployWithDefaultConfig(
+        uint256 _protocolId,
+        address _collateral,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external returns (address _pairAddress);
+
     function getNextName(
         uint256 _protocolId,
         address _collateral
@@ -79,6 +94,13 @@ interface IResupplyPairDeployer {
     function predictPairAddress(
         uint256 _protocolId,
         bytes memory _configData,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external view returns (address);
+
+    function predictPairAddress(
+        uint256 _protocolId,
+        address _collateral,
         address _underlyingStaking,
         uint256 _underlyingStakingId
     ) external view returns (address);

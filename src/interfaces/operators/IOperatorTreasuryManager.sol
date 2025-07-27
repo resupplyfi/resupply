@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-interface ITreasuryManager {
+interface IOperatorTreasuryManager {
     event ManagerSet(address indexed manager);
 
     function registry() external view returns (address);

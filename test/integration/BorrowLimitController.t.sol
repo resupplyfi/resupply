@@ -35,7 +35,7 @@ contract BorrowLimitControllerTest is Setup {
 
     function printRampInfo(address _pair) private{
         // BorrowLimitController.PairBorrowLimit memory info = borrowController.pairLimits(_pair);
-        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 start, uint64 end, bool finished) = borrowController.pairLimits(_pair);
+        (uint256 targetBorrowLimit, uint256 prevBorrowLimit, uint64 start, uint64 end) = borrowController.pairLimits(_pair);
     
         console.log("---------------------------");
         console.log("pair: ", _pair);
@@ -43,7 +43,7 @@ contract BorrowLimitControllerTest is Setup {
         console.log("prevBorrowLimit: ", prevBorrowLimit);
         console.log("start: ", start);
         console.log("end: ", end);
-        console.log("finished: ", finished);
+        console.log("finished: ", start==0);
         console.log("actual borrow on pair: ", IResupplyPair(_pair).borrowLimit());
 
     }
@@ -70,8 +70,8 @@ contract BorrowLimitControllerTest is Setup {
         for(uint256 i; i < 12; i++){
             console.log("\n\nskip forward in time and call update..");
             skip(1 days);
-            (, , , , bool finished) = borrowController.pairLimits(address(pair));
-            if(finished) vm.expectRevert();
+            (, ,uint64 start ,) = borrowController.pairLimits(address(pair));
+            if(start==0) vm.expectRevert();
             borrowController.updatePairBorrowLimit(address(pair));
             printRampInfo(address(pair));
         }
