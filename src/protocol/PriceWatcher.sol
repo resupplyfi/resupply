@@ -151,7 +151,7 @@ contract PriceWatcher is CoreOwnable{
     }
 
     function getCurrentWeight() public view returns (uint64) {
-        uint256 price = IReusdOracle(oracle).price();
+        uint256 price = IReusdOracle(oracle).priceAsCrvusd();
         uint256 weight = price > 1e18 ? 0 : 1e18 - price;
         //our oracle has a floor that matches redemption fee
         //e.g. it returns a minimum price of 0.9900 when there is a 1% redemption fee

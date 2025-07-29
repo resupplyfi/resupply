@@ -8,6 +8,7 @@ import { console } from "lib/forge-std/src/console.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { MockOracle } from "test/mocks/MockOracle.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 
 contract LiquidationHandlerTest is PairTestBase {
 
@@ -70,7 +71,7 @@ contract LiquidationHandlerTest is PairTestBase {
         uint256 amount = 1000e18;
         borrow(pair, amount, calculateMinUnderlyingNeededForBorrow(amount)); 
 
-        vm.expectRevert(ResupplyPairConstants.BorrowerSolvent.selector);
+        vm.expectRevert(IResupplyPairErrors.BorrowerSolvent.selector);
         liquidationHandler.liquidate(address(pair), address(this));
     }
 

@@ -95,6 +95,7 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
         // Cache state for gas savings
         RewardsCycleData memory _rewardsCycleData = rewardsCycleData;
         uint256 _lastRewardsDistribution = lastRewardsDistribution;
+        if (_lastRewardsDistribution == block.timestamp) return 0;
         uint40 _timestamp = block.timestamp.safeCastTo40();
 
         // Calculate the delta time, but only include up to the cycle end in case we are passed it

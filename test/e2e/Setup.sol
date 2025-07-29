@@ -155,7 +155,8 @@ contract Setup is Test {
     function deployProtocolContracts() public {
         oracle = new BasicVaultOracle("Basic Vault Oracle");
         underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
-
+        address[] memory previouslyDeployedPairs;
+        ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo;
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
@@ -169,7 +170,9 @@ contract Setup is Test {
                 liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
                 mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
                 protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-            })
+            }),
+            previouslyDeployedPairs,
+            previouslyDeployedPairsInfo
         );
         deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
@@ -386,10 +389,10 @@ contract Setup is Test {
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
-        return deployLendingPairAs(address(core), _protocolId, _collateral, _stakingId);
+        return deployLendingPairWithCustomConfigAs(address(core), _protocolId, _collateral, _stakingId);
     }
 
-    function deployLendingPairAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deploy(
             _protocolId,
@@ -418,6 +421,17 @@ contract Setup is Test {
         assertGt(p.minimumLeftoverDebt(), 0);
         vm.stopPrank();
         return p;
+    }
+
+    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair){
+        vm.prank(address(_deployer));
+        address _pairAddress = deployer.deployWithDefaultConfig(
+            _protocolId,
+            _collateral,
+            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? _stakingId : 0
+        );
+        return ResupplyPair(_pairAddress);
     }
 
     function deployDefaultLendingPairs() public{

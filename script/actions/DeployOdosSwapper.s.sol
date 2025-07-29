@@ -15,7 +15,7 @@ import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
-    ResupplyPairDeployer public constant pairDeployer = ResupplyPairDeployer(Protocol.PAIR_DEPLOYER);
+    ResupplyPairDeployer public constant pairDeployer = ResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -81,7 +81,7 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     }
 
     function updatePairImplementation() public{
-        _executeCore(Protocol.PAIR_DEPLOYER, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
+        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
         console.log("Pair implementation updated");
     }
 }

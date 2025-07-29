@@ -58,7 +58,7 @@ contract DeployPair is BaseAction {
 
     function updatePairImplementation() public{
         console.log("\n*** updating implementation...");
-        _executeCore(Protocol.PAIR_DEPLOYER, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
+        _executeCore(Protocol.PAIR_DEPLOYER_V2, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){
@@ -78,7 +78,7 @@ contract DeployPair is BaseAction {
 
         bytes memory result;
         result = _executeCore(
-            address(Protocol.PAIR_DEPLOYER),
+            address(Protocol.PAIR_DEPLOYER_V2),
             abi.encodeWithSignature("deploy(uint256,bytes,address,uint256)",
                 _protocolId,
                 configdata,

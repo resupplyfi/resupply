@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, Prisma } from "src/Constants.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
-import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
+import { IOperatorTreasuryManager } from "src/interfaces/operators/IOperatorTreasuryManager.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IGuardian } from "src/interfaces/IGuardian.sol";
@@ -15,7 +15,7 @@ import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
-import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
+import { IOperatorTreasuryManager } from "src/interfaces/operators/IOperatorTreasuryManager.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
@@ -138,16 +138,16 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
         _executeCore(
             treasuryManager,
             abi.encodeWithSelector(
-                ITreasuryManager.setManager.selector,
+                IOperatorTreasuryManager.setManager.selector,
                 deployer
             )
         );
-        require(ITreasuryManager(treasuryManager).manager() == deployer, "TreasuryManager manager not set");
+        require(IOperatorTreasuryManager(treasuryManager).manager() == deployer, "TreasuryManager manager not set");
 
         // Set lp incentives receiver
         addToBatch(
             treasuryManager,
-            abi.encodeWithSelector(ITreasuryManager.setLpIncentivesReceiver.selector, Protocol.LIQUIDITY_INCENTIVES_RECEIVER)
+            abi.encodeWithSelector(IOperatorTreasuryManager.setLpIncentivesReceiver.selector, Protocol.LIQUIDITY_INCENTIVES_RECEIVER)
         );
 
         // Set approved claimers
@@ -193,7 +193,7 @@ contract LaunchSetup3 is TenderlyHelper, CreateXHelper, BaseAction {
             );
             (
                 bool p1, bool p2, bool p3, bool p4, bool p5, bool p6, bool p7, bool p8, bool p9
-            ) = ITreasuryManager(treasuryManager).viewPermissions();
+            ) = IOperatorTreasuryManager(treasuryManager).viewPermissions();
             require(p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8 && p9, "TreasuryManager permissions not set");
         }
         

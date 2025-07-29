@@ -62,6 +62,8 @@ import { ICurveGaugeController } from "src/interfaces/curve/ICurveGaugeControlle
 import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
 import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol";
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
+import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
+import { IRetentionIncentives } from "src/interfaces/IRetentionIncentives.sol";
 
 
 contract Setup is Test {
@@ -81,7 +83,7 @@ contract Setup is Test {
     IBasicVaultOracle public oracle = IBasicVaultOracle(Protocol.BASIC_VAULT_ORACLE);
     IUnderlyingOracle public underlyingoracle = IUnderlyingOracle(Protocol.UNDERLYING_ORACLE);
     IInterestRateCalculator public rateCalculator = IInterestRateCalculator(Protocol.INTEREST_RATE_CALCULATOR);
-    IResupplyPairDeployer public deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER);
+    IResupplyPairDeployer public deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     IRedemptionHandler public redemptionHandler = IRedemptionHandler(Protocol.REDEMPTION_HANDLER);
     ILiquidationHandler public liquidationHandler = ILiquidationHandler(Protocol.LIQUIDATION_HANDLER);
     IRewardHandler public rewardHandler = IRewardHandler(Protocol.REWARD_HANDLER);
@@ -107,12 +109,16 @@ contract Setup is Test {
     IERC20 public sfrxusd = IERC20(Mainnet.SFRXUSD_ERC20);
     IERC20 public scrvusd = IERC20(Mainnet.SCRVUSD_ERC20);
     address public lzEndpoint = address(Mainnet.LAYERZERO_ENDPOINTV2);
+    IRetentionReceiver public retentionReceiver = IRetentionReceiver(Protocol.RETENTION_RECEIVER);
+    IRetentionIncentives public retention = IRetentionIncentives(Protocol.RETENTION_INCENTIVES);
+
 
     constructor() {}
 
     function setUp() public virtual {
         vm.createSelectFork(vm.envString("MAINNET_URL"));
-        setPairImplementation();
+        deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
+        clearPairImplementation();
     }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
@@ -130,10 +136,10 @@ contract Setup is Test {
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
-        return deployLendingPairAs(address(core), _protocolId, _collateral, _stakingId);
+        return deployLendingPairWithCustomConfigAs(address(core), _protocolId, _collateral, _stakingId);
     }
 
-    function deployLendingPairAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deploy(
             _protocolId,
@@ -147,6 +153,28 @@ contract Setup is Test {
                 DeploymentConfig.DEFAULT_MINT_FEE,
                 DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
+            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? _stakingId : 0
+        );
+        if(_pairAddress == address(0)) {
+            vm.stopPrank();
+            return ResupplyPair(address(0));
+        }
+        registry.addPair(_pairAddress);
+        p = ResupplyPair(_pairAddress);
+        // ensure default state is written
+        assertGt(p.minimumBorrowAmount(), 0);
+        assertGt(p.minimumRedemption(), 0);
+        assertGt(p.minimumLeftoverDebt(), 0);
+        vm.stopPrank();
+        return p;
+    }
+
+    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+        vm.startPrank(address(_deployer));
+        address _pairAddress = deployer.deployWithDefaultConfig(
+            _protocolId,
+            _collateral,
             _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
@@ -200,7 +228,7 @@ contract Setup is Test {
         convexPoolId = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolLength() - 1;
     }
 
-    function setPairImplementation() public {
+    function clearPairImplementation() public {
         vm.startPrank(address(core));
         deployer.setCreationCode(hex"");
         vm.stopPrank();
