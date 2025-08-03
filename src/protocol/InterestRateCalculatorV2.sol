@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
-import { IStakedFrax } from "../interfaces/IStakedFrax.sol";
+import { IStakedFrax } from "../interfaces/frax/IStakedFrax.sol";
 import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
 
 /// @title Calculate rates based on the underlying vaults with some floor settings
@@ -40,6 +40,7 @@ contract InterestRateCalculatorV2 is IRateCalculator {
         rateRatioBase = _rateRatioBase;
         rateRatioAdditional = _rateRatioAdditional;
         priceWatcher = _priceWatcher;
+        require(priceWatcher != address(0), "PriceWatcher must be set");
     }
 
     /// @notice The ```name``` function returns the name of the rate contract

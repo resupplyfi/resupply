@@ -2,24 +2,13 @@ pragma solidity 0.8.28;
 
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, Prisma } from "src/Constants.sol";
-import { Guardian } from "src/dao/operators/Guardian.sol";
-import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
-import { IVoter } from "src/interfaces/IVoter.sol";
-import { IGuardian } from "src/interfaces/IGuardian.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { CreateX } from "src/Constants.sol";
-import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { ReusdOracle } from "src/protocol/ReusdOracle.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
-import { ITreasuryManager } from "src/interfaces/ITreasuryManager.sol";
-import { ICore } from "src/interfaces/ICore.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 
 contract DeployOracle is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;

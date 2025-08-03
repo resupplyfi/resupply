@@ -152,6 +152,7 @@ contract LiquidationHandler is CoreOwnable{
         //get max burnable
         uint256 maxBurnable = IInsurancePool(insurancePool).maxBurnableAssets();
 
+        // Redeems to the insurance pool and burns assets
         if(toBurn <= maxBurnable){
             uint256 withdrawnAmount;
             try IERC4626(_collateral).redeem(

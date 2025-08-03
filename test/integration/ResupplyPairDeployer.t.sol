@@ -31,10 +31,21 @@ contract ResupplyPairDeployerTest is Setup {
             address(core),
             address(registry),
             address(govToken),
-            address(core)
+            address(core),
+            ResupplyPairDeployer.ConfigData({
+                oracle: address(oracle),
+                rateCalculator: address(rateCalculator),
+                maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
+                initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
+                mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
+                protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+            })
         )));
         vm.prank(address(core));
         registry.setAddress("DEPLOYER", address(deployer));
+        vm.prank(address(core));
+        deployer.setCreationCode(type(ResupplyPair).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
     }

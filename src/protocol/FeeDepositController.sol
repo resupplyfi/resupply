@@ -17,11 +17,11 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     address public immutable registry;
     address public immutable feeToken;
     address public immutable priceWatcher;
-    address public immutable feeLogger;
+    uint256 public maxAdditionalFeeRatio;
     uint256 public constant BPS = 10_000;
     Splits public splits;
-    uint256 public maxAdditionalFeeRatio;
-
+    IFeeLogger public immutable feeLogger;
+    
     struct WeightData{
         uint64 index;
         uint64 timestamp;
@@ -37,8 +37,16 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     }
 
     event SplitsSet(uint40 insurance, uint40 treasury, uint40 platform, uint40 stakedStable);
-    event MaxAdditionalFeesSet(uint256 maxAdditionalFeeRatio);
+    event MaxAdditionalFeeRatioSet(uint256 ratio);
 
+    /**
+     * @param _core Core contract address
+     * @param _registry Registry contract address
+     * @param _maxAdditionalFee Cap on the amount of additional fees to direct to staked stable (1e6 = 100%)
+     * @param _insuranceSplit Insurance split percentage (in BPS)
+     * @param _treasurySplit Treasury split percentage (in BPS)
+     * @param _stakedStableSplit Staked stable split percentage (in BPS)
+     */
     constructor(
         address _core,
         address _registry,
@@ -50,7 +58,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         registry = _registry;
         feeToken = IResupplyRegistry(_registry).token();
         priceWatcher = IResupplyRegistry(_registry).getAddress("PRICE_WATCHER");
-        feeLogger = IResupplyRegistry(_registry).getAddress("FEE_LOGGER");
+        feeLogger = IFeeLogger(IResupplyRegistry(_registry).getAddress("FEE_LOGGER"));
         require(_insuranceSplit + _treasurySplit <= BPS, "invalid splits");
         splits.insurance = uint40(_insuranceSplit);
         splits.treasury = uint40(_treasurySplit);
@@ -58,8 +66,9 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         splits.platform = uint40(BPS - splits.insurance - splits.treasury - splits.stakedStable);
         emit SplitsSet(uint40(_insuranceSplit), uint40(_treasurySplit), splits.platform, uint40(_stakedStableSplit));
 
+        require(_maxAdditionalFee <= 1e6, "invalid ratio");
         maxAdditionalFeeRatio = _maxAdditionalFee;
-        emit MaxAdditionalFeesSet(_maxAdditionalFee);
+        emit MaxAdditionalFeeRatioSet(_maxAdditionalFee);
     }
 
     function distribute() external{
@@ -72,7 +81,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         uint256 balance = IERC20(feeToken).balanceOf(address(this));
 
         //log TOTAL fees for current epoch - 2 since the balance here is what was accrued two epochs ago
-        IFeeLogger(feeLogger).updateTotalFees(currentEpoch-2, balance);
+        feeLogger.logTotalFees(currentEpoch-2, balance);
 
         //max sure price watcher is up to date
         IPriceWatcher(priceWatcher).updatePriceData();
@@ -125,20 +134,14 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
 
         WeightData memory distroWeight = epochWeighting[currentEpoch - 2];
         if(distroWeight.avgWeighting > 0){
-            
-            address feeLogger = IResupplyRegistry(registry).getAddress("FEE_LOGGER");
             //get total amount of fees collected in interest only
-            uint256 feesInInterest = IFeeLogger(feeLogger).epochInterestFees(currentEpoch-2);
-
+            uint256 feesInInterest = feeLogger.epochInterestFees(currentEpoch-2);
             //use weighting to determine how much of the max fee should be applied
             uint256 additionalFeeRatio = maxAdditionalFeeRatio * distroWeight.avgWeighting / 1e6;
             additionalFeeRatio = 1e6 + additionalFeeRatio; //turn something like 10% or 0.1 to 1.1
-
-            stakedStableAmount = (feesInInterest * 1e16 / additionalFeeRatio) - feesInInterest;
+            stakedStableAmount = feesInInterest - (feesInInterest * 1e6 / additionalFeeRatio);
             balance -= stakedStableAmount;
         }
-
-        /////
 
         Splits memory _splits = splits;
         uint256 ipAmount =  balance * _splits.insurance / BPS;
@@ -153,22 +156,22 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         address staked = IResupplyRegistry(registry).getAddress("SREUSD");
         IERC20(feeToken).safeTransfer(staked, stakedStableAmount);
 
-        //insurance
+        //insurance pool
         address rewardHandler = IResupplyRegistry(registry).rewardHandler();
         IERC20(feeToken).safeTransfer(rewardHandler, ipAmount);
         IRewardHandler(rewardHandler).queueInsuranceRewards();
 
-        //rsup
+        //rsup stakers
         IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount - stakedStableAmount);
         IRewardHandler(rewardHandler).queueStakingRewards();
     }
 
-    /// @notice The ```setMaxAdditionalFees``` function sets the max fee ratio attributed to additional fees
-    /// @param _additionalFeeRatio max additional fee ratio
-    function setMaxAdditionalFees(uint256 _additionalFeeRatio) external onlyOwner {
-        require(_additionalFeeRatio <= 1e6, "invalid ratio");
-        maxAdditionalFeeRatio = _additionalFeeRatio;
-        emit MaxAdditionalFeesSet(_additionalFeeRatio);
+    /// @notice The ```setMaxAdditionalFeeRatio``` function sets the max additional fee ratio attributed to staked stable
+    /// @param _maxAdditionalFee max additional fee ratio (1e6 = 100%)
+    function setMaxAdditionalFeeRatio(uint256 _maxAdditionalFee) external onlyOwner {
+        require(_maxAdditionalFee <= 1e6, "invalid ratio");
+        maxAdditionalFeeRatio = _maxAdditionalFee;
+        emit MaxAdditionalFeeRatioSet(_maxAdditionalFee);
     }
 
     /// @notice The ```setSplits``` function sets the fee distribution splits between insurance, treasury, and platform

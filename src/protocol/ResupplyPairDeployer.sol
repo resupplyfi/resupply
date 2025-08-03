@@ -34,6 +34,15 @@ contract ResupplyPairDeployer is CoreOwnable {
         address collateralToken => uint256 id
     ))) public collateralId;
 
+    // Default Pair configuration data
+    ConfigData private _defaultConfigData;
+
+    /// @notice Get the default configuration data
+    /// @return The default configuration data struct
+    function defaultConfigData() external view returns (ConfigData memory) {
+        return _defaultConfigData;
+    }
+
     // immutable contracts
     address public immutable registry;
     address public immutable govToken;
@@ -46,11 +55,31 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes4 collateralTokenSig;
     }
 
+    struct ConfigData {
+        address oracle;
+        address rateCalculator;
+        uint256 maxLTV;
+        uint256 initialBorrowLimit;
+        uint256 liquidationFee;
+        uint256 mintFee;
+        uint256 protocolRedemptionFee;
+    }
+
     event ProtocolUpdated(
         uint256 indexed protocolId,
         string protocolName, 
         bytes4 borrowTokenSig, 
         bytes4 collateralTokenSig
+    );
+
+    event DefaultConfigDataSet(
+        address oracle,
+        address rateCalculator,
+        uint256 maxLTV,
+        uint256 initialBorrowLimit,
+        uint256 liquidationFee,
+        uint256 mintFee,
+        uint256 protocolRedemptionFee
     );
 
     struct DeployInfo {
@@ -84,11 +113,29 @@ contract ResupplyPairDeployer is CoreOwnable {
         _;
     }
 
-    constructor(address _core, address _registry, address _govToken, address _initialOperator) CoreOwnable(_core){
+    constructor(
+        address _core, 
+        address _registry, 
+        address _govToken, 
+        address _initialOperator,
+        ConfigData memory _defaultConfigData
+    ) CoreOwnable(_core){
         registry = _registry;
         govToken = _govToken;
         _setOperator(_initialOperator, true);
         _setOperator(address(core), true);
+        
+        // Set default config data
+        _setDefaultConfigData(
+            _defaultConfigData.oracle,
+            _defaultConfigData.rateCalculator,
+            _defaultConfigData.maxLTV,
+            _defaultConfigData.initialBorrowLimit,
+            _defaultConfigData.liquidationFee,
+            _defaultConfigData.mintFee,
+            _defaultConfigData.protocolRedemptionFee
+        );
+        
         address _previousPairDeployer = IResupplyRegistry(registry).getAddress("DEPLOYER");
         if(_previousPairDeployer != address(0)) {
             _migrateState(_previousPairDeployer);
@@ -179,6 +226,77 @@ contract ResupplyPairDeployer is CoreOwnable {
             contractAddress1 = SSTORE2.write(_creationCode);
             contractAddress2 = address(0);
         }
+    }
+
+    /// @notice The `setDefaultConfigData` function sets the default configuration data for deployments
+    /// @param _oracle The oracle address
+    /// @param _rateCalculator The rate calculator address
+    /// @param _maxLTV The maximum loan-to-value ratio
+    /// @param _initialBorrowLimit The initial borrow limit
+    /// @param _liquidationFee The liquidation fee
+    /// @param _mintFee The mint fee
+    /// @param _protocolRedemptionFee The protocol redemption fee
+    function setDefaultConfigData(
+        address _oracle,
+        address _rateCalculator,
+        uint256 _maxLTV,
+        uint256 _initialBorrowLimit,
+        uint256 _liquidationFee,
+        uint256 _mintFee,
+        uint256 _protocolRedemptionFee
+    ) external onlyOwner {
+        _setDefaultConfigData(
+            _oracle,
+            _rateCalculator,
+            _maxLTV,
+            _initialBorrowLimit,
+            _liquidationFee,
+            _mintFee,
+            _protocolRedemptionFee
+        );
+    }
+
+    /// @notice Internal function to set default configuration data
+    /// @param _oracle The oracle address
+    /// @param _rateCalculator The rate calculator address
+    /// @param _maxLTV The maximum loan-to-value ratio
+    /// @param _initialBorrowLimit The initial borrow limit
+    /// @param _liquidationFee The liquidation fee
+    /// @param _mintFee The mint fee
+    /// @param _protocolRedemptionFee The protocol redemption fee
+    function _setDefaultConfigData(
+        address _oracle,
+        address _rateCalculator,
+        uint256 _maxLTV,
+        uint256 _initialBorrowLimit,
+        uint256 _liquidationFee,
+        uint256 _mintFee,
+        uint256 _protocolRedemptionFee
+    ) internal {
+        if(_oracle == address(0) || _rateCalculator == address(0)) revert InvalidConfigData();
+        if(_maxLTV > 1e5) revert InvalidConfigData();
+        if(_liquidationFee > 1e5) revert InvalidConfigData();
+        if(_mintFee > 1e5) revert InvalidConfigData();
+        if(_protocolRedemptionFee > 1e18) revert InvalidConfigData();
+        _defaultConfigData = ConfigData({
+            oracle: _oracle,
+            rateCalculator: _rateCalculator,
+            maxLTV: _maxLTV,
+            initialBorrowLimit: _initialBorrowLimit,
+            liquidationFee: _liquidationFee,
+            mintFee: _mintFee,
+            protocolRedemptionFee: _protocolRedemptionFee
+        });
+        
+        emit DefaultConfigDataSet(
+            _oracle,
+            _rateCalculator,
+            _maxLTV,
+            _initialBorrowLimit,
+            _liquidationFee,
+            _mintFee,
+            _protocolRedemptionFee
+        );
     }
 
     /// @notice The `addSupportedProtocol` function adds a new protocol configuration to the registry
@@ -289,7 +407,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         assembly {
             _pairAddress := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        if (_pairAddress == address(0)) revert Create2Failed();
+        if (_pairAddress == address(0) || _pairAddress.code.length == 0) revert Create2Failed();
 
         return _pairAddress;
     }
@@ -345,14 +463,19 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Functions: External Methods
     // ============================================================================================
 
-    /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with default values
+    /// @notice The ```deploy``` function allows the deployment of a ResupplyPair with custom config data
     /// @dev Each deployment also registers the pair in the registry, activating the specified borrow limit.
     /// @param _protocolId The ID of the supported protocol
     /// @param _configData abi.encode(address _collateral, address _oracle, address _rateCalculator, uint256 _maxLTV, uint256 _initialBorrowLimit, uint256 _liquidationFee, uint256 _mintFee, uint256 _protocolRedemptionFee)
     /// @param _underlyingStaking The address of the underlying staking contract
     /// @param _underlyingStakingId The ID of the underlying staking contract
     /// @return _pairAddress The address to which the Pair was deployed
-    function deploy(uint256 _protocolId, bytes memory _configData, address _underlyingStaking, uint256 _underlyingStakingId) external onlyOperator returns (address _pairAddress) {
+    function deploy(
+        uint256 _protocolId,
+        bytes memory _configData,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) public onlyOperator returns (address _pairAddress) {
         (address _collateral,,,,,,,) = abi.decode(
             _configData,
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
@@ -382,6 +505,33 @@ contract ResupplyPairDeployer is CoreOwnable {
         );
     }
 
+    /// @notice This ```deploy``` function allows the deployment of a ResupplyPair using default config data
+    /// @dev Each deployment also registers the pair in the registry, activating the specified borrow limit.
+    /// @param _protocolId The ID of the supported protocol
+    /// @param _collateral The address of the collateral token
+    /// @param _underlyingStaking The address of the underlying staking contract
+    /// @param _underlyingStakingId The ID of the underlying staking contract
+    /// @return _pairAddress The address to which the Pair was deployed
+    function deploy(
+        uint256 _protocolId,
+        address _collateral,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external onlyOperator returns (address _pairAddress) {
+        bytes memory _configData = abi.encode(
+            _collateral,
+            _defaultConfigData.oracle,
+            _defaultConfigData.rateCalculator,
+            _defaultConfigData.maxLTV,
+            _defaultConfigData.initialBorrowLimit,
+            _defaultConfigData.liquidationFee,
+            _defaultConfigData.mintFee,
+            _defaultConfigData.protocolRedemptionFee
+        );
+
+        _pairAddress = deploy(_protocolId, _configData, _underlyingStaking, _underlyingStakingId);
+    }
+
     /// @notice Returns the deterministic address of a pair that would be deployed with the given parameters
     /// @dev The predicted address will change for the same parameters if a deployment occurs after the call
     /// @param _protocolId The ID of the supported protocol
@@ -394,7 +544,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _configData,
         address _underlyingStaking,
         uint256 _underlyingStakingId
-    ) external view returns (address) {
+    ) public view returns (address) {
         (address _collateral,,,,,,,) = abi.decode(
             _configData,
             (address, address, address, uint256, uint256, uint256, uint256, uint256)
@@ -420,6 +570,32 @@ contract ResupplyPairDeployer is CoreOwnable {
         return address(uint160(uint256(_hash)));
     }
 
+    /// @notice Returns the deterministic address of a pair that would be deployed with default config data
+    /// @dev The predicted address will change for the same parameters if a deployment occurs after the call
+    /// @param _protocolId The ID of the supported protocol
+    /// @param _collateral The address of the collateral token
+    /// @param _underlyingStaking The address of the underlying staking contract
+    /// @param _underlyingStakingId The ID of the underlying staking contract
+    /// @return _pairAddress The predicted address of the Pair
+    function predictPairAddress(
+        uint256 _protocolId,
+        address _collateral,
+        address _underlyingStaking,
+        uint256 _underlyingStakingId
+    ) external view returns (address) {        
+        bytes memory _configData = abi.encode(
+            _collateral,
+            _defaultConfigData.oracle,
+            _defaultConfigData.rateCalculator,
+            _defaultConfigData.maxLTV,
+            _defaultConfigData.initialBorrowLimit,
+            _defaultConfigData.liquidationFee,
+            _defaultConfigData.mintFee,
+            _defaultConfigData.protocolRedemptionFee
+        );
+        return predictPairAddress(_protocolId, _configData, _underlyingStaking, _underlyingStakingId);
+    }
+
     // ============================================================================================
     // Errors
     // ============================================================================================
@@ -435,4 +611,5 @@ contract ResupplyPairDeployer is CoreOwnable {
     error InvalidBorrowOrCollateralTokenLookup();
     error InvalidAmountToBurn();
     error InvalidMinShareBurnAmount();
+    error InvalidConfigData();
 }

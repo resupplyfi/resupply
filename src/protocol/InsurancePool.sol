@@ -203,7 +203,7 @@ contract InsurancePool is RewardDistributorMultiEpoch, CoreOwnable{
 
         IMintable(asset).burn(address(this), _amount);
 
-        //if after many burns the amount to shares ratio has deteriorated too far, then refactor
+        // if after many burns the amount to shares ratio has deteriorated too far, then refactor
         uint256 tsupply = _totalSupply;
         if(totalAssets() * SHARE_REFACTOR_PRECISION < tsupply){
             _increaseRewardEpoch(); //will do final checkpoint on previous total supply

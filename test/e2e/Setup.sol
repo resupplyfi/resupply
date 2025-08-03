@@ -27,14 +27,14 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
-import { StakedReUSD } from "src/protocol/sreusd/sreUSD.sol";
+import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
-import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
+import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
@@ -85,10 +85,10 @@ contract Setup is Test {
     PermaStaker public permaStaker1;
     PermaStaker public permaStaker2;
     Stablecoin public stablecoin;
-    StakedReUSD public stakedStable;
+    SavingsReUSD public stakedStable;
     BasicVaultOracle public oracle;
     UnderlyingOracle public underlyingoracle;
-    InterestRateCalculator public rateCalculator;
+    InterestRateCalculatorV2 public rateCalculator;
     ResupplyPairDeployer public deployer;
     RedemptionHandler public redemptionHandler;
     LiquidationHandler public liquidationHandler;
@@ -152,12 +152,24 @@ contract Setup is Test {
         vm.label(address(treasury), "Treasury");
     }
 
-    function deployProtocolContracts() public {        
+    function deployProtocolContracts() public {
+        oracle = new BasicVaultOracle("Basic Vault Oracle");
+        underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
+
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
-            address(core)
+            address(core),
+            ResupplyPairDeployer.ConfigData({
+                oracle: address(oracle),
+                rateCalculator: address(rateCalculator),
+                maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
+                initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
+                liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
+                mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
+                protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+            })
         );
         deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
@@ -179,15 +191,6 @@ contract Setup is Test {
             bytes4(keccak256("collateralContract()")) // collateralLookupSig
         );
         vm.stopPrank();
-
-        rateCalculator = new InterestRateCalculator(
-            "Base",
-            2e16 / uint256(365 days),//2%
-            2
-        );
-
-        oracle = new BasicVaultOracle("Basic Vault Oracle");
-        underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
 
         redemptionHandler = new RedemptionHandler(address(core),address(registry), address(underlyingoracle));
     }
@@ -361,6 +364,13 @@ contract Setup is Test {
         vm.prank(address(core));
         registry.setAddress("REUSD_ORACLE", address(reusdOracle));
         priceWatcher = new PriceWatcher(address(registry));
+        rateCalculator = new InterestRateCalculatorV2(
+            "V2", //suffix
+            2e16 / uint256(365 days), //2%
+            5e17, //rate ratio base
+            1e17, //rate ratio additional
+            address(priceWatcher) //price watcher
+        );
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));
         vm.startPrank(address(core));
         registry.setTreasury(address(treasury));
@@ -370,7 +380,7 @@ contract Setup is Test {
         registry.setFeeDeposit(address(feeDeposit));
         vm.stopPrank();
 
-        stakedStable = new StakedReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
+        stakedStable = new SavingsReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         vm.prank(address(core));
         registry.setAddress("SREUSD", address(stakedStable));
     }
@@ -629,7 +639,7 @@ contract Setup is Test {
         // We need to put some weight on this gauge via gauge controller, so we lock some CRV
         deal(Constants.Mainnet.CRV_ERC20, address(this), 1_000_000e18);
         IERC20(Constants.Mainnet.CRV_ERC20).approve(Constants.Mainnet.CURVE_ESCROW, type(uint256).max);
-        ICurveEscrow(Constants.Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, block.timestamp + 200 weeks);
+        ICurveEscrow(Constants.Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, vm.getBlockTimestamp() + 200 weeks);
         vm.prank(gaugeController.admin());
         gaugeController.add_gauge(gauge, 1);
         gaugeController.vote_for_gauge_weights(gauge, 10_000);

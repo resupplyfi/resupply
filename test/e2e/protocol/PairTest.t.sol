@@ -16,6 +16,8 @@ contract PairTest is PairTestBase {
     function setUp() public override {
         super.setUp();
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
+        vm.prank(pair.owner());
+        pair.setBorrowLimit(500_000e18);
     }
 
     function test_AddCollateral() public {
@@ -77,6 +79,9 @@ contract PairTest is PairTestBase {
         IERC20 otherCollateral = otherpair.collateral();
         otherCollateral.approve(address(otherpair), type(uint256).max);
         underlying.approve(address(otherpair), type(uint256).max);
+
+        vm.prank(otherpair.owner());
+        otherpair.setBorrowLimit(type(uint128).max);
 
         console.log("redemption token: ", address(pair.redemptionWriteOff()));
 
@@ -277,6 +282,9 @@ contract PairTest is PairTestBase {
 
         (uint256 totalDebtBefore, ) = pair.totalBorrow();
 
+        vm.prank(pair.owner());
+        pair.setBorrowLimit(uint(90_000e18));
+
         redeemAmount = redemptionHandler.getMaxRedeemableDebt(address(pair));
         deal(address(stablecoin), address(this), redeemAmount);
         uint256 underlyingBalBefore = underlying.balanceOf(address(this));
@@ -285,17 +293,17 @@ contract PairTest is PairTestBase {
         uint256 stablecoinBalBefore = stablecoin.balanceOf(address(this));
         
         // We expect this to revert because the total remaining debt is less than `minimumLeftoverDebt`
+        (, uint amt) = pair.totalBorrow();
+
         vm.expectRevert(ResupplyPairConstants.InsufficientDebtToRedeem.selector);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
-            redeemAmount + uint256(500e18), // add some to force revert
+            borrowAmount, // add some to force revert
             1e18,           // max fee
             address(this),  // return to
             true            // unwrap
         );
         
-        console.log("totalDebtBefore", totalDebtBefore);
-        console.log("redeemAmount", redeemAmount);
         collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
