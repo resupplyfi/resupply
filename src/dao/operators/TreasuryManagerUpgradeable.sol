@@ -189,21 +189,21 @@ contract TreasuryManagerUpgradeable is BaseUpgradeableOperator {
 
     /**
         @notice Helper function to view the active permissions granted to this contract
-        @return p The permissions struct
+        @return permissions The permissions struct
     */
-    function viewPermissions() external view returns (Permissions memory p) {
-        p.retrieveToken = _hasPerm(address(treasury), ITreasury.retrieveToken.selector);
-        p.retrieveTokenExact = _hasPerm(address(treasury), ITreasury.retrieveTokenExact.selector);
-        p.retrieveETH = _hasPerm(address(treasury), ITreasury.retrieveETH.selector);
-        p.retrieveETHExact = _hasPerm(address(treasury), ITreasury.retrieveETHExact.selector);
-        p.setTokenApproval = _hasPerm(address(treasury), ITreasury.setTokenApproval.selector);
-        p.execute = _hasPerm(address(treasury), ITreasury.execute.selector);
-        p.safeExecute = _hasPerm(address(treasury), ITreasury.safeExecute.selector);
-        p.transferTokenFromPrismaFeeReceiver = _hasPerm(address(prismaFeeReceiver), IPrismaFeeReceiver.transferToken.selector);
-        p.approveTokenFromPrismaFeeReceiver = _hasPerm(address(prismaFeeReceiver), IPrismaFeeReceiver.setTokenApproval.selector);
+    function viewPermissions() external view returns (Permissions memory permissions) {
+        permissions.retrieveToken = hasPermission(address(treasury), ITreasury.retrieveToken.selector);
+        permissions.retrieveTokenExact = hasPermission(address(treasury), ITreasury.retrieveTokenExact.selector);
+        permissions.retrieveETH = hasPermission(address(treasury), ITreasury.retrieveETH.selector);
+        permissions.retrieveETHExact = hasPermission(address(treasury), ITreasury.retrieveETHExact.selector);
+        permissions.setTokenApproval = hasPermission(address(treasury), ITreasury.setTokenApproval.selector);
+        permissions.execute = hasPermission(address(treasury), ITreasury.execute.selector);
+        permissions.safeExecute = hasPermission(address(treasury), ITreasury.safeExecute.selector);
+        permissions.transferTokenFromPrismaFeeReceiver = hasPermission(address(prismaFeeReceiver), IPrismaFeeReceiver.transferToken.selector);
+        permissions.approveTokenFromPrismaFeeReceiver = hasPermission(address(prismaFeeReceiver), IPrismaFeeReceiver.setTokenApproval.selector);
     }
 
-    function _hasPerm(address target, bytes4 selector) internal view returns (bool) {
+    function hasPermission(address target, bytes4 selector) public view returns (bool) {
         (bool authorized,) = core.operatorPermissions(address(this), target, selector);
         if (!authorized) (authorized,) = core.operatorPermissions(address(this), address(0), selector);
         return authorized;

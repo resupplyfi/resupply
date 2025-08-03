@@ -14,13 +14,21 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
     IResupplyRegistry public constant registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
     address public guardian;
 
-    modifier onlyGuardian() {
-        require(msg.sender == guardian, "!guardian");
-        _;
+    struct Permissions {
+        bool pauseAllPairs;
+        bool cancelProposal;
+        bool updateProposalDescription;
+        bool revertVoter;
+        bool setRegistryAddress;
     }
 
     event GuardianSet(address indexed newGuardian);
     event PairPaused(address indexed pair);
+
+    modifier onlyGuardian() {
+        require(msg.sender == guardian, "!guardian");
+        _;
+    }
 
     function initialize(address _guardian) external initializer {
         guardian = _guardian;
@@ -44,7 +52,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
     }
 
     function cancelProposal(uint256 proposalId) external onlyGuardian {
-        address voter = registry.getAddress("VOTER");
+        address voter = _getVoter();
         core.execute(
             voter, 
             abi.encodeWithSelector(IVoter.cancelProposal.selector, proposalId)
@@ -52,7 +60,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
     }
 
     function updateProposalDescription(uint256 proposalId, string calldata newDescription) external onlyGuardian {
-        address voter = registry.getAddress("VOTER");
+        address voter = _getVoter();
         core.execute(
             voter,
             abi.encodeWithSelector(IVoter.updateProposalDescription.selector, proposalId, newDescription)
@@ -98,25 +106,26 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
 
     /**
         @notice Helper function to view the active permissions granted to this contract
-        @return pausePair Whether the guardian can pause pairs
-        @return cancelProposal Whether the guardian can cancel proposals
-        @return updateProposalDescription Whether the guardian can update proposal descriptions
-        @return revertVoter Whether the guardian can revert the voter
-        @return setRegistryAddress Whether the guardian can set registry addresses
+        @return permissions struct with the active permissions
      */
-    function viewPermissions() external view returns (bool, bool, bool, bool, bool) {
-        address voter = registry.getAddress("VOTER");
-        bool[] memory permissions = new bool[](5);
-        (bool authorized,) = core.operatorPermissions(address(this), address(0), IResupplyPair.pause.selector);
-        permissions[0] = authorized;
-        (authorized,) = core.operatorPermissions(address(this), address(voter), IVoter.cancelProposal.selector);
-        permissions[1] = authorized;
-        (authorized,) = core.operatorPermissions(address(this), address(voter), IVoter.updateProposalDescription.selector);
-        permissions[2] = authorized;
-        (authorized,) = core.operatorPermissions(address(this), address(core), ICore.setVoter.selector);
-        permissions[3] = authorized;
-        (authorized,) = core.operatorPermissions(address(this), address(registry), IResupplyRegistry.setAddress.selector);
-        permissions[4] = authorized;
-        return (permissions[0], permissions[1], permissions[2], permissions[3], permissions[4]);
+    function viewPermissions() external view returns (Permissions memory permissions) {
+        address voter = _getVoter();
+        permissions.pauseAllPairs = hasPermission(address(0), IResupplyPair.pause.selector);
+        permissions.cancelProposal = hasPermission(address(voter), IVoter.cancelProposal.selector);
+        permissions.updateProposalDescription = hasPermission(address(voter), IVoter.updateProposalDescription.selector);
+        permissions.revertVoter = hasPermission(address(core), ICore.setVoter.selector);
+        permissions.setRegistryAddress = hasPermission(address(registry), IResupplyRegistry.setAddress.selector);
+        return permissions;
+    }
+
+    function hasPermission(address target, bytes4 selector) public view returns (bool authorized) {
+        (authorized,) = core.operatorPermissions(address(this), address(0), selector);
+        if (authorized) return true;
+        (authorized,) = core.operatorPermissions(address(this), target, selector);
+        return authorized;
+    }
+
+    function _getVoter() internal view returns (address) {
+        return registry.getAddress("VOTER");
     }
 }

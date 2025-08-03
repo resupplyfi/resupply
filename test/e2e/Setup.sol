@@ -123,6 +123,7 @@ contract Setup is Test {
         deployRewardsContracts();
         setInitialEmissionReceivers();
         deployCurvePools();
+        deployDefaultLendingPairs();
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
         govToken.approve(address(staker), type(uint256).max);
@@ -343,6 +344,8 @@ contract Setup is Test {
         assertEq(address(vestManager), vestManagerAddress);
         
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
+        vm.prank(address(core));
+        registry.setAddress("VOTER", address(voter));
         stakingToken = govToken;
 
         vm.prank(address(core));
@@ -673,5 +676,22 @@ contract Setup is Test {
         IConvexPoolManager(Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
         // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
         convexPoolId = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolLength() - 1;
+    }
+
+    function setOperatorPermission(address operator, address target, bytes4 selector, bool authorized) public {
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            operator,
+            target,
+            selector,
+            authorized,
+            IAuthHook(address(0))
+        );
+    }
+
+    function stakeGovToken(uint256 amount) public {
+        deal(address(govToken), address(this), amount);
+        govToken.approve(address(staker), amount);
+        staker.stake(address(this), amount);
     }
 }
