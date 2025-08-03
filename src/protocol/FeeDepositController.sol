@@ -139,7 +139,8 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         Splits memory _splits = splits;
         uint256 ipAmount =  balance * _splits.insurance / BPS;
         uint256 treasuryAmount =  balance * _splits.treasury / BPS;
-        stakedStableAmount +=  balance * _splits.stakedStable / BPS;
+        uint256 stakedStableSplitAmount = balance * _splits.stakedStable / BPS;
+        stakedStableAmount += stakedStableSplitAmount;
         
         //treasury
         address treasury = IResupplyRegistry(registry).treasury();
@@ -155,7 +156,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         IRewardHandler(rewardHandler).queueInsuranceRewards();
 
         //rsup stakers
-        IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount - stakedStableAmount);
+        IERC20(feeToken).safeTransfer(rewardHandler, balance - ipAmount - treasuryAmount - stakedStableSplitAmount);
         IRewardHandler(rewardHandler).queueStakingRewards();
     }
 
