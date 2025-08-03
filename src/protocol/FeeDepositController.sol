@@ -17,7 +17,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     address public immutable registry;
     address public immutable feeToken;
     address public immutable priceWatcher;
-    uint256 public maxAdditionalFeeRatio;
+    uint256 public additionalFeeRatio;
     uint256 public constant BPS = 10_000;
     Splits public splits;
     IFeeLogger public immutable feeLogger;
@@ -37,12 +37,12 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     }
 
     event SplitsSet(uint40 insurance, uint40 treasury, uint40 platform, uint40 stakedStable);
-    event MaxAdditionalFeeRatioSet(uint256 ratio);
+    event AdditionalFeeRatioSet(uint256 ratio);
 
     /**
      * @param _core Core contract address
      * @param _registry Registry contract address
-     * @param _maxAdditionalFee Cap on the amount of additional fees to direct to staked stable (1e6 = 100%)
+     * @param _additionalFee Cap on the amount of additional fees to direct to staked stable (1e6 = 100%)
      * @param _insuranceSplit Insurance split percentage (in BPS)
      * @param _treasurySplit Treasury split percentage (in BPS)
      * @param _stakedStableSplit Staked stable split percentage (in BPS)
@@ -50,15 +50,15 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
     constructor(
         address _core,
         address _registry,
-        uint256 _maxAdditionalFee,
+        uint256 _additionalFee,
         uint256 _insuranceSplit,
         uint256 _treasurySplit,
         uint256 _stakedStableSplit
     ) CoreOwnable(_core) EpochTracker(_core){
-        require(_maxAdditionalFee <= 1e6, "invalid ratio");
+        require(_additionalFee <= 1e6, "invalid ratio");
         registry = _registry;
-        maxAdditionalFeeRatio = _maxAdditionalFee;
-        emit MaxAdditionalFeeRatioSet(_maxAdditionalFee);
+        additionalFeeRatio = _additionalFee;
+        emit AdditionalFeeRatioSet(_additionalFee);
         feeToken = IResupplyRegistry(_registry).token();
         priceWatcher = IResupplyRegistry(_registry).getAddress("PRICE_WATCHER");
         feeLogger = IFeeLogger(IResupplyRegistry(_registry).getAddress("FEE_LOGGER"));
@@ -130,9 +130,9 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
             //get total amount of fees collected in interest only
             uint256 feesInInterest = feeLogger.epochInterestFees(currentEpoch-2);
             //use weighting to determine how much of the max fee should be applied
-            uint256 additionalFeeRatio = maxAdditionalFeeRatio * distroWeight.avgWeighting / 1e6;
-            additionalFeeRatio = 1e6 + additionalFeeRatio; //turn something like 10% or 0.1 to 1.1
-            stakedStableAmount = feesInInterest - (feesInInterest * 1e6 / additionalFeeRatio);
+            uint256 useAddFeeRatio = additionalFeeRatio * distroWeight.avgWeighting / 1e6;
+            useAddFeeRatio = 1e6 + useAddFeeRatio; //turn something like 10% or 0.1 to 1.1
+            stakedStableAmount = feesInInterest - (feesInInterest * 1e6 / useAddFeeRatio);
             balance -= stakedStableAmount;
         }
 
@@ -160,12 +160,12 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
         IRewardHandler(rewardHandler).queueStakingRewards();
     }
 
-    /// @notice The ```setMaxAdditionalFeeRatio``` function sets the max additional fee ratio attributed to staked stable
-    /// @param _maxAdditionalFee max additional fee ratio (1e6 = 100%)
-    function setMaxAdditionalFeeRatio(uint256 _maxAdditionalFee) external onlyOwner {
-        require(_maxAdditionalFee <= 1e6, "invalid ratio");
-        maxAdditionalFeeRatio = _maxAdditionalFee;
-        emit MaxAdditionalFeeRatioSet(_maxAdditionalFee);
+    /// @notice The ```setAdditionalFeeRatio``` function sets the max additional fee ratio attributed to staked stable
+    /// @param _additionalFee max additional fee ratio (1e6 = 100%)
+    function setAdditionalFeeRatio(uint256 _additionalFee) external onlyOwner {
+        require(_additionalFee <= 1e6, "invalid ratio");
+        additionalFeeRatio = _additionalFee;
+        emit AdditionalFeeRatioSet(_additionalFee);
     }
 
     /// @notice The ```setSplits``` function sets the fee distribution splits between insurance, treasury, and platform
