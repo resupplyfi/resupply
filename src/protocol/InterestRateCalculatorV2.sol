@@ -55,7 +55,7 @@ contract InterestRateCalculatorV2 is IRateCalculator {
     /// @return _minor Minor version
     /// @return _patch Patch version
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
-        _major = 1;
+        _major = 2;
         _minor = 0;
         _patch = 0;
     }
