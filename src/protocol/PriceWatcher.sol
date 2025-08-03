@@ -154,9 +154,7 @@ contract PriceWatcher is CoreOwnable{
         uint256 price = IReusdOracle(oracle).priceAsCrvusd();
         uint256 weight = price > 1e18 ? 0 : 1e18 - price;
         //oracle implements a floor equal to the redemption fee (e.g. min price 0.99 for 1% fee)
-        //at the floor, weight = 1e16 (i.e., 1% of 1e18)
-        //clamp weight to 1e16 to keep in bounds in case redemption fee were to increase
-        weight = weight > 1e16 ? 1e16 : weight;
+        //at 0.990, weight = 1e16 (i.e., 1% of 1e18)
         //reduce precision from 1e18 to 1e6
         return uint64(weight / 1e10);
     }
