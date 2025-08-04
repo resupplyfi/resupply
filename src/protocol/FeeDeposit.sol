@@ -22,7 +22,7 @@ contract FeeDeposit is CoreOwnable, EpochTracker {
 
     event FeesDistributed(address indexed _address, uint256 _amount);
     event ReceivedRevenue(address indexed _address, uint256 _fees, uint256 _otherFees);
-    event SetOperator(address oldAddress, address newAddress);
+    event SetOperator(address indexed oldAddress, address indexed newAddress);
 
     constructor(address _core, address _registry, address _feeToken) CoreOwnable(_core) EpochTracker(_core){
         registry = _registry;

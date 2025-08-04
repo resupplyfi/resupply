@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IReusdOracle } from "../interfaces/IReusdOracle.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
@@ -34,6 +33,7 @@ contract PriceWatcher is CoreOwnable{
         registry = _registry;
         oracle = IResupplyRegistry(_registry).getAddress("REUSD_ORACLE");
         require(oracle != address(0), "invalid address");
+        emit OracleSet(oracle);
         //start with at least 2 nodes of information
         _addUpdate(0, 0, 0);
         updatePriceData();
