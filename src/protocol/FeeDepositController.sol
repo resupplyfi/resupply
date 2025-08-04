@@ -98,7 +98,6 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
             //offset by the timestamp of the previous distribution
             IPriceWatcher.PriceData memory prevData = IPriceWatcher(priceWatcher).priceDataAtIndex(prevWeight.index);
             uint64 dt = prevWeight.timestamp - prevData.timestamp;
-            prevData.timestamp = prevData.timestamp + dt;
             prevData.totalWeight = prevData.totalWeight + (prevData.weight * dt);
 
             //get latest data and extrapolate a new data point that uses latest's weight and the time difference between
@@ -111,7 +110,7 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
             //get difference of total weight between these two points
             uint256 dw = latest.totalWeight - prevData.totalWeight;
             //dt will always be > 0
-            dt = latest.timestamp - prevData.timestamp;
+            dt = latest.timestamp - prevWeight.timestamp;
             currentWeight.avgWeighting = uint128(dw / dt);
         }
 
@@ -124,13 +123,11 @@ contract FeeDepositController is CoreOwnable, EpochTracker{
 
         //next calculate how much of the current balance should be sent to sreusd
         //using currentEpoch - 2 as pair interest is trailing by two epochs
-
-        WeightData memory distroWeight = epochWeighting[currentEpoch - 2];
-        if(distroWeight.avgWeighting > 0){
+        if(prevWeight.avgWeighting > 0){
             //get total amount of fees collected in interest only
             uint256 feesInInterest = feeLogger.epochInterestFees(currentEpoch-2);
             //use weighting to determine how much of the max fee should be applied
-            uint256 useAddFeeRatio = additionalFeeRatio * distroWeight.avgWeighting / 1e6;
+            uint256 useAddFeeRatio = additionalFeeRatio * prevWeight.avgWeighting / 1e6;
             useAddFeeRatio = 1e6 + useAddFeeRatio; //turn something like 10% or 0.1 to 1.1
             stakedStableAmount = feesInInterest - (feesInInterest * 1e6 / useAddFeeRatio);
             balance -= stakedStableAmount;

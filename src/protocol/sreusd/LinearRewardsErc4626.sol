@@ -28,7 +28,7 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     struct RewardsCycleData {
         uint40 cycleEnd; // Timestamp of the end of the current rewards cycle
         uint40 lastSync; // Timestamp of the last time the rewards cycle was synced
-        uint216 rewardCycleAmount; // Amount of rewards to be distributed in the current cycle
+        uint256 rewardCycleAmount; // Amount of rewards to be distributed in the current cycle
     }
 
     /// @notice The rewards cycle data, stored in a single word to save gas
@@ -148,7 +148,7 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
         }
 
         // Write return values
-        _rewardsCycleData.rewardCycleAmount = _newRewards.safeCastTo216();
+        _rewardsCycleData.rewardCycleAmount = _newRewards;
         _rewardsCycleData.lastSync = _timestamp.safeCastTo40();
         _rewardsCycleData.cycleEnd = _cycleEnd;
 
@@ -285,7 +285,7 @@ abstract contract LinearRewardsErc4626 is ERC4626, EpochTracker {
     /// @param cycleEnd The timestamp of the end of the current rewards cycle
     /// @param lastSync The timestamp of the last time the rewards cycle was synced
     /// @param rewardCycleAmount The amount of rewards to be distributed in the current cycle
-    event SyncRewards(uint40 cycleEnd, uint40 lastSync, uint216 rewardCycleAmount);
+    event SyncRewards(uint40 cycleEnd, uint40 lastSync, uint256 rewardCycleAmount);
 
     /// @notice The ```DistributeRewards``` event is emitted when rewards are distributed to storedTotalAssets
     /// @param rewardsToDistribute The amount of rewards that were distributed
