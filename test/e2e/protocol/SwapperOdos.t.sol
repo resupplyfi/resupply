@@ -37,6 +37,7 @@ contract SwapperOdosTest is PairTestBase {
         swapper = new SwapperOdos(_core);
         swapper.updateApprovals();
         _pair.setSwapper(address(swapper), true);
+        _pair.setBorrowLimit(100_000_000e18);
         vm.stopPrank();
         
         uint256 borrowAmount = 50_000e18;

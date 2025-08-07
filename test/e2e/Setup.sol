@@ -235,6 +235,7 @@ contract Setup is Test {
         );
 
         //seed insurance pool
+        vm.prank(address(core));
         stablecoin.transfer(address(insurancePool),1e18);
 
         ipStableStream = new SimpleRewardStreamer(
