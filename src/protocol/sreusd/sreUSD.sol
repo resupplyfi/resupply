@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { OFTCore } from "@layerzerolabs/oft-evm/contracts/OFTCore.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
 import { LinearRewardsErc4626, ERC20 } from "./LinearRewardsErc4626.sol";
@@ -38,7 +37,9 @@ contract SavingsReUSD is LinearRewardsErc4626, OFTCore {
         OFTCore(IERC20Metadata(_underlying).decimals(), _lzEndpoint, _core)
         Ownable(_core)
     {
+        if (_maxDistributionPerSecondPerAsset > type(uint64).max) _maxDistributionPerSecondPerAsset = type(uint64).max;
         maxDistributionPerSecondPerAsset = _maxDistributionPerSecondPerAsset;
+        emit SetMaxDistributionPerSecondPerAsset(0, _maxDistributionPerSecondPerAsset);
     }
 
     function core() external view returns(address) {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.28;
 
+import { Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
@@ -92,7 +93,7 @@ contract SreUSDTest is Setup {
         vault.syncRewardsAndDistribution();
 
         // Calc expected rewards
-        (uint40 cycleEnd, uint40 lastSync, uint216 rewardCycleAmount) = vault.rewardsCycleData();
+        (uint40 cycleEnd, uint40 lastSync, uint256 rewardCycleAmount) = vault.rewardsCycleData();
         uint256 expectedRewards = (uint256(rewardCycleAmount) * timeElapsed) / (cycleEnd - lastSync);
         skip(timeElapsed);
         uint256 actualRewards = vault.calculateRewardsToDistribute(
@@ -168,6 +169,24 @@ contract SreUSDTest is Setup {
         assertEq(vault.balanceOf(address(this)), amount);
         assertEq(vault.balanceOf(address(vault)), 0);
         assertEq(vault.token(), address(vault));
+    }
+
+    function test_DonationBeforeDeploy() public {
+        address expected = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
+        deal(address(asset), address(expected), 1_000e18);
+        SavingsReUSD newVault = new SavingsReUSD(address(core), address(registry), Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", type(uint256).max);
+        assertEq(expected, address(newVault));
+        
+        // Deposit
+        deal(address(asset), address(this), 1e18);
+        asset.approve(address(newVault), 1e18);
+        newVault.deposit(1e18, address(this));
+
+        // Sync and advance epoch
+        newVault.syncRewardsAndDistribution();
+        advanceEpochs(checkIfOnEpochEdge() ? 2 : 1);
+        newVault.syncRewardsAndDistribution();
+        assertEq(newVault.totalAssets(), 1_001e18);
     }
 
     function simulateFeesAndAdvanceEpoch(uint256 feeAmount) public {

@@ -8,6 +8,7 @@ import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
 
 contract PairTestFeeFlow is PairTestBase {
     function setUp() public override {
@@ -33,10 +34,7 @@ contract PairTestFeeFlow is PairTestBase {
     function test_feeFlow() public {
         assertEq(pair.userCollateralBalance(_THIS), 0);
 
-        deal(address(stakingToken), address(this), 1e18);
-        stakingToken.approve(address(staker), 1e18);
-        staker.stake(address(this), 1e18);
-        assertEq(staker.balanceOf(_THIS), 1e18);
+        stake(1e18);
 
         printPairFees(pair);
         skip(feeDeposit.epochLength());
@@ -72,12 +70,15 @@ contract PairTestFeeFlow is PairTestBase {
 
         printPairFees(pair);
         printDistributionInfo();
+        SplitTargetBalances memory balancesBefore = getSplitTargetBalances();
         feeDepositController.distribute();
+        SplitTargetBalances memory balancesAfter = getSplitTargetBalances();
+        validateSplitActuals(balancesBefore, balancesAfter);
         pair.withdrawFees();
         console.log("\nclaimed fees\n");
         printPairFees(pair);
         printDistributionInfo();
-
+        
         console.log("\nwarp to next week now that these are queued\n");
 
         skip(feeDeposit.epochLength());
@@ -85,7 +86,10 @@ contract PairTestFeeFlow is PairTestBase {
 
         printPairFees(pair);
         printDistributionInfo();
+        balancesBefore = getSplitTargetBalances();
         feeDepositController.distribute();
+        balancesAfter = getSplitTargetBalances();
+        validateSplitActuals(balancesBefore, balancesAfter);
         pair.withdrawFees();
         console.log("\nclaimed fees\n");
         printPairFees(pair);
@@ -107,10 +111,7 @@ contract PairTestFeeFlow is PairTestBase {
     function test_insurancePoolFees() public {
         assertEq(pair.userCollateralBalance(_THIS), 0);
 
-        deal(address(stakingToken), address(this), 1e18);
-        stakingToken.approve(address(staker), 1e18);
-        staker.stake(address(this), 1e18);
-        assertEq(staker.balanceOf(_THIS), 1e18);
+        stake(1e18);
 
         deal(address(stablecoin), address(this), 2e18);
         stablecoin.approve(address(insurancePool), 9999e18);
@@ -291,11 +292,11 @@ contract PairTestFeeFlow is PairTestBase {
     }
 
     function printDistributionInfo() internal{
-        console.log("stables on feeDeposit: ", stablecoin.balanceOf(address(feeDeposit)));
-        console.log("stables on gov staker: ", stablecoin.balanceOf(address(staker)));
-        console.log("stables on treasury: ", stablecoin.balanceOf(address(treasury)));
-        console.log("stables on insurance: ", stablecoin.balanceOf(address(insurancePool)));
-        console.log("stables on insurance distribution: ", stablecoin.balanceOf(address(ipStableStream)));
+        SplitTargetBalances memory balances = getSplitTargetBalances();
+        console.log("stables on gov staker: ", balances.govStakerBalance);
+        console.log("stables on treasury: ", balances.treasuryBalance);
+        console.log("stables on insurance distribution: ", balances.insurancePoolBalance);
+        console.log("stables on stakedStable: ", balances.stakedStableBalance);
         console.log("govToken on insurance: ", stakingToken.balanceOf(address(insurancePool)));
         console.log("govToken on insurance distribution: ", stakingToken.balanceOf(address(ipEmissionStream)));
         console.log("govToken on pair emissions: ", stakingToken.balanceOf(address(pairEmissionStream)));
@@ -306,6 +307,7 @@ contract PairTestFeeFlow is PairTestBase {
         console.log("stables reward rate on insurancepool: ", ipStableStream.rewardRate());
         console.log("emission reward rate on insurancepool: ", ipEmissionStream.rewardRate());
         console.log("emission reward rate for all pairs: ", pairEmissionStream.rewardRate());
+        console.log("emission reward rate for sreUSD: ", sreusdRewardsPerSecond());
         console.log("weight of current pair: ", pairEmissionStream.balanceOf(address(pair)));
         console.log("total pair weight: ", pairEmissionStream.totalSupply());
         console.log("emissions earned by pair: ", pairEmissionStream.earned(address(pair)));
@@ -316,5 +318,39 @@ contract PairTestFeeFlow is PairTestBase {
         }
         //earned should have claimed all emissions for the pair
        assertEq(pairEmissionStream.earned(address(pair)), 0);
+    }
+
+    function sreusdRewardsPerSecond() public view returns (uint256) {
+        (uint256 end, uint256 lastSync, uint256 amount) = stakedStable.rewardsCycleData();
+        uint256 cycleDuration = end - lastSync;
+        if (cycleDuration == 0) return 0;
+        return amount / cycleDuration;
+    }
+
+    function getSplitTargetBalances() public view returns (SplitTargetBalances memory balances) {
+        balances.govStakerBalance = stablecoin.balanceOf(address(staker));
+        balances.treasuryBalance = stablecoin.balanceOf(address(treasury));
+        balances.insurancePoolBalance = stablecoin.balanceOf(address(ipStableStream));
+        balances.stakedStableBalance = stablecoin.balanceOf(address(stakedStable));
+    }
+
+    function validateSplitActuals(SplitTargetBalances memory balancesBefore, SplitTargetBalances memory balancesAfter) public view {
+        uint256 BPS = 10000;
+        (uint256 insuranceSplit, uint256 treasurySplit, uint256 platformSplit, uint256 stakedStableSplit) = feeDepositController.splits();
+        uint256 totalBefore = balancesBefore.govStakerBalance + balancesBefore.treasuryBalance + balancesBefore.insurancePoolBalance + balancesBefore.stakedStableBalance;
+        uint256 totalAfter = balancesAfter.govStakerBalance + balancesAfter.treasuryBalance + balancesAfter.insurancePoolBalance + balancesAfter.stakedStableBalance;
+        uint256 delta = totalAfter - totalBefore;
+        console.log("Total Gain: ", delta);
+        assertEq(balancesBefore.govStakerBalance + (delta * platformSplit / BPS), balancesAfter.govStakerBalance, "unexpected split to gov staker");
+        assertEq(balancesBefore.treasuryBalance + (delta * treasurySplit / BPS), balancesAfter.treasuryBalance, "unexpected split to treasury");
+        assertEq(balancesBefore.insurancePoolBalance + (delta * insuranceSplit / BPS), balancesAfter.insurancePoolBalance, "unexpected split to insurance distribution");
+        assertEq(balancesBefore.stakedStableBalance + (delta * stakedStableSplit / BPS), balancesAfter.stakedStableBalance, "unexpected split to staked stable");
+    }
+
+    struct SplitTargetBalances {
+        uint256 govStakerBalance;
+        uint256 treasuryBalance;
+        uint256 insurancePoolBalance;
+        uint256 stakedStableBalance;
     }
 }

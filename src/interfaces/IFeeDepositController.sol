@@ -6,16 +6,18 @@ pragma solidity 0.8.28;
 interface IFeeDepositController {
     /// @notice Struct defining the split percentages for fee distribution
     struct Splits {
-        uint80 insurance;
-        uint80 treasury;
-        uint80 platform;
+        uint40 insurance;
+        uint40 treasury;
+        uint40 platform;
+        uint40 stakedStable;
     }
 
     /// @notice Emitted when fee distribution splits are updated
     /// @param insurance The percentage (in BPS) allocated to insurance pool
     /// @param treasury The percentage (in BPS) allocated to treasury
     /// @param platform The percentage (in BPS) allocated to platform stakers
-    event SplitsSet(uint80 insurance, uint80 treasury, uint80 platform);
+    event SplitsSet(uint40 insurance, uint40 treasury, uint40 platform, uint40 stakedStable);
+    event AdditionalFeeRatioSet(uint256 ratio);
 
     /// @notice Returns the address of the registry contract
     function registry() external view returns (address);
@@ -42,5 +44,13 @@ interface IFeeDepositController {
     /// @param _insuranceSplit The percentage (in BPS) to send to insurance pool
     /// @param _treasurySplit The percentage (in BPS) to send to treasury
     /// @param _platformSplit The percentage (in BPS) to send to platform stakers
-    function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit) external;
+    /// @param _stakedStableSplit The percentage (in BPS) to send to staked stable
+    function setSplits(uint256 _insuranceSplit, uint256 _treasurySplit, uint256 _platformSplit, uint256 _stakedStableSplit) external;
+
+
+    function setAdditionalFeeRatio(uint256 _additionalFee) external;
+
+    /// @notice Returns the maximum additional fee ratio
+    function additionalFeeRatio() external view returns (uint256);
+
 }
