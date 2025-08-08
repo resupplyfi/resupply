@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol } from "src/Constants.sol";
+import { Protocol, Prisma } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -15,6 +15,7 @@ import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
+import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -23,6 +24,7 @@ interface IPermastakerOperator {
 
 contract LaunchFixes is BaseAction {
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
+    ICore public constant _core = ICore(Protocol.CORE);
     IVoter public voter;
     address public constant deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
     IPermastakerOperator public constant PERMA_STAKER_OPERATOR = IPermastakerOperator(0x3419b3FfF84b5FBF6Eec061bA3f9b72809c955Bf);
@@ -76,6 +78,7 @@ contract LaunchFixes is BaseAction {
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.CORE, ICore.setVoter.selector, true);
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IResupplyRegistry.setAddress.selector, true);
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.cancelRamp.selector, true);
+        //NOTE: This one actually needs to get added to guardian
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, true);
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
         // Treasury Manager Proxy
@@ -89,31 +92,48 @@ contract LaunchFixes is BaseAction {
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, IPrismaFeeReceiver.transferToken.selector, true);
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, IPrismaFeeReceiver.setTokenApproval.selector, true);
 
-        // DISABLE OLD PERMISSIONS
+        // DISABLE OLD PERMISSIONS - We first do an `isEnabled` check to ensure the old permissions are actually enabled
         // Old Guardian
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IVoter.updateProposalDescription.selector), "Update Proposal Description Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IVoter.updateProposalDescription.selector, false);
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IVoter.cancelProposal.selector), "Cancel Proposal Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IVoter.cancelProposal.selector, false);
-        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, false);
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.VOTER_DEPRECATED, IVoter.cancelProposal.selector), "Cancel Proposal Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.VOTER_DEPRECATED, IVoter.cancelProposal.selector, false);
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.VOTER_DEPRECATED, IVoter.updateProposalDescription.selector), "Update Proposal Description Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.VOTER_DEPRECATED, IVoter.updateProposalDescription.selector, false);
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector), "Set Address Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, false);
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.CORE, ICore.setVoter.selector), "Set Voter Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.CORE, ICore.setVoter.selector, false);
-        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IResupplyPair.pause.selector, true);
+        require(isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IResupplyPair.pause.selector), "Pause Not Enabled");
+        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IResupplyPair.pause.selector, false);
 
         // Old Treasury Manager
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveToken.selector), "Retrieve Token Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveToken.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveTokenExact.selector), "Retrieve Token Exact Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveTokenExact.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveETH.selector), "Retrieve ETH Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveETH.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveETHExact.selector), "Retrieve ETH Exact Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveETHExact.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.setTokenApproval.selector), "Set Token Approval Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.setTokenApproval.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.execute.selector), "Execute Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.execute.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.safeExecute.selector), "Safe Execute Not Enabled");
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.safeExecute.selector, false);
-        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, IPrismaFeeReceiver.transferToken.selector, false);
-        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, IPrismaFeeReceiver.setTokenApproval.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.transferToken.selector), "Transfer Token Not Enabled");
+        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.transferToken.selector, false);
+        require(isEnabled(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.setTokenApproval.selector), "Set Token Approval Not Enabled");
+        actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.setTokenApproval.selector, false);
 
         // Other
         actions[i++] = _buildOperatorPermissionAction(Protocol.DEPLOYER, Protocol.VEST_MANAGER, IVestManager.setLockPenaltyMerkleRoot.selector, false);
         actions[i++] = _buildOperatorPermissionAction(Protocol.OPERATOR_GUARDIAN_OLD, 0x111111110d3e18e73CC2227A40B565043266DaC1, IVoter.updateProposalDescription.selector, false);
+        require(isEnabled(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector), "Revoke Approvals Not Enabled");
+        actions[i++] = _buildOperatorPermissionAction(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, false);
     }
 
     function _buildOperatorPermissionAction(address caller, address target, bytes4 selector, bool enable) internal returns (IVoter.Action memory data) {
@@ -139,5 +159,10 @@ contract LaunchFixes is BaseAction {
                 "Configure Operator Permissions"
             )
         );
+    }
+
+    function isEnabled(address caller, address target, bytes4 selector) public view returns (bool) {
+        (bool authorized, IAuthHook hook) = _core.operatorPermissions(caller, target, selector);
+        return authorized;
     }
 }

@@ -54,3 +54,40 @@ done < <(find . -name "*.sol" -not -path "./lib/*" -not -path "./node_modules/*"
 
 echo ""
 echo "Completed! Modified $MODIFIED_COUNT files."
+
+# --- Update foundry.toml solc settings ---
+FOUNDRY_TOML="foundry.toml"
+SOLX_PATH="/Users/wavey/.local/bin/solx"
+LINE1="solc = \"$SOLX_PATH\""
+LINE2="solc_version = \"$SOLX_PATH\""
+
+if [ -f "$FOUNDRY_TOML" ]; then
+    if [ "$DIRECTION" = "up" ]; then
+        echo "Ensuring solc settings are present in $FOUNDRY_TOML below [profile.default]..."
+        # Remove any existing occurrences first, then insert right after [profile.default]
+        awk -v l1="$LINE1" -v l2="$LINE2" '
+            BEGIN{added=0}
+            # Skip existing lines anywhere in the file
+            $0==l1 || $0==l2 { next }
+            # When we hit [profile.default], print it and then the lines once
+            /^\[profile\.default\]\s*$/ {
+                print
+                if (!added) {
+                    print l1
+                    print l2
+                    added=1
+                }
+                next
+            }
+            { print }
+        ' "$FOUNDRY_TOML" > "$FOUNDRY_TOML.tmp" && mv "$FOUNDRY_TOML.tmp" "$FOUNDRY_TOML"
+    else
+        echo "Removing solc settings from $FOUNDRY_TOML..."
+        # Delete the lines anywhere in the file
+        sed -i.bak "/^$(printf '%s' "$LINE1" | sed 's/[].*^$\/+?{}|()[]/\\&/g')$/d" "$FOUNDRY_TOML"
+        sed -i.bak "/^$(printf '%s' "$LINE2" | sed 's/[].*^$\/+?{}|()[]/\\&/g')$/d" "$FOUNDRY_TOML"
+        rm "$FOUNDRY_TOML.bak"
+    fi
+else
+    echo "Warning: $FOUNDRY_TOML not found; skipping solc settings update."
+fi
