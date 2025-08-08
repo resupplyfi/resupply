@@ -26,6 +26,7 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
 
         deployBorrowLimitController();
         deployPairDeployer();
+        deployBasicVaultOracle();
        
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
@@ -65,7 +66,7 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
             previouslyDeployedPairs,
             previouslyDeployedPairsInfo
         );
-        bytes memory bytecode = abi.encodePacked(vm.getCode("PairDeployer.sol:PairDeployer"), constructorArgs);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("ResupplyPairDeployer.sol:ResupplyPairDeployer"), constructorArgs);
         addToBatch(
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
@@ -73,21 +74,41 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         address pairDeployer = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
         require(pairDeployer == Protocol.PAIR_DEPLOYER_V2, "wrong address");
         console.log("pair deployer deployed at", pairDeployer);
-        console.log("operator set", address(deployer));
-        console.log("Num pairs loaded:", previouslyDeployedPairs.length);
+        console.log("deployer approved", IResupplyPairDeployer(pairDeployer).approvedDeployers(address(deployer)));
+        console.log("Num previously deployed pairs loaded:", previouslyDeployedPairs.length);
         require(pairDeployer.code.length > 0, "deployment failed");
         
         // Set address in registry
         addToBatch(
-            address(Protocol.OPERATOR_GUARDIAN),
+            address(Protocol.OPERATOR_GUARDIAN_OLD),
             abi.encodeWithSelector(
                 IOperatorGuardian.setRegistryAddress.selector,
                 "PAIR_DEPLOYER",
                 pairDeployer
             )
         );
-        console.log("registry address", registry.getAddress("PAIR_DEPLOYER"));
+        console.log("PAIR_DEPLOYER address in registry", registry.getAddress("PAIR_DEPLOYER"));
         require(registry.getAddress("PAIR_DEPLOYER") == pairDeployer, "registry not updated");
-        require(IResupplyPairDeployer(pairDeployer).operators(address(deployer)), "operator not set");
+        require(IResupplyPairDeployer(pairDeployer).approvedDeployers(address(deployer)), "deployer not approved");
+    }
+
+    function deployBasicVaultOracle() public {
+        bytes32 salt = buildGuardedSalt(
+            deployer, // deployer
+            true, // enablePermissionedDeploy
+            false, // enableCrossChainProtection
+            uint88(uint256(keccak256(bytes("BasicVaultOracleV2")))) // randomness
+        );
+        bytes memory constructorArgs = abi.encode("BasicVaultOracle");
+        bytes memory bytecode = abi.encodePacked(vm.getCode("BasicVaultOracle.sol:BasicVaultOracle"), constructorArgs);
+        address basicVaultOracle = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(Protocol.BASIC_VAULT_ORACLE.code.length == 0, "basic vault oracle already deployed");
+        addToBatch(
+            address(createXFactory), 
+            encodeCREATE3Deployment(salt, bytecode)
+        );
+        console.log("basic vault oracle v2 deployed at", basicVaultOracle);
+        require(basicVaultOracle.code.length > 0, "basic vault oracle deployment failed");
+        require(basicVaultOracle == Protocol.BASIC_VAULT_ORACLE, "wrong address");
     }
 }

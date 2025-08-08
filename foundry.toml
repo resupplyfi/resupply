@@ -1,11 +1,14 @@
-[profile.default]
+[profile.solx]
+solc_version = "~/.local/bin/solx"
 
+[profile.default]
 # Project structure
 src = 'src'
 script = 'script'
 test = 'test'
 out = 'out'
 libs = ["node_modules", "lib"]
+solc = "/Users/wavey/.local/bin/solx"
 
 # Compiler settings
 auto_detect_solc = true

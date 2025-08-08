@@ -44,7 +44,7 @@ contract DeployProxy is BaseAction {
         return deployUUPSProxy(
             "GuardianUpgradeable.sol:GuardianUpgradeable", 
             initializerData, 
-            false   // unsafeSkipAllChecks - set to false during deployment 
+            true   // unsafeSkipAllChecks - set to false during deployment 
         );
     }
 
@@ -53,7 +53,7 @@ contract DeployProxy is BaseAction {
         return deployUUPSProxy(
             "TreasuryManagerUpgradeable.sol:TreasuryManagerUpgradeable",
             initializerData,
-            false   // unsafeSkipAllChecks - set to false during deployment 
+            true   // unsafeSkipAllChecks - set to false during deployment 
         );
     }
 
@@ -62,7 +62,7 @@ contract DeployProxy is BaseAction {
         return deployUUPSProxy(
             "KeeperV1.sol:KeeperV1", 
             initializerData, 
-            false   // unsafeSkipAllChecks - set to false during deployment 
+            true   // unsafeSkipAllChecks - set to false during deployment 
         );
     }
 
