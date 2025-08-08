@@ -73,6 +73,7 @@ interface IVoter {
         Vote memory results
     );
     function proposalPayload(uint256 id) external view returns (Action[] memory);
+    function proposalPayload(uint256 id, uint256 index) external view returns (address, bytes memory);
     function proposalDescription(uint256 id) external view returns (string memory);
     function createNewProposal(address account, Action[] calldata payload, string calldata description) external returns (uint256);
     function voteForProposal(address account, uint256 id) external;

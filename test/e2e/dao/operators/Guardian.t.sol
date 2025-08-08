@@ -20,11 +20,11 @@ contract GuardianTest is Setup {
         guardian = new Guardian(address(core), address(registry));
 
         // set permissions
-        setPermission(address(voter), IVoter.cancelProposal.selector, true);
-        setPermission(address(voter), IVoter.updateProposalDescription.selector, true);
-        setPermission(address(registry), IResupplyRegistry.setAddress.selector, true);
-        setPermission(address(0), IResupplyPair.pause.selector, true);
-        setPermission(address(core), ICore.setVoter.selector, true);
+        setOperatorPermission(address(guardian), address(voter), IVoter.cancelProposal.selector, true);
+        setOperatorPermission(address(guardian), address(voter), IVoter.updateProposalDescription.selector, true);
+        setOperatorPermission(address(guardian), address(registry), IResupplyRegistry.setAddress.selector, true);
+        setOperatorPermission(address(guardian), address(0), IResupplyPair.pause.selector, true);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, true);
 
         vm.startPrank(address(core));
         guardian.setGuardian(dev);
@@ -106,13 +106,13 @@ contract GuardianTest is Setup {
         core.setVoter(address(user1));
 
         // revoke permission
-        setPermission(address(core), ICore.setVoter.selector, false);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, false);
         vm.prank(dev);
         vm.expectRevert("Permission to revert voter not granted");
         guardian.revertVoter();
         assertNotEq(core.voter(), guardian.guardian());
 
-        setPermission(address(core), ICore.setVoter.selector, true);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, true);
         vm.prank(dev);
         guardian.revertVoter();
         assertEq(core.voter(), guardian.guardian());
@@ -126,11 +126,11 @@ contract GuardianTest is Setup {
         assertEq(revertVoter, true, "revertVoter permission not set");
         assertEq(setRegistryAddress, true, "setRegistryAddress permission not set");
 
-        setPermission(address(core), ICore.setVoter.selector, false);
-        setPermission(address(voter), IVoter.cancelProposal.selector, false);
-        setPermission(address(voter), IVoter.updateProposalDescription.selector, false);
-        setPermission(address(registry), IResupplyRegistry.setAddress.selector, false);
-        setPermission(address(0), IResupplyPair.pause.selector, false);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, false);
+        setOperatorPermission(address(guardian), address(voter), IVoter.cancelProposal.selector, false);
+        setOperatorPermission(address(guardian), address(voter), IVoter.updateProposalDescription.selector, false);
+        setOperatorPermission(address(guardian), address(registry), IResupplyRegistry.setAddress.selector, false);
+        setOperatorPermission(address(guardian), address(0), IResupplyPair.pause.selector, false);
 
         (pausePair, cancelProposal, updateProposalDescription, revertVoter, setRegistryAddress) = guardian.viewPermissions();
         assertEq(pausePair, false, "pausePair still set");
@@ -148,17 +148,6 @@ contract GuardianTest is Setup {
         vm.prank(_guardian);
         guardian.recoverERC20(IERC20(token));
         assertGt(IERC20(token).balanceOf(_guardian), startBalance);
-    }
-
-    function setPermission(address target, bytes4 selector, bool authorized) public {
-        vm.prank(address(core));
-        core.setOperatorPermissions(
-            address(guardian),
-            target,
-            selector,
-            authorized,
-            IAuthHook(address(0))
-        );
     }
     
 

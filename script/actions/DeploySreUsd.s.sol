@@ -12,7 +12,7 @@ import { IOperatorGuardian } from "src/interfaces/operators/IOperatorGuardian.so
 
 contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
-    IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN);
+    IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN_OLD);
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
