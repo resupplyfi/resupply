@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { IVestManager } from "src/interfaces/IVestManager.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";

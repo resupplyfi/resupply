@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 interface IBasicVaultOracle {
     function decimals() external pure returns (uint8);

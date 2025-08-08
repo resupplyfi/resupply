@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";

@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 contract MockReUsdOracle {
     uint256 public price;

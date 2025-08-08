@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 /// @title IFeeDepositController
 /// @notice Interface for the FeeDepositController contract that handles distribution of fees

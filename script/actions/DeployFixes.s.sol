@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { Protocol, DeploymentConfig } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
@@ -12,16 +12,35 @@ import { console } from "forge-std/console.sol";
 import { DeployInfo } from "test/utils/DeployInfo.sol";
 import { IOperatorGuardian } from "src/interfaces/operators/IOperatorGuardian.sol";
 
-contract DeployPairDeployer is SafeHelper, CreateXHelper, BaseAction {
+contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
     
-    function run() public isBatch(deployer) {
+    function run() public {
+
+        multisigDeployments();
+    }
+    
+    function multisigDeployments() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
 
+        deployBorrowLimitController();
         deployPairDeployer();
        
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
+    }
+
+    function deployBorrowLimitController() public {
+        bytes32 salt = CreateX.SALT_BORROW_LIMIT_CONTROLLER;
+        bytes memory constructorArgs = abi.encode(Protocol.CORE);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("BorrowLimitController.sol:BorrowLimitController"), constructorArgs);
+        addToBatch(
+            address(createXFactory),
+            encodeCREATE3Deployment(salt, bytecode)
+        );
+        address borrowLimitController = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(borrowLimitController == Protocol.BORROW_LIMIT_CONTROLLER, "wrong address");
+        console.log("borrow limit controller deployed at", borrowLimitController);
     }
 
     function deployPairDeployer() public {

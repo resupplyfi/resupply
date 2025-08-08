@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { IAuthHook } from '../interfaces/IAuthHook.sol';
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { Setup } from "test/e2e/Setup.sol";
 import { TreasuryManager } from "src/dao/operators/TreasuryManager.sol";

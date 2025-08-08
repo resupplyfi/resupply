@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import "src/Constants.sol" as Constants;
 import { DeploymentConfig } from "src/Constants.sol";

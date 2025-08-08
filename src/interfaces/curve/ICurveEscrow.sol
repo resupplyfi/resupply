@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 interface ICurveEscrow {
     function create_lock(uint256 value, uint256 unlock_time) external;

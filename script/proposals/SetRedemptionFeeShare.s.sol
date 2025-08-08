@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import "src/Constants.sol" as Constants;
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";

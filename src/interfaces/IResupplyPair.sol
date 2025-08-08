@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 

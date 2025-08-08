@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { DelegatedOps } from '../dependencies/DelegatedOps.sol';
 import { EpochTracker } from '../dependencies/EpochTracker.sol';

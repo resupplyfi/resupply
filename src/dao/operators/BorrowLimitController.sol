@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -20,9 +20,7 @@ contract BorrowLimitController is CoreOwnable {
     event NewBorrowRamp(address indexed pair, uint256 fromBorrow, uint256 toBorrow, uint256 endTime);
     event RampCancel(address indexed pair);
 
-    constructor(address _core) CoreOwnable(_core) {
-
-    }
+    constructor(address _core) CoreOwnable(_core) {}
 
     function cancelRamp(address _pair) external onlyOwner {
         PairBorrowLimit memory limitInfo;
