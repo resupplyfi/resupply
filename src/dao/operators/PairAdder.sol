@@ -9,7 +9,7 @@ import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol"
 
 
 //A core operator that is a helper contract to add pairs to registry with some extra checks
-contract PoolRegistration is CoreOwnable {
+contract PairAdder is CoreOwnable {
 
     address public immutable registry;
 
@@ -18,7 +18,6 @@ contract PoolRegistration is CoreOwnable {
     }
 
     function addPair(address _pair) external onlyOwner{
-
         //factory does sanity checks and share burning
         //just ensure that the given pair was made in pair factory
         address factory = IResupplyRegistry(registry).getAddress("DEPLOYER");

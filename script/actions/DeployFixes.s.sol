@@ -25,9 +25,10 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         deployMode = DeployMode.FORK;
 
         deployBorrowLimitController();
-        deployPairDeployer();
         deployBasicVaultOracle();
-       
+        deployPairDeployer();
+        deployPairAdder();
+        
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
@@ -110,5 +111,16 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         console.log("basic vault oracle v2 deployed at", basicVaultOracle);
         require(basicVaultOracle.code.length > 0, "basic vault oracle deployment failed");
         require(basicVaultOracle == Protocol.BASIC_VAULT_ORACLE, "wrong address");
+    }
+
+    function deployPairAdder() public {
+        bytes32 salt = CreateX.SALT_PAIR_ADDER;
+        bytes memory constructorArgs = abi.encode(Protocol.CORE, Protocol.REGISTRY);
+        bytes memory bytecode = abi.encodePacked(vm.getCode("PairAdder.sol:PairAdder"), constructorArgs);
+        addToBatch(address(createXFactory), encodeCREATE3Deployment(salt, bytecode));
+        address pairAdder = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        require(pairAdder == Protocol.PAIR_ADDER, "wrong address");
+        console.log("pair adder deployed at", pairAdder);
+        require(pairAdder.code.length > 0, "pair adder deployment failed");
     }
 }
