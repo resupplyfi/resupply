@@ -150,6 +150,12 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
 
             // Pair Settings
             collateral = IERC20(_collateral);
+            // Manually initialize rate info
+            currentRateInfo = CurrentRateInfo({
+                lastTimestamp: uint64(block.timestamp),
+                ratePerSec: 0,
+                lastShares: uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS))
+            });
             if(IERC20Metadata(_collateral).decimals() != 18){
                 revert InvalidParameter();
             }
@@ -159,7 +165,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             }
             // approve so this contract can deposit
             underlying.forceApprove(_collateral, type(uint256).max);
-            currentRateInfo.lastShares = uint128(IERC4626(_collateral).convertToShares(PAIR_DECIMALS));
             exchangeRateInfo.oracle = _oracle;
             rateCalculator = IRateCalculator(_rateCalculator);
             borrowLimit = _initialBorrowLimit;
@@ -188,12 +193,6 @@ abstract contract ResupplyPairCore is CoreOwnable, ResupplyPairConstants, Reward
             // Metadata
             name = _name;
 
-            // Manually initialize rate info
-            currentRateInfo = CurrentRateInfo({
-                lastTimestamp: uint64(block.timestamp),
-                ratePerSec: 0,
-                lastShares: 0
-            });
             // Instantiate Exchange Rate
             _updateExchangeRate();
         }

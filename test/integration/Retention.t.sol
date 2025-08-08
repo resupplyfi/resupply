@@ -220,6 +220,7 @@ contract RetentionTest is Setup {
         vm.warp(getNextEpochStart());
         uint256 receiverDistributedBefore = retentionReceiver.distributedRewards();
         uint256 treasuryTokensBefore = govToken.balanceOf(address(treasury));
+        vestManager.claim(address(treasury));
         console.log("last epoch: ", retentionReceiver.lastEpoch(), "get epoch: ", retentionReceiver.getEpoch());
         vestManager.claim(address(treasury));
         retentionReceiver.claimEmissions();

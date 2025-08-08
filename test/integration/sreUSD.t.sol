@@ -169,7 +169,7 @@ contract SreUSDTest is Setup {
         vault.syncRewardsAndDistribution();
 
         // Calc expected rewards
-        (uint40 cycleEnd, uint40 lastSync, uint216 rewardCycleAmount) = vault.rewardsCycleData();
+        (uint40 cycleEnd, uint40 lastSync, uint256 rewardCycleAmount) = vault.rewardsCycleData();
         uint256 expectedRewards = (uint256(rewardCycleAmount) * timeElapsed) / (cycleEnd - lastSync);
         skip(timeElapsed);
         uint256 actualRewards = vault.calculateRewardsToDistribute(

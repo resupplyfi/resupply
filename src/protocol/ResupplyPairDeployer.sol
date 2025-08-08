@@ -194,7 +194,12 @@ contract ResupplyPairDeployer is CoreOwnable {
     }
 
     /// @notice The `getBorrowAndCollateralTokens` function returns the underlying borrow and collateral tokens for a particular collateral
-    /// @dev This function does not revert, but will return (address(0), address(0)) if unable to lookup the tokens
+    /// @dev This function will return address(0) or for tokens it is unable to lookup. 
+    ///     Alternatively, this function may revert if the collateral contract supplied is not compliant with the expected abi.
+    /// @param _protocolId The ID of the protocol to lookup
+    /// @param _collateral The collateral address to lookup
+    /// @return _borrowToken The borrow token address. 0x0 if unable to lookup the tokens
+    /// @return _collateralToken The collateral token address. 0x0 if unable to lookup the tokens
     function getBorrowAndCollateralTokens(
         uint256 _protocolId,
         address _collateral
@@ -304,6 +309,8 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     /// @notice The `addSupportedProtocol` function adds a new protocol configuration to the registry
     /// @param _protocolName The name of the protocol to add
+    /// @param _amountToBurn The amount of shares to burn on deployment
+    /// @param _minShareBurnAmount The minimum amount of shares to burn on deployment
     /// @param _borrowTokenSig The function signature used to lookup the borrow token address
     /// @param _collateralTokenSig The function signature used to lookup the collateral token address
     /// @return The ID of the newly added protocol
@@ -346,8 +353,14 @@ contract ResupplyPairDeployer is CoreOwnable {
         emit ApprovedDeployerSet(_deployer, _approved);
     }
 
+    /// @notice The `updateSupportedProtocol` function updates the supported protocol configuration
+    /// @param _protocolId The ID of the protocol to update
+    /// @param _protocolName The name of the protocol to update
+    /// @param _amountToBurn The amount of shares to burn on deployment
+    /// @param _minShareBurnAmount The minimum amount of shares to burn on deployment
+    /// @param _borrowTokenSig The function signature used to lookup the borrow token address
     function updateSupportedProtocol(
-        uint256 protocolId,
+        uint256 _protocolId,
         string memory _protocolName,
         uint256 _amountToBurn,
         uint256 _minShareBurnAmount,
@@ -358,23 +371,23 @@ contract ResupplyPairDeployer is CoreOwnable {
         if (_minShareBurnAmount < 1e17 || _minShareBurnAmount > type(uint80).max) revert InvalidMinShareBurnAmount();
         if (bytes(_protocolName).length == 0) revert ProtocolNameEmpty();
         if (bytes(_protocolName).length > 50) revert ProtocolNameTooLong();
-        if (protocolId >= supportedProtocols.length) revert ProtocolNotFound();
+        if (_protocolId >= supportedProtocols.length) revert ProtocolNotFound();
         
         // Ensure protocol name is unique
         uint256 length = supportedProtocols.length;
         for (uint256 i = 0; i < length; i++) {
-            if (i != protocolId && keccak256(bytes(supportedProtocols[i].protocolName)) == keccak256(bytes(_protocolName))) {
+            if (i != _protocolId && keccak256(bytes(supportedProtocols[i].protocolName)) == keccak256(bytes(_protocolName))) {
                 revert ProtocolAlreadyExists();
             }
         }
         
-        supportedProtocols[protocolId].protocolName = _protocolName;
-        supportedProtocols[protocolId].amountToBurn = uint80(_amountToBurn);
-        supportedProtocols[protocolId].minShareBurnAmount = uint80(_minShareBurnAmount);
-        supportedProtocols[protocolId].borrowTokenSig = _borrowTokenSig;
-        supportedProtocols[protocolId].collateralTokenSig = _collateralTokenSig;
-        emit ProtocolUpdated(protocolId, _protocolName, _borrowTokenSig, _collateralTokenSig);
-        return protocolId;
+        supportedProtocols[_protocolId].protocolName = _protocolName;
+        supportedProtocols[_protocolId].amountToBurn = uint80(_amountToBurn);
+        supportedProtocols[_protocolId].minShareBurnAmount = uint80(_minShareBurnAmount);
+        supportedProtocols[_protocolId].borrowTokenSig = _borrowTokenSig;
+        supportedProtocols[_protocolId].collateralTokenSig = _collateralTokenSig;
+        emit ProtocolUpdated(_protocolId, _protocolName, _borrowTokenSig, _collateralTokenSig);
+        return _protocolId;
     }
 
     function platformNameById(

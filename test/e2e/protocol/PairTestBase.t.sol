@@ -153,4 +153,10 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         }
         console.log("-----------");
     }
+
+    function stake(uint256 amount) public {
+        deal(address(govToken), address(this), amount);
+        govToken.approve(address(staker), amount);
+        staker.stake(address(this), amount);
+    }
 }
