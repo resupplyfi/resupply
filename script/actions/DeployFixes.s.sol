@@ -1,4 +1,4 @@
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { Protocol, DeploymentConfig } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";

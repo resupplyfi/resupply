@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { Setup } from "test/e2e/Setup.sol";

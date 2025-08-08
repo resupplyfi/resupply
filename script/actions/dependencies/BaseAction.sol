@@ -1,4 +1,4 @@
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { ICore } from "src/interfaces/ICore.sol";

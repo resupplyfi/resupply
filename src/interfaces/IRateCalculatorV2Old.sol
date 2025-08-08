@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 interface IRateCalculatorV2Old {
     function name() external view returns (string memory);

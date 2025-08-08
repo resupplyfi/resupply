@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 interface IResupplyPairErrors {
     error Insolvent(uint256 _borrow, uint256 _collateral, uint256 _exchangeRate);

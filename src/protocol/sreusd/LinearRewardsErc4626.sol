@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { ERC20, ERC4626 } from "src/libraries/solmate/ERC4626.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import {Protocol, Mainnet, DeploymentConfig} from "src/Constants.sol";
 import {Test} from "forge-std/Test.sol";

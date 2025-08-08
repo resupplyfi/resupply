@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { IReusdOracle } from "../interfaces/IReusdOracle.sol";
 import { IResupplyRegistry } from "../interfaces/IResupplyRegistry.sol";

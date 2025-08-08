@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";

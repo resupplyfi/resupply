@@ -1,4 +1,4 @@
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 interface IStablecoin {
     error ERC20InsufficientAllowance(

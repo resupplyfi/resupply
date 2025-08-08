@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { ICore } from "src/interfaces/ICore.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";

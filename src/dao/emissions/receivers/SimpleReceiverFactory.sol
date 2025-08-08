@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import { ISimpleReceiver } from "../../../interfaces/ISimpleReceiver.sol";
 import { CoreOwnable } from "../../../dependencies/CoreOwnable.sol";

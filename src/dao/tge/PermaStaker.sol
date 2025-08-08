@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IGovStaker } from "../../interfaces/IGovStaker.sol";
