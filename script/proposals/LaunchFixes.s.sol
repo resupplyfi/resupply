@@ -5,6 +5,8 @@ import { Protocol, Prisma } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { ICore } from "src/interfaces/ICore.sol";
@@ -32,6 +34,8 @@ contract LaunchFixes is BaseAction {
     function run() public isBatch(deployer) {
         voter = IVoter(registry.getAddress("VOTER"));
         
+        // Build pair deployer code set actions
+        IVoter.Action[] memory pairDeploymentActions = buildPairDeploymentCalldata();
         // Build all calldata for oracle update and operator permission changes
         IVoter.Action[] memory oracleActions = buildOracleUpdateCalldata();
         // Actions in ./data/OperatorMigrationPermissions.sol
@@ -39,8 +43,9 @@ contract LaunchFixes is BaseAction {
             PermissionHelper.buildPermissionActions(_core, OperatorMigrationPermissions.permissions());
 
         // Merge all actions into a single array
-        IVoter.Action[] memory actions = new IVoter.Action[](oracleActions.length + permissionActions.length);
+        IVoter.Action[] memory actions = new IVoter.Action[](pairDeploymentActions.length + oracleActions.length + permissionActions.length);
         uint256 actionIndex = 0;
+        for (uint256 i = 0; i < pairDeploymentActions.length; i++) actions[actionIndex++] = pairDeploymentActions[i];
         for (uint256 i = 0; i < oracleActions.length; i++) actions[actionIndex++] = oracleActions[i];
         for (uint256 i = 0; i < permissionActions.length; i++) actions[actionIndex++] = permissionActions[i];
 
@@ -57,7 +62,27 @@ contract LaunchFixes is BaseAction {
         }
     }
 
-    function buildOracleUpdateCalldata() public view returns (IVoter.Action[] memory actions) {
+    function buildPairDeploymentCalldata() internal view returns (IVoter.Action[] memory actions) {
+        actions = new IVoter.Action[](2);
+        // Clear code from the deprecated pair deployer
+        actions[0] = IVoter.Action({
+            target: Protocol.PAIR_DEPLOYER_V1,
+            data: abi.encodeWithSelector(
+                IResupplyPairDeployer.setCreationCode.selector,
+                ""
+            )
+        });
+        // Set new code for the new pair deployer
+        actions[1] = IVoter.Action({
+            target: Protocol.PAIR_DEPLOYER_V2,
+            data: abi.encodeWithSelector(
+                IResupplyPairDeployer.setCreationCode.selector,
+                type(ResupplyPair).creationCode
+            )
+        });
+    }
+
+    function buildOracleUpdateCalldata() internal view returns (IVoter.Action[] memory actions) {
         address[] memory pairs = registry.getAllPairAddresses();
         uint256 numPairs = pairs.length;
         // Oracle updates for all pairs

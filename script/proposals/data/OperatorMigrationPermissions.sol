@@ -27,7 +27,7 @@ library OperatorMigrationPermissions {
         // Borrow Limit Controller
         permissions[i++] = PermissionUpdate(address(0), address(0), IResupplyPair.setBorrowLimit.selector, true);
         
-        // Guardian Proxy - Core Functions
+        // Guardian Proxy
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IResupplyPair.pause.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.setMinTimeBetweenProposals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.updateProposalDescription.selector, true);
@@ -37,7 +37,7 @@ library OperatorMigrationPermissions {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
         
-        // Treasury Manager Proxy - Treasury Operations
+        // Treasury Manager Proxy
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.retrieveToken.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.retrieveTokenExact.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.retrieveETH.selector, true);
@@ -48,15 +48,15 @@ library OperatorMigrationPermissions {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, IPrismaFeeReceiver.transferToken.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, IPrismaFeeReceiver.setTokenApproval.selector, true);
         
-        // ===== DISABLE STALE PERMISSIONS =====
-        // Old Guardian - Deprecated Permissions
+        // ===== DISABLE DEPRECATED PERMISSIONS =====
+        // Old Guardian
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IVoter.updateProposalDescription.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.VOTER_DEPRECATED, IVoter.updateProposalDescription.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_OLD, Protocol.CORE, ICore.setVoter.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IResupplyPair.pause.selector, false);
 
-        // Old Treasury Manager - Deprecated Treasury Access
+        // Old Treasury Manager
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveToken.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveTokenExact.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Protocol.TREASURY, ITreasury.retrieveETH.selector, false);
@@ -67,7 +67,7 @@ library OperatorMigrationPermissions {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.transferToken.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.setTokenApproval.selector, false);
 
-        // Other Deprecated Permissions
+        // Other
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.VEST_MANAGER, IVestManager.setLockPenaltyMerkleRoot.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.VOTER_DEPRECATED_3, IVoter.updateProposalDescription.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, false);
