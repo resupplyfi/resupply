@@ -22,18 +22,18 @@ library OperatorMigrationPermissions {
         
         // ===== ENABLE =====
         // Pair Adder
-        permissions[i++] = PermissionUpdate(Protocol.PAIR_ADDER, Protocol.CORE, IResupplyRegistry.addPair.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.PAIR_ADDER, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, true);
         
         // Borrow Limit Controller
-        permissions[i++] = PermissionUpdate(address(0), address(0), IResupplyPair.setBorrowLimit.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.BORROW_LIMIT_CONTROLLER, address(0), IResupplyPair.setBorrowLimit.selector, true);
         
         // Guardian Proxy
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IResupplyPair.pause.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.setMinTimeBetweenProposals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.updateProposalDescription.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.CORE, ICore.setVoter.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IResupplyRegistry.setAddress.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.cancelRamp.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.CORE, ICore.setVoter.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
         
