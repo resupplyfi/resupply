@@ -65,8 +65,4 @@ contract DeployProxy is BaseAction {
             true   // unsafeSkipAllChecks - set to false during deployment 
         );
     }
-
-    // function upgradeProxy(address _proxy) public {
-    //     upgradeProxy(_proxy, "KeeperV2.sol:KeeperV2", "", true);
-    // }
 }

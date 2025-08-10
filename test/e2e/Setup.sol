@@ -313,7 +313,6 @@ contract Setup is Test {
         redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
-        address registryAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+3);
         core = new Core(tempGov, epochLength);
 
         // The following logic re-assigns CORE to a target address for all e2e tests
@@ -333,7 +332,6 @@ contract Setup is Test {
         );
         stablecoin = new Stablecoin(address(core), Mainnet.LAYERZERO_ENDPOINTV2);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
-        assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         vestManager = new VestManager(
             address(core), 

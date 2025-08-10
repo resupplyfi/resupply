@@ -31,6 +31,13 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         pair = IResupplyPair(registry.getAllPairAddresses()[0]);
         stakeGovToken(1000e18);
         skip(epochLength);
+
+        console.log("Replacing", registry.getAddress("VOTER"), "with", address(voter));
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "VOTER"),
+            abi.encode(address(voter))
+        );
     }
 
     // Implement abstract functions from BaseUpgradeableOperatorTest
@@ -59,6 +66,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
 
     function test_SetGuardian() public {
         address newGuardian = address(0x999);
+        vm.prank(address(core));
         vm.expectEmit(true, false, false, true);
         emit GuardianSet(newGuardian);
         guardianContract.setGuardian(newGuardian);
@@ -66,22 +74,14 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     }
 
     function test_PauseAllPairs() public {
-        // Add some pairs to the registry first
-        vm.prank(address(core));
-        registry.addPair(address(pair));
-        
-        // Add another pair for testing
-        address pair2 = address(0x222);
-        vm.prank(address(core));
-        registry.addPair(pair2);
-
-        vm.expectEmit(true, false, false, true);
-        emit PairPaused(address(pair));
-        vm.expectEmit(true, false, false, true);
-        emit PairPaused(pair2);
+        address[] memory pairs = registry.getAllPairAddresses();
 
         vm.prank(guardian);
         guardianContract.pauseAllPairs();
+
+        for (uint256 i = 0; i < pairs.length; i++) {
+            assertEq(IResupplyPair(pairs[i]).borrowLimit(), 0);
+        }
     }
 
     function test_PauseAllPairs_NotGuardian() public {
@@ -185,26 +185,9 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         guardianContract.revertVoter();
     }
 
-    function test_SetRegistryAddress() public {
-        string memory key = "TEST_KEY";
-        address newAddress = address(0x777);
-        
-        vm.prank(guardian);
-        guardianContract.setRegistryAddress(key, newAddress);
-        
-        // Verify the address was set
-        assertEq(registry.getAddress(key), newAddress);
-    }
-
-    function test_SetRegistryAddress_NotGuardian() public {
-        vm.prank(address(1));
-        vm.expectRevert("!guardian");
-        guardianContract.setRegistryAddress("KEY", address(0x777));
-    }
-
     function test_RecoverERC20() public {
         uint256 amount = 1000e18;
-        deal(address(stablecoin), address(guardian), amount);
+        deal(address(stablecoin), address(guardianContract), amount);
         
         uint256 guardianBalanceBefore = stablecoin.balanceOf(guardian);
         
@@ -230,7 +213,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertTrue(permissions.cancelProposal, "cancelProposal should be true");
         assertTrue(permissions.updateProposalDescription, "updateProposalDescription should be true");
         assertTrue(permissions.revertVoter, "revertVoter should be true");
-        assertTrue(permissions.setRegistryAddress, "setRegistryAddress should be true");
     }
 
     function test_ViewPermissions_NoPermissions() public {
@@ -245,14 +227,14 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         );
         core.setOperatorPermissions(
             address(guardianContract),
-            address(voter),
+            address(0),
             Voter.cancelProposal.selector,
             false,
             IAuthHook(address(0))
         );
         core.setOperatorPermissions(
             address(guardianContract),
-            address(voter),
+            address(0),
             Voter.updateProposalDescription.selector,
             false,
             IAuthHook(address(0))
@@ -288,9 +270,13 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         bool hasPermission = guardianContract.hasPermission(address(0), IResupplyPair.pause.selector);
         assertTrue(hasPermission, "Should have permission for pause");
 
-        // Test without permission
-        bool noPermission = guardianContract.hasPermission(address(0x999), IResupplyPair.pause.selector);
-        assertFalse(noPermission, "Should not have permission for unknown target");
+        // Should be true since it's wildcarded
+        hasPermission = guardianContract.hasPermission(address(0x999), IResupplyPair.pause.selector);
+        assertTrue(hasPermission, "Should have permission for wildcarded target");
+
+        // Should be false
+        hasPermission = guardianContract.hasPermission(address(0x999), IResupplyRegistry.setAddress.selector);
+        assertFalse(hasPermission, "Should not have permission for unknown target");  
     }
 
     function test_GetVoter() public {

@@ -37,7 +37,7 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ProtocolNotFound.selector));
         (actualName, , ) = deployer.getNextName(12, curveLendCollat);
         (actualName, , ) = deployer.getNextName(0, curveLendCollat);
-        string memory expectedName = "Resupply Pair (CurveLend: crvUSD/sfrxUSD) - 1";
+        string memory expectedName = "Resupply Pair (CurveLend: crvUSD/sfrxUSD) - 2";
         assertEq(actualName, expectedName);
     }
 

@@ -63,7 +63,7 @@ import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IRetentionIncentives } from "src/interfaces/IRetentionIncentives.sol";
-
+import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 
 contract Setup is Test {
     using SafeERC20 for IERC20;
@@ -118,6 +118,9 @@ contract Setup is Test {
         vm.createSelectFork(vm.envString("MAINNET_URL"));
         deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
         clearPairImplementation();
+        // This line can be removed once BASIC_VAULT_ORACLE is deployed via DeployFixes.s.sol
+        if (Protocol.BASIC_VAULT_ORACLE.code.length == 0) vm.etch(Protocol.BASIC_VAULT_ORACLE, address(new BasicVaultOracle("Basic Vault Oracle")).code);
+        
     }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
