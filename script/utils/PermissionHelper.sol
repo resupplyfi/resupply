@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { Protocol } from "src/Constants.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
@@ -27,8 +28,7 @@ library PermissionHelper {
             if (update.enabled) require(!currentlyEnabled, "Permission already enabled");
             else require(currentlyEnabled, "Permission not currently enabled");
             
-            actions[i] = _buildOperatorPermissionAction(
-                core,
+            actions[i] = buildOperatorPermissionAction(
                 update.caller,
                 update.target, 
                 update.selector,
@@ -37,15 +37,14 @@ library PermissionHelper {
         }
     }
 
-    function _buildOperatorPermissionAction(
-        ICore core,
+    function buildOperatorPermissionAction(
         address caller,
         address target,
         bytes4 selector,
         bool enable
     ) internal pure returns (IVoter.Action memory action) {
         action = IVoter.Action({
-            target: address(core),
+            target: Protocol.CORE,
             data: abi.encodeWithSelector(
                 ICore.setOperatorPermissions.selector,
                 caller,

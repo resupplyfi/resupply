@@ -21,12 +21,6 @@ library OperatorMigrationPermissions {
         uint256 i = 0;
         
         // ===== ENABLE =====
-        // Pair Adder
-        permissions[i++] = PermissionUpdate(Protocol.PAIR_ADDER, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, true);
-        
-        // Borrow Limit Controller
-        permissions[i++] = PermissionUpdate(Protocol.BORROW_LIMIT_CONTROLLER, address(0), IResupplyPair.setBorrowLimit.selector, true);
-        
         // Guardian Proxy
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IResupplyPair.pause.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.setMinTimeBetweenProposals.selector, true);
