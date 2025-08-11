@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";

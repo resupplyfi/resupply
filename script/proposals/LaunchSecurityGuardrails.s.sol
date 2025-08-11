@@ -11,7 +11,6 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
-import { IGuardian } from "src/interfaces/IGuardian.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;

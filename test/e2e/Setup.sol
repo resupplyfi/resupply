@@ -38,6 +38,7 @@ import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
+import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
 
 // Incentive Contracts
@@ -103,6 +104,7 @@ contract Setup is Test {
     SimpleReceiver public insuranceEmissionsReceiver;
     PriceWatcher public priceWatcher;
     Swapper public defaultSwapper;
+    SwapperOdos public odosSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
     ResupplyPair public testPair;
@@ -506,6 +508,9 @@ contract Setup is Test {
 
         //deploy swapper
         defaultSwapper = new Swapper(address(core), address(registry));
+        odosSwapper = new SwapperOdos(address(core));
+        vm.prank(address(core));
+        registry.setAddress("SWAPPER_ODOS", address(odosSwapper));
 
         //set routes
         vm.startPrank(address(core));

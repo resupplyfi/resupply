@@ -14,6 +14,7 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
+import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 
 contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     address public guardian = Protocol.DEPLOYER;
@@ -22,6 +23,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
 
     event GuardianSet(address indexed newGuardian);
     event PairPaused(address indexed pair);
+    event GuardedRegistryKeySet(string key, bool indexed guarded);
 
     function setUp() public override {
         super.setUp();
@@ -32,11 +34,17 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         stakeGovToken(1000e18);
         skip(epochLength);
 
-        console.log("Replacing", registry.getAddress("VOTER"), "with", address(voter));
+        // Because the guardian contract has a hardcoded registry address which does not
+        // match the one in the setup, we need to mock the getAddress calls
         vm.mockCall(
             address(Protocol.REGISTRY),
             abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "VOTER"),
             abi.encode(address(voter))
+        );
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "SWAPPER_ODOS"),
+            abi.encode(address(odosSwapper))
         );
     }
 
@@ -52,6 +60,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         setOperatorPermission(address(guardianContract), address(0), Voter.updateProposalDescription.selector, true);
         setOperatorPermission(address(guardianContract), address(core), ICore.setVoter.selector, true);
         setOperatorPermission(address(guardianContract), address(registry), IResupplyRegistry.setAddress.selector, true);
+        setOperatorPermission(address(guardianContract), address(0), ISwapperOdos.revokeApprovals.selector, true);
     }
 
     function test_GuardianSet() public {
@@ -213,6 +222,8 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertTrue(permissions.cancelProposal, "cancelProposal should be true");
         assertTrue(permissions.updateProposalDescription, "updateProposalDescription should be true");
         assertTrue(permissions.revertVoter, "revertVoter should be true");
+        // assertTrue(permissions.setRegistryAddress, "setRegistryAddress should be true");
+        assertTrue(permissions.revokeSwapperApprovals, "revokeSwapperApprovals should be true");
     }
 
     function test_ViewPermissions_NoPermissions() public {
@@ -253,6 +264,13 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
             false,
             IAuthHook(address(0))
         );
+        core.setOperatorPermissions(
+            address(guardianContract),
+            address(0),
+            ISwapperOdos.revokeApprovals.selector,
+            false,
+            IAuthHook(address(0))
+        );
         vm.stopPrank();
 
         GuardianUpgradeable.Permissions memory permissions = guardianContract.viewPermissions();
@@ -263,6 +281,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertFalse(permissions.updateProposalDescription, "updateProposalDescription should be false");
         assertFalse(permissions.revertVoter, "revertVoter should be false");
         assertFalse(permissions.setRegistryAddress, "setRegistryAddress should be false");
+        assertFalse(permissions.revokeSwapperApprovals, "revokeSwapperApprovals should be false");
     }
 
     function test_HasPermission() public {
@@ -295,6 +314,40 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
 
         vm.prank(guardian);
         guardianContract.cancelProposal(proposalId);
+    }
+
+    function test_RevokeSwapperApprovals() public {
+        vm.prank(guardian);
+        guardianContract.revokeSwapperApprovals();
+    }
+
+    function test_RevokeSwapperApprovals_NotGuardian() public {
+        vm.prank(address(1));
+        vm.expectRevert("!guardian");
+        guardianContract.revokeSwapperApprovals();
+    }
+
+    function test_SetGuardedRegistryKey() public {
+        string memory key = "TEST";
+        
+        vm.prank(address(core));
+        vm.expectEmit(true, false, false, true);
+        emit GuardedRegistryKeySet(key, true);
+        guardianContract.setGuardedRegistryKey(key, true);
+        
+        assertTrue(guardianContract.guardedRegistryKeys(key));
+
+        vm.prank(guardian);
+        vm.expectRevert("Key is guarded");
+        guardianContract.setRegistryAddress(key, address(0x0));
+    }
+
+    function test_SetGuardedRegistryKey_NotOwner() public {
+        string memory key = "TEST_KEY";
+        
+        vm.prank(guardian);
+        vm.expectRevert("!owner");
+        guardianContract.setGuardedRegistryKey(key, true);
     }
 
     function test_Initialize() public {

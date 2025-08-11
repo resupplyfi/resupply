@@ -27,6 +27,7 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         updateRegistry("BORROW_LIMIT_CONTROLLER", Protocol.BORROW_LIMIT_CONTROLLER);
         updateRegistry("PAIR_DEPLOYER", Protocol.PAIR_DEPLOYER_V2);
         updateRegistry("PAIR_ADDER", Protocol.PAIR_ADDER);
+        updateRegistry("SWAPPER_ODOS", Protocol.SWAPPER_ODOS);
         
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
