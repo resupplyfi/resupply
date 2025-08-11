@@ -20,9 +20,9 @@ contract PairAdder is CoreOwnable {
     function addPair(address _pair) external onlyOwner{
         //factory does sanity checks and share burning
         //just ensure that the given pair was made in pair factory
-        address factory = IResupplyRegistry(registry).getAddress("DEPLOYER");
-        (,uint40 deployTime) = IResupplyPairDeployer(factory).deployInfo(_pair);
-        require(deployTime > 0, "not a factory pair");
+        address deployer = IResupplyRegistry(registry).getAddress("PAIR_DEPLOYER");
+        (,uint40 deployTime) = IResupplyPairDeployer(deployer).deployInfo(_pair);
+        require(deployTime > 0, "Pair not deployed by trusted deployer");
         
         core.execute(
             _pair,
