@@ -16,18 +16,17 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
     
-    function run() public {
-
-        multisigDeployments();
-    }
-    
-    function multisigDeployments() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+    function run() public isBatch(deployer) {
+        deployMode = DeployMode.PRODUCTION;
 
         deployBorrowLimitController();
         deployBasicVaultOracle();
         deployPairDeployer();
         deployPairAdder();
+
+        updateRegistry("BORROW_LIMIT_CONTROLLER", Protocol.BORROW_LIMIT_CONTROLLER);
+        updateRegistry("PAIR_DEPLOYER", Protocol.PAIR_DEPLOYER_V2);
+        updateRegistry("PAIR_ADDER", Protocol.PAIR_ADDER);
         
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
@@ -78,18 +77,6 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         console.log("deployer approved", IResupplyPairDeployer(pairDeployer).approvedDeployers(address(deployer)));
         console.log("Num previously deployed pairs loaded:", previouslyDeployedPairs.length);
         require(pairDeployer.code.length > 0, "deployment failed");
-        
-        // Set address in registry
-        addToBatch(
-            address(Protocol.OPERATOR_GUARDIAN_OLD),
-            abi.encodeWithSelector(
-                IOperatorGuardian.setRegistryAddress.selector,
-                "PAIR_DEPLOYER",
-                pairDeployer
-            )
-        );
-        console.log("PAIR_DEPLOYER address in registry", registry.getAddress("PAIR_DEPLOYER"));
-        require(registry.getAddress("PAIR_DEPLOYER") == pairDeployer, "registry not updated");
         require(IResupplyPairDeployer(pairDeployer).approvedDeployers(address(deployer)), "deployer not approved");
     }
 
@@ -122,5 +109,19 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         require(pairAdder == Protocol.PAIR_ADDER, "wrong address");
         console.log("pair adder deployed at", pairAdder);
         require(pairAdder.code.length > 0, "pair adder deployment failed");
+    }
+    
+    function updateRegistry(string memory key, address value) public {
+        addToBatch(
+            address(Protocol.OPERATOR_GUARDIAN_OLD),
+            abi.encodeWithSelector(
+                IOperatorGuardian.setRegistryAddress.selector,
+                key,
+                value
+            )
+        );
+        console.log(key, "address in registry", registry.getAddress(key));
+        require(value.code.length > 0, "attempted to set address to a non-deployed contract");
+        require(registry.getAddress(key) == value, "registry not updated");
     }
 }
