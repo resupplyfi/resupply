@@ -15,7 +15,6 @@ struct PermissionUpdate {
 
 library PermissionHelper {
     function buildPermissionActions(
-        ICore core,
         PermissionUpdate[] calldata updates
     ) external view returns (IVoter.Action[] memory actions) {
         actions = new IVoter.Action[](updates.length);
@@ -24,7 +23,7 @@ library PermissionHelper {
             PermissionUpdate calldata update = updates[i];
             
             // Validate current state matches expected state for the update
-            (bool currentlyEnabled, ) = core.operatorPermissions(update.caller, update.target, update.selector);
+            (bool currentlyEnabled, ) = ICore(Protocol.CORE).operatorPermissions(update.caller, update.target, update.selector);
             if (update.enabled) require(!currentlyEnabled, "Permission already enabled");
             else require(currentlyEnabled, "Permission not currently enabled");
             

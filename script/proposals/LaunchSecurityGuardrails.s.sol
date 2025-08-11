@@ -1,22 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol, Prisma } from "src/Constants.sol";
+import { Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { ICore } from "src/interfaces/ICore.sol";
-import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
-import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
-import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
-import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { IVestManager } from "src/interfaces/IVestManager.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
+import { IGuardian } from "src/interfaces/IGuardian.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -33,19 +28,25 @@ contract LaunchFixes is BaseAction {
     function run() public isBatch(deployer) {
         voter = IVoter(registry.getAddress("VOTER"));
         
-        // Build pair deployer code set actions
-        IVoter.Action[] memory pairDeploymentActions = buildPairDeploymentCalldata();
+        // Set code in new and old pair deployers
+        IVoter.Action[] memory pairDeployerActions = buildPairDeployerCalldata();
         // Build all calldata for oracle update and operator permission changes
         IVoter.Action[] memory oracleActions = buildOracleUpdateCalldata();
-        // Actions in ./data/OperatorMigrationPermissions.sol
-        IVoter.Action[] memory permissionActions = buildPermissionUpdateCalldata();
 
         // Merge all actions into a single array
-        IVoter.Action[] memory actions = new IVoter.Action[](pairDeploymentActions.length + oracleActions.length + permissionActions.length);
+        IVoter.Action[] memory actions = new IVoter.Action[](pairDeployerActions.length + oracleActions.length + 1);
         uint256 actionIndex = 0;
-        for (uint256 i = 0; i < pairDeploymentActions.length; i++) actions[actionIndex++] = pairDeploymentActions[i];
+        for (uint256 i = 0; i < pairDeployerActions.length; i++) actions[actionIndex++] = pairDeployerActions[i];
         for (uint256 i = 0; i < oracleActions.length; i++) actions[actionIndex++] = oracleActions[i];
-        for (uint256 i = 0; i < permissionActions.length; i++) actions[actionIndex++] = permissionActions[i];
+
+        // Set oracle to 0x0 to break crvUSD/wstUR pair
+        actions[actionIndex] = IVoter.Action({
+            target: 0x6e90c85a495d54c6d7E1f3400FEF1f6e59f86bd6, // crvUSD/wstUR pair
+            data: abi.encodeWithSelector(
+                IResupplyPair.setOracle.selector,
+                address(0)
+            )
+        });
 
         // Propose vote via permsataker
         proposeVote(actions);
@@ -60,7 +61,7 @@ contract LaunchFixes is BaseAction {
         }
     }
 
-    function buildPairDeploymentCalldata() internal view returns (IVoter.Action[] memory actions) {
+    function buildPairDeployerCalldata() internal view returns (IVoter.Action[] memory actions) {
         actions = new IVoter.Action[](2);
         // Clear code from the deprecated pair deployer
         actions[0] = IVoter.Action({

@@ -1,23 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol, Prisma } from "src/Constants.sol";
+import { Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
-import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { ICore } from "src/interfaces/ICore.sol";
-import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
-import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
-import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
-import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { IVestManager } from "src/interfaces/IVestManager.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { OperatorMigrationPermissions } from "script/proposals/data/OperatorMigrationPermissions.sol";
+import { IGuardian } from "src/interfaces/IGuardian.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -34,19 +26,16 @@ contract LaunchFixes is BaseAction {
     function run() public isBatch(deployer) {
         voter = IVoter(registry.getAddress("VOTER"));
         
-        // Build pair deployer code set actions
-        IVoter.Action[] memory pairDeploymentActions = buildPairDeploymentCalldata();
-        // Build all calldata for oracle update and operator permission changes
-        IVoter.Action[] memory oracleActions = buildOracleUpdateCalldata();
+        // "Protected keys" in registry are already guarded
+        IVoter.Action[] memory guardedRegistryKeyActions = buildGuardedRegistryKeyCalldata();
         // Actions in ./data/OperatorMigrationPermissions.sol
         IVoter.Action[] memory permissionActions = 
-            PermissionHelper.buildPermissionActions(_core, OperatorMigrationPermissions.permissions());
+            PermissionHelper.buildPermissionActions(OperatorMigrationPermissions.permissions());
 
         // Merge all actions into a single array
-        IVoter.Action[] memory actions = new IVoter.Action[](pairDeploymentActions.length + oracleActions.length + permissionActions.length);
+        IVoter.Action[] memory actions = new IVoter.Action[](guardedRegistryKeyActions.length + permissionActions.length);
         uint256 actionIndex = 0;
-        for (uint256 i = 0; i < pairDeploymentActions.length; i++) actions[actionIndex++] = pairDeploymentActions[i];
-        for (uint256 i = 0; i < oracleActions.length; i++) actions[actionIndex++] = oracleActions[i];
+        for (uint256 i = 0; i < guardedRegistryKeyActions.length; i++) actions[actionIndex++] = guardedRegistryKeyActions[i];
         for (uint256 i = 0; i < permissionActions.length; i++) actions[actionIndex++] = permissionActions[i];
 
         // Propose vote via permsataker
@@ -62,41 +51,26 @@ contract LaunchFixes is BaseAction {
         }
     }
 
-    function buildPairDeploymentCalldata() internal view returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](2);
-        // Clear code from the deprecated pair deployer
-        actions[0] = IVoter.Action({
-            target: Protocol.PAIR_DEPLOYER_V1,
-            data: abi.encodeWithSelector(
-                IResupplyPairDeployer.setCreationCode.selector,
-                ""
-            )
-        });
-        // Set new code for the new pair deployer
-        actions[1] = IVoter.Action({
-            target: Protocol.PAIR_DEPLOYER_V2,
-            data: abi.encodeWithSelector(
-                IResupplyPairDeployer.setCreationCode.selector,
-                type(ResupplyPair).creationCode
-            )
-        });
-    }
+    function buildGuardedRegistryKeyCalldata() internal view returns (IVoter.Action[] memory actions) {
+        // Protected keys in registry are already guarded
+        string[] memory guardedKeys = new string[](4);
+        guardedKeys[0] = "PAIR_DEPLOYER";
+        guardedKeys[1] = "VOTER";
+        guardedKeys[2] = "EMISSIONS_CONTROLLER";
+        guardedKeys[3] = "REUSD_ORACLE";
 
-    function buildOracleUpdateCalldata() internal view returns (IVoter.Action[] memory actions) {
-        address[] memory pairs = registry.getAllPairAddresses();
-        uint256 numPairs = pairs.length;
-        // Oracle updates for all pairs
-        IVoter.Action[] memory oracleActions = new IVoter.Action[](numPairs);
-        for (uint256 i = 0; i < numPairs; i++) {
-            oracleActions[i] = IVoter.Action({
-                target: pairs[i],
+        actions = new IVoter.Action[](guardedKeys.length);
+        for (uint256 i = 0; i < guardedKeys.length; i++) {
+            actions[i] = IVoter.Action({
+                target: Protocol.OPERATOR_GUARDIAN_PROXY,
                 data: abi.encodeWithSelector(
-                    IResupplyPair.setOracle.selector,
-                    Protocol.BASIC_VAULT_ORACLE
+                    IGuardian.setGuardedRegistryKey.selector,
+                    guardedKeys[i],
+                    true
                 )
             });
         }
-        return oracleActions;
+        return actions;
     }
 
     function proposeVote(IVoter.Action[] memory actions) public {

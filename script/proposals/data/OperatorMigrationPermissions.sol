@@ -17,7 +17,7 @@ import { ITreasury } from "src/interfaces/ITreasury.sol";
 library OperatorMigrationPermissions {
     
     function permissions() internal pure returns (PermissionUpdate[] memory) {
-        PermissionUpdate[] memory permissions = new PermissionUpdate[](36);
+        PermissionUpdate[] memory permissions = new PermissionUpdate[](34);
         uint256 i = 0;
         
         // ===== ENABLE =====

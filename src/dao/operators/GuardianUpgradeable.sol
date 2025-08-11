@@ -6,6 +6,7 @@ import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
+import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 
 contract GuardianUpgradeable is BaseUpgradeableOperator {
     using SafeERC20 for IERC20;
@@ -13,6 +14,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
     ICore public constant core = ICore(CORE);
     IResupplyRegistry public constant registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
     address public guardian;
+    mapping(string => bool) public guardedRegistryKeys;
 
     struct Permissions {
         bool pauseAllPairs;
@@ -20,10 +22,12 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         bool updateProposalDescription;
         bool revertVoter;
         bool setRegistryAddress;
+        bool revokeSwapperApprovals;
     }
 
     event GuardianSet(address indexed newGuardian);
     event PairPaused(address indexed pair);
+    event GuardedRegistryKeySet(string key, bool indexed guarded);
 
     modifier onlyGuardian() {
         require(msg.sender == guardian, "!guardian");
@@ -38,6 +42,11 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
     function setGuardian(address _guardian) external onlyOwner {
         guardian = _guardian;
         emit GuardianSet(_guardian);
+    }
+
+    function setGuardedRegistryKey(string memory _key, bool _guarded) external onlyOwner {
+        guardedRegistryKeys[_key] = _guarded;
+        emit GuardedRegistryKeySet(_key, _guarded);
     }
 
     function pauseAllPairs() external onlyGuardian {
@@ -82,6 +91,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
 
 
     function setRegistryAddress(string memory _key, address _address) external onlyGuardian {
+        require(!guardedRegistryKeys[_key], "Key is guarded");
         core.execute(
             address(registry),
             abi.encodeWithSelector(
@@ -89,6 +99,14 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
                 _key,
                 _address
             )
+        );
+    }
+
+    function revokeSwapperApprovals() external onlyGuardian {
+        address swapper = registry.getAddress("SWAPPER_ODOS");
+        core.execute(
+            address(swapper),
+            abi.encodeWithSelector(ISwapperOdos.revokeApprovals.selector)
         );
     }
 
@@ -109,12 +127,14 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         @return permissions struct with the active permissions
      */
     function viewPermissions() external view returns (Permissions memory permissions) {
+        address swapper = registry.getAddress("SWAPPER_ODOS");
         address voter = _getVoter();
         permissions.pauseAllPairs = hasPermission(address(0), IResupplyPair.pause.selector);
         permissions.cancelProposal = hasPermission(address(voter), IVoter.cancelProposal.selector);
         permissions.updateProposalDescription = hasPermission(address(voter), IVoter.updateProposalDescription.selector);
         permissions.revertVoter = hasPermission(address(core), ICore.setVoter.selector);
         permissions.setRegistryAddress = hasPermission(address(registry), IResupplyRegistry.setAddress.selector);
+        permissions.revokeSwapperApprovals = hasPermission(address(swapper), ISwapperOdos.revokeApprovals.selector);
         return permissions;
     }
 
