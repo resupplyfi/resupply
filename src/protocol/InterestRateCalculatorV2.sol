@@ -92,24 +92,26 @@ contract InterestRateCalculatorV2 is IRateCalculator {
         //get difference of same share count to see asset growth
         uint256 difference = _newPrice > 1e18 ? _newPrice - 1e18 : 0;
 
-        //determine what rateRatio to use
-        uint256 priceweight = IPriceWatcher(priceWatcher).findPairPriceWeight(msg.sender);
-        uint256 rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
-
         //difference over time (note: delta time is guaranteed to be non-zero)
         //since old price and new price are calculated from the same amount of shares
         //that was equivalent to 1e18 assets at previous timestamp, this becomes our proper rate for 1e18 borrowed
         difference /= _deltaTime;
-        //take ratio of the difference
-        difference = difference * rateRatio / 1e18;
 
         //take ratio of sfrxusd rate and compare to our hard minimum, take higher as our minimum
         //this lets us base our minimum rates on a "risk free rate" product
-        uint256 floorRate = sfrxusdRates() * rateRatio / 1e18;
-        floorRate = floorRate > minimumRate ? floorRate : minimumRate;
+        uint256 riskFreeRate = sfrxusdRates();
+        _newRatePerSec = uint64(riskFreeRate > minimumRate ? riskFreeRate : minimumRate);
 
         //if difference is over some minimum, return difference
         //if not, return minimum
-        _newRatePerSec = difference > floorRate ? uint64(difference) : uint64(floorRate);
+        _newRatePerSec = uint64(difference > _newRatePerSec ? difference : _newRatePerSec);
+
+        //calculte and apply `rateRatio` multiplier which is computed using the following:
+        // 1. priceWeight: which represents the off-peg boost
+        // 2. ratioBase: used to achieve the "half" rate of indicators like sfrxusd and underlying rates
+        // 3. ratioAdditional: amplifier for off-peg boost
+        uint256 priceweight = IPriceWatcher(priceWatcher).findPairPriceWeight(msg.sender);
+        uint256 rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        _newRatePerSec = uint64(_newRatePerSec * rateRatio / 1e18);
     }
 }

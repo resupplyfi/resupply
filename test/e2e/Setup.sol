@@ -370,7 +370,7 @@ contract Setup is Test {
         priceWatcher = new PriceWatcher(address(registry));
         rateCalculator = new InterestRateCalculatorV2(
             "V2", //suffix
-            2e16 / uint256(365 days), //2%
+            2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
             5e17, //rate ratio base
             1e17, //rate ratio additional
             address(priceWatcher) //price watcher

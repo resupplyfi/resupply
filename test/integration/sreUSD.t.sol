@@ -93,7 +93,7 @@ contract SreUSDTest is Setup {
         //new interest calculator
         InterestRateCalculatorV2 calcv2 = new InterestRateCalculatorV2(
             "V2",
-            2e16 / uint256(365 days),//2%
+            2e16 / uint256(365 days) * 2,//4% - we multiply by 2 to adjust for rate ratio base
             5e17,
             1e17,
             address(priceWatcher)

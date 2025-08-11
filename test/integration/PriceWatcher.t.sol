@@ -28,7 +28,7 @@ contract PriceWatcherTest is Setup {
         UPDATE_INTERVAL = priceWatcher.UPDATE_INTERVAL();
         interestRateCalculator = new InterestRateCalculatorV2(
             "V2",
-            2e16 / uint256(365 days),//2%
+            2e16 / uint256(365 days) * 2,//4% - we multiply by 2 to adjust for rate ratio base
             5e17,
             1e17,
             address(priceWatcher)
