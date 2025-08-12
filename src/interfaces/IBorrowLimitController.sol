@@ -11,8 +11,6 @@ interface IBorrowLimitController {
 
     function cancelRamp(address _pair) external;
 
-    function setRampDuration(uint256 _rampDuration) external;
-
     function setPairBorrowLimitRamp(address _pair, uint256 _newBorrowLimit, uint256 _endTime) external;
 
     function updatePairBorrowLimit(address _pair) external;
