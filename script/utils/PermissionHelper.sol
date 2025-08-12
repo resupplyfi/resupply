@@ -55,12 +55,11 @@ library PermissionHelper {
         });
     }
 
-    function isPermissionEnabled(
-        ICore core,
+    function isEnabled(
         address caller, 
         address target, 
         bytes4 selector
     ) external view returns (bool enabled) {
-        (enabled, ) = core.operatorPermissions(caller, target, selector);
+        (enabled, ) = ICore(Protocol.CORE).operatorPermissions(caller, target, selector);
     }
 }

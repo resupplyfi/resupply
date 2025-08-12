@@ -188,7 +188,7 @@ contract TreasuryManagerUpgradeable is BaseUpgradeableOperator {
     }
 
     /**
-        @notice Helper function to view the active permissions granted to this contract
+        @notice Helper function to enumerate all permissions utlized by this contract and their status
         @return permissions The permissions struct
     */
     function viewPermissions() external view returns (Permissions memory permissions) {

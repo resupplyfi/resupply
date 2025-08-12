@@ -11,13 +11,49 @@ import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
-import { PermissionUpdate } from "script/utils/PermissionHelper.sol";
+import { PermissionUpdate, PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
+import { IGuardian } from "src/interfaces/IGuardian.sol";
 
-library OperatorMigrationPermissions {
-    
+library OperatorMigrationPermissionsBuilder {
+
+    function getProposalCalldata() internal view returns (IVoter.Action[] memory actions) {
+        IVoter.Action[] memory guardedRegistryKeyActions = buildGuardedRegistryKeyCalldata();
+        IVoter.Action[] memory permissionActions = PermissionHelper.buildPermissionActions(permissions());
+
+        // Merge all actions into a single array
+        IVoter.Action[] memory actions = new IVoter.Action[](guardedRegistryKeyActions.length + permissionActions.length);
+        uint256 actionIndex = 0;
+        for (uint256 i = 0; i < guardedRegistryKeyActions.length; i++) actions[actionIndex++] = guardedRegistryKeyActions[i];
+        for (uint256 i = 0; i < permissionActions.length; i++) actions[actionIndex++] = permissionActions[i];
+        
+        return actions;
+    }
+
+    function buildGuardedRegistryKeyCalldata() internal view returns (IVoter.Action[] memory actions) {
+        // Protected keys in registry are already guarded
+        string[] memory guardedKeys = new string[](4);
+        guardedKeys[0] = "PAIR_DEPLOYER";
+        guardedKeys[1] = "VOTER";
+        guardedKeys[2] = "EMISSIONS_CONTROLLER";
+        guardedKeys[3] = "REUSD_ORACLE";
+
+        actions = new IVoter.Action[](guardedKeys.length);
+        for (uint256 i = 0; i < guardedKeys.length; i++) {
+            actions[i] = IVoter.Action({
+                target: Protocol.OPERATOR_GUARDIAN_PROXY,
+                data: abi.encodeWithSelector(
+                    IGuardian.setGuardedRegistryKey.selector,
+                    guardedKeys[i],
+                    true
+                )
+            });
+        }
+        return actions;
+    }
+
     function permissions() internal pure returns (PermissionUpdate[] memory) {
-        PermissionUpdate[] memory permissions = new PermissionUpdate[](34);
+        PermissionUpdate[] memory permissions = new PermissionUpdate[](35);
         uint256 i = 0;
         
         // ===== ENABLE =====
@@ -26,11 +62,12 @@ library OperatorMigrationPermissions {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.setMinTimeBetweenProposals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.updateProposalDescription.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.cancelRamp.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.CORE, ICore.setVoter.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.setRampDuration.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), ISwapperOdos.revokeApprovals.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IInsurancePool.setWithdrawTimers.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
-        
+        permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.CORE, ICore.setVoter.selector, true);
+
         // Treasury Manager Proxy
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.retrieveToken.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.retrieveTokenExact.selector, true);
@@ -39,8 +76,8 @@ library OperatorMigrationPermissions {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.setTokenApproval.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.safeExecute.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.execute.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, IPrismaFeeReceiver.transferToken.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, IPrismaFeeReceiver.setTokenApproval.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.transferToken.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.setTokenApproval.selector, true);
         
         // ===== DISABLE DEPRECATED PERMISSIONS =====
         // Old Guardian

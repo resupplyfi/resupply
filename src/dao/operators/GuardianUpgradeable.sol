@@ -10,6 +10,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
 import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
+import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 
 contract GuardianUpgradeable is BaseUpgradeableOperator {
     using SafeERC20 for IERC20;
@@ -23,9 +25,11 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         bool pauseAllPairs;
         bool cancelProposal;
         bool updateProposalDescription;
-        bool revertVoter;
         bool setRegistryAddress;
         bool revokeSwapperApprovals;
+        bool pauseIPWithdrawals;
+        bool cancelRamp;
+        bool setRampDuration;
     }
 
     event GuardianSet(address indexed newGuardian);
@@ -78,19 +82,6 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
             abi.encodeWithSelector(IVoter.updateProposalDescription.selector, proposalId, newDescription)
         );
     }
-    
-    /**
-        @notice Reverts the voter to the guardian address
-        @dev This function serves as a safety measure until the DAO is fully operational and revokes its permissions.
-     */
-    function revertVoter() external onlyGuardian {
-        (bool authorized,) = core.operatorPermissions(address(this), address(core), ICore.setVoter.selector);
-        require(authorized, "Permission to revert voter not granted");
-        core.execute(
-            address(core),
-            abi.encodeWithSelector(ICore.setVoter.selector, guardian)
-        );
-    }
 
 
     function setRegistryAddress(string memory _key, address _address) external onlyGuardian {
@@ -110,6 +101,44 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         core.execute(
             address(swapper),
             abi.encodeWithSelector(ISwapperOdos.revokeApprovals.selector)
+        );
+    }
+
+    /**
+        @notice Pause IP Withdrawals by setting the withdraw window to 0
+     */
+    function pauseIPWithdrawals() external onlyGuardian {
+        address insurancePool = registry.getAddress("INSURANCE_POOL");
+        uint256 withdrawTime = IInsurancePool(insurancePool).withdrawTime();
+        core.execute(
+            address(insurancePool),
+            abi.encodeWithSelector(IInsurancePool.setWithdrawTimers.selector, withdrawTime, 0)
+        );
+    }
+
+    /**
+        @notice Cancel borrow limit ramp for a pair on BorrowLimitController
+        @param _pair The pair to cancel the ramp for
+     */
+    function cancelRamp(address _pair) external onlyGuardian {
+        address borrowLimitController = registry.getAddress("BORROW_LIMIT_CONTROLLER");
+        core.execute(
+            address(borrowLimitController),
+            abi.encodeWithSelector(IBorrowLimitController.cancelRamp.selector, _pair)
+        );
+    }
+
+    /**
+        @notice Set the borrow limit ramp duration on BorrowLimitController
+        @param _rampDuration The new ramp duration in seconds
+     */
+    function setRampDuration(uint256 _rampDuration) external onlyGuardian {
+        require(_rampDuration > 2, "Ramp duration too short");
+        require(_rampDuration < 21 days, "Ramp duration too long");
+        address borrowLimitController = registry.getAddress("BORROW_LIMIT_CONTROLLER");
+        core.execute(
+            address(borrowLimitController),
+            abi.encodeWithSelector(IBorrowLimitController.setRampDuration.selector, _rampDuration)
         );
     }
 
@@ -135,9 +164,11 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         permissions.pauseAllPairs = hasPermission(address(0), IResupplyPair.pause.selector);
         permissions.cancelProposal = hasPermission(address(voter), IVoter.cancelProposal.selector);
         permissions.updateProposalDescription = hasPermission(address(voter), IVoter.updateProposalDescription.selector);
-        permissions.revertVoter = hasPermission(address(core), ICore.setVoter.selector);
         permissions.setRegistryAddress = hasPermission(address(registry), IResupplyRegistry.setAddress.selector);
         permissions.revokeSwapperApprovals = hasPermission(address(swapper), ISwapperOdos.revokeApprovals.selector);
+        permissions.pauseIPWithdrawals = hasPermission(address(0), IInsurancePool.setWithdrawTimers.selector);
+        permissions.cancelRamp = hasPermission(address(0), IBorrowLimitController.cancelRamp.selector);
+        permissions.setRampDuration = hasPermission(address(0), IBorrowLimitController.setRampDuration.selector);
         return permissions;
     }
 

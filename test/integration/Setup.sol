@@ -29,6 +29,7 @@ import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 
 // Protocol Contracts
 import { IStablecoin } from "src/interfaces/IStablecoin.sol";
@@ -64,6 +65,7 @@ import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IRetentionIncentives } from "src/interfaces/IRetentionIncentives.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
+import { ITreasuryManagerUpgradeable } from "src/interfaces/ITreasuryManagerUpgradeable.sol";
 
 contract Setup is Test {
     using SafeERC20 for IERC20;
@@ -76,6 +78,7 @@ contract Setup is Test {
     IVestManager public vestManager = IVestManager(Protocol.VEST_MANAGER);
     IResupplyRegistry public registry = IResupplyRegistry(Protocol.REGISTRY);
     ITreasury public treasury = ITreasury(payable(Protocol.TREASURY));
+    ITreasuryManagerUpgradeable public treasuryManager = ITreasuryManagerUpgradeable(Protocol.OPERATOR_TREASURY_MANAGER_PROXY);
     IPermastaker public permaStaker1 = IPermastaker(Protocol.PERMA_STAKER_CONVEX);
     IPermastaker public permaStaker2 = IPermastaker(Protocol.PERMA_STAKER_YEARN);
     IStablecoin public stablecoin = IStablecoin(Protocol.STABLECOIN);
@@ -110,6 +113,7 @@ contract Setup is Test {
     address public lzEndpoint = address(Mainnet.LAYERZERO_ENDPOINTV2);
     IRetentionReceiver public retentionReceiver = IRetentionReceiver(Protocol.RETENTION_RECEIVER);
     IRetentionIncentives public retention = IRetentionIncentives(Protocol.RETENTION_INCENTIVES);
+    IBorrowLimitController public borrowLimitController = IBorrowLimitController(Protocol.BORROW_LIMIT_CONTROLLER);
 
 
     constructor() {}

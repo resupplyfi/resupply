@@ -19,6 +19,9 @@ contract BorrowLimitController is CoreOwnable {
 
     event NewBorrowRamp(address indexed pair, uint256 fromBorrow, uint256 toBorrow, uint256 endTime);
     event RampCancel(address indexed pair);
+    event RampDurationSet(uint256 rampDuration);
+
+    uint256 public rampDuration = 7 days;
 
     constructor(address _core) CoreOwnable(_core) {}
 
@@ -51,7 +54,7 @@ contract BorrowLimitController is CoreOwnable {
         limitInfo.endTime = uint64(_endTime);
 
         require(limitInfo.targetBorrowLimit > limitInfo.prevBorrowLimit, "can only ramp up");
-        require(limitInfo.endTime >= limitInfo.startTime + 7 days, "rate of change too high");
+        require(limitInfo.endTime >= limitInfo.startTime + rampDuration, "rate of change too high");
 
         pairLimits[_pair] = limitInfo;
 
@@ -109,6 +112,15 @@ contract BorrowLimitController is CoreOwnable {
         uint256 borrowDelta = limitInfo.targetBorrowLimit - limitInfo.prevBorrowLimit;
         uint256 newBorrow = ((borrowDelta * dt) / 10_000) + limitInfo.prevBorrowLimit;
         return newBorrow;
+    }
+
+    /**
+     * @notice Set the ramp duration
+     * @param _rampDuration The new ramp duration in seconds
+     */
+    function setRampDuration(uint256 _rampDuration) external onlyOwner {
+        rampDuration = _rampDuration;
+        emit RampDurationSet(_rampDuration);
     }
 
 }

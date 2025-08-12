@@ -8,7 +8,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
-import { OperatorMigrationPermissions } from "script/proposals/data/OperatorMigrationPermissions.sol";
+import { OperatorMigrationPermissionsBuilder } from "script/proposals/data/OperatorMigrationPermissionsBuilder.sol";
 import { IGuardian } from "src/interfaces/IGuardian.sol";
 
 interface IPermastakerOperator {
@@ -26,18 +26,8 @@ contract LaunchFixes is BaseAction {
     function run() public isBatch(deployer) {
         voter = IVoter(registry.getAddress("VOTER"));
         
-        // "Protected keys" in registry are already guarded
-        IVoter.Action[] memory guardedRegistryKeyActions = buildGuardedRegistryKeyCalldata();
-        // Actions in ./data/OperatorMigrationPermissions.sol
-        IVoter.Action[] memory permissionActions = 
-            PermissionHelper.buildPermissionActions(OperatorMigrationPermissions.permissions());
-
-        // Merge all actions into a single array
-        IVoter.Action[] memory actions = new IVoter.Action[](guardedRegistryKeyActions.length + permissionActions.length);
-        uint256 actionIndex = 0;
-        for (uint256 i = 0; i < guardedRegistryKeyActions.length; i++) actions[actionIndex++] = guardedRegistryKeyActions[i];
-        for (uint256 i = 0; i < permissionActions.length; i++) actions[actionIndex++] = permissionActions[i];
-
+        // Get the calldata for the proposal
+        IVoter.Action[] memory actions = OperatorMigrationPermissionsBuilder.getProposalCalldata();
         // Propose vote via permsataker
         proposeVote(actions);
         uint256 proposalId = voter.getProposalCount() - 1;
@@ -49,28 +39,6 @@ contract LaunchFixes is BaseAction {
             console.logBytes(data);
             console.log("--------------------------------");
         }
-    }
-
-    function buildGuardedRegistryKeyCalldata() internal view returns (IVoter.Action[] memory actions) {
-        // Protected keys in registry are already guarded
-        string[] memory guardedKeys = new string[](4);
-        guardedKeys[0] = "PAIR_DEPLOYER";
-        guardedKeys[1] = "VOTER";
-        guardedKeys[2] = "EMISSIONS_CONTROLLER";
-        guardedKeys[3] = "REUSD_ORACLE";
-
-        actions = new IVoter.Action[](guardedKeys.length);
-        for (uint256 i = 0; i < guardedKeys.length; i++) {
-            actions[i] = IVoter.Action({
-                target: Protocol.OPERATOR_GUARDIAN_PROXY,
-                data: abi.encodeWithSelector(
-                    IGuardian.setGuardedRegistryKey.selector,
-                    guardedKeys[i],
-                    true
-                )
-            });
-        }
-        return actions;
     }
 
     function proposeVote(IVoter.Action[] memory actions) public {

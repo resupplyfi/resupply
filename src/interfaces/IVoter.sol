@@ -46,6 +46,8 @@ interface IVoter {
     function MIN_TIME_BETWEEN_PROPOSALS() external view returns (uint256);
     function MAX_PCT() external view returns (uint256);
     function MAX_DESCRIPTION_BYTES() external view returns (uint256);
+    function votingPeriod() external view returns (uint256);
+    function executionDelay() external view returns (uint256);
     function staker() external view returns (address);
     function minCreateProposalPct() external view returns (uint256);
     function quorumPct() external view returns (uint256);

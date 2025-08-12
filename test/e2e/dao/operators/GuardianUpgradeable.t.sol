@@ -15,11 +15,14 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
+import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 
 contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     address public guardian = Protocol.DEPLOYER;
     GuardianUpgradeable public guardianContract;
     IResupplyPair public pair;
+    address[] public pairs;
 
     event GuardianSet(address indexed newGuardian);
     event PairPaused(address indexed pair);
@@ -30,7 +33,8 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         deployProxyAndImplementation();
         guardianContract = GuardianUpgradeable(proxy);
         setupPermissions();
-        pair = IResupplyPair(registry.getAllPairAddresses()[0]);
+        pairs = registry.getAllPairAddresses();
+        pair = IResupplyPair(pairs[0]);
         stakeGovToken(1000e18);
         skip(epochLength);
 
@@ -46,6 +50,16 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
             abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "SWAPPER_ODOS"),
             abi.encode(address(odosSwapper))
         );
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "INSURANCE_POOL"),
+            abi.encode(address(insurancePool))
+        );
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "BORROW_LIMIT_CONTROLLER"),
+            abi.encode(address(borrowLimitController))
+        );
     }
 
     // Implement abstract functions from BaseUpgradeableOperatorTest
@@ -58,9 +72,10 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         setOperatorPermission(address(guardianContract), address(0), IResupplyPair.pause.selector, true);
         setOperatorPermission(address(guardianContract), address(0), Voter.cancelProposal.selector, true);
         setOperatorPermission(address(guardianContract), address(0), Voter.updateProposalDescription.selector, true);
-        setOperatorPermission(address(guardianContract), address(core), ICore.setVoter.selector, true);
         setOperatorPermission(address(guardianContract), address(registry), IResupplyRegistry.setAddress.selector, true);
         setOperatorPermission(address(guardianContract), address(0), ISwapperOdos.revokeApprovals.selector, true);
+        setOperatorPermission(address(guardianContract), address(0), IBorrowLimitController.cancelRamp.selector, true);
+        setOperatorPermission(address(guardianContract), address(0), IInsurancePool.setWithdrawTimers.selector, true);
     }
 
     function test_GuardianSet() public {
@@ -83,8 +98,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     }
 
     function test_PauseAllPairs() public {
-        address[] memory pairs = registry.getAllPairAddresses();
-
         vm.prank(guardian);
         guardianContract.pauseAllPairs();
 
@@ -162,36 +175,35 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         guardianContract.updateProposalDescription(123, "description");
     }
 
-    function test_RevertVoter() public {
-        address currentVoter = address(voter);
-        
+    function test_PauseIPWithdrawals() public {
+        assertNotEq(IInsurancePool(address(insurancePool)).withdrawTimeLimit(), 0);
         vm.prank(guardian);
-        guardianContract.revertVoter();
-        
-        // Verify the voter was set to guardian
-        assertEq(core.voter(), guardian);
+        guardianContract.pauseIPWithdrawals();
+        assertEq(IInsurancePool(address(insurancePool)).withdrawTimeLimit(), 0, "withdrawTimeLimit not set to 0");
     }
 
-    function test_RevertVoter_NotGuardian() public {
-        vm.prank(address(1));
-        vm.expectRevert("!guardian");
-        guardianContract.revertVoter();
-    }
-
-    function test_RevertVoter_NoPermission() public {
-        // Remove the permission
+    function test_CancelRamp() public {
+        address _pair = pairs[0];
         vm.prank(address(core));
-        core.setOperatorPermissions(
-            address(guardianContract),
-            address(core),
-            ICore.setVoter.selector,
-            false,
-            IAuthHook(address(0))
-        );
+        pair.setBorrowLimit(1); // cannot ramp from 0
+
+        // create a ramp
+        vm.prank(address(core));
+        borrowLimitController.setPairBorrowLimitRamp(_pair, 100_000e18, block.timestamp + 7 days);
+
+        // partially ramp up from 0
+        skip(1 days);
+        borrowLimitController.updatePairBorrowLimit(_pair);
+        uint256 borrowLimit = pair.borrowLimit();
+        assertNotEq(borrowLimit, 0);
 
         vm.prank(guardian);
-        vm.expectRevert("Permission to revert voter not granted");
-        guardianContract.revertVoter();
+        guardianContract.cancelRamp(_pair);
+        IBorrowLimitController.PairBorrowLimit memory limitInfo = IBorrowLimitController(address(borrowLimitController)).pairLimits(_pair);
+        assertEq(limitInfo.targetBorrowLimit, 0, "targetBorrowLimit not set to 0");
+        assertEq(limitInfo.prevBorrowLimit, 0, "prevBorrowLimit not set to 0");
+        assertEq(limitInfo.startTime, 0, "startTime not set to 0");
+        assertEq(limitInfo.endTime, 0, "endTime not set to 0");
     }
 
     function test_RecoverERC20() public {
@@ -221,7 +233,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertTrue(permissions.pauseAllPairs, "pauseAllPairs should be true");
         assertTrue(permissions.cancelProposal, "cancelProposal should be true");
         assertTrue(permissions.updateProposalDescription, "updateProposalDescription should be true");
-        assertTrue(permissions.revertVoter, "revertVoter should be true");
         // assertTrue(permissions.setRegistryAddress, "setRegistryAddress should be true");
         assertTrue(permissions.revokeSwapperApprovals, "revokeSwapperApprovals should be true");
     }
@@ -279,7 +290,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertFalse(permissions.pauseAllPairs, "pauseAllPairs should be false");
         assertFalse(permissions.cancelProposal, "cancelProposal should be false");
         assertFalse(permissions.updateProposalDescription, "updateProposalDescription should be false");
-        assertFalse(permissions.revertVoter, "revertVoter should be false");
         assertFalse(permissions.setRegistryAddress, "setRegistryAddress should be false");
         assertFalse(permissions.revokeSwapperApprovals, "revokeSwapperApprovals should be false");
     }

@@ -11,6 +11,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
+import { SecurityGuardrailsBuilder } from "script/proposals/data/SecurityGuardrailsBuilder.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -26,26 +27,9 @@ contract LaunchFixes is BaseAction {
 
     function run() public isBatch(deployer) {
         voter = IVoter(registry.getAddress("VOTER"));
-        
-        // Set code in new and old pair deployers
-        IVoter.Action[] memory pairDeployerActions = buildPairDeployerCalldata();
-        // Build all calldata for oracle update and operator permission changes
-        IVoter.Action[] memory oracleActions = buildOracleUpdateCalldata();
 
-        // Merge all actions into a single array
-        IVoter.Action[] memory actions = new IVoter.Action[](pairDeployerActions.length + oracleActions.length + 1);
-        uint256 actionIndex = 0;
-        for (uint256 i = 0; i < pairDeployerActions.length; i++) actions[actionIndex++] = pairDeployerActions[i];
-        for (uint256 i = 0; i < oracleActions.length; i++) actions[actionIndex++] = oracleActions[i];
-
-        // Set oracle to 0x0 to break crvUSD/wstUR pair
-        actions[actionIndex] = IVoter.Action({
-            target: 0x6e90c85a495d54c6d7E1f3400FEF1f6e59f86bd6, // crvUSD/wstUR pair
-            data: abi.encodeWithSelector(
-                IResupplyPair.setOracle.selector,
-                address(0)
-            )
-        });
+        // Build the calldata for the proposal
+        IVoter.Action[] memory actions = SecurityGuardrailsBuilder.buildProposalCalldata();
 
         // Propose vote via permsataker
         proposeVote(actions);
@@ -60,43 +44,6 @@ contract LaunchFixes is BaseAction {
         }
     }
 
-    function buildPairDeployerCalldata() internal view returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](2);
-        // Clear code from the deprecated pair deployer
-        actions[0] = IVoter.Action({
-            target: Protocol.PAIR_DEPLOYER_V1,
-            data: abi.encodeWithSelector(
-                IResupplyPairDeployer.setCreationCode.selector,
-                ""
-            )
-        });
-        // Set new code for the new pair deployer
-        actions[1] = IVoter.Action({
-            target: Protocol.PAIR_DEPLOYER_V2,
-            data: abi.encodeWithSelector(
-                IResupplyPairDeployer.setCreationCode.selector,
-                type(ResupplyPair).creationCode
-            )
-        });
-    }
-
-    function buildOracleUpdateCalldata() internal view returns (IVoter.Action[] memory actions) {
-        address[] memory pairs = registry.getAllPairAddresses();
-        uint256 numPairs = pairs.length;
-        // Oracle updates for all pairs
-        IVoter.Action[] memory oracleActions = new IVoter.Action[](numPairs);
-        for (uint256 i = 0; i < numPairs; i++) {
-            oracleActions[i] = IVoter.Action({
-                target: pairs[i],
-                data: abi.encodeWithSelector(
-                    IResupplyPair.setOracle.selector,
-                    Protocol.BASIC_VAULT_ORACLE
-                )
-            });
-        }
-        return oracleActions;
-    }
-
     function proposeVote(IVoter.Action[] memory actions) public {
         addToBatch(
             address(PERMA_STAKER_OPERATOR),
@@ -105,24 +52,6 @@ contract LaunchFixes is BaseAction {
                 actions,
                 "Configure Operator Permissions"
             )
-        );
-    }
-
-    function buildPermissionUpdateCalldata() internal view returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](2);
-        // Borrow Limit Controller
-        actions[0] = PermissionHelper.buildOperatorPermissionAction(
-            Protocol.BORROW_LIMIT_CONTROLLER,       // caller
-            address(0),                             // target
-            IResupplyPair.setBorrowLimit.selector,  // selector
-            true                                    // enable
-        );
-        // Pair Adder
-        actions[1] = PermissionHelper.buildOperatorPermissionAction(
-            Protocol.PAIR_ADDER,
-            Protocol.REGISTRY,
-            IResupplyRegistry.addPair.selector,
-            true
         );
     }
 }

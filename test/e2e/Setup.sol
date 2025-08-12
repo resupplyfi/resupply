@@ -40,6 +40,7 @@ import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
+import { BorrowLimitController } from "src/dao/operators/BorrowLimitController.sol";
 
 // Incentive Contracts
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
@@ -113,6 +114,7 @@ contract Setup is Test {
     ICurveExchange public swapPoolsFrxusd;
     FeeLogger public feeLogger;
     ReusdOracle public reusdOracle;
+    BorrowLimitController public borrowLimitController;
     
     constructor() {
         _THIS = address(this);
@@ -400,6 +402,11 @@ contract Setup is Test {
         stakedStable = new SavingsReUSD(address(core), address(registry), Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         vm.prank(address(core));
         registry.setAddress("SREUSD", address(stakedStable));
+
+        borrowLimitController = new BorrowLimitController(address(core));
+        vm.prank(address(core));
+        registry.setAddress("BORROW_LIMIT_CONTROLLER", address(borrowLimitController));
+        setOperatorPermission(address(borrowLimitController), address(0), ResupplyPair.setBorrowLimit.selector, true);
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){

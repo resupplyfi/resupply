@@ -18,24 +18,18 @@ contract DeployProxy is BaseAction {
 
         // Deploy guardian operator
         proxy = deployGuardianOperator();
-        address owner = GuardianUpgradeable(proxy).owner();
-        console.log("Proxy deployed at", proxy);
-        console.log("Owner", owner);
-        require(owner == Protocol.CORE, "Deployer is not the owner");
+        printProxyDetails(proxy);
+        require(GuardianUpgradeable(proxy).owner() == Protocol.CORE, "Deployer is not the owner");
 
         // // Deploy treasury manager operator
         // proxy = deployTreasuryManagerOperator();
-        // owner = TreasuryManagerUpgradeable(proxy).owner();
-        // console.log("Proxy deployed at", proxy);
-        // console.log("Owner", owner);
-        // require(owner == Protocol.CORE, "Deployer is not the owner");
+        // printProxyDetails(proxy);
+        // require(GuardianUpgradeable(proxy).owner() == Protocol.CORE, "Deployer is not the owner");
 
         // // Deploy keeper
         // proxy = deployKeeper();
-        // owner = KeeperV1(proxy).owner();
-        // console.log("Proxy deployed at", proxy);
-        // console.log("Owner", owner);
-        // require(owner == Protocol.DEPLOYER, "Deployer is not the owner");
+        // printProxyDetails(proxy);
+        // require(GuardianUpgradeable(proxy).owner() == Protocol.DEPLOYER, "Deployer is not the owner");
 
         vm.stopBroadcast();
     }
@@ -54,7 +48,7 @@ contract DeployProxy is BaseAction {
         return deployUUPSProxy(
             "GuardianUpgradeable.sol:GuardianUpgradeable", 
             initializerData, 
-            true   // unsafeSkipAllChecks - set to false during deployment 
+            false   // unsafeSkipAllChecks - set to false during deployment 
         );
     }
 
