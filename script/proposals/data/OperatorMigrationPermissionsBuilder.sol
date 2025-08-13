@@ -53,7 +53,7 @@ library OperatorMigrationPermissionsBuilder {
     }
 
     function permissions() internal pure returns (PermissionUpdate[] memory) {
-        PermissionUpdate[] memory permissions = new PermissionUpdate[](35);
+        PermissionUpdate[] memory permissions = new PermissionUpdate[](34);
         uint256 i = 0;
         
         // ===== ENABLE =====
@@ -62,9 +62,8 @@ library OperatorMigrationPermissionsBuilder {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.setMinTimeBetweenProposals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.updateProposalDescription.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.cancelRamp.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.setRampDuration.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), ISwapperOdos.revokeApprovals.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IInsurancePool.setWithdrawTimers.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.CORE, ICore.setVoter.selector, true);
 

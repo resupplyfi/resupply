@@ -33,7 +33,7 @@ library Protocol {
     address constant OPERATOR_GUARDIAN_OLD = 0x0950000dd946D519B53424830075364e90B7eFB1;
     address constant OPERATOR_TREASURY_MANAGER_OLD = 0x09500006956d172973138a5b38CFcd2277552BB9;
     address constant BORROW_LIMIT_CONTROLLER = 0x0950000465476F4470e74AeD93E7dd414012BB7D;
-    address constant OPERATOR_GUARDIAN_PROXY = 0xA5b878A9874287c70a3b2c23380158A949145B2f;
+    address constant OPERATOR_GUARDIAN_PROXY = 0xA4745e0B1F40ab3DCFD98F381835De591a8974E3;
     address constant OPERATOR_TREASURY_MANAGER_PROXY = 0x4CF97a55d58Aad14C493A46C8151a0BFffb10403;
     address constant PAIR_ADDER = 0x09500002956877b910ACEc25C4b4dd57950e1D27;
     
@@ -276,14 +276,15 @@ library DeploymentConfig {
     uint256 constant EMISSIONS_CONTROLLER_BOOTSTRAP_EPOCHS = 0;
 
     // Configs: Protocol
-    uint256 constant DEFAULT_BORROW_LIMIT = 0;
+    uint256 constant DEFAULT_BORROW_LIMIT = 1_000_000e18;
     uint256 constant DEFAULT_MAX_LTV = 95_000; // 1e5 precision
     uint256 constant DEFAULT_LIQ_FEE = 5_000;  // 1e5 precision
     uint256 constant DEFAULT_MINT_FEE = 0;     // 1e5 precision
-    uint256 constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 1e18 / 2; // portion of fee for stakers (1e18 precision)
-    uint256 constant FEE_SPLIT_IP = 2500;      // 1e4 precision
+    uint256 constant DEFAULT_PROTOCOL_REDEMPTION_FEE = 2e17; // portion of fee for stakers (1e18 precision)
+    uint256 constant FEE_SPLIT_IP = 1000;      // 1e4 precision
     uint256 constant FEE_SPLIT_TREASURY = 500; // 1e4 precision
     uint256 constant FEE_SPLIT_STAKERS = 7000; // 1e4 precision
+    uint256 constant FEE_SPLIT_SREUSD = 1500; // 1e4 precision
 
     // Tokens
     address constant SCRVUSD = Mainnet.SCRVUSD_ERC20;

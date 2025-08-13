@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { Protocol } from "src/Constants.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ICore } from "src/interfaces/ICore.sol";
@@ -12,6 +13,7 @@ import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
 contract GuardianTest is Setup {
     Guardian public guardian;
+    address[] public pairs;
 
     function setUp() public override {
         super.setUp();
@@ -33,6 +35,13 @@ contract GuardianTest is Setup {
 
         stakeAndSkip(user1, 1_000_000e18);
         createSimpleProposal(user1);
+
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector),
+            abi.encode(registry.getAllPairAddresses())
+        );
+        pairs = registry.getAllPairAddresses();
     }
 
     function test_SetGuardian() public {
@@ -66,12 +75,17 @@ contract GuardianTest is Setup {
     }
 
     function test_PauseAllPairs() public {
-        assertGe(testPair.borrowLimit(), 0);
-        assertGe(testPair2.borrowLimit(), 0);
+        IResupplyPair pair1 = IResupplyPair(pairs[0]);
+        IResupplyPair pair2 = IResupplyPair(pairs[1]);
+        vm.startPrank(address(core));
+        pair1.setBorrowLimit(100e18);
+        pair2.setBorrowLimit(100e18);
+        vm.stopPrank();
+
         vm.prank(dev);
         guardian.pauseAllPairs();
-        assertEq(testPair.borrowLimit(), 0);
-        assertEq(testPair2.borrowLimit(), 0);
+        assertEq(pair1.borrowLimit(), 0);
+        assertEq(pair2.borrowLimit(), 0);
     }
 
     function test_PauseAllPairsNotGuardian() public {

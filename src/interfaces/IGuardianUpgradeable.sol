@@ -14,7 +14,6 @@ interface IGuardianUpgradeable {
         bool revokeSwapperApprovals;
         bool pauseIPWithdrawals;
         bool cancelRamp;
-        bool setRampDuration;
     }
 
     function registry() external view returns (address);

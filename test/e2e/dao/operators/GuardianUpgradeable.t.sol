@@ -60,6 +60,11 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
             abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "BORROW_LIMIT_CONTROLLER"),
             abi.encode(address(borrowLimitController))
         );
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector),
+            abi.encode(registry.getAllPairAddresses())
+        );
     }
 
     // Implement abstract functions from BaseUpgradeableOperatorTest

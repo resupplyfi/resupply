@@ -29,7 +29,6 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         bool revokeSwapperApprovals;
         bool pauseIPWithdrawals;
         bool cancelRamp;
-        bool setRampDuration;
     }
 
     event GuardianSet(address indexed newGuardian);
@@ -128,20 +127,6 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         );
     }
 
-    /**
-        @notice Set the borrow limit ramp duration on BorrowLimitController
-        @param _rampDuration The new ramp duration in seconds
-     */
-    function setRampDuration(uint256 _rampDuration) external onlyGuardian {
-        require(_rampDuration > 2, "Ramp duration too short");
-        require(_rampDuration < 21 days, "Ramp duration too long");
-        address borrowLimitController = registry.getAddress("BORROW_LIMIT_CONTROLLER");
-        core.execute(
-            address(borrowLimitController),
-            abi.encodeWithSelector(IBorrowLimitController.setRampDuration.selector, _rampDuration)
-        );
-    }
-
     function recoverERC20(IERC20 token) external onlyGuardian {
         token.safeTransfer(guardian, token.balanceOf(address(this)));
     }
@@ -160,15 +145,15 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
      */
     function viewPermissions() external view returns (Permissions memory permissions) {
         address swapper = registry.getAddress("SWAPPER_ODOS");
+        address insurancePool = registry.getAddress("INSURANCE_POOL");
         address voter = _getVoter();
         permissions.pauseAllPairs = hasPermission(address(0), IResupplyPair.pause.selector);
-        permissions.cancelProposal = hasPermission(address(voter), IVoter.cancelProposal.selector);
-        permissions.updateProposalDescription = hasPermission(address(voter), IVoter.updateProposalDescription.selector);
+        permissions.cancelProposal = hasPermission(voter, IVoter.cancelProposal.selector);
+        permissions.updateProposalDescription = hasPermission(voter, IVoter.updateProposalDescription.selector);
         permissions.setRegistryAddress = hasPermission(address(registry), IResupplyRegistry.setAddress.selector);
-        permissions.revokeSwapperApprovals = hasPermission(address(swapper), ISwapperOdos.revokeApprovals.selector);
-        permissions.pauseIPWithdrawals = hasPermission(address(0), IInsurancePool.setWithdrawTimers.selector);
+        permissions.revokeSwapperApprovals = hasPermission(swapper, ISwapperOdos.revokeApprovals.selector);
+        permissions.pauseIPWithdrawals = hasPermission(insurancePool, IInsurancePool.setWithdrawTimers.selector);
         permissions.cancelRamp = hasPermission(address(0), IBorrowLimitController.cancelRamp.selector);
-        permissions.setRampDuration = hasPermission(address(0), IBorrowLimitController.setRampDuration.selector);
         return permissions;
     }
 

@@ -44,7 +44,6 @@ contract OperatorMigrationPermissionsTest is BaseProposalTest {
         assertTrue(permissions.revokeSwapperApprovals, "revokeSwapperApprovals permission not granted");
         assertTrue(permissions.pauseIPWithdrawals, "pauseIPWithdrawals permission not granted");
         assertTrue(permissions.cancelRamp, "cancelRamp permission not granted");
-        assertTrue(permissions.setRampDuration, "setRampDuration permission not granted");
     }
 
     function test_TreasuryManagerPermissionsAdded() public {

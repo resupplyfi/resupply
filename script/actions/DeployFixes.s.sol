@@ -51,6 +51,8 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
         // 2 Set new pair deployer on registry
         bytes32 salt = CreateX.SALT_PAIR_DEPLOYER_V2;
         (address[] memory previouslyDeployedPairs, ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo) = DeployInfo.getDeployInfo();
+        require(previouslyDeployedPairs.length > 0, "no previously deployed pairs");
+        require(previouslyDeployedPairsInfo.length > 0, "no previously deployed pairs info");
         bytes memory constructorArgs = abi.encode(
             Protocol.CORE,
             Protocol.REGISTRY,
