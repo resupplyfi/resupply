@@ -88,7 +88,7 @@ contract Utilities is ResupplyPairConstants{
             _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
             _ratePerSecond = underlyingRate > riskFreeRate ? underlyingRate : riskFreeRate;
         }else{
-            //for v2 (and any future versions) use a conbination of base+additional
+            //for v2 (and any future versions) use a combination of base+additional
             //with a price weight applied
             uint256 rateRatioBase = calculator.rateRatioBase();
             uint256 rateRatioAdditional = calculator.rateRatioAdditional();
