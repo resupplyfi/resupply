@@ -9,7 +9,6 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { SecurityGuardrailsBuilder } from "script/proposals/data/SecurityGuardrailsBuilder.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
-import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { DeployInfo } from "script/actions/DeployFixes.s.sol";
