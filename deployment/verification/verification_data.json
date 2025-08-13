@@ -480,7 +480,7 @@
     },
     {
       "name": "ResupplyPairDeployer",
-      "address": "0x5555555524De7C56C1B20128dbEAace47d2C0417",
+      "address": "0x5555555558B7309ecB0FbB23e609ec3c6f74C2Ea",
       "constructorArgs": {
         "types": ["address", "address", "address", "address"],
         "values": [
