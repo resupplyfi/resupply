@@ -7,18 +7,20 @@ import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { SecurityGuardrailsBuilder } from "script/proposals/data/SecurityGuardrailsBuilder.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { DeployInfo } from "script/actions/DeployFixes.s.sol";
+import { LaunchSecurityGuardrails } from "script/proposals/LaunchSecurityGuardrails.s.sol";
 
 contract SecurityGuardrailsTest is BaseProposalTest {
+    LaunchSecurityGuardrails script;
 
     function setUp() public override {
         super.setUp();
         _deployPairDeployer();
-        IVoter.Action[] memory actions = SecurityGuardrailsBuilder.buildProposalCalldata();
+        script = new LaunchSecurityGuardrails();
+        IVoter.Action[] memory actions = script.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);
         simulatePassingVote(proposalId);
         executeProposal(proposalId);

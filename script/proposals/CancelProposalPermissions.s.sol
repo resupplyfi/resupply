@@ -5,7 +5,6 @@ import { Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { OperatorMigrationPermissionsBuilder } from "script/proposals/data/OperatorMigrationPermissionsBuilder.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 

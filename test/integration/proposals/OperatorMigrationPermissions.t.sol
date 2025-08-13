@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { Protocol, Prisma } from "src/Constants.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
-import { OperatorMigrationPermissionsBuilder } from "script/proposals/data/OperatorMigrationPermissionsBuilder.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IGuardianUpgradeable } from "src/interfaces/IGuardianUpgradeable.sol";
@@ -15,13 +14,16 @@ import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { LaunchOperatorsAndPermissions } from "script/proposals/LaunchOperatorsAndPermissions.s.sol";
 
 contract OperatorMigrationPermissionsTest is BaseProposalTest {
     IGuardianUpgradeable guardian = IGuardianUpgradeable(Protocol.OPERATOR_GUARDIAN_PROXY);
+    LaunchOperatorsAndPermissions script;
 
     function setUp() public override {
         super.setUp();
-        IVoter.Action[] memory actions = OperatorMigrationPermissionsBuilder.getProposalCalldata();
+        script = new LaunchOperatorsAndPermissions();
+        IVoter.Action[] memory actions = script.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);
         simulatePassingVote(proposalId);
         executeProposal(proposalId);
