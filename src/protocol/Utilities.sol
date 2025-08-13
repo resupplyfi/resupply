@@ -74,13 +74,19 @@ contract Utilities is ResupplyPairConstants{
         uint256 underlyingRate = getUnderlyingSupplyRate(_pair);
         uint256 minimumRate;
         uint256 rateRatio;
+        bool isV1 = address(calculator) == INTEREST_RATE_CALCULATORV1;
+        // Handle case where dummy calculator is used
         try calculator.minimumRate() returns (uint256 rate) {minimumRate = rate;}
-        catch {return 0;} // Handle case where dummy calculator is used
+        catch {return 0;}
         
         // V1 calculator
-        if(address(calculator) == INTEREST_RATE_CALCULATORV1){
+        if(isV1){
             //v1 is constant 50%
             rateRatio = 0.5e18;
+            underlyingRate = underlyingRate * rateRatio / 1e18;
+            uint256 riskFreeRate = sfrxusdRates() * rateRatio / 1e18;
+            _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
+            _ratePerSecond = underlyingRate > riskFreeRate ? underlyingRate : riskFreeRate;
         }else{
             //for v2 (and any future versions) use a conbination of base+additional
             //with a price weight applied
@@ -89,13 +95,14 @@ contract Utilities is ResupplyPairConstants{
             address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
             uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
             rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
-        }
 
-        //get greater of underlying, sfrxusd, or minimum
-        underlyingRate = underlyingRate * rateRatio / 1e18;
-        uint256 floorRate = sfrxusdRates() * rateRatio / 1e18;
-        floorRate = floorRate > minimumRate ? floorRate : minimumRate;
-        _ratePerSecond = underlyingRate > floorRate ? underlyingRate : floorRate;
+            //get greater of underlying, sfrxusd, or minimum
+            underlyingRate = underlyingRate;
+            uint256 riskFreeRate = sfrxusdRates();
+            _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
+            _ratePerSecond = underlyingRate > riskFreeRate ? underlyingRate : riskFreeRate;
+            _ratePerSecond = _ratePerSecond * rateRatio / 1e18;
+        }
     }
 
     //get swap amount out of a given route

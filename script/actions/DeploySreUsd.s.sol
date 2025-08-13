@@ -106,7 +106,7 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         salt = CreateX.SALT_INTEREST_RATE_CALCULATOR_V2;
         constructorArgs = abi.encode(
             "V2", // Suffix
-            2e16 / uint256(365 days), //2% apr min rate
+            2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
             5e17, // Rate ratio base
             1e17, // Rate ratio additional
             address(Protocol.PRICE_WATCHER) // price watcher
