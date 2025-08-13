@@ -46,6 +46,8 @@ interface IVoter {
     function MIN_TIME_BETWEEN_PROPOSALS() external view returns (uint256);
     function MAX_PCT() external view returns (uint256);
     function MAX_DESCRIPTION_BYTES() external view returns (uint256);
+    function votingPeriod() external view returns (uint256);
+    function executionDelay() external view returns (uint256);
     function staker() external view returns (address);
     function minCreateProposalPct() external view returns (uint256);
     function quorumPct() external view returns (uint256);
@@ -73,6 +75,7 @@ interface IVoter {
         Vote memory results
     );
     function proposalPayload(uint256 id) external view returns (Action[] memory);
+    function proposalPayload(uint256 id, uint256 index) external view returns (address, bytes memory);
     function proposalDescription(uint256 id) external view returns (string memory);
     function createNewProposal(address account, Action[] calldata payload, string calldata description) external returns (uint256);
     function voteForProposal(address account, uint256 id) external;

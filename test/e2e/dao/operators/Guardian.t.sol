@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { Protocol } from "src/Constants.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { Guardian } from "src/dao/operators/Guardian.sol";
 import { ICore } from "src/interfaces/ICore.sol";
@@ -12,6 +13,7 @@ import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 
 contract GuardianTest is Setup {
     Guardian public guardian;
+    address[] public pairs;
 
     function setUp() public override {
         super.setUp();
@@ -20,11 +22,11 @@ contract GuardianTest is Setup {
         guardian = new Guardian(address(core), address(registry));
 
         // set permissions
-        setPermission(address(voter), IVoter.cancelProposal.selector, true);
-        setPermission(address(voter), IVoter.updateProposalDescription.selector, true);
-        setPermission(address(registry), IResupplyRegistry.setAddress.selector, true);
-        setPermission(address(0), IResupplyPair.pause.selector, true);
-        setPermission(address(core), ICore.setVoter.selector, true);
+        setOperatorPermission(address(guardian), address(voter), IVoter.cancelProposal.selector, true);
+        setOperatorPermission(address(guardian), address(voter), IVoter.updateProposalDescription.selector, true);
+        setOperatorPermission(address(guardian), address(registry), IResupplyRegistry.setAddress.selector, true);
+        setOperatorPermission(address(guardian), address(0), IResupplyPair.pause.selector, true);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, true);
 
         vm.startPrank(address(core));
         guardian.setGuardian(dev);
@@ -33,6 +35,13 @@ contract GuardianTest is Setup {
 
         stakeAndSkip(user1, 1_000_000e18);
         createSimpleProposal(user1);
+
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector),
+            abi.encode(registry.getAllPairAddresses())
+        );
+        pairs = registry.getAllPairAddresses();
     }
 
     function test_SetGuardian() public {
@@ -66,12 +75,17 @@ contract GuardianTest is Setup {
     }
 
     function test_PauseAllPairs() public {
-        assertGe(testPair.borrowLimit(), 0);
-        assertGe(testPair2.borrowLimit(), 0);
+        IResupplyPair pair1 = IResupplyPair(pairs[0]);
+        IResupplyPair pair2 = IResupplyPair(pairs[1]);
+        vm.startPrank(address(core));
+        pair1.setBorrowLimit(100e18);
+        pair2.setBorrowLimit(100e18);
+        vm.stopPrank();
+
         vm.prank(dev);
         guardian.pauseAllPairs();
-        assertEq(testPair.borrowLimit(), 0);
-        assertEq(testPair2.borrowLimit(), 0);
+        assertEq(pair1.borrowLimit(), 0);
+        assertEq(pair2.borrowLimit(), 0);
     }
 
     function test_PauseAllPairsNotGuardian() public {
@@ -106,13 +120,13 @@ contract GuardianTest is Setup {
         core.setVoter(address(user1));
 
         // revoke permission
-        setPermission(address(core), ICore.setVoter.selector, false);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, false);
         vm.prank(dev);
         vm.expectRevert("Permission to revert voter not granted");
         guardian.revertVoter();
         assertNotEq(core.voter(), guardian.guardian());
 
-        setPermission(address(core), ICore.setVoter.selector, true);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, true);
         vm.prank(dev);
         guardian.revertVoter();
         assertEq(core.voter(), guardian.guardian());
@@ -126,11 +140,11 @@ contract GuardianTest is Setup {
         assertEq(revertVoter, true, "revertVoter permission not set");
         assertEq(setRegistryAddress, true, "setRegistryAddress permission not set");
 
-        setPermission(address(core), ICore.setVoter.selector, false);
-        setPermission(address(voter), IVoter.cancelProposal.selector, false);
-        setPermission(address(voter), IVoter.updateProposalDescription.selector, false);
-        setPermission(address(registry), IResupplyRegistry.setAddress.selector, false);
-        setPermission(address(0), IResupplyPair.pause.selector, false);
+        setOperatorPermission(address(guardian), address(core), ICore.setVoter.selector, false);
+        setOperatorPermission(address(guardian), address(voter), IVoter.cancelProposal.selector, false);
+        setOperatorPermission(address(guardian), address(voter), IVoter.updateProposalDescription.selector, false);
+        setOperatorPermission(address(guardian), address(registry), IResupplyRegistry.setAddress.selector, false);
+        setOperatorPermission(address(guardian), address(0), IResupplyPair.pause.selector, false);
 
         (pausePair, cancelProposal, updateProposalDescription, revertVoter, setRegistryAddress) = guardian.viewPermissions();
         assertEq(pausePair, false, "pausePair still set");
@@ -148,17 +162,6 @@ contract GuardianTest is Setup {
         vm.prank(_guardian);
         guardian.recoverERC20(IERC20(token));
         assertGt(IERC20(token).balanceOf(_guardian), startBalance);
-    }
-
-    function setPermission(address target, bytes4 selector, bool authorized) public {
-        vm.prank(address(core));
-        core.setOperatorPermissions(
-            address(guardian),
-            target,
-            selector,
-            authorized,
-            IAuthHook(address(0))
-        );
     }
     
 

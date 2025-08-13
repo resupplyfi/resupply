@@ -1,18 +1,16 @@
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
+import { DeploymentConfig, Protocol, Mainnet, CreateX } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { Protocol, Mainnet } from "src/Constants.sol";
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
-import { CreateX } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { IOperatorGuardian } from "src/interfaces/operators/IOperatorGuardian.sol";
 
 contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
-    IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN);
+    IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN_OLD);
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -32,7 +30,7 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         bytes memory constructorArgs = abi.encode(
             address(Protocol.CORE),
             address(Protocol.REGISTRY),
-            Constants.Mainnet.LAYERZERO_ENDPOINTV2,
+            Mainnet.LAYERZERO_ENDPOINTV2,
             address(Protocol.STABLECOIN),
             "Savings reUSD",
             "sreUSD",
@@ -54,9 +52,9 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
             address(Protocol.CORE),
             address(Protocol.REGISTRY),
             200_000,// Max additional fee: 2%
-            1_000,  // Insurance split: 10%
-            500,    // Treasury split: 5%
-            1_500   // Staked stable split: 15%
+            DeploymentConfig.FEE_SPLIT_IP,          // Insurance split: 10%
+            DeploymentConfig.FEE_SPLIT_TREASURY,    // Treasury split: 5%
+            DeploymentConfig.FEE_SPLIT_SREUSD       // Staked stable split: 15%
         ); // Stakers = remaining 70%
         bytecode = abi.encodePacked(vm.getCode("FeeDepositController.sol:FeeDepositController"), constructorArgs);
         addToBatch(

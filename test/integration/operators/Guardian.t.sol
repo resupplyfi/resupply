@@ -9,6 +9,8 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
+import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 
 contract GuardianTest is Setup {
     Guardian public guardian;

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { DeploymentConfig } from "src/Constants.sol";
 
@@ -30,6 +29,7 @@ import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 
 // Protocol Contracts
 import { IStablecoin } from "src/interfaces/IStablecoin.sol";
@@ -64,7 +64,8 @@ import { IConvexPoolManager } from "src/interfaces/convex/IConvexPoolManager.sol
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IRetentionIncentives } from "src/interfaces/IRetentionIncentives.sol";
-
+import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
+import { ITreasuryManagerUpgradeable } from "src/interfaces/ITreasuryManagerUpgradeable.sol";
 
 contract Setup is Test {
     using SafeERC20 for IERC20;
@@ -77,6 +78,7 @@ contract Setup is Test {
     IVestManager public vestManager = IVestManager(Protocol.VEST_MANAGER);
     IResupplyRegistry public registry = IResupplyRegistry(Protocol.REGISTRY);
     ITreasury public treasury = ITreasury(payable(Protocol.TREASURY));
+    ITreasuryManagerUpgradeable public treasuryManager = ITreasuryManagerUpgradeable(Protocol.OPERATOR_TREASURY_MANAGER_PROXY);
     IPermastaker public permaStaker1 = IPermastaker(Protocol.PERMA_STAKER_CONVEX);
     IPermastaker public permaStaker2 = IPermastaker(Protocol.PERMA_STAKER_YEARN);
     IStablecoin public stablecoin = IStablecoin(Protocol.STABLECOIN);
@@ -111,6 +113,7 @@ contract Setup is Test {
     address public lzEndpoint = address(Mainnet.LAYERZERO_ENDPOINTV2);
     IRetentionReceiver public retentionReceiver = IRetentionReceiver(Protocol.RETENTION_RECEIVER);
     IRetentionIncentives public retention = IRetentionIncentives(Protocol.RETENTION_INCENTIVES);
+    IBorrowLimitController public borrowLimitController = IBorrowLimitController(Protocol.BORROW_LIMIT_CONTROLLER);
 
 
     constructor() {}
@@ -119,6 +122,9 @@ contract Setup is Test {
         vm.createSelectFork(vm.envString("MAINNET_URL"));
         deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
         clearPairImplementation();
+        // This line can be removed once BASIC_VAULT_ORACLE is deployed via DeployFixes.s.sol
+        if (Protocol.BASIC_VAULT_ORACLE.code.length == 0) vm.etch(Protocol.BASIC_VAULT_ORACLE, address(new BasicVaultOracle("Basic Vault Oracle")).code);
+        
     }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){
@@ -153,7 +159,7 @@ contract Setup is Test {
                 DeploymentConfig.DEFAULT_MINT_FEE,
                 DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
-            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
         if(_pairAddress == address(0)) {
@@ -175,7 +181,7 @@ contract Setup is Test {
         address _pairAddress = deployer.deployWithDefaultConfig(
             _protocolId,
             _collateral,
-            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
         if(_pairAddress == address(0)) {
@@ -196,8 +202,8 @@ contract Setup is Test {
         address _collateral
     ) public returns(address vault, address gauge, uint256 convexPoolId){
         // default values taken from https://etherscan.io/tx/0xe1d3e1c4fef7753e5fff72dfb96861e0fec455d17ebfce04a2858b9169c462b7
-        vault = ICurveOneWayLendingFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
-            Constants.Mainnet.CRVUSD_ERC20, //borrowed token
+        vault = ICurveOneWayLendingFactory(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
+            Mainnet.CRVUSD_ERC20, //borrowed token
             _collateral,        //collateral token
             285,                //A
             2000000000000000,   //fee
@@ -212,20 +218,20 @@ contract Setup is Test {
     }
 
     function _deployAndConfigureGauge(address _vault) public returns(address gauge, uint256 convexPoolId){
-        gauge = ICurveFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
-        ICurveGaugeController gaugeController = ICurveGaugeController(Constants.Mainnet.CURVE_GAUGE_CONTROLLER);
+        gauge = ICurveFactory(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
+        ICurveGaugeController gaugeController = ICurveGaugeController(Mainnet.CURVE_GAUGE_CONTROLLER);
         // We need to put some weight on this gauge via gauge controller, so we lock some CRV
-        deal(Constants.Mainnet.CRV_ERC20, address(this), 1_000_000e18);
-        IERC20(Constants.Mainnet.CRV_ERC20).approve(Constants.Mainnet.CURVE_ESCROW, type(uint256).max);
-        ICurveEscrow(Constants.Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, block.timestamp + 200 weeks);
+        deal(Mainnet.CRV_ERC20, address(this), 1_000_000e18);
+        IERC20(Mainnet.CRV_ERC20).approve(Mainnet.CURVE_ESCROW, type(uint256).max);
+        ICurveEscrow(Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, block.timestamp + 200 weeks);
         vm.prank(gaugeController.admin());
         gaugeController.add_gauge(gauge, 1);
         gaugeController.vote_for_gauge_weights(gauge, 10_000);
 
         // Add the gauge to convex
-        IConvexPoolManager(Constants.Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
-        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
-        convexPoolId = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolLength() - 1;
+        IConvexPoolManager(Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
+        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
+        convexPoolId = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolLength() - 1;
     }
 
     function clearPairImplementation() public {

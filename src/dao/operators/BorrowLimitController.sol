@@ -20,9 +20,7 @@ contract BorrowLimitController is CoreOwnable {
     event NewBorrowRamp(address indexed pair, uint256 fromBorrow, uint256 toBorrow, uint256 endTime);
     event RampCancel(address indexed pair);
 
-    constructor(address _core) CoreOwnable(_core) {
-
-    }
+    constructor(address _core) CoreOwnable(_core) {}
 
     function cancelRamp(address _pair) external onlyOwner {
         PairBorrowLimit memory limitInfo;
@@ -112,5 +110,4 @@ contract BorrowLimitController is CoreOwnable {
         uint256 newBorrow = ((borrowDelta * dt) / 10_000) + limitInfo.prevBorrowLimit;
         return newBorrow;
     }
-
 }

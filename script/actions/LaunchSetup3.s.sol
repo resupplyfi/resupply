@@ -11,7 +11,7 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { CreateX } from "src/Constants.sol";
-import { IPrismaCore } from "src/interfaces/IPrismaCore.sol";
+import { IPrismaCore } from "src/interfaces/prisma/IPrismaCore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";

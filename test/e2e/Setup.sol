@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
-import { DeploymentConfig } from "src/Constants.sol";
+import { Protocol, Mainnet, DeploymentConfig } from "src/Constants.sol";
 
 // DAO Contracts
 import { Test } from "lib/forge-std/src/Test.sol";
@@ -39,7 +38,9 @@ import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
+import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
+import { BorrowLimitController } from "src/dao/operators/BorrowLimitController.sol";
 
 // Incentive Contracts
 import { SimpleRewardStreamer } from "src/protocol/SimpleRewardStreamer.sol";
@@ -104,6 +105,7 @@ contract Setup is Test {
     SimpleReceiver public insuranceEmissionsReceiver;
     PriceWatcher public priceWatcher;
     Swapper public defaultSwapper;
+    SwapperOdos public odosSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
     ResupplyPair public testPair;
@@ -112,6 +114,7 @@ contract Setup is Test {
     ICurveExchange public swapPoolsFrxusd;
     FeeLogger public feeLogger;
     ReusdOracle public reusdOracle;
+    BorrowLimitController public borrowLimitController;
     
     constructor() {
         _THIS = address(this);
@@ -124,12 +127,13 @@ contract Setup is Test {
         deployRewardsContracts();
         setInitialEmissionReceivers();
         deployCurvePools();
+        deployDefaultLendingPairs();
         deal(address(govToken), user1, 1_000_000 * 10 ** 18);
         vm.prank(user1);
         govToken.approve(address(staker), type(uint256).max);
 
-        frxusdToken = IERC20(address(Constants.Mainnet.FRXUSD_ERC20));
-        crvusdToken = IERC20(address(Constants.Mainnet.CRVUSD_ERC20));
+        frxusdToken = IERC20(Mainnet.FRXUSD_ERC20);
+        crvusdToken = IERC20(Mainnet.CRVUSD_ERC20);
 
         // Setup registry
         vm.startPrank(address(core));
@@ -174,8 +178,8 @@ contract Setup is Test {
             previouslyDeployedPairs,
             previouslyDeployedPairsInfo
         );
-        deal(address(Constants.Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
-        deal(address(Constants.Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
+        deal(Mainnet.CRVUSD_ERC20, address(deployer), 100e18);
+        deal(Mainnet.FRXUSD_ERC20, address(deployer), 100e18);
 
         vm.startPrank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
@@ -313,20 +317,25 @@ contract Setup is Test {
         redemptionTokens[1] = address(new MockToken('yPRISMA', 'yPRISMA'));
         redemptionTokens[2] = address(new MockToken('cvxPRISMA', 'cvxPRISMA'));
 
-        address registryAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+3);
         core = new Core(tempGov, epochLength);
+
+        // The following logic re-assigns CORE to a target address for all e2e tests
+        vm.etch(Protocol.CORE, address(core).code);
+        core = Core(Protocol.CORE);
+        vm.prank(address(core));
+        core.setVoter(address(voter));
+
         address vestManagerAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this))+4);
         govToken = new GovToken(
             address(core), 
             vestManagerAddress,
             GOV_TOKEN_INITIAL_SUPPLY,
-            Constants.Mainnet.LAYERZERO_ENDPOINTV2,
+            Mainnet.LAYERZERO_ENDPOINTV2,
             "Resupply", 
             "RSUP"
         );
-        stablecoin = new Stablecoin(address(core), Constants.Mainnet.LAYERZERO_ENDPOINTV2);
+        stablecoin = new Stablecoin(address(core), Mainnet.LAYERZERO_ENDPOINTV2);
         registry = new ResupplyRegistry(address(core), address(stablecoin), address(govToken));
-        assertEq(address(registry), registryAddress);
         staker = new GovStaker(address(core), address(registry), address(govToken), 2);
         vestManager = new VestManager(
             address(core), 
@@ -337,6 +346,8 @@ contract Setup is Test {
         assertEq(address(vestManager), vestManagerAddress);
         
         voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
+        vm.prank(address(core));
+        registry.setAddress("VOTER", address(voter));
         stakingToken = govToken;
 
         vm.prank(address(core));
@@ -354,7 +365,11 @@ contract Setup is Test {
         vm.prank(address(core));
         govToken.setMinter(address(emissionsController));
 
+        // The following logic re-assigns TREASURY to a target address for all e2e tests
         treasury = new Treasury(address(core));
+        vm.etch(Protocol.TREASURY, address(treasury).code);
+        treasury = Treasury(payable(Protocol.TREASURY));
+
         vm.prank(address(core));
         registry.setStaker(address(staker));
         permaStaker1 = new PermaStaker(address(core), address(registry), user1, address(vestManager), "Yearn");
@@ -384,9 +399,14 @@ contract Setup is Test {
         registry.setFeeDeposit(address(feeDeposit));
         vm.stopPrank();
 
-        stakedStable = new SavingsReUSD(address(core), address(registry), Constants.Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
+        stakedStable = new SavingsReUSD(address(core), address(registry), Mainnet.LAYERZERO_ENDPOINTV2, address(stablecoin), "Staked reUSD", "sreUSD", maxdistro);
         vm.prank(address(core));
         registry.setAddress("SREUSD", address(stakedStable));
+
+        borrowLimitController = new BorrowLimitController(address(core));
+        vm.prank(address(core));
+        registry.setAddress("BORROW_LIMIT_CONTROLLER", address(borrowLimitController));
+        setOperatorPermission(address(borrowLimitController), address(0), ResupplyPair.setBorrowLimit.selector, true);
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
@@ -407,7 +427,7 @@ contract Setup is Test {
                 DeploymentConfig.DEFAULT_MINT_FEE,
                 DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
             ),
-            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
         if(_pairAddress == address(0)) {
@@ -429,7 +449,7 @@ contract Setup is Test {
         address _pairAddress = deployer.deployWithDefaultConfig(
             _protocolId,
             _collateral,
-            _protocolId == 0 ? Constants.Mainnet.CONVEX_BOOSTER : address(0),
+            _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
         return ResupplyPair(_pairAddress);
@@ -437,31 +457,31 @@ contract Setup is Test {
 
     function deployDefaultLendingPairs() public{
         //curve lend
-        testPair = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD), uint256(Constants.Mainnet.CURVELEND_SDOLA_CRVUSD_ID));
-        testPair2 = deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD), uint256(Constants.Mainnet.CURVELEND_SUSDE_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_USDE_CRVUSD), uint256(Constants.Mainnet.CURVELEND_USDE_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_DEPRECATED), uint256(Constants.Mainnet.CURVELEND_TBTC_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WBTC_CRVUSD), uint256(Constants.Mainnet.CURVELEND_WBTC_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WETH_CRVUSD), uint256(Constants.Mainnet.CURVELEND_WETH_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD), uint256(Constants.Mainnet.CURVELEND_WSTETH_CRVUSD_ID));
-        deployLendingPair(0,address(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD), uint256(Constants.Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID));
+        testPair = deployLendingPair(0,Mainnet.CURVELEND_SDOLA_CRVUSD, Mainnet.CURVELEND_SDOLA_CRVUSD_ID);
+        testPair2 = deployLendingPair(0,Mainnet.CURVELEND_SUSDE_CRVUSD, Mainnet.CURVELEND_SUSDE_CRVUSD_ID);
+        deployLendingPair(0,Mainnet.CURVELEND_USDE_CRVUSD, Mainnet.CURVELEND_USDE_CRVUSD_ID);
+        deployLendingPair(0,Mainnet.CURVELEND_TBTC_CRVUSD_DEPRECATED, Mainnet.CURVELEND_TBTC_CRVUSD_ID);
+        deployLendingPair(0,Mainnet.CURVELEND_WBTC_CRVUSD, Mainnet.CURVELEND_WBTC_CRVUSD_ID);
+        deployLendingPair(0,Mainnet.CURVELEND_WETH_CRVUSD, Mainnet.CURVELEND_WETH_CRVUSD_ID);
+        deployLendingPair(0,Mainnet.CURVELEND_WSTETH_CRVUSD, Mainnet.CURVELEND_WSTETH_CRVUSD_ID);
+        deployLendingPair(0,Mainnet.CURVELEND_SFRXUSD_CRVUSD, Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID);
         
         //fraxlend
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SFRXETH_FRXUSD), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SUSDE_FRXUSD), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), uint256(0));
-        deployLendingPair(1,address(Constants.Mainnet.FRAXLEND_SCRVUSD_FRXUSD), uint256(0));
+        deployLendingPair(1,Mainnet.FRAXLEND_SFRXETH_FRXUSD, 0);
+        deployLendingPair(1,Mainnet.FRAXLEND_SUSDE_FRXUSD, 0);
+        deployLendingPair(1,Mainnet.FRAXLEND_WBTC_FRXUSD, 0);
+        deployLendingPair(1,Mainnet.FRAXLEND_SCRVUSD_FRXUSD, 0);
     }
 
     function deployCurvePools() public{
         address[] memory coins = new address[](2);
         coins[0] = address(stablecoin);
-        coins[1] = Constants.Mainnet.SCRVUSD_ERC20;
+        coins[1] = Mainnet.SCRVUSD_ERC20;
         uint8[] memory assetTypes = new uint8[](2);
         assetTypes[1] = 3; //second coin is erc4626
         bytes4[] memory methods = new bytes4[](2);
         address[] memory oracles = new address[](2);
-        address crvusdAmm = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
+        address crvusdAmm = ICurveExchange(Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
             "reUSD/scrvUSD", //name
             "reusdscrv", //symbol
             coins, //coins
@@ -476,8 +496,8 @@ contract Setup is Test {
         );
         swapPoolsCrvUsd = ICurveExchange(crvusdAmm);
 
-        coins[1] = Constants.Mainnet.SFRXUSD_ERC20;
-        address fraxAmm = ICurveExchange(Constants.Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
+        coins[1] = Mainnet.SFRXUSD_ERC20;
+        address fraxAmm = ICurveExchange(Mainnet.CURVE_STABLE_FACTORY).deploy_plain_pool(
             "reUSD/sfrxUSD", //name
             "reusdsfrx", //symbol
             coins, //coins
@@ -495,6 +515,9 @@ contract Setup is Test {
 
         //deploy swapper
         defaultSwapper = new Swapper(address(core), address(registry));
+        odosSwapper = new SwapperOdos(address(core));
+        vm.prank(address(core));
+        registry.setAddress("SWAPPER_ODOS", address(odosSwapper));
 
         //set routes
         vm.startPrank(address(core));
@@ -508,7 +531,7 @@ contract Setup is Test {
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             address(stablecoin),
-            Constants.Mainnet.SCRVUSD_ERC20,
+            Mainnet.SCRVUSD_ERC20,
             swapinfo
         );
 
@@ -518,30 +541,30 @@ contract Setup is Test {
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SCRVUSD_ERC20,
+            Mainnet.SCRVUSD_ERC20,
             address(stablecoin),
             swapinfo
         );
 
         //scrvusd withdraw to crvusd
-        swapinfo.swappool = Constants.Mainnet.SCRVUSD_ERC20;
+        swapinfo.swappool = Mainnet.SCRVUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 3;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SCRVUSD_ERC20,
-            Constants.Mainnet.CRVUSD_ERC20,
+            Mainnet.SCRVUSD_ERC20,
+            Mainnet.CRVUSD_ERC20,
             swapinfo
         );
 
         //crvusd deposit to scrvusd
-        swapinfo.swappool = Constants.Mainnet.SCRVUSD_ERC20;
+        swapinfo.swappool = Mainnet.SCRVUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 2;
         defaultSwapper.addPairing(
-            Constants.Mainnet.CRVUSD_ERC20,
-            Constants.Mainnet.SCRVUSD_ERC20,
+            Mainnet.CRVUSD_ERC20,
+            Mainnet.SCRVUSD_ERC20,
             swapinfo
         );
 
@@ -552,7 +575,7 @@ contract Setup is Test {
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
             address(stablecoin),
-            Constants.Mainnet.SFRXUSD_ERC20,
+            Mainnet.SFRXUSD_ERC20,
             swapinfo
         );
 
@@ -562,30 +585,30 @@ contract Setup is Test {
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 1;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SFRXUSD_ERC20,
+            Mainnet.SFRXUSD_ERC20,
             address(stablecoin),
             swapinfo
         );
 
         //sfrxusd withdraw to frxusd
-        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
+        swapinfo.swappool = Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 3;
         defaultSwapper.addPairing(
-            Constants.Mainnet.SFRXUSD_ERC20,
-            Constants.Mainnet.FRXUSD_ERC20,
+            Mainnet.SFRXUSD_ERC20,
+            Mainnet.FRXUSD_ERC20,
             swapinfo
         );
 
         //frxusd deposit to sfrxusd
-        swapinfo.swappool = Constants.Mainnet.SFRXUSD_ERC20;
+        swapinfo.swappool = Mainnet.SFRXUSD_ERC20;
         swapinfo.tokenInIndex = 0;
         swapinfo.tokenOutIndex = 0;
         swapinfo.swaptype = 2;
         defaultSwapper.addPairing(
-            Constants.Mainnet.FRXUSD_ERC20,
-            Constants.Mainnet.SFRXUSD_ERC20,
+            Mainnet.FRXUSD_ERC20,
+            Mainnet.SFRXUSD_ERC20,
             swapinfo
         );
 
@@ -633,8 +656,8 @@ contract Setup is Test {
         address _collateral
     ) public returns(address vault, address gauge, uint256 convexPoolId){
         // default values taken from https://etherscan.io/tx/0xe1d3e1c4fef7753e5fff72dfb96861e0fec455d17ebfce04a2858b9169c462b7
-        vault = ICurveOneWayLendingFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
-            Constants.Mainnet.CRVUSD_ERC20, //borrowed token
+        vault = ICurveOneWayLendingFactory(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).create(
+            Mainnet.CRVUSD_ERC20, //borrowed token
             _collateral,        //collateral token
             285,                //A
             2000000000000000,   //fee
@@ -649,19 +672,36 @@ contract Setup is Test {
     }
 
     function _deployAndConfigureGauge(address _vault) public returns(address gauge, uint256 convexPoolId){
-        gauge = ICurveFactory(Constants.Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
-        ICurveGaugeController gaugeController = ICurveGaugeController(Constants.Mainnet.CURVE_GAUGE_CONTROLLER);
+        gauge = ICurveFactory(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY).deploy_gauge(_vault);
+        ICurveGaugeController gaugeController = ICurveGaugeController(Mainnet.CURVE_GAUGE_CONTROLLER);
         // We need to put some weight on this gauge via gauge controller, so we lock some CRV
-        deal(Constants.Mainnet.CRV_ERC20, address(this), 1_000_000e18);
-        IERC20(Constants.Mainnet.CRV_ERC20).approve(Constants.Mainnet.CURVE_ESCROW, type(uint256).max);
-        ICurveEscrow(Constants.Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, vm.getBlockTimestamp() + 200 weeks);
+        deal(Mainnet.CRV_ERC20, address(this), 1_000_000e18);
+        IERC20(Mainnet.CRV_ERC20).approve(Mainnet.CURVE_ESCROW, type(uint256).max);
+        ICurveEscrow(Mainnet.CURVE_ESCROW).create_lock(1_000_000e18, vm.getBlockTimestamp() + 200 weeks);
         vm.prank(gaugeController.admin());
         gaugeController.add_gauge(gauge, 1);
         gaugeController.vote_for_gauge_weights(gauge, 10_000);
 
         // Add the gauge to convex
-        IConvexPoolManager(Constants.Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
-        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
-        convexPoolId = IConvexStaking(Constants.Mainnet.CONVEX_BOOSTER).poolLength() - 1;
+        IConvexPoolManager(Mainnet.CONVEX_POOL_MANAGER).addPool(gauge);
+        // (address lptoken, address token, address convexGauge, address crvRewards, address stash, bool shutdown) = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolInfo(gauge);
+        convexPoolId = IConvexStaking(Mainnet.CONVEX_BOOSTER).poolLength() - 1;
+    }
+
+    function setOperatorPermission(address operator, address target, bytes4 selector, bool authorized) public {
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            operator,
+            target,
+            selector,
+            authorized,
+            IAuthHook(address(0))
+        );
+    }
+
+    function stakeGovToken(uint256 amount) public {
+        deal(address(govToken), address(this), amount);
+        govToken.approve(address(staker), amount);
+        staker.stake(address(this), amount);
     }
 }
