@@ -10,7 +10,6 @@ import { BaseProposal } from "script/proposals/BaseProposal.sol";
 
 contract CancelProposalPermissions is BaseAction, BaseProposal {
     function run() public isBatch(deployer) {
-        voter = IVoter(Protocol.VOTER);
         IVoter.Action[] memory actions = step1();
         // IVoter.Action[] memory actions = step2();
         // IVoter.Action[] memory actions = step3();

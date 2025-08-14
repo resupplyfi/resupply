@@ -1,6 +1,5 @@
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
@@ -12,29 +11,17 @@ import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
+import { BaseProposal } from "script/proposals/BaseProposal.sol";
 
-interface IPermastakerOperator {
-    function safeExecute(address target, bytes calldata data) external;
-    function createNewProposal(IVoter.Action[] calldata actions, string calldata description) external;
-}
-
-contract LaunchSreUsd is BaseAction {
-    address public constant deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
+contract LaunchSreUsd is BaseAction, BaseProposal {
     uint256 public constant MAX_DISTRIBUTION_PER_SECOND_PER_ASSET = uint256(2e17) / 365 days; // 20% apr max distribution rate;
-    IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
-    IPermastakerOperator public constant PERMA_STAKER_OPERATOR = IPermastakerOperator(0x3419b3FfF84b5FBF6Eec061bA3f9b72809c955Bf);
-    address[] public pairs;
-    uint256 public numPairs;
 
     function run() public isBatch(deployer) {
-        pairs = registry.getAllPairAddresses();
-        numPairs = pairs.length;
-
-        IVoter.Action[] memory data = buildCalldata();
-        proposeVote(data);
+        IVoter.Action[] memory data = buildProposalCalldata();
+        proposeVote(data, "Launch sreUSD");
     }
 
-    function buildCalldata() public returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public returns (IVoter.Action[] memory actions) {
         actions = new IVoter.Action[](9 + numPairs);
         // sreUSD.setMaxDistributionPerSecondPerAsset(MAX_DISTRIBUTION_PER_SECOND_PER_ASSET)
         actions[0] = IVoter.Action({
@@ -127,16 +114,5 @@ contract LaunchSreUsd is BaseAction {
                 )
             });
         }
-    }
-
-    function proposeVote(IVoter.Action[] memory actions) public {
-        addToBatch(
-            address(PERMA_STAKER_OPERATOR),
-            abi.encodeWithSelector(
-                IPermastakerOperator.createNewProposal.selector,
-                actions,
-                "Launch sreUSD"
-            )
-        );
     }
 }

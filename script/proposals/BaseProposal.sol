@@ -16,13 +16,17 @@ interface IPermastakerOperator {
 contract BaseProposal is BaseAction {
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
     ICore public constant _core = ICore(Protocol.CORE);
-    IVoter public voter;
+    IVoter public constant voter = IVoter(Protocol.VOTER);
     address public deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
     IPermastakerOperator public constant PERMA_STAKER_OPERATOR = IPermastakerOperator(0x3419b3FfF84b5FBF6Eec061bA3f9b72809c955Bf);
     address public target;
+    address[] public pairs;
+    uint256 public numPairs;
 
     constructor() {
         target = address(PERMA_STAKER_OPERATOR);
+        pairs = registry.getAllPairAddresses();
+        numPairs = pairs.length;
     }
     
     function proposeVote(IVoter.Action[] memory actions, string memory description) public {
