@@ -69,7 +69,7 @@ abstract contract SafeHelper is Script, Test {
     // Address to send transaction from
     address private safe;
 
-    DeployMode public deployMode = DeployMode.PRODUCTION;
+    DeployMode public deployMode = DeployMode.FORK;
 
     // Gas tracking
     uint256 public totalGasUsed;

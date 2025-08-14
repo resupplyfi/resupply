@@ -25,30 +25,6 @@ contract ResupplyPairDeployerTest is Setup {
     
     function setUp() public override {
         super.setUp();
-        originalDeployer = deployer;
-        vm.prank(address(core));
-        registry.setAddress("PAIR_DEPLOYER", address(deployer));
-        (
-            address[] memory previouslyDeployedPairs, 
-            ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo
-        ) = DeployInfo.getDeployInfo();
-        deployer = IResupplyPairDeployer(address(new ResupplyPairDeployer(
-            address(core),
-            address(registry),
-            address(govToken),
-            address(deployer),
-            ResupplyPairDeployer.ConfigData({
-                oracle: address(oracle),
-                rateCalculator: address(rateCalculator),
-                maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
-                initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
-                liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
-                mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
-                protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
-            }),
-            previouslyDeployedPairs,
-            previouslyDeployedPairsInfo
-        )));
         vm.prank(address(core));
         deployer.setCreationCode(type(ResupplyPair).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
@@ -351,7 +327,7 @@ contract ResupplyPairDeployerTest is Setup {
                 _collateral,
                 address(oracle),
                 address(rateCalculator),
-                DeploymentConfig.DEFAULT_MAX_LTV, //max ltv 75%
+                DeploymentConfig.DEFAULT_MAX_LTV,
                 DeploymentConfig.DEFAULT_BORROW_LIMIT,
                 DeploymentConfig.DEFAULT_LIQ_FEE,
                 DeploymentConfig.DEFAULT_MINT_FEE,

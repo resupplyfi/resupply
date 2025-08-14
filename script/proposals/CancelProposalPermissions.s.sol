@@ -5,7 +5,6 @@ import { Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { OperatorMigrationPermissionsBuilder } from "script/proposals/data/OperatorMigrationPermissionsBuilder.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 
@@ -14,7 +13,7 @@ contract CancelProposalPermissions is BaseAction, BaseProposal {
         IVoter.Action[] memory actions = step1();
         // IVoter.Action[] memory actions = step2();
         // IVoter.Action[] memory actions = step3();
-        proposeVote(actions);
+        proposeVote(actions, "Migrate cancelProposal permission to new guardian step 2 of 3");
         uint256 proposalId = voter.getProposalCount() - 1;
 
         for (uint256 i = 0; i < actions.length; i++) {
@@ -23,6 +22,10 @@ contract CancelProposalPermissions is BaseAction, BaseProposal {
             console.log(target);
             console.logBytes(data);
             console.log("--------------------------------");
+        }
+
+        if (deployMode == DeployMode.PRODUCTION){
+            executeBatch(true);
         }
     }
 

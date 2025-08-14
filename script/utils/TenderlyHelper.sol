@@ -7,7 +7,15 @@ import {SafeHelper} from "script/utils/SafeHelper.sol";
 // All helper functions take care of setting the values in both local environment + fork environment.
 contract TenderlyHelper is SafeHelper {
 
-    string public URL = vm.envString("TENDERLY_URL");
+    string public URL;
+
+    constructor() {
+        try vm.envString("TENDERLY_URL") returns (string memory tenderlyUrl) {
+            URL = tenderlyUrl;
+        } catch {
+            URL = "";
+        }
+    }
 
     function skipTime(uint256 _seconds) public {
         vm.warp(_seconds);

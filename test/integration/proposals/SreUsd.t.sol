@@ -1,24 +1,35 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { DeploymentConfig, Protocol, Mainnet, CreateX } from "src/Constants.sol";
-import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
-import { CreateXHelper } from "script/utils/CreateXHelper.sol";
-import { console } from "lib/forge-std/src/console.sol";
+import { Protocol, DeploymentConfig, CreateX, Mainnet } from "src/Constants.sol";
+import { console } from "forge-std/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
-import { IOperatorGuardian } from "src/interfaces/operators/IOperatorGuardian.sol";
+import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
+import { PermissionHelper } from "script/utils/PermissionHelper.sol";
+import { IVoter } from "src/interfaces/IVoter.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { DeployInfo } from "script/actions/DeployFixes.s.sol";
+import { LaunchSreUsd } from "script/proposals/LaunchSreUsd.s.sol";
+import { ICreateX } from "src/interfaces/ICreateX.sol";
+import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 
-contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
-    address public constant deployer = Protocol.DEPLOYER;
-    IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN_OLD);
+contract SreUsdTest is BaseProposalTest, CreateXHelper {
+    ICreateX createX = ICreateX(CreateX.CREATEX_DEPLOYER);
+    LaunchSreUsd launchScript;
     
-    function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
-
+    function setUp() public override {
+        super.setUp();
+        launchScript = new LaunchSreUsd();
         setRegistryValues();
         deployContracts();
-
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(false);
+        console.log("Deployed contracts");
+        IVoter.Action[] memory actions = launchScript.buildProposalCalldata();
+        uint256 proposalId = createProposal(actions);
+        simulatePassingVote(proposalId);
+        executeProposal(proposalId);
     }
 
     function setRegistryValues() public {
@@ -27,8 +38,7 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         updateRegistry("SREUSD", address(Protocol.SREUSD));
     }
 
-
-    function deployContracts() public {
+     function deployContracts() public {
         // 1. Deploy SavingsReUSD
         bytes32 salt = CreateX.SALT_SREUSD;
         bytes memory constructorArgs = abi.encode(
@@ -41,11 +51,10 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
             0 // start with zero stream rate, and us gov prop to update on launch to --> uint256(2e17) / 365 days // 20% apr max distribution rate
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("sreUSD.sol:SavingsReUSD"), constructorArgs);
-        addToBatch(
-            address(CreateX.CREATEX_DEPLOYER),
-            encodeCREATE3Deployment(salt, bytecode)
-        );
-        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        vm.startPrank(Protocol.DEPLOYER);
+        createX.deployCreate3(salt, bytecode);
+
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, Protocol.DEPLOYER, true, false);
         console.log("sreUSD deployed at", predictedAddress);
         require(predictedAddress.code.length > 0, "deployment failed");
         SavingsReUSD sreUSD = SavingsReUSD(predictedAddress);
@@ -61,11 +70,8 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
             DeploymentConfig.FEE_SPLIT_SREUSD       // Staked stable split: 15%
         ); // Stakers = remaining 70%
         bytecode = abi.encodePacked(vm.getCode("FeeDepositController.sol:FeeDepositController"), constructorArgs);
-        addToBatch(
-            address(CreateX.CREATEX_DEPLOYER),
-            encodeCREATE3Deployment(salt, bytecode)
-        );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        createX.deployCreate3(salt, bytecode);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, Protocol.DEPLOYER, true, false);
         console.log("FeeDepositController deployed at", predictedAddress);
         require(predictedAddress.code.length > 0, "deployment failed");
 
@@ -81,11 +87,8 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
             address(Protocol.IP_STABLE_STREAM)
         );
         bytecode = abi.encodePacked(vm.getCode("RewardHandler.sol:RewardHandler"), constructorArgs);
-        addToBatch(
-            address(CreateX.CREATEX_DEPLOYER),
-            encodeCREATE3Deployment(salt, bytecode)
-        );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        createX.deployCreate3(salt, bytecode);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, Protocol.DEPLOYER, true, false);
         console.log("RewardHandler deployed at", predictedAddress);
         require(predictedAddress.code.length > 0, "deployment failed");
 
@@ -96,11 +99,8 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         );
         salt = CreateX.SALT_PRICE_WATCHER;
         bytecode = abi.encodePacked(vm.getCode("PriceWatcher.sol:PriceWatcher"), constructorArgs);
-        addToBatch(
-            address(CreateX.CREATEX_DEPLOYER),
-            encodeCREATE3Deployment(salt, bytecode)
-        );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        createX.deployCreate3(salt, bytecode);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, Protocol.DEPLOYER, true, false);
         console.log("PriceWatcher deployed at", predictedAddress);
         require(predictedAddress.code.length > 0, "deployment failed");
 
@@ -114,11 +114,8 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
             address(Protocol.PRICE_WATCHER) // price watcher
         );
         bytecode = abi.encodePacked(vm.getCode("InterestRateCalculatorV2.sol:InterestRateCalculatorV2"), constructorArgs);
-        addToBatch(
-            address(CreateX.CREATEX_DEPLOYER),
-            encodeCREATE3Deployment(salt, bytecode)
-        );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        createX.deployCreate3(salt, bytecode);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, Protocol.DEPLOYER, true, false);
         console.log("InterestRateCalculatorV2 deployed at", predictedAddress);
 
         // 6. Deploy FeeLogger
@@ -128,23 +125,16 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
             address(Protocol.REGISTRY)
         );
         bytecode = abi.encodePacked(vm.getCode("FeeLogger.sol:FeeLogger"), constructorArgs);
-        addToBatch(
-            address(CreateX.CREATEX_DEPLOYER),
-            encodeCREATE3Deployment(salt, bytecode)
-        );
-        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        createX.deployCreate3(salt, bytecode);
+        predictedAddress = computeCreate3AddressFromSaltPreimage(salt, Protocol.DEPLOYER, true, false);
         console.log("FeeLogger deployed at", predictedAddress);
         require(predictedAddress.code.length > 0, "deployment failed");
+        vm.stopPrank();
     }
 
     function updateRegistry(string memory key, address value) public {
-        addToBatch(
-            address(guardianOperator),
-            abi.encodeWithSelector(
-                IOperatorGuardian.setRegistryAddress.selector,
-                key,
-                value
-            )
-        );
+        vm.startPrank(address(core));
+        registry.setAddress(key, value);
+        vm.stopPrank();
     }
 }
