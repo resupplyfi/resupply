@@ -84,7 +84,7 @@ contract Setup is Test {
     IStablecoin public stablecoin = IStablecoin(Protocol.STABLECOIN);
     IBasicVaultOracle public oracle = IBasicVaultOracle(Protocol.BASIC_VAULT_ORACLE);
     IUnderlyingOracle public underlyingoracle = IUnderlyingOracle(Protocol.UNDERLYING_ORACLE);
-    IInterestRateCalculator public rateCalculator = IInterestRateCalculator(Protocol.INTEREST_RATE_CALCULATOR);
+    IInterestRateCalculator public rateCalculator = IInterestRateCalculator(Protocol.INTEREST_RATE_CALCULATOR_V2);
     IResupplyPairDeployer public deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     IRedemptionHandler public redemptionHandler = IRedemptionHandler(Protocol.REDEMPTION_HANDLER);
     ILiquidationHandler public liquidationHandler = ILiquidationHandler(Protocol.LIQUIDATION_HANDLER);

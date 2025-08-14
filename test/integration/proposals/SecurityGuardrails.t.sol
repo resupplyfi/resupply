@@ -18,7 +18,7 @@ contract SecurityGuardrailsTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
-        _deployPairDeployer();
+        // _deployPairDeployer();
         script = new LaunchSecurityGuardrails();
         IVoter.Action[] memory actions = script.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);

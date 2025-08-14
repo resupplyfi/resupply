@@ -24,7 +24,7 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
         // Get the calldata for the proposal
         IVoter.Action[] memory actions = buildProposalCalldata();
         // Propose vote via permsataker
-        proposeVote(actions);
+        proposeVote(actions, "Migrate Operators and Permissions");
         uint256 proposalId = voter.getProposalCount() - 1;
 
         for (uint256 i = 0; i < actions.length; i++) {
