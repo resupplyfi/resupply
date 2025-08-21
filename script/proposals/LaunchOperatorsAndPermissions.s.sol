@@ -34,6 +34,11 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
             console.logBytes(data);
             console.log("--------------------------------");
         }
+
+        deployMode = DeployMode.PRODUCTION;
+        if (deployMode == DeployMode.PRODUCTION){
+            executeBatch(true);
+        }
     }
 
     function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
@@ -84,7 +89,6 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), ISwapperOdos.revokeApprovals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.CORE, ICore.setVoter.selector, true);
 
         // Treasury Manager Proxy
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_PROXY, Protocol.TREASURY, ITreasury.retrieveToken.selector, true);
@@ -117,6 +121,7 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_TREASURY_MANAGER_OLD, Prisma.FEE_RECEIVER, IPrismaFeeReceiver.setTokenApproval.selector, false);
 
         // Other
+        permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.CORE, ICore.setVoter.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.VEST_MANAGER, IVestManager.setLockPenaltyMerkleRoot.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.VOTER_DEPRECATED_3, IVoter.updateProposalDescription.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, false);

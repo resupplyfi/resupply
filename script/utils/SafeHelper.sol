@@ -165,11 +165,14 @@ abstract contract SafeHelper is Script, Test {
         uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
         // Check if adding this transaction would exceed our max gas limit. If so create a new batch.
         if (gasInCurrentBatch + gasUsed > maxGasPerBatch) {
-            currentBatchIndex++;
-            batches.push(BatchData({
-                encodedTxns: new bytes[](0),
-                totalGas: 0
-            }));
+            // Only create a new batch if the current one has transactions
+            if (batches[currentBatchIndex].encodedTxns.length > 0) {
+                currentBatchIndex++;
+                batches.push(BatchData({
+                    encodedTxns: new bytes[](0),
+                    totalGas: 0
+                }));
+            }
         }
 
         // Encode the transaction and add it to the current batch

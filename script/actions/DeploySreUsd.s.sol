@@ -7,18 +7,22 @@ import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { IOperatorGuardian } from "src/interfaces/operators/IOperatorGuardian.sol";
+import { IOperatorTreasuryManager } from "src/interfaces/operators/IOperatorTreasuryManager.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     IOperatorGuardian public guardianOperator = IOperatorGuardian(Protocol.OPERATOR_GUARDIAN_OLD);
     
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
 
         setRegistryValues();
         deployContracts();
+        depositAndSendYield();
 
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(false);
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 113);
     }
 
     function setRegistryValues() public {
@@ -27,15 +31,50 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         updateRegistry("SREUSD", address(Protocol.SREUSD));
     }
 
+    function depositAndSendYield() public {
+        // Approve reusd to sreusd
+        addToBatch(
+            address(Protocol.STABLECOIN),
+            abi.encodeWithSelector(
+                IERC20.approve.selector,
+                address(Protocol.SREUSD),
+                type(uint256).max
+            )
+        );
+        // Pull 1e18 of reusd from treasury
+        addToBatch(
+            address(Protocol.OPERATOR_TREASURY_MANAGER_OLD),
+            abi.encodeWithSelector(
+                IOperatorTreasuryManager.retrieveTokenExact.selector,
+                Protocol.STABLECOIN,
+                Protocol.DEPLOYER,
+                1e18
+            )
+        );
+        // Deposit 1e18 of reusd to sreusd, and burn share
+        addToBatch(
+            Protocol.SREUSD,
+            abi.encodeWithSelector(
+                IERC4626.deposit.selector,
+                1e18,
+                address(0)
+            )
+        );
+        uint256 balance = IERC20(Protocol.STABLECOIN).balanceOf(address(Protocol.SREUSD));
+        require(balance == 1e18, "reusd not sent to sreusd");
+        balance = IERC20(Protocol.SREUSD).balanceOf(address(0));
+        require(balance == 1e18, "reusd not sent to sreusd");
+    }
+
 
     function deployContracts() public {
         // 1. Deploy SavingsReUSD
         bytes32 salt = CreateX.SALT_SREUSD;
         bytes memory constructorArgs = abi.encode(
-            address(Protocol.CORE),
-            address(Protocol.REGISTRY),
+            Protocol.CORE,
+            Protocol.REGISTRY,
             Mainnet.LAYERZERO_ENDPOINTV2,
-            address(Protocol.STABLECOIN),
+            Protocol.STABLECOIN,
             "Savings reUSD",
             "sreUSD",
             0 // start with zero stream rate, and us gov prop to update on launch to --> uint256(2e17) / 365 days // 20% apr max distribution rate
@@ -53,8 +92,8 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         // 2. Deploy FeeDepositController
         salt = CreateX.SALT_FEE_DEPOSIT_CONTROLLER;
         constructorArgs = abi.encode(
-            address(Protocol.CORE),
-            address(Protocol.REGISTRY),
+            Protocol.CORE,
+            Protocol.REGISTRY,
             200_000,// Max additional fee: 2%
             DeploymentConfig.FEE_SPLIT_IP,          // Insurance split: 10%
             DeploymentConfig.FEE_SPLIT_TREASURY,    // Treasury split: 5%
@@ -72,13 +111,13 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         // 3. Deploy RewardHandler
         salt = CreateX.SALT_REWARD_HANDLER;
         constructorArgs = abi.encode(
-            address(Protocol.CORE),
-            address(Protocol.REGISTRY),
-            address(Protocol.INSURANCE_POOL),
-            address(Protocol.DEBT_RECEIVER),
-            address(Protocol.EMISSIONS_STREAM_PAIR),
-            address(Protocol.EMISSION_STREAM_INSURANCE_POOL),
-            address(Protocol.IP_STABLE_STREAM)
+            Protocol.CORE,
+            Protocol.REGISTRY,
+            Protocol.INSURANCE_POOL,
+            Protocol.DEBT_RECEIVER,
+            Protocol.EMISSIONS_STREAM_PAIR,
+            Protocol.EMISSION_STREAM_INSURANCE_POOL,
+            Protocol.IP_STABLE_STREAM
         );
         bytecode = abi.encodePacked(vm.getCode("RewardHandler.sol:RewardHandler"), constructorArgs);
         addToBatch(
@@ -92,7 +131,7 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         // 4. Deploy PriceWatcher
         salt = CreateX.SALT_PRICE_WATCHER;
         constructorArgs = abi.encode(
-            address(Protocol.REGISTRY)
+            Protocol.REGISTRY
         );
         salt = CreateX.SALT_PRICE_WATCHER;
         bytecode = abi.encodePacked(vm.getCode("PriceWatcher.sol:PriceWatcher"), constructorArgs);
@@ -124,8 +163,8 @@ contract DeploySreUsd is TenderlyHelper, CreateXHelper, BaseAction {
         // 6. Deploy FeeLogger
         salt = CreateX.SALT_FEE_LOGGER;
         constructorArgs = abi.encode(
-            address(Protocol.CORE),
-            address(Protocol.REGISTRY)
+            Protocol.CORE,
+            Protocol.REGISTRY
         );
         bytecode = abi.encodePacked(vm.getCode("FeeLogger.sol:FeeLogger"), constructorArgs);
         addToBatch(

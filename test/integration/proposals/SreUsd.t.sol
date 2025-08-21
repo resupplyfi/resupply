@@ -23,8 +23,8 @@ contract SreUsdTest is BaseProposalTest, CreateXHelper {
     function setUp() public override {
         super.setUp();
         launchScript = new LaunchSreUsd();
-        setRegistryValues();
-        deployContracts();
+        // setRegistryValues();
+        // deployContracts();
         console.log("Deployed contracts");
         IVoter.Action[] memory actions = launchScript.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);
