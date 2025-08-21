@@ -10,6 +10,7 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { ResupplyPairImplementation } from "src/protocol/ResupplyPairImplementation.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 
 contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
@@ -35,7 +36,7 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 549);
     }
 
-    function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public returns (IVoter.Action[] memory actions) {
         // Set code in new and old pair deployers
         IVoter.Action[] memory pairDeployerActions = buildPairDeployerCalldata();
         // Update permissions for the new operators
@@ -52,22 +53,18 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
         return actions;
     }
 
-    function buildPairDeployerCalldata() internal view returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](2);
-        // Clear code from the deprecated pair deployer
+    function buildPairDeployerCalldata() internal returns (IVoter.Action[] memory actions) {
+        actions = new IVoter.Action[](1);
+        
+        // Deploy new implementation contract
+        ResupplyPairImplementation newImplementation = new ResupplyPairImplementation();
+        
+        // Set new implementation for the pair deployer
         actions[0] = IVoter.Action({
-            target: Protocol.PAIR_DEPLOYER_V1,
-            data: abi.encodeWithSelector(
-                IResupplyPairDeployer.setCreationCode.selector,
-                new bytes(0)
-            )
-        });
-        // Set new code for the new pair deployer
-        actions[1] = IVoter.Action({
             target: Protocol.PAIR_DEPLOYER_V2,
             data: abi.encodeWithSelector(
-                IResupplyPairDeployer.setCreationCode.selector,
-                type(ResupplyPair).creationCode
+                IResupplyPairDeployer.setImplementation.selector,
+                address(newImplementation)
             )
         });
     }

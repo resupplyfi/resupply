@@ -12,8 +12,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { CoreOwnable } from "src/dependencies/CoreOwnable.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { SSTORE2 } from "@rari-capital/solmate/src/utils/SSTORE2.sol";
-import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
+import { IResupplyPairImplementation } from "src/interfaces/IResupplyPairImplementation.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployerDeprecated } from "src/interfaces/IResupplyPairDeployerDeprecated.sol";
@@ -22,8 +21,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     using Strings for uint256;
     using SafeERC20 for IERC20;
 
-    address public contractAddress1;
-    address public contractAddress2;
+    address public implementation;
     Protocol[] public supportedProtocols;
     mapping(address => bool) public approvedDeployers;
     mapping(address => DeployInfo) public deployInfo;
@@ -106,6 +104,7 @@ contract ResupplyPairDeployer is CoreOwnable {
 
     event ApprovedDeployerSet(address indexed _deployer, bool _approved);
     event StateMigrated(address indexed _previousPairDeployer);
+    event ImplementationUpdated(address indexed _implementation);
 
     modifier onlyApprovedDeployers() {
         if(
@@ -120,6 +119,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         address _registry, 
         address _govToken, 
         address _initialDeployer,
+        address _implementation,
         ConfigData memory _defaultConfigData,
         address[] memory _previouslyDeployedPairs,
         DeployInfo[] memory _previouslyDeployedPairsInfo
@@ -127,6 +127,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         require(_previouslyDeployedPairs.length == _previouslyDeployedPairsInfo.length, "lengths must match");
         registry = _registry;
         govToken = _govToken;
+        implementation = _implementation;
         _setApprovedDeployer(_initialDeployer, true);
         // Set default config data
         _setDefaultConfigData(
@@ -220,20 +221,13 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Functions: Setters
     // ============================================================================================
 
-    /// @notice The ```setCreationCode``` function sets the bytecode for the ResupplyPair
-    /// @dev splits the data if necessary to accommodate creation code that is slightly larger than 13kb
-    /// @param _creationCode The creationCode for the Resupply Pair
-    function setCreationCode(bytes calldata _creationCode) external onlyOwner{
-        // If the creation code is larger than 13kb, split it into two parts
-        if (_creationCode.length > 13_000) {
-            bytes memory _firstHalf = BytesLib.slice(_creationCode, 0, 13_000);
-            bytes memory _secondHalf = BytesLib.slice(_creationCode, 13_000, _creationCode.length - 13_000);
-            contractAddress1 = SSTORE2.write(_firstHalf);
-            contractAddress2 = SSTORE2.write(_secondHalf);
-        }else{
-            contractAddress1 = SSTORE2.write(_creationCode);
-            contractAddress2 = address(0);
-        }
+    /// @notice The ```setImplementation``` function sets the implementation contract for ResupplyPair deployment
+    /// @param _implementation The address of the ResupplyPairImplementation contract
+    function setImplementation(address _implementation) external onlyOwner {
+        require(_implementation != address(0), "Invalid implementation");
+        require(_implementation.code.length > 0, "Implementation has no code");
+        implementation = _implementation;
+        emit ImplementationUpdated(_implementation);
     }
 
     /// @notice The `setDefaultConfigData` function sets the default configuration data for deployments
@@ -433,11 +427,7 @@ contract ResupplyPairDeployer is CoreOwnable {
         bytes memory _immutables = abi.encode(registry);
         bytes memory _customConfigData = abi.encode(_name, govToken, _underlyingStaking, _underlyingStakingId);
 
-        bytes memory _creationCode = SSTORE2.read(contractAddress1);
-        address _contractAddress2 = contractAddress2;
-        if (_contractAddress2 != address(0)) {
-            _creationCode = BytesLib.concat(_creationCode, SSTORE2.read(_contractAddress2));
-        }
+        bytes memory _creationCode = IResupplyPairImplementation(implementation).getCreationCode();
 
         bytes memory bytecode = abi.encodePacked(
             _creationCode,
@@ -482,8 +472,7 @@ contract ResupplyPairDeployer is CoreOwnable {
     // Migrate state from previous pair deployer
     function _migrateState(address _previousPairDeployer, address[] memory _previouslyDeployedPairs, DeployInfo[] memory _previouslyDeployedPairsInfo) internal {
         IResupplyPairDeployerDeprecated _deployer = IResupplyPairDeployerDeprecated(_previousPairDeployer);
-        contractAddress1 = _deployer.contractAddress1();
-        contractAddress2 = _deployer.contractAddress2();
+        // Note: implementation address should be set in constructor, not migrated
         uint256 i = 0;
         // Migrate supported protocols
         while(true) {
@@ -599,10 +588,7 @@ contract ResupplyPairDeployer is CoreOwnable {
             _underlyingStaking,
             _underlyingStakingId
         );
-        bytes memory creationCode = SSTORE2.read(contractAddress1);
-        if (contractAddress2 != address(0)) {
-            creationCode = BytesLib.concat(creationCode, SSTORE2.read(contractAddress2));
-        }
+        bytes memory creationCode = IResupplyPairImplementation(implementation).getCreationCode();
         bytes memory bytecode = abi.encodePacked(
             creationCode,
             abi.encode(core, _configData, _immutables, _customConfigData)

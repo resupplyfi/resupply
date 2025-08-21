@@ -30,6 +30,7 @@ import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
+import { ResupplyPairImplementation } from "src/protocol/ResupplyPairImplementation.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
@@ -161,11 +162,16 @@ contract Setup is Test {
         underlyingoracle = new UnderlyingOracle("Underlying Token Oracle");
         address[] memory previouslyDeployedPairs;
         ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo;
+        
+        // Deploy implementation contract
+        ResupplyPairImplementation implementation = new ResupplyPairImplementation();
+        
         deployer = new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
             address(core),
+            address(implementation),
             ResupplyPairDeployer.ConfigData({
                 oracle: address(oracle),
                 rateCalculator: address(rateCalculator),
@@ -182,7 +188,7 @@ contract Setup is Test {
         deal(Mainnet.FRXUSD_ERC20, address(deployer), 100e18);
 
         vm.startPrank(address(core));
-        deployer.setCreationCode(type(ResupplyPair).creationCode);
+        // Implementation is already set in constructor
         deployer.addSupportedProtocol(
             "CurveLend",
             1e18,

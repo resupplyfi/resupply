@@ -37,6 +37,7 @@ interface IResupplyPairDeployer {
     event OperatorSet(address indexed _operator, bool _approved); // deprecated
     event ApprovedDeployerSet(address indexed _deployer, bool _approved);
     event StateMigrated(address indexed _previousPairDeployer);
+    event ImplementationUpdated(address indexed _implementation);
 
     function operators(address) external view returns (bool); // deprecated
     
@@ -58,9 +59,7 @@ interface IResupplyPairDeployer {
         address collateralToken
     ) external view returns (uint256 id);
 
-    function contractAddress1() external view returns (address);
-
-    function contractAddress2() external view returns (address);
+    function implementation() external view returns (address);
 
     function core() external view returns (address);
 
@@ -118,7 +117,7 @@ interface IResupplyPairDeployer {
 
     function deployInfo(address _pairAddress) external view returns (uint40 protocolId, uint40 deployTime);
 
-    function setCreationCode(bytes memory _creationCode) external;
+    function setImplementation(address _implementation) external;
 
     function supportedProtocols(uint256)
         external

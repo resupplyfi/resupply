@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {Protocol, Mainnet, DeploymentConfig} from "src/Constants.sol";
 import {Test} from "forge-std/Test.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
+import {ResupplyPairImplementation} from "src/protocol/ResupplyPairImplementation.sol";
 import {Setup} from "test/integration/Setup.sol";
 import {console2} from "forge-std/console2.sol";
 import {console} from "lib/forge-std/src/console.sol";
@@ -25,18 +26,21 @@ contract ResupplyPairDeployerTest is Setup {
     
     function setUp() public override {
         super.setUp();
-        vm.prank(address(core));
-        deployer.setCreationCode(type(ResupplyPair).creationCode);
+        // Implementation is already set during deployer construction in Setup.sol
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
     }
 
     function test_StateDoesntMigrate() public {
+        // Deploy implementation contract
+        ResupplyPairImplementation implementation = new ResupplyPairImplementation();
+        
         deployer = IResupplyPairDeployer(address(new ResupplyPairDeployer(
             address(core),
             address(registry),
             address(govToken),
             address(deployer),
+            address(implementation),
             ResupplyPairDeployer.ConfigData({
                 oracle: address(oracle),
                 rateCalculator: address(rateCalculator),

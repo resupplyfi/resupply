@@ -158,7 +158,16 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function configurationStep1() public {
-        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
+        // Set oracle and rate calculator in default config (implementation already set during deployment)
+        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setDefaultConfigData.selector, 
+            address(oracle),
+            address(rateCalculator), 
+            80000, // 80% maxLTV
+            defaultBorrowLimit,
+            10000, // 10% liquidationFee
+            100, // 0.1% mintFee
+            1e17 // 10% protocolRedemptionFee
+        ));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setStaker.selector, address(staker)));

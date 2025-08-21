@@ -10,6 +10,7 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
+import { ResupplyPairImplementation } from "src/protocol/ResupplyPairImplementation.sol";
 import { DeployInfo } from "script/actions/DeployFixes.s.sol";
 import { LaunchSecurityGuardrails } from "script/proposals/LaunchSecurityGuardrails.s.sol";
 
@@ -27,11 +28,11 @@ contract SecurityGuardrailsTest is BaseProposalTest {
     }
     
     function test_DeployerCodeSet() public {
-        bytes memory code = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V1).contractAddress1().code;
-        assertLt(code.length, 2);
         IResupplyPairDeployer deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
-        assertGt(deployer.contractAddress1().code.length, 2);
-        assertGt(deployer.contractAddress2().code.length, 2);
+        // Check that implementation is set and has code
+        address implementation = deployer.implementation();
+        assertGt(implementation.code.length, 2, "Implementation should have code");
+        assertNotEq(implementation, address(0), "Implementation should not be zero address");
     }
 
     function test_OracleSetToZero() public {
@@ -72,11 +73,15 @@ contract SecurityGuardrailsTest is BaseProposalTest {
             mintFee: DeploymentConfig.DEFAULT_MINT_FEE,
             protocolRedemptionFee: DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
         });
+        // Deploy implementation contract
+        ResupplyPairImplementation implementation = new ResupplyPairImplementation();
+        
         ResupplyPairDeployer deployer = new ResupplyPairDeployer(
             Protocol.CORE,
             Protocol.REGISTRY,
             Protocol.GOV_TOKEN,
             Protocol.DEPLOYER,
+            address(implementation),
             configData,
             previouslyDeployedPairs,
             previouslyDeployedPairsInfo

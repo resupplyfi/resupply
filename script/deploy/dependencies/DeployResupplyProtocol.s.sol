@@ -3,6 +3,7 @@ import { DeploymentConfig } from "src/Constants.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { ResupplyPairImplementation } from "src/protocol/ResupplyPairImplementation.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
@@ -23,13 +24,39 @@ contract DeployResupplyProtocol is BaseDeploy {
 
     function deployProtocolContracts() public {
         // ============================================
+        // ======= Deploy ResupplyPairImplementation ==
+        // ============================================
+        ResupplyPairImplementation implementation = new ResupplyPairImplementation();
+        console.log("ResupplyPairImplementation deployed at:", address(implementation));
+        
+        // ============================================
         // ======= Deploy ResupplyPairDeployer ========
         // ============================================
+        
+        // Prepare default config data
+        ResupplyPairDeployer.ConfigData memory defaultConfigData = ResupplyPairDeployer.ConfigData({
+            oracle: address(0), // Will be set later in configurationStep1
+            rateCalculator: address(0), // Will be set later in configurationStep1
+            maxLTV: 80000, // 80%
+            initialBorrowLimit: defaultBorrowLimit,
+            liquidationFee: 10000, // 10%
+            mintFee: 100, // 0.1%
+            protocolRedemptionFee: 1e17 // 10%
+        });
+        
+        // Empty arrays for migration (no previous pairs)
+        address[] memory previouslyDeployedPairs = new address[](0);
+        ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo = new ResupplyPairDeployer.DeployInfo[](0);
+        
         bytes memory constructorArgs = abi.encode(
             address(core),
             address(registry),
             address(govToken),
-            deployer
+            deployer,
+            address(implementation),
+            defaultConfigData,
+            previouslyDeployedPairs,
+            previouslyDeployedPairsInfo
         );
         bytes memory bytecode = abi.encodePacked(vm.getCode("ResupplyPairDeployer.sol:ResupplyPairDeployer"), constructorArgs);
         bytes32 salt = CreateX.SALT_PAIR_DEPLOYER_V2;

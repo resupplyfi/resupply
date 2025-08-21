@@ -236,7 +236,8 @@ contract Setup is Test {
 
     function clearPairImplementation() public {
         vm.startPrank(address(core));
-        deployer.setCreationCode(hex"");
+        // Deploy empty implementation contract for testing
+        deployer.setImplementation(address(0x1)); // Use dummy address to clear implementation
         vm.stopPrank();
     }
 }

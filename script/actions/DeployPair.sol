@@ -6,6 +6,7 @@ import { DeploymentConfig } from "src/Constants.sol";
 import { Protocol, VMConstants } from "src/Constants.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { ResupplyPairImplementation } from "src/protocol/ResupplyPairImplementation.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ICurvePool } from "src/interfaces/curve/ICurvePool.sol";
@@ -58,7 +59,13 @@ contract DeployPair is BaseAction {
 
     function updatePairImplementation() public{
         console.log("\n*** updating implementation...");
-        _executeCore(Protocol.PAIR_DEPLOYER_V2, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
+        
+        // Deploy new implementation contract
+        ResupplyPairImplementation newImplementation = new ResupplyPairImplementation();
+        console.log("New ResupplyPairImplementation deployed at:", address(newImplementation));
+        
+        // Update pair deployer to use new implementation
+        _executeCore(Protocol.PAIR_DEPLOYER_V2, abi.encodeWithSelector(ResupplyPairDeployer.setImplementation.selector, address(newImplementation)));
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){

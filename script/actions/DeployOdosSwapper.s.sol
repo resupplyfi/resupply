@@ -11,6 +11,7 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { ResupplyPairImplementation } from "src/protocol/ResupplyPairImplementation.sol";
 
 contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -81,7 +82,12 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     }
 
     function updatePairImplementation() public{
-        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
+        // Deploy new implementation contract
+        ResupplyPairImplementation newImplementation = new ResupplyPairImplementation();
+        console.log("New ResupplyPairImplementation deployed at:", address(newImplementation));
+        
+        // Update pair deployer to use new implementation
+        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setImplementation.selector, address(newImplementation)));
         console.log("Pair implementation updated");
     }
 }
