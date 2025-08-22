@@ -29,6 +29,10 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
             console.logBytes(data);
             console.log("--------------------------------");
         }
+
+        maxGasPerBatch = type(uint256).max;
+        deployMode = DeployMode.PRODUCTION;
+        if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 549);
     }
 
     function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
@@ -39,20 +43,12 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
         // Build all calldata for oracle update
         IVoter.Action[] memory oracleActions = buildOracleUpdateCalldata();
         // Merge all actions into a single array
-        IVoter.Action[] memory actions = new IVoter.Action[](pairDeployerActions.length + permissionUpdateActions.length + oracleActions.length + 1);
+        IVoter.Action[] memory actions = new IVoter.Action[](pairDeployerActions.length + permissionUpdateActions.length + oracleActions.length);
         uint256 actionIndex = 0;
         for (uint256 i = 0; i < pairDeployerActions.length; i++) actions[actionIndex++] = pairDeployerActions[i];
         for (uint256 i = 0; i < permissionUpdateActions.length; i++) actions[actionIndex++] = permissionUpdateActions[i];
         for (uint256 i = 0; i < oracleActions.length; i++) actions[actionIndex++] = oracleActions[i];
 
-        // Set oracle to 0x0 to break crvUSD/wstUR pair
-        actions[actionIndex] = IVoter.Action({
-            target: Protocol.PAIR_CURVELEND_WSTUR_CRVUSD, // crvUSD/wstUR pair
-            data: abi.encodeWithSelector(
-                IResupplyPair.setOracle.selector,
-                address(0)
-            )
-        });
         return actions;
     }
 
@@ -81,12 +77,18 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
         uint256 numPairs = pairs.length;
         // Oracle updates for all pairs
         IVoter.Action[] memory oracleActions = new IVoter.Action[](numPairs);
+        address oracle;
         for (uint256 i = 0; i < numPairs; i++) {
+            if (pairs[i] == Protocol.PAIR_CURVELEND_WSTUR_CRVUSD) {
+                oracle = address(0);
+            } else {
+                oracle = Protocol.BASIC_VAULT_ORACLE;
+            }
             oracleActions[i] = IVoter.Action({
                 target: pairs[i],
                 data: abi.encodeWithSelector(
                     IResupplyPair.setOracle.selector,
-                    Protocol.BASIC_VAULT_ORACLE
+                    oracle
                 )
             });
         }

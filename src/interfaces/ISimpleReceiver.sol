@@ -15,4 +15,6 @@ interface ISimpleReceiver {
     function setApprovedClaimer(address claimer, bool approved) external;
 
     function owner() external view returns(address);
+
+    function approvedClaimers(address claimer) external view returns (bool);
 }

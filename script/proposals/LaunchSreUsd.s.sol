@@ -19,6 +19,11 @@ contract LaunchSreUsd is BaseAction, BaseProposal {
     function run() public isBatch(deployer) {
         IVoter.Action[] memory data = buildProposalCalldata();
         proposeVote(data, "Launch sreUSD");
+
+        deployMode = DeployMode.PRODUCTION;
+        if (deployMode == DeployMode.PRODUCTION) {
+            executeBatch(true);
+        }
     }
 
     function buildProposalCalldata() public returns (IVoter.Action[] memory actions) {

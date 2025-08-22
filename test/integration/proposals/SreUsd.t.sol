@@ -15,6 +15,10 @@ import { DeployInfo } from "script/actions/DeployFixes.s.sol";
 import { LaunchSreUsd } from "script/proposals/LaunchSreUsd.s.sol";
 import { ICreateX } from "src/interfaces/ICreateX.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
+import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
+import { IGovStaker } from "src/interfaces/IGovStaker.sol";
+import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculatorV2.sol";
 
 contract SreUsdTest is BaseProposalTest, CreateXHelper {
     ICreateX createX = ICreateX(CreateX.CREATEX_DEPLOYER);
@@ -23,13 +27,45 @@ contract SreUsdTest is BaseProposalTest, CreateXHelper {
     function setUp() public override {
         super.setUp();
         launchScript = new LaunchSreUsd();
-        setRegistryValues();
-        deployContracts();
+        // setRegistryValues();
+        // deployContracts();
         console.log("Deployed contracts");
         IVoter.Action[] memory actions = launchScript.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);
         simulatePassingVote(proposalId);
         executeProposal(proposalId);
+    }
+
+    function test_sreUsdMaxDistributionRate() public view {
+        SavingsReUSD sreUSD = SavingsReUSD(Protocol.SREUSD);
+        uint256 expectedRate = uint256(2e17) / 365 days;
+        assertEq(sreUSD.maxDistributionPerSecondPerAsset(), expectedRate);
+    }
+
+    function test_feeDepositOperatorUpdated() public view {
+        assertEq(IFeeDeposit(Protocol.FEE_DEPOSIT).operator(), Protocol.FEE_DEPOSIT_CONTROLLER);
+    }
+
+    function test_rewardHandlerApprovals() public view {
+        assertEq(ISimpleReceiver(Protocol.DEBT_RECEIVER).approvedClaimers(Protocol.REWARD_HANDLER_OLD), false);
+        assertEq(ISimpleReceiver(Protocol.DEBT_RECEIVER).approvedClaimers(Protocol.REWARD_HANDLER), true);
+        assertEq(ISimpleReceiver(Protocol.INSURANCE_POOL_RECEIVER).approvedClaimers(Protocol.REWARD_HANDLER_OLD), false);
+        assertEq(ISimpleReceiver(Protocol.INSURANCE_POOL_RECEIVER).approvedClaimers(Protocol.REWARD_HANDLER), true);
+    }
+
+    function test_registryRewardHandlerUpdated() public view {
+        assertEq(IResupplyRegistry(Protocol.REGISTRY).rewardHandler(), Protocol.REWARD_HANDLER);
+    }
+
+    function test_govStakerRewardsDistributor() public view {
+        IGovStaker.Reward memory reward = IGovStaker(Protocol.GOV_STAKER).rewardData(Protocol.STABLECOIN);
+        assertEq(reward.rewardsDistributor, Protocol.REWARD_HANDLER);
+    }
+
+    function test_pairRateCalculatorUpdated() public view {
+        for (uint256 i = 0; i < pairs.length; i++) {
+            assertEq(IResupplyPair(pairs[i]).rateCalculator(), Protocol.INTEREST_RATE_CALCULATOR_V2);
+        }
     }
 
     function setRegistryValues() public {

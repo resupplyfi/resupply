@@ -517,6 +517,120 @@
           "0x10101010E0C3171D894B71B3400668aF311e7D94"
         ]
       }
+    },
+    {
+      "name": "SavingsReUSD",
+      "address": "0x557AB1e003951A73c12D16F0fEA8490E39C33C35",
+      "constructorArgs": {
+        "types": [
+          "address",
+          "address",
+          "address",
+          "address",
+          "string",
+          "string",
+          "uint256"
+        ],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x1a44076050125825900e736c501f859c50fE728c",
+          "0x57aB1E0003F623289CD798B1824Be09a793e4Bec",
+          "Savings reUSD",
+          "sreUSD",
+          0
+        ]
+      }
+    },
+    {
+      "name": "FeeDepositController",
+      "address": "0xC700000506423Bad12d5EB6D55b35EA9F5384Df6",
+      "constructorArgs": {
+        "types": [
+          "address",
+          "address",
+          "uint256",
+          "uint256",
+          "uint256",
+          "uint256"
+        ],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          200000,
+          1000,
+          500,
+          1500
+        ]
+      }
+    },
+    {
+      "name": "RewardHandler",
+      "address": "0x74747408065d6A85DFf07D23F22C921Ce7D0b4B1",
+      "constructorArgs": {
+        "types": [
+          "address",
+          "address",
+          "address",
+          "address",
+          "address",
+          "address",
+          "address"
+        ],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94",
+          "0x00000000efe883b3304aFf71eaCf72Dbc3e1b577",
+          "0x70a1879aEeA28072E321d52427f0aC88603dF61b",
+          "0x11D5Bc6175E416ECCe06d7c94F232E6c7330fDd3",
+          "0xB96699a960A2b6300889b4FB789A58B506F144Ca",
+          "0xCd32c9bf38AbfEEc2F5691Dcb39cbc9aC55f0685"
+        ]
+      }
+    },
+    {
+      "name": "PriceWatcher",
+      "address": "0xAaaa0013e2ec451F76816d1e0a02ABA596dd9251",
+      "constructorArgs": {
+        "types": ["address"],
+        "values": ["0x10101010E0C3171D894B71B3400668aF311e7D94"]
+      }
+    },
+    {
+      "name": "InterestRateCalculatorV2",
+      "address": "0x77777770a0a6304365cd2CE7f608A2179fc06EEB",
+      "constructorArgs": {
+        "types": ["string", "uint256", "uint256", "uint256", "address"],
+        "values": [
+          "V2",
+          1268391679,
+          500000000000000000,
+          100000000000000000,
+          "0xAaaa0013e2ec451F76816d1e0a02ABA596dd9251"
+        ]
+      }
+    },
+    {
+      "name": "FeeLogger",
+      "address": "0x1099370Bd8e48dD79A703f12EF59168c6EF8AD03",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94"
+        ]
+      }
+    },
+    {
+      "name": "PairAdder",
+      "address": "0x09500002956877b910ACEc25C4b4dd57950e1D27",
+      "constructorArgs": {
+        "types": ["address", "address"],
+        "values": [
+          "0xc07e000044F95655c11fda4cD37F70A94d7e0a7d",
+          "0x10101010E0C3171D894B71B3400668aF311e7D94"
+        ]
+      }
     }
   ]
 }
