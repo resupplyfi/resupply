@@ -27,6 +27,7 @@ contract Utilities is ResupplyPairConstants{
     address public constant INTEREST_RATE_CALCULATORV1 = address(0x77777777729C405efB6Ac823493e6111F0070D67);
     address public constant convexPoolUtil = address(0x5Fba69a794F395184b5760DAf1134028608e5Cd1);
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
+    address public constant sreusd = address(0x557AB1e003951A73c12D16F0fEA8490E39C33C35);
 
     address public immutable registry;
     uint32 public constant TYPE_UNDEFINED = 0;
@@ -38,17 +39,24 @@ contract Utilities is ResupplyPairConstants{
         registry = _registry;
     }
 
-    function sfrxusdRates() public view returns(uint256 fraxPerSecond){
-        //on fraxtal need to get pricefeed, on mainnet check directly on sfrxusd
-        IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(sfrxusd).rewardsCycleData();
-        uint256 sfrxusdtotal = IStakedFrax(sfrxusd).storedTotalAssets();
-        if(sfrxusdtotal == 0){
-            sfrxusdtotal = 1;
+    function sfrxusdRates() public view returns(uint256 ratePerSecond){
+        return savingsRate(sfrxusd);
+    }
+
+    function sreusdRates() public view returns(uint256 ratePerSecond){
+        return savingsRate(sreusd);
+    }
+
+    function savingsRate(address _vault) public view returns(uint256 ratePerSecond){
+        IStakedFrax.RewardsCycleData memory rdata = IStakedFrax(_vault).rewardsCycleData();
+        uint256 totalAssets = IStakedFrax(_vault).storedTotalAssets();
+        if(totalAssets == 0){
+            totalAssets = 1;
         }
-        uint256 maxsfrxusdDistro = IStakedFrax(sfrxusd).maxDistributionPerSecondPerAsset();
-        fraxPerSecond = rdata.rewardCycleAmount / (rdata.cycleEnd - rdata.lastSync);
-        fraxPerSecond = fraxPerSecond * 1e18 / sfrxusdtotal;
-        fraxPerSecond = fraxPerSecond > maxsfrxusdDistro ? maxsfrxusdDistro : fraxPerSecond;
+        uint256 maxDistro = IStakedFrax(_vault).maxDistributionPerSecondPerAsset();
+        ratePerSecond = rdata.rewardCycleAmount / (rdata.cycleEnd - rdata.lastSync);
+        ratePerSecond = ratePerSecond * 1e18 / totalAssets;
+        ratePerSecond = ratePerSecond > maxDistro ? maxDistro : ratePerSecond;
     }
 
     function getUnderlyingSupplyRate(address _pair) public view returns(uint256 _rate){
