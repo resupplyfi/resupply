@@ -13,7 +13,6 @@ import { MockReUsdOracle } from "test/mocks/MockReUsdOracle.sol";
 contract PriceWatcherTest is Setup {
     PriceWatcher public priceWatcher;
     InterestRateCalculatorV2 public interestRateCalculator;
-    address[] public pairs;
     uint256 public UPDATE_INTERVAL;
     MockReUsdOracle public mockReUsdOracle;
 
@@ -33,7 +32,6 @@ contract PriceWatcherTest is Setup {
             1e17,
             address(priceWatcher)
         );
-        pairs = registry.getAllPairAddresses();
         vm.startPrank(address(core));
         for (uint256 i = 0; i < pairs.length; i++) {
             IResupplyPair pair = IResupplyPair(pairs[i]);

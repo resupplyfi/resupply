@@ -35,7 +35,7 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true, 549);
     }
 
-    function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public override view returns (IVoter.Action[] memory actions) {
         // Set code in new and old pair deployers
         IVoter.Action[] memory pairDeployerActions = buildPairDeployerCalldata();
         // Update permissions for the new operators

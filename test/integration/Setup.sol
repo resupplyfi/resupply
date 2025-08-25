@@ -69,6 +69,7 @@ import { ITreasuryManagerUpgradeable } from "src/interfaces/ITreasuryManagerUpgr
 
 contract Setup is Test {
     using SafeERC20 for IERC20;
+    address[] public pairs;
     address public user = address(0x1);
     ICore public core = ICore(Protocol.CORE);
     IGovStaker public staker = IGovStaker(Protocol.GOV_STAKER);
@@ -124,7 +125,7 @@ contract Setup is Test {
         clearPairImplementation();
         // This line can be removed once BASIC_VAULT_ORACLE is deployed via DeployFixes.s.sol
         if (Protocol.BASIC_VAULT_ORACLE.code.length == 0) vm.etch(Protocol.BASIC_VAULT_ORACLE, address(new BasicVaultOracle("Basic Vault Oracle")).code);
-        
+        pairs = registry.getAllPairAddresses();
     }
 
     function buyReUSD(uint256 _amountIn) public returns(uint256 _newprice){

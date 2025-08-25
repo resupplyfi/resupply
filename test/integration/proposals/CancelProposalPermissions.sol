@@ -18,23 +18,30 @@ contract CancelProposalPermissionsTest is BaseProposalTest {
     }
     
     function test_CancelProposalPermissions() public {
+        uint256 proposalId;
         console.log("1. Adding permission to OPERATOR_GUARDIAN_PROXY");
         IVoter.Action[] memory actions = script.step1();
-        uint256 proposalId = createProposal(actions);
-        simulatePassingVote(proposalId);
-        executeProposal(proposalId);
+        if (actions[0].target != address(0)) {
+            proposalId = createProposal(actions);
+            simulatePassingVote(proposalId);
+            executeProposal(proposalId);
+        }
 
         console.log("2. Removing permission from OPERATOR_GUARDIAN_OLD on address(0)");
         actions = script.step2();
-        proposalId = createProposal(actions);
-        simulatePassingVote(proposalId);
-        executeProposal(proposalId);
+        if (actions[0].target != address(0)) {
+            proposalId = createProposal(actions);
+            simulatePassingVote(proposalId);
+            executeProposal(proposalId);
+        }
 
         console.log("3. Removing permission from OPERATOR_GUARDIAN_OLD on address(voter)");
         actions = script.step3();
-        proposalId = createProposal(actions);
-        simulatePassingVote(proposalId);
-        executeProposal(proposalId);
+        if (actions[0].target != address(0)) {
+            proposalId = createProposal(actions);
+            simulatePassingVote(proposalId);
+            executeProposal(proposalId);
+        }
 
         assertEq(PermissionHelper.isEnabled(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.cancelProposal.selector), true);
         assertEq(PermissionHelper.isEnabled(Protocol.OPERATOR_GUARDIAN_OLD, address(0), IVoter.cancelProposal.selector), false);

@@ -26,7 +26,7 @@ contract LaunchSreUsd is BaseAction, BaseProposal {
         }
     }
 
-    function buildProposalCalldata() public returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
         actions = new IVoter.Action[](9 + numPairs);
         // sreUSD.setMaxDistributionPerSecondPerAsset(MAX_DISTRIBUTION_PER_SECOND_PER_ASSET)
         actions[0] = IVoter.Action({

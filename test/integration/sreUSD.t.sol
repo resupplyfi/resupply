@@ -27,7 +27,6 @@ contract SreUSDTest is Setup {
 
     uint32 public constant REWARDS_CYCLE_LENGTH = 7 days;
     uint256 public constant MAX_DISTRIBUTION_PER_SECOND_PER_ASSET = uint256(2e17) / 365 days; // 20% apr max distribution rate;
-    address[] public pairs;
 
     function setUp() public override {
         super.setUp();
@@ -39,7 +38,7 @@ contract SreUSDTest is Setup {
             address(registry),
             lzEndpoint,
             address(asset),
-            "Staked reUSD",
+            "Savings reUSD",
             "sreUSD",
             MAX_DISTRIBUTION_PER_SECOND_PER_ASSET
         );
@@ -100,7 +99,6 @@ contract SreUSDTest is Setup {
         );
 
         //update all pair's interest calculator
-        pairs = registry.getAllPairAddresses();
         for (uint256 i = 0; i < pairs.length; i++) {
             //MUST add interest BEFORE switching
             vm.prank(address(core));
@@ -111,7 +109,7 @@ contract SreUSDTest is Setup {
 
     function test_Initialization() public {
         assertEq(address(vault.asset()), address(asset));
-        assertEq(vault.name(), "Staked reUSD");
+        assertEq(vault.name(), "Savings reUSD");
         assertEq(vault.symbol(), "sreUSD");
         assertEq(vault.maxDistributionPerSecondPerAsset(), MAX_DISTRIBUTION_PER_SECOND_PER_ASSET);
         assertEq(vault.owner(), address(core));

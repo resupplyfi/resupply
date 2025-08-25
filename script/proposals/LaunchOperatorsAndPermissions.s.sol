@@ -41,7 +41,7 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
         }
     }
 
-    function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public override view returns (IVoter.Action[] memory actions) {
         IVoter.Action[] memory guardedRegistryKeyActions = buildGuardedRegistryKeyCalldata();
         IVoter.Action[] memory permissionActions = PermissionHelper.buildPermissionActions(permissions());
 
