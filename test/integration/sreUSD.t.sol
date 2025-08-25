@@ -30,95 +30,81 @@ contract SreUSDTest is Setup {
 
     function setUp() public override {
         super.setUp();
-        pairs = registry.getAllPairAddresses();
-
-        if (isProposalProcessed(9)) return; // quit early if proposal is already processed
-
         asset = IERC20(address(stablecoin));
-        vm.startPrank(address(Protocol.PERMA_STAKER_CONVEX));
-        voter.voteForProposal(Protocol.PERMA_STAKER_CONVEX, 8);
-        voter.voteForProposal(Protocol.PERMA_STAKER_CONVEX, 9);
+
+        //deploy sreusd
+        vault = new SavingsReUSD(
+            address(core),
+            address(registry),
+            lzEndpoint,
+            address(asset),
+            "Savings reUSD",
+            "sreUSD",
+            MAX_DISTRIBUTION_PER_SECOND_PER_ASSET
+        );
+
+        //deploy fee logger
+        feeLogger = new FeeLogger(address(core), address(registry));
+
+        //deploy price watcher
+        priceWatcher = new PriceWatcher(address(registry));
+
+        // Setup new fee deposit controller
+        vm.startPrank(address(core));
+        registry.setAddress("SREUSD", address(vault));
+        registry.setAddress("FEE_LOGGER", address(feeLogger));
+        registry.setAddress("PRICE_WATCHER", address(priceWatcher));
+
+
+        FeeDepositController fdcontroller = new FeeDepositController(
+            address(core),
+            address(registry),
+            200_000,
+            500,
+            500,
+            1000
+        );
+        feeDepositController = IFeeDepositController(address(fdcontroller));
+        feeDeposit.setOperator(address(feeDepositController));
+
+        RewardHandler newRewardHandler = new RewardHandler(
+            address(core),
+            address(registry),
+            address(insurancePool),
+            address(debtReceiver),
+            address(pairEmissionStream),
+            address(ipEmissionStream),
+            address(ipStableStream)
+        );
+        vm.startPrank(address(core));
+        newRewardHandler.migrateState(Protocol.REWARD_HANDLER_OLD, true, true);
+        debtReceiver.setApprovedClaimer(address(rewardHandler), false);
+        insuranceEmissionsReceiver.setApprovedClaimer(address(rewardHandler), false);
+        debtReceiver.setApprovedClaimer(address(newRewardHandler), true);
+        insuranceEmissionsReceiver.setApprovedClaimer(address(newRewardHandler), true);
+        registry.setRewardHandler(address(newRewardHandler));
         vm.stopPrank();
-        vm.startPrank(address(Protocol.PERMA_STAKER_YEARN));
-        voter.voteForProposal(Protocol.PERMA_STAKER_YEARN, 8);
-        voter.voteForProposal(Protocol.PERMA_STAKER_YEARN, 9);
-        vm.stopPrank();
-        skip(5 days);
 
-        voter.executeProposal(8);
-        voter.executeProposal(9);
-
-        vault = SavingsReUSD(registry.getAddress("SREUSD"));
-        feeLogger = FeeLogger(registry.getAddress("FEE_LOGGER"));
-        priceWatcher = PriceWatcher(registry.getAddress("PRICE_WATCHER"));
-    }
-
-    function test_ClaimAndDistribute() public {
-        distributeWeeklyFees();
-        // Withdraw fees comes next
-        for (uint256 j = 0; j < pairs.length; j++) {
-            address pair = pairs[j];
-            IResupplyPair(pair).addInterest(false);
-            if(!hasWithdrawnFees(pair)) IResupplyPair(pair).withdrawFees();
-        }
-        advanceEpochsWithdrawFeesAndDistributeFees(1);
-        advanceEpochsWithdrawFeesAndDistributeFees(1);
-        advanceEpochsWithdrawFeesAndDistributeFees(1);
-        advanceEpochsWithdrawFeesAndDistributeFees(1);
-    }
-
-    function hasDistributedWeeklyFees() internal view returns (bool) {
-        return feeDeposit.lastDistributedEpoch() >= feeDeposit.getEpoch();
-    }
-
-    function hasWithdrawnFees(address pair) internal returns (bool) {
-        return IResupplyPair(pair).lastFeeEpoch() >= IResupplyPair(pair).getEpoch();
-    }
-
-    function advanceEpochsWithdrawFeesAndDistributeFees(uint256 epochs) internal {
-        for (uint256 i = 0; i < epochs; i++) {
-            advanceEpochs(1);
-            // Distributor must go first
-            distributeWeeklyFees();
-            // Withdraw fees comes next
-            for (uint256 j = 0; j < pairs.length; j++) {
-                address pair = pairs[j];
-                IResupplyPair(pair).addInterest(false);
-                if(!hasWithdrawnFees(pair)) {
-                    IResupplyPair(pair).withdrawFees();
-                    // console.log("Withdrew fees for pair", pair);
-                }
-                else {
-                    // console.log("Already withdrew fees for pair", pair);
-                }
-            }
-        }
-    }
-
-    function distributeWeeklyFees() internal {
-        if(hasDistributedWeeklyFees()) {
-            console.log("Already distributed fees for this epoch");
-            return;
-        }
-        uint256 total = stablecoin.balanceOf(address(feeDeposit));
-        console.log("---------- Epoch ", feeDeposit.getEpoch(), " distributions ----------");
-        console.log("Total fees distributed:", total/1e18);
-        uint256 sreUsdBalance = stablecoin.balanceOf(address(vault));
-        uint256 ipBalance = stablecoin.balanceOf(address(ipStableStream));
-        uint256 stakerBalance = stablecoin.balanceOf(address(staker));
-        uint256 treasuryBalance = stablecoin.balanceOf(address(treasury));
+        rewardHandler = IRewardHandler(address(newRewardHandler));
         vm.prank(address(core));
-        feeDepositController.distribute();
-        if(total == 0) return;
-        uint256 sreUsdGain = stablecoin.balanceOf(address(vault)) - sreUsdBalance;
-        uint256 ipGain = stablecoin.balanceOf(address(ipStableStream)) - ipBalance;
-        uint256 stakerGain = stablecoin.balanceOf(address(staker)) - stakerBalance;
-        uint256 treasuryGain = stablecoin.balanceOf(address(treasury)) - treasuryBalance;
-        
-        console.log("%2e", sreUsdGain * 1e4 / total, "% sreUSD split");
-        console.log("%2e", ipGain * 1e4 / total, "% insurance pool split");
-        console.log("%2e", stakerGain * 1e4 / total, "% staker split");
-        console.log("%2e", treasuryGain * 1e4 / total, "% treasury split");
+        staker.setRewardsDistributor(address(stablecoin), address(newRewardHandler));
+
+        //new interest calculator
+        InterestRateCalculatorV2 calcv2 = new InterestRateCalculatorV2(
+            "V2",
+            2e16 / uint256(365 days) * 2,//4% - we multiply by 2 to adjust for rate ratio base
+            5e17,
+            1e17,
+            address(priceWatcher)
+        );
+
+        //update all pair's interest calculator
+        for (uint256 i = 0; i < pairs.length; i++) {
+            //MUST add interest BEFORE switching
+            vm.prank(address(core));
+            IResupplyPair(pairs[i]).setRateCalculator(address(calcv2),true);
+        }
+        vm.stopPrank();
     }
 
     function test_Initialization() public {
@@ -132,10 +118,10 @@ contract SreUSDTest is Setup {
     function test_Deposit(uint256 amount) public {
         amount = bound(amount, 1, 1000e18);
         uint256 shares = deposit(address(this), amount);
-        assertGe(vault.balanceOf(address(this)), shares);
-        assertGe(asset.balanceOf(address(vault)), amount);
-        assertGe(vault.totalAssets(), amount);
-        assertGe(vault.totalSupply(), shares);
+        assertEq(vault.balanceOf(address(this)), shares);
+        assertEq(asset.balanceOf(address(vault)), amount);
+        assertEq(vault.totalAssets(), amount);
+        assertEq(vault.totalSupply(), shares);
     }
 
     function test_Withdraw(uint256 amount) public {

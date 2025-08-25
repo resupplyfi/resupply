@@ -28,7 +28,7 @@ contract BaseProposalTest is Test, Setup {
     }
 
     function isProposalProcessed(uint256 proposalId) public view returns (bool) {
-        (,,,,,bool processed,, ) = voter.getProposalData(proposalId);
+        (,,,,,,bool processed,, ) = voter.getProposalData(proposalId);
         return processed;
     }
 }
