@@ -32,8 +32,7 @@ contract SreUSDTest is Setup {
         super.setUp();
         pairs = registry.getAllPairAddresses();
 
-        (,,,,,,bool processed,, ) = voter.getProposalData(9);
-        if (processed) return; // Test should not fail if proposals are already processed
+        if (isProposalProcessed(9)) return; // quit early if proposal is already processed
 
         asset = IERC20(address(stablecoin));
         vm.startPrank(address(Protocol.PERMA_STAKER_CONVEX));

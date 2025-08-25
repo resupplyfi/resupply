@@ -26,4 +26,9 @@ contract BaseProposalTest is Test, Setup {
         skip(voter.executionDelay());
         voter.executeProposal(proposalId);
     }
+
+    function isProposalProcessed(uint256 proposalId) public view returns (bool) {
+        (,,,,,bool processed,, ) = voter.getProposalData(proposalId);
+        return processed;
+    }
 }
