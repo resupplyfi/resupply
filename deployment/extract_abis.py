@@ -61,7 +61,7 @@ def extract_abis(source_dir: str = 'out', output_dir: str = 'abis', include_path
         'node_modules',
         '@openzeppelin',
         'lib/',
-        'src/interfaces/',
+        # 'src/interfaces/',
         'src/libraries/',
         'src/dependencies/',
         'test/',
