@@ -14,12 +14,10 @@ import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 
 contract GuardianTest is Setup {
     Guardian public guardian;
-    address[] public pairs;
     address public dev = address(0xc4ad);
 
     function setUp() public override {
         super.setUp();
-        pairs = registry.getAllPairAddresses();
         testPair = IResupplyPair(pairs[0]);
         testPair2 = IResupplyPair(pairs[1]);
         staker.epochLength();

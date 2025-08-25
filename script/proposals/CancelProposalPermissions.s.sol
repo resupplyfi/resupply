@@ -73,4 +73,6 @@ contract CancelProposalPermissions is BaseAction, BaseProposal {
         require(actions.length > 0, "No permission to remove");
         return actions;
     }
+
+    function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {}
 }

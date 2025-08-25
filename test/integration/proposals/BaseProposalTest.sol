@@ -9,12 +9,6 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
 contract BaseProposalTest is Test, Setup {
 
-    address[] public pairs;
-
-    constructor() {
-        pairs = registry.getAllPairAddresses();
-    }
-
     function createProposal(IVoter.Action[] memory actions) public returns (uint256) {
         vm.prank(Protocol.PERMA_STAKER_CONVEX);
         return voter.createNewProposal(Protocol.PERMA_STAKER_CONVEX, actions, "Test proposal");

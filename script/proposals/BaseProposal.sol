@@ -13,7 +13,7 @@ interface IPermastakerOperator {
     function createNewProposal(IVoter.Action[] calldata actions, string calldata description) external;
 }
 
-contract BaseProposal is BaseAction {
+abstract contract BaseProposal is BaseAction {
     IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
     ICore public constant _core = ICore(Protocol.CORE);
     IVoter public constant voter = IVoter(Protocol.VOTER);
@@ -39,4 +39,6 @@ contract BaseProposal is BaseAction {
             )
         );
     }
+
+    function buildProposalCalldata() public virtual returns (IVoter.Action[] memory actions);
 }
