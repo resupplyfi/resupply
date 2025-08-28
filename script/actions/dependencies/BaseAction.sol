@@ -118,7 +118,7 @@ contract BaseAction is TenderlyHelper {
      * @return The private key as bytes32
      */
 
-    function loadPrivateKey() internal returns (bytes32) {
+    function loadPrivateKey() internal returns (uint256) {
         bool hasPassword = false;
         try vm.envString("DEPLOYER_PASSWORD") returns (string memory) {
             hasPassword = true;
@@ -128,15 +128,15 @@ contract BaseAction is TenderlyHelper {
         return _loadPrivateKey(vm.envString("DEPLOYER_ACCOUNT"), hasPassword ? vm.envString("DEPLOYER_PASSWORD") : "");
     }
 
-    function loadPrivateKey(string memory accountName) internal returns (bytes32) {
+    function loadPrivateKey(string memory accountName) internal returns (uint256) {
         return _loadPrivateKey(accountName, "");
     }
 
-    function loadPrivateKey(string memory accountName, string memory password) internal returns (bytes32) {
+    function loadPrivateKey(string memory accountName, string memory password) internal returns (uint256) {
         return _loadPrivateKey(accountName, password);
     }
 
-    function _loadPrivateKey(string memory accountName, string memory password) internal returns (bytes32) {
+    function _loadPrivateKey(string memory accountName, string memory password) internal returns (uint256) {
         // Check if password is provided in environment
         bool hasPassword = bytes(password).length > 0;
 
@@ -155,6 +155,6 @@ contract BaseAction is TenderlyHelper {
         }
         
         bytes memory keyBytes = vm.ffi(inputs);
-        return bytes32(keyBytes);
+        return uint256(bytes32(keyBytes));
     }
 }
