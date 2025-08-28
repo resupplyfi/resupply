@@ -65,6 +65,7 @@ abstract contract SafeHelper is Script, Test {
 
     bytes32 private constant LOCAL = keccak256("local");
     bytes32 private constant LEDGER = keccak256("ledger");
+    bytes32 private constant ACCOUNT = keccak256("account");
 
     // Address to send transaction from
     address private safe;
@@ -131,7 +132,34 @@ abstract contract SafeHelper is Script, Test {
 
         // Load wallet information
         walletType = keccak256(abi.encodePacked(vm.envString("WALLET_TYPE")));
-        if (walletType == LOCAL) {
+        if (walletType == ACCOUNT) {
+            // For account, we'll need the address from cast
+            // Check if password is provided in environment
+            bool hasPassword = false;
+            try vm.envString("SAFE_PROPOSER_PASSWORD") returns (string memory) {
+                hasPassword = true;
+            } catch {
+                hasPassword = false;
+            }
+
+            // Determine array size based on whether password is present
+            uint256 arraySize = hasPassword ? 6 : 4;
+            string[] memory inputs = new string[](arraySize);
+            
+            inputs[0] = "cast";
+            inputs[1] = "wallet";
+            inputs[2] = "private-key";
+            inputs[3] = string.concat("--account=", vm.envString("SAFE_PROPOSER_ACCOUNT"));
+            
+            if (hasPassword) {
+                inputs[4] = "--password";
+                inputs[5] = vm.envString("SAFE_PROPOSER_PASSWORD");
+            }
+            
+            bytes memory keyBytes = vm.ffi(inputs);
+            privateKey = bytes32(keyBytes);
+            walletType = LOCAL;
+        } else if (walletType == LOCAL) {
             privateKey = vm.envBytes32("SAFE_PROPOSER_PRIVATE_KEY");
         } else if (walletType == LEDGER) {
             mnemonicIndex = vm.envUint("MNEMONIC_INDEX");
