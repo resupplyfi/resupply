@@ -111,4 +111,50 @@ contract BaseAction is TenderlyHelper {
         address implementation = Upgrades.prepareUpgrade(_contractName, options);
         return implementation;
     }
+
+    /**
+     * @dev Gets private key using cast wallet with interactive prompt
+     * @dev If no params are provided, it will use the DEPLOYER_ACCOUNT and DEPLOYER_PASSWORD from the environment variables
+     * @return The private key as bytes32
+     */
+
+    function loadPrivateKey() internal returns (uint256) {
+        bool hasPassword = false;
+        try vm.envString("DEPLOYER_PASSWORD") returns (string memory) {
+            hasPassword = true;
+        } catch {
+            hasPassword = false;
+        }
+        return _loadPrivateKey(vm.envString("DEPLOYER_ACCOUNT"), hasPassword ? vm.envString("DEPLOYER_PASSWORD") : "");
+    }
+
+    function loadPrivateKey(string memory accountName) internal returns (uint256) {
+        return _loadPrivateKey(accountName, "");
+    }
+
+    function loadPrivateKey(string memory accountName, string memory password) internal returns (uint256) {
+        return _loadPrivateKey(accountName, password);
+    }
+
+    function _loadPrivateKey(string memory accountName, string memory password) internal returns (uint256) {
+        // Check if password is provided in environment
+        bool hasPassword = bytes(password).length > 0;
+
+        // Determine array size based on whether password is present
+        uint256 arraySize = hasPassword ? 6 : 4;
+        string[] memory inputs = new string[](arraySize);
+        
+        inputs[0] = "cast";
+        inputs[1] = "wallet";
+        inputs[2] = "private-key";
+        inputs[3] = string.concat("--account=", accountName);
+        
+        if (hasPassword) {
+            inputs[4] = "--password";
+            inputs[5] = password;
+        }
+        
+        bytes memory keyBytes = vm.ffi(inputs);
+        return uint256(bytes32(keyBytes));
+    }
 }

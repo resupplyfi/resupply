@@ -22,6 +22,7 @@ contract OperatorMigrationPermissionsTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if (isProposalProcessed(7)) return;
         script = new LaunchOperatorsAndPermissions();
         IVoter.Action[] memory actions = script.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);

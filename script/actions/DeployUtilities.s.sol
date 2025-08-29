@@ -8,7 +8,7 @@ import { console } from "lib/forge-std/src/console.sol";
 contract DeployUtilities is BaseAction {    
     
     function run() public {
-        vm.startBroadcast(vm.envUint("PK_RESUPPLY"));
+        vm.startBroadcast(loadPrivateKey());
         Utilities utilities = new Utilities(Protocol.REGISTRY);
         vm.stopBroadcast();
     }
