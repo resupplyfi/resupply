@@ -8,6 +8,8 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
+import { IPairAdder } from "src/interfaces/IPairAdder.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -58,6 +60,23 @@ abstract contract BaseProposal is BaseAction {
             _stakingId
         );
         return (predictedAddress, callData);
+    }
+
+
+    function getAddPairToRegistryCallData(address _pair) public returns(bytes memory){
+        return abi.encodeWithSelector(
+            IPairAdder.addPair.selector,
+            _pair
+        );
+    }
+
+    function getRampBorrowLimitCallData(address _pair, uint256 _newBorrowLimit, uint256 _endTime) public returns(bytes memory){
+        return abi.encodeWithSelector(
+            IBorrowLimitController.setPairBorrowLimitRamp.selector,
+            _pair,
+            _newBorrowLimit,
+            _endTime
+        );
     }
 
     function buildProposalCalldata() public virtual returns (IVoter.Action[] memory actions);
