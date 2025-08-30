@@ -47,7 +47,7 @@ contract AddNewPair is BaseAction, BaseProposal {
         });
         // add pair to registry
         actions[1] = IVoter.Action({
-            target: Protocol.PAIR_ADDER, // pair
+            target: Protocol.REGISTRY, // pair
             data: addPairData
         });
         // ramp borrow limit

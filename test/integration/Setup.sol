@@ -122,7 +122,6 @@ contract Setup is Test {
     function setUp() public virtual {
         vm.createSelectFork(vm.envString("MAINNET_URL"));
         deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
-        clearPairImplementation();
         // This line can be removed once BASIC_VAULT_ORACLE is deployed via DeployFixes.s.sol
         if (Protocol.BASIC_VAULT_ORACLE.code.length == 0) vm.etch(Protocol.BASIC_VAULT_ORACLE, address(new BasicVaultOracle("Basic Vault Oracle")).code);
         pairs = registry.getAllPairAddresses();

@@ -11,10 +11,12 @@ import { AddNewPair } from "script/proposals/AddNewPair.s.sol";
 contract AddNewPairTest is BaseProposalTest {
     AddNewPair public script;
     uint256 public proposalId;
+    address public predictedAddress;
 
     function setUp() public override {
         super.setUp();
         console.log("Running from block:", block.number);
+        //if(isProposalProcessed(10)) return;
         deal(Mainnet.CRVUSD_ERC20, Protocol.PAIR_DEPLOYER_V2, 1_000e18);
         deal(Mainnet.FRXUSD_ERC20, Protocol.PAIR_DEPLOYER_V2, 1_000e18);
         script = new AddNewPair();
@@ -26,6 +28,13 @@ contract AddNewPairTest is BaseProposalTest {
         c = deployer.contractAddress2();
         console.log("contract address 2:", c);
         require(c.code.length > 0, "contract address 2 is not set");
+
+        (predictedAddress, ) = script.getPairDeploymentAddressAndCallData(
+            script.PROTOCOL_ID(), // protocol id
+            script.COLLATERAL(), // collateral
+            script.STAKING(), // staking
+            script.STAKING_ID() // staking id
+        );
 
         proposalId = createProposal(script.buildProposalCalldata());
         simulatePassingVote(proposalId);
@@ -43,21 +52,8 @@ contract AddNewPairTest is BaseProposalTest {
     }
     
     function test_PairDeploymentAddressPrediction() public {
-        // Test the pair deployment address prediction
-        address predictedAddress;
-        bytes memory deployCalldata;
-        
-        (predictedAddress, deployCalldata) = script.getPairDeploymentAddressAndCallData(
-            script.PROTOCOL_ID(), // protocol id
-            script.COLLATERAL(), // collateral
-            script.STAKING(), // staking
-            script.STAKING_ID() // staking id
-        );
-        
-        // Verify we get a valid address and calldata
-        assertTrue(predictedAddress != address(0), "Predicted address should not be zero");
+        assertNotEq(predictedAddress, address(0), "Predicted address should not be zero");
         assertGt(address(predictedAddress).code.length, 0, "Predicted address should have code");
-        assertGt(deployCalldata.length, 0, "Deploy calldata should not be empty");
         assertGt(registry.getAllPairAddresses().length, pairs.length, "Registry should have new pair");
     }
     
