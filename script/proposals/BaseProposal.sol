@@ -7,6 +7,7 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { console } from "lib/forge-std/src/console.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -18,6 +19,7 @@ abstract contract BaseProposal is BaseAction {
     ICore public constant _core = ICore(Protocol.CORE);
     IVoter public constant voter = IVoter(Protocol.VOTER);
     address public deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
+    IResupplyPairDeployer public constant pairDeployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     IPermastakerOperator public constant PERMA_STAKER_OPERATOR = IPermastakerOperator(0x3419b3FfF84b5FBF6Eec061bA3f9b72809c955Bf);
     address public target;
     address[] public pairs;
@@ -38,6 +40,24 @@ abstract contract BaseProposal is BaseAction {
                 description
             )
         );
+    }
+
+    // Uses default config
+    function getPairDeploymentAddressAndCallData(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address, bytes memory){
+        address predictedAddress = pairDeployer.predictPairAddress(
+            _protocolId,
+            _collateral,
+            _staking,
+            _stakingId
+        );
+        bytes memory callData = abi.encodeWithSelector(
+            pairDeployer.deployWithDefaultConfig.selector,
+            _protocolId,
+            _collateral,
+            _staking,
+            _stakingId
+        );
+        return (predictedAddress, callData);
     }
 
     function buildProposalCalldata() public virtual returns (IVoter.Action[] memory actions);
