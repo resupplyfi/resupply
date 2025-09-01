@@ -22,7 +22,6 @@ abstract contract BaseProposal is BaseAction {
     ICore public constant _core = ICore(Protocol.CORE);
     IVoter public constant voter = IVoter(Protocol.VOTER);
     address public deployer = 0x4444AAAACDBa5580282365e25b16309Bd770ce4a;
-    IResupplyPairDeployer public constant pairDeployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     IPermastakerOperator public constant PERMA_STAKER_OPERATOR = IPermastakerOperator(0x3419b3FfF84b5FBF6Eec061bA3f9b72809c955Bf);
     address public target;
     address[] public pairs;
@@ -45,32 +44,6 @@ abstract contract BaseProposal is BaseAction {
         );
     }
 
-    // Uses default config
-    function getPairDeploymentAddressAndCallData(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address, bytes memory){
-        // Validate staking ID is not shutdown
-        if (_staking == Mainnet.CONVEX_BOOSTER) {
-            (address lptoken, , , , , bool shutdown) = IConvexStaking(_staking).poolInfo(_stakingId);
-            require(!shutdown, string.concat("Staking ID: ", vm.toString(_stakingId), " is shutdown"));
-            require(lptoken != address(0), "Invalid staking ID: no LP token found");
-            require(lptoken == _collateral, "Staking ID must the collateral for the staking");
-        }
-        
-        address predictedAddress = pairDeployer.predictPairAddress(
-            _protocolId,
-            _collateral,
-            _staking,
-            _stakingId
-        );
-        bytes memory callData = abi.encodeWithSelector(
-            pairDeployer.deployWithDefaultConfig.selector,
-            _protocolId,
-            _collateral,
-            _staking,
-            _stakingId
-        );
-        return (predictedAddress, callData);
-    }
-
 
     function getAddPairToRegistryCallData(address _pair) public returns(bytes memory){
         return abi.encodeWithSelector(
@@ -86,6 +59,14 @@ abstract contract BaseProposal is BaseAction {
             _newBorrowLimit,
             _endTime
         );
+    }
+
+    function printCallData(IVoter.Action[] memory actions) public {
+        for (uint256 i = 0; i < actions.length; i++) {
+            console.log("Action", i+1);
+            console.log(actions[i].target);
+            console.logBytes(actions[i].data);
+        }
     }
 
     function buildProposalCalldata() public virtual returns (IVoter.Action[] memory actions);

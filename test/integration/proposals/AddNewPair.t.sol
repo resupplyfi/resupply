@@ -6,35 +6,20 @@ import { Protocol, Mainnet } from "src/Constants.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { AddNewPair } from "script/proposals/AddNewPair.s.sol";
+import { RegisterNewPair } from "script/proposals/RegisterNewPair.s.sol";
 
-contract AddNewPairTest is BaseProposalTest {
-    AddNewPair public script;
+contract RegisterNewPairTest is BaseProposalTest {
+    RegisterNewPair public script;
     uint256 public proposalId;
-    address public predictedAddress;
+    address public pairAddress;
 
     function setUp() public override {
         super.setUp();
         console.log("Running from block:", block.number);
         //if(isProposalProcessed(10)) return;
-        deal(Mainnet.CRVUSD_ERC20, Protocol.PAIR_DEPLOYER_V2, 1_000e18);
-        deal(Mainnet.FRXUSD_ERC20, Protocol.PAIR_DEPLOYER_V2, 1_000e18);
-        script = new AddNewPair();
+        script = new RegisterNewPair();
+        pairAddress = script.PAIR_ADDRESS();
         printActions();
-        
-        address c = deployer.contractAddress1();
-        console.log("contract address 1:", c);
-        require(c.code.length > 0, "contract address 1 is not set");
-        c = deployer.contractAddress2();
-        console.log("contract address 2:", c);
-        require(c.code.length > 0, "contract address 2 is not set");
-
-        (predictedAddress, ) = script.getPairDeploymentAddressAndCallData(
-            script.PROTOCOL_ID(), // protocol id
-            script.COLLATERAL(), // collateral
-            script.STAKING(), // staking
-            script.STAKING_ID() // staking id
-        );
 
         proposalId = createProposal(script.buildProposalCalldata());
         simulatePassingVote(proposalId);
@@ -52,13 +37,13 @@ contract AddNewPairTest is BaseProposalTest {
     }
     
     function test_PairDeploymentAddressPrediction() public {
-        assertNotEq(predictedAddress, address(0), "Predicted address should not be zero");
-        assertGt(address(predictedAddress).code.length, 0, "Predicted address should have code");
+        assertNotEq(pairAddress, address(0), "Address should not be zero");
+        assertGt(address(pairAddress).code.length, 0, "Address should have code");
         assertGt(registry.getAllPairAddresses().length, pairs.length, "Registry should have new pair");
     }
     
     function test_RampBorrowLimitCalldata() public {
-        address testPair = address(0x1234567890123456789012345678901234567890);
+        address testPair = pairAddress;
         uint256 newBorrowLimit = 100_000_000e18;
         uint256 endTime = block.timestamp + 20 days;
         
