@@ -11,12 +11,12 @@ contract AddNewPair is BaseAction, BaseProposal {
     uint256 public constant PROTOCOL_ID = Protocol.PROTOCOL_ID_CURVE;
     address public constant COLLATERAL = 0x7430f11Eeb64a4ce50C8f92177485d34C48DA72c;
     address public constant STAKING = PROTOCOL_ID == Protocol.PROTOCOL_ID_CURVE ? Mainnet.CONVEX_BOOSTER : address(0);
-    uint256 public constant STAKING_ID = 0;
+    uint256 public constant STAKING_ID = 483;
     uint256 public constant TARGET_BORROW_LIMIT = 10_000_000e18;
 
     function run() public isBatch(deployer) {
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Onboard fxSAVE-long LlamaLend Market");
+        proposeVote(data, "Onboard fxSAVE-long LlamaLend Market. https://gov.resupply.fi/t/onboard-fxsave-long-llamalend-market/73");
 
         deployMode = DeployMode.PRODUCTION;
         if (deployMode == DeployMode.PRODUCTION) {
@@ -47,12 +47,12 @@ contract AddNewPair is BaseAction, BaseProposal {
         });
         // add pair to registry
         actions[1] = IVoter.Action({
-            target: Protocol.REGISTRY, // pair
+            target: Protocol.REGISTRY,
             data: addPairData
         });
         // ramp borrow limit
         actions[2] = IVoter.Action({
-            target: Protocol.BORROW_LIMIT_CONTROLLER, // pair
+            target: Protocol.BORROW_LIMIT_CONTROLLER,
             data: rampBorrowLimitData
         });
         return actions;

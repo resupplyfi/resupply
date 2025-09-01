@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol } from "src/Constants.sol";
+import { Protocol, Mainnet } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
@@ -10,6 +10,7 @@ import { console } from "lib/forge-std/src/console.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IPairAdder } from "src/interfaces/IPairAdder.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -46,6 +47,14 @@ abstract contract BaseProposal is BaseAction {
 
     // Uses default config
     function getPairDeploymentAddressAndCallData(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address, bytes memory){
+        // Validate staking ID is not shutdown
+        if (_staking == Mainnet.CONVEX_BOOSTER) {
+            (address lptoken, , , , , bool shutdown) = IConvexStaking(_staking).poolInfo(_stakingId);
+            require(!shutdown, string.concat("Staking ID: ", vm.toString(_stakingId), " is shutdown"));
+            require(lptoken != address(0), "Invalid staking ID: no LP token found");
+            require(lptoken == _collateral, "Staking ID must the collateral for the staking");
+        }
+        
         address predictedAddress = pairDeployer.predictPairAddress(
             _protocolId,
             _collateral,
