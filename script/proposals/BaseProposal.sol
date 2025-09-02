@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol } from "src/Constants.sol";
+import { Protocol, Mainnet } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { console } from "lib/forge-std/src/console.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
+import { IPairAdder } from "src/interfaces/IPairAdder.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 
 interface IPermastakerOperator {
     function safeExecute(address target, bytes calldata data) external;
@@ -38,6 +42,31 @@ abstract contract BaseProposal is BaseAction {
                 description
             )
         );
+    }
+
+
+    function getAddPairToRegistryCallData(address _pair) public returns(bytes memory){
+        return abi.encodeWithSelector(
+            IPairAdder.addPair.selector,
+            _pair
+        );
+    }
+
+    function getRampBorrowLimitCallData(address _pair, uint256 _newBorrowLimit, uint256 _endTime) public returns(bytes memory){
+        return abi.encodeWithSelector(
+            IBorrowLimitController.setPairBorrowLimitRamp.selector,
+            _pair,
+            _newBorrowLimit,
+            _endTime
+        );
+    }
+
+    function printCallData(IVoter.Action[] memory actions) public {
+        for (uint256 i = 0; i < actions.length; i++) {
+            console.log("Action", i+1);
+            console.log(actions[i].target);
+            console.logBytes(actions[i].data);
+        }
     }
 
     function buildProposalCalldata() public virtual returns (IVoter.Action[] memory actions);

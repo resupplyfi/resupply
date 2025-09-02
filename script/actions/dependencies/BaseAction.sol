@@ -2,15 +2,18 @@ pragma solidity 0.8.28;
 
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { ICore } from "src/interfaces/ICore.sol";
-import { Protocol } from "src/Constants.sol";
+import { Protocol, Mainnet } from "src/Constants.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { Upgrades, Options } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
+import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 
 contract BaseAction is TenderlyHelper {
     address public core = Protocol.CORE;
     uint256 public epochLength;
     uint256 public startTime;
-
+    IResupplyPairDeployer public pairDeployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
+    
     constructor() {
         epochLength = ICore(core).epochLength();
         startTime = ICore(core).startTime();
@@ -156,5 +159,31 @@ contract BaseAction is TenderlyHelper {
         
         bytes memory keyBytes = vm.ffi(inputs);
         return uint256(bytes32(keyBytes));
+    }
+
+    // Uses default config
+    function getPairDeploymentAddressAndCallData(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address, bytes memory){
+        // Validate staking ID is not shutdown
+        if (_staking == Mainnet.CONVEX_BOOSTER) {
+            (address lptoken, , , , , bool shutdown) = IConvexStaking(_staking).poolInfo(_stakingId);
+            require(!shutdown, string.concat("Staking ID: ", vm.toString(_stakingId), " is shutdown"));
+            require(lptoken != address(0), "Invalid staking ID: no LP token found");
+            require(lptoken == _collateral, "Staking ID must the collateral for the staking");
+        }
+        
+        address predictedAddress = pairDeployer.predictPairAddress(
+            _protocolId,
+            _collateral,
+            _staking,
+            _stakingId
+        );
+        bytes memory callData = abi.encodeWithSelector(
+            pairDeployer.deployWithDefaultConfig.selector,
+            _protocolId,
+            _collateral,
+            _staking,
+            _stakingId
+        );
+        return (predictedAddress, callData);
     }
 }
