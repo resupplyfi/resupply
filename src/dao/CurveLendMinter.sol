@@ -68,16 +68,16 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
         uint256 balance = IERC20(CRVUSD).balanceOf(address(this));
 
         //clamp to mint limit
-        uint256 reduceAmount = mintedAmount - mintLimit;
-        reduceAmount = balance > reduceAmount ? reduceAmount : balance;
-        mintedAmount -= reduceAmount;
+        uint256 returnAmount = mintedAmount - mintLimit;
+        returnAmount = balance > returnAmount ? returnAmount : balance;
+        mintedAmount -= returnAmount;
 
         //transfer funds back to factory
-        IERC20(CRVUSD).safeTransfer(factory, reduceAmount);
+        IERC20(CRVUSD).safeTransfer(factory, returnAmount);
 
         //redeposit anything left over
-        if(balance > reduceAmount){
-            IERC4626(market).deposit(balance - reduceAmount, address(this));
+        if(balance > returnAmount){
+            IERC4626(market).deposit(balance - returnAmount, address(this));
         }
     }
 
@@ -88,6 +88,8 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
         //calculate difference of current total balance and minted amount to get profit
         uint256 currentAssets = IERC4626(market).convertToAssets(IERC20(market).balanceOf(address(this)));
         
+        //todo current assets and withdraw have difference roundings
+
         //if current assets is greated than minted amount, can take profit
         if(currentAssets > mintedAmount){
             //get difference as profit
