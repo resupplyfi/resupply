@@ -159,6 +159,8 @@ library Mainnet {
     address internal constant CURVE_STABLE_FACTORY = 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf;
     address internal constant CURVE_ESCROW = 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2;
     address internal constant CURVE_GAUGE_CONTROLLER = 0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB;
+    address internal constant CURVE_CRVUSD_CONTROLLER = 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC;
+    address internal constant CURVE_OWNERSHIP_AGENT = 0x40907540d8a6C65c637785e8f8B742ae6b0b9968;
 
     //fraxlend
     address internal constant FRAXLEND_SFRXETH_FRXUSD = 0xaB3cb84c310186B2Fa4B4503624A5D90b5DcB22D;
@@ -179,6 +181,7 @@ library Mainnet {
     address internal constant CURVELEND_YNETH_CRVUSD = 0x52036c9046247C3358c987A2389FFDe6Ef8564c9;
     address internal constant CURVELEND_SFRXUSD_CRVUSD = 0x8E3009b59200668e1efda0a2F2Ac42b24baa2982;
     address internal constant CURVELEND_SDOLA2_CRVUSD = 0x992B77179A5cF876bcD566FF4b3EAE6482012B90;
+    address internal constant CURVELEND_SREUSD_CRVUSD = 0xC32B0Cf36e06c790A568667A17DE80cba95A5Aad;
     uint256 internal constant CURVELEND_SDOLA_CRVUSD_ID = 384;
     uint256 internal constant CURVELEND_SUSDE_CRVUSD_ID = 361;
     uint256 internal constant CURVELEND_USDE_CRVUSD_ID = 371;

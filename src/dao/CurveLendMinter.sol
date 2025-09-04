@@ -23,14 +23,15 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
     uint256 public mintedAmount;
 
     event NewLimit (uint256 limit);
+    event MintedAmountReduced (uint256 amount);
 
-    constructor() Ownable(address(0)) {}
+    constructor() Ownable(CRVUSD) {}
 
-    function initialize(address _owner, address _factory, address _market) external nonReentrant{
+    function initialize(address _factory, address _market) external nonReentrant{
         require(market == address(0),"!init");
-        _transferOwnership(_owner);
         market = _market;
         factory = _factory;
+        _transferOwnership(ICurveLendMinterFactory(_factory).owner());
         IERC20(CRVUSD).forceApprove(_market, type(uint256).max);
     }
 
@@ -61,7 +62,7 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
     function reduceAmount(uint256 _amount) external nonReentrant{
         require(mintedAmount > mintLimit, "can not reduce");
 
-        //withdraw funds
+        //withdraw funds (can over withdraw as we will redeposit left overs)
         IERC4626(market).withdraw(_amount, address(this), address(this));
         
         //get balance of crvusd on contract
@@ -74,6 +75,7 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
 
         //transfer funds back to factory
         IERC20(CRVUSD).safeTransfer(factory, returnAmount);
+        emit MintedAmountReduced(returnAmount);
 
         //redeposit anything left over
         if(balance > returnAmount){
@@ -87,8 +89,6 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
     function takeProfit() external nonReentrant{
         //calculate difference of current total balance and minted amount to get profit
         uint256 currentAssets = IERC4626(market).convertToAssets(IERC20(market).balanceOf(address(this)));
-        
-        //todo current assets and withdraw have difference roundings
 
         //if current assets is greated than minted amount, can take profit
         if(currentAssets > mintedAmount){

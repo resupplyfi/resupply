@@ -16,7 +16,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     using Address for address;
 
     address public constant CRVUSD = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
-    address public constant proxyFactory = 0xf53173a3104bFdC4eD2FA579089B5e6Bf4fc7a2b;
+    address public constant proxyFactory = 0x66807B5598A848602734B82E432dD88DBE13fC8f;
     address public immutable crvusdController;
     
     address public fee_receiver;
@@ -28,9 +28,14 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     event AddMarket (address indexed _market, address indexed _lender);
     event RemoveMarket (address indexed _market);
 
-    constructor(address _owner, address _crvusdController, address _initialImplementation) Ownable(_owner) {
+    constructor(address _owner, address _crvusdController, address _feeReceiver, address _initialImplementation) Ownable(_owner) {
         crvusdController = _crvusdController;
         implementation = _initialImplementation;
+        fee_receiver = _feeReceiver;
+    }
+
+    function admin() external view returns(address){
+        return owner();
     }
 
     function setImplementation(address _implementation) external nonReentrant onlyOwner{
@@ -50,7 +55,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
         address marketLender = IProxyFactory(proxyFactory).clone(implementation);
 
         //initialize
-        ICurveLendMinter(marketLender).initialize(owner(), address(this), _market);
+        ICurveLendMinter(marketLender).initialize(address(this), _market);
 
         //insert market lender into mapping, this will override an existing entry
         //if an entry is overriden, the old lender will not be allowed to borrow more
