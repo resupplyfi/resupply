@@ -4,14 +4,13 @@ pragma solidity 0.8.28;
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { ICurveLendMinterFactory } from "../interfaces/ICurveLendMinterFactory.sol";
 
 
 
-contract CurveLendMinter is Ownable, ReentrancyGuard {
+contract CurveLendMinter is ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -25,13 +24,21 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
     event NewLimit (uint256 limit);
     event MintedAmountReduced (uint256 amount);
 
-    constructor() Ownable(CRVUSD) {}
+    constructor(){}
+
+    modifier onlyOwner() {
+        require(msg.sender == admin(), "!admin");
+        _;
+    }
+
+    function admin() public returns(address){
+        return ICurveLendMinterFactory(factory).admin();
+    }
 
     function initialize(address _factory, address _market) external nonReentrant{
         require(market == address(0),"!init");
         market = _market;
         factory = _factory;
-        _transferOwnership(ICurveLendMinterFactory(_factory).owner());
         IERC20(CRVUSD).forceApprove(_market, type(uint256).max);
     }
 
@@ -48,7 +55,7 @@ contract CurveLendMinter is Ownable, ReentrancyGuard {
             uint256 difference = _newLimit - mintedAmount;
 
             //pull needed funds from factory (will fail if factory does not have adaquate funds)
-            ICurveLendMinterFactory(factory).pull_funds(market, difference);
+            ICurveLendMinterFactory(factory).borrow(market, difference);
             mintedAmount += difference;
 
             //deposit all crvusd on this contract into the market 

@@ -39,7 +39,7 @@ contract CurveLendMinterTest is Setup {
         marketVault = IERC4626(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
         vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
-        lender = CurveLendMinter(factory.addMarket(address(market)));
+        lender = CurveLendMinter(factory.addMarketOperator(address(market)));
 
         vm.stopPrank();
     }
@@ -84,7 +84,25 @@ contract CurveLendMinterTest is Setup {
         printInfo();
         vm.stopPrank();
 
+        console.log("\n\n------\n");
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        printInfo();
+        lender.takeProfit();
+        printInfo();
 
+
+        console.log("\n\n------\n");
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        printInfo();
+        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
+
+        lender.setMintLimit(0); //reduce limit
+        printInfo();
+        lender.reduceAmount(500_000e18); //repay all
+        printInfo();
+        vm.stopPrank();
+
+        console.log("\n\n------\n");
         vm.warp(vm.getBlockTimestamp() + 1 days);
         printInfo();
         lender.takeProfit();
