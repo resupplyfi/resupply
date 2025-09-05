@@ -9,8 +9,11 @@ import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { ICurveLendMinterFactory } from "../interfaces/ICurveLendMinterFactory.sol";
 
 
-
-contract CurveLendMinter is ReentrancyGuard {
+/**
+ * @title CurveLendOperator
+ * @dev This contract handles depositing, withdrawing, and taking profit from lending positions
+ */
+contract CurveLendOperator is ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -24,6 +27,7 @@ contract CurveLendMinter is ReentrancyGuard {
     event NewLimit (uint256 limit);
     event MintedAmountReduced (uint256 amount);
 
+    /// @notice The ```constructor``` function is called at deployment
     constructor(){}
 
     modifier onlyOwner() {
@@ -31,19 +35,26 @@ contract CurveLendMinter is ReentrancyGuard {
         _;
     }
 
+    /// @notice The ```admin``` function returns admin role
+    /// @return The address of owner/admin
     function admin() public returns(address){
         return ICurveLendMinterFactory(factory).admin();
     }
 
+    /// @notice The ```initialize``` function initializes the contract
+    /// @param _factory the address of the operator factory
+    /// @param _market the address of the underlying market to interact with
     function initialize(address _factory, address _market) external nonReentrant{
         require(market == address(0),"!init");
         market = _market;
         factory = _factory;
+        //approve all crvusd transfers to the underlying market
         IERC20(CRVUSD).forceApprove(_market, type(uint256).max);
     }
 
 
-    //set a new mint limit for the market
+    /// @notice The ```setMintLimit``` sets a new borrow limit for the operator
+    /// @param _newLimit the new limit to use
     function setMintLimit(uint256 _newLimit) external nonReentrant onlyOwner{
         //set the new mint limit
         mintLimit = _newLimit;
@@ -63,16 +74,17 @@ contract CurveLendMinter is ReentrancyGuard {
         }
     }
 
-    //reduce mintedAmount to mintLimit
-    //this is openly callable as the market might not be completely liquid at any given time
-    //owner just needs to adjust the target
+    /// @notice The ```reduceAmount``` reduce supplied token amounts on market and return to factory
+    /// @param _amount amount to reduce
+    /// @dev openly callable as market may not always be liquid enough to remove entire balance
     function reduceAmount(uint256 _amount) external nonReentrant{
+        //only reduce when needed
         require(mintedAmount > mintLimit, "can not reduce");
 
         //withdraw funds (can over withdraw as we will redeposit left overs)
         IERC4626(market).withdraw(_amount, address(this), address(this));
         
-        //get balance of crvusd on contract
+        //get balance of crvusd on this contract
         uint256 balance = IERC20(CRVUSD).balanceOf(address(this));
 
         //clamp to mint limit
@@ -90,10 +102,10 @@ contract CurveLendMinter is ReentrancyGuard {
         }
     }
 
-    //take profit
-    //note this could revert if profit is more than the available liquidity in the market
-    //we will keep it simple and just wait for availability
-    function takeProfit() external nonReentrant{
+    /// @notice The ```withdraw_profit``` withdraw profits and send to factory's fee receiver
+    /// @dev note this could revert if profit is more than the available liquidity in the market. must wait for availability
+    /// @dev naming convention to align with other Curve contracts
+    function withdraw_profit() external nonReentrant{
         //calculate difference of current total balance and minted amount to get profit
         uint256 currentAssets = IERC4626(market).convertToAssets(IERC20(market).balanceOf(address(this)));
 

@@ -7,10 +7,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IProxyFactory } from "../interfaces/IProxyFactory.sol";
-import { ICurveLendMinter } from "../interfaces/ICurveLendMinter.sol";
+import { ICurveLendOperator } from "../interfaces/ICurveLendOperator.sol";
 
 
-
+/**
+ * @title CurveLendMinterFactory
+ * @dev This contract is a factory that creates "market operators" which handle funds in the given underlying lending market.
+ * Funds for lending are supplied/minted to this factory and the operators can then borrow/repay based on their individual settings.
+ */
 contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Address for address;
@@ -27,6 +31,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     event SetFeeReceiver (address indexed _receiver);
     event AddMarket (address indexed _market, address indexed _lender);
     event RemoveMarket (address indexed _market);
+    event OnBorrow (address indexed _market, uint256 _amount);
 
     /// @notice The ```constructor``` function is called at deployment
     /// @param _owner the owner of this factory
@@ -37,6 +42,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
         crvusdController = _crvusdController;
         implementation = _initialImplementation;
         fee_receiver = _feeReceiver;
+        IERC20(CRVUSD).forceApprove(_crvusdController, type(uint256).max);
     }
 
     /// @notice The ```admin``` function returns admin role
@@ -69,7 +75,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
         address marketLender = IProxyFactory(proxyFactory).clone(implementation);
 
         //initialize
-        ICurveLendMinter(marketLender).initialize(address(this), _market);
+        ICurveLendOperator(marketLender).initialize(address(this), _market);
 
         //insert market operator into mapping, this will override an existing entry
         //if an entry is overriden, the old operator will not be allowed to borrow more
@@ -83,6 +89,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     /// @notice The ```removeMarketOperator``` function removes an operator from permissioned list of borrows
     /// @param _market the underlying market to used by the operator
     /// @dev removing mapping will stop operators from borrowing additional funds
+    /// @dev once a market is removed it can not be readded. addMarketOperator always clones a new contract
     function removeMarketOperator(address _market) external nonReentrant onlyOwner{
         //remove any operator reference to the given market
         markets[_market] = address(0);
@@ -100,5 +107,6 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
 
         //each market has its limits set locally and the factory trusts it
         IERC20(CRVUSD).safeTransfer(msg.sender, _amount);
+        emit OnBorrow(_market, _amount);
     }
 }

@@ -6,14 +6,14 @@ import { console } from "lib/forge-std/src/console.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { Setup } from "test/integration/Setup.sol";
-import { CurveLendMinter } from "src/dao/CurveLendMinter.sol";
+import { CurveLendOperator } from "src/dao/CurveLendOperator.sol";
 import { CurveLendMinterFactory } from "src/dao/CurveLendMinterFactory.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 
 contract CurveLendMinterTest is Setup {
     
     CurveLendMinterFactory public factory;
-    CurveLendMinter public lender;
+    CurveLendOperator public lender;
     ICrvusdController public crvusdController;
     IERC20 public market;
     IERC4626 public marketVault;
@@ -23,7 +23,7 @@ contract CurveLendMinterTest is Setup {
         super.setUp();
         
         //deploy implementation and factory
-        CurveLendMinter lenderImpl = new CurveLendMinter();
+        CurveLendOperator lenderImpl = new CurveLendOperator();
 
         crvusdController = ICrvusdController(Mainnet.CURVE_CRVUSD_CONTROLLER);
         feeReceiver = crvusdController.fee_receiver();
@@ -39,7 +39,7 @@ contract CurveLendMinterTest is Setup {
         marketVault = IERC4626(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
         vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
-        lender = CurveLendMinter(factory.addMarketOperator(address(market)));
+        lender = CurveLendOperator(factory.addMarketOperator(address(market)));
 
         vm.stopPrank();
     }
@@ -87,7 +87,7 @@ contract CurveLendMinterTest is Setup {
         console.log("\n\n------\n");
         vm.warp(vm.getBlockTimestamp() + 1 days);
         printInfo();
-        lender.takeProfit();
+        lender.withdraw_profit();
         printInfo();
 
 
@@ -105,7 +105,37 @@ contract CurveLendMinterTest is Setup {
         console.log("\n\n------\n");
         vm.warp(vm.getBlockTimestamp() + 1 days);
         printInfo();
-        lender.takeProfit();
+        lender.withdraw_profit();
+        printInfo();
+
+        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
+        factory.removeMarketOperator(address(market));
+        vm.expectRevert();
+        lender.setMintLimit(500_000e18); //revert
+
+        //new lender
+        lender = CurveLendOperator(factory.addMarketOperator(address(market)));
+
+        crvusdController.set_debt_ceiling(
+            address(factory),
+            0
+        );
+        printInfo();
+        vm.expectRevert();
+        lender.setMintLimit(500_000e18); //revert
+
+        crvusdController.set_debt_ceiling(
+            address(factory),
+            10_000_000e18
+        );
+        lender.setMintLimit(500_000e18); //works
+        printInfo();
+        vm.stopPrank();
+
+        console.log("\n\n------\n");
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        printInfo();
+        lender.withdraw_profit();
         printInfo();
     }
 
