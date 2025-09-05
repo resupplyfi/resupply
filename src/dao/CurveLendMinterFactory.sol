@@ -66,7 +66,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
         emit SetFeeReceiver(_receiver);
     }
 
-    /// @notice The ```addMarketOperator``` function creates a new market which can borrow funds
+    /// @notice The ```addMarketOperator``` function creates a new operator which can borrow funds to use on the given market
     /// @param _market the underlying market to use by the cloned implementation
     /// @return the address of the market operator
     /// @dev a market is ambiguous and doesnt technically need to be a CurveLend market
@@ -86,7 +86,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
         return marketLender;
     }
 
-    /// @notice The ```removeMarketOperator``` function removes an operator from permissioned list of borrows
+    /// @notice The ```removeMarketOperator``` function removes the operator for the given market
     /// @param _market the underlying market to used by the operator
     /// @dev removing mapping will stop operators from borrowing additional funds
     /// @dev once a market is removed it can not be readded. addMarketOperator always clones a new contract
