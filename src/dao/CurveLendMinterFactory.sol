@@ -31,7 +31,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     event SetFeeReceiver (address indexed _receiver);
     event AddMarket (address indexed _market, address indexed _lender);
     event RemoveMarket (address indexed _market);
-    event OnBorrow (address indexed _market, uint256 _amount);
+    event Borrow (address indexed _market, uint256 _amount);
 
     /// @notice The ```constructor``` function is called at deployment
     /// @param _owner the owner of this factory
@@ -71,19 +71,21 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     /// @return the address of the market operator
     /// @dev a market is ambiguous and doesnt technically need to be a CurveLend market
     function addMarketOperator(address _market) external nonReentrant onlyOwner returns(address){
-        //clone a new market
-        address marketLender = IProxyFactory(proxyFactory).clone(implementation);
+        require(_market != address(0), "invalid market address");
+
+        //clone a new operator
+        address marketOperator = IProxyFactory(proxyFactory).clone(implementation);
 
         //initialize
-        ICurveLendOperator(marketLender).initialize(address(this), _market);
+        ICurveLendOperator(marketOperator).initialize(address(this), _market);
 
         //insert market operator into mapping, this will override an existing entry
         //if an entry is overriden, the old operator will not be allowed to borrow more
         //but should still be able to repay
-        markets[_market] = marketLender;
-        emit AddMarket(_market, marketLender);
+        markets[_market] = marketOperator;
+        emit AddMarket(_market, marketOperator);
 
-        return marketLender;
+        return marketOperator;
     }
 
     /// @notice The ```removeMarketOperator``` function removes the operator for the given market
@@ -100,13 +102,14 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     /// @notice The ```borrow``` function allows operators to borrow funds
     /// @param _market the underlying market to used by the operator
     /// @param _amount the amount the operator is requesting to borrow
-    /// @dev can only borrow whats on this contract. operators are trusted with amounts
+    /// @dev can only borrow whats on this contract, anything over will revert.
+    /// @dev operators are trusted with amounts
     function borrow(address _market, uint256 _amount) external nonReentrant{
         //check that msg sender is a valid market operator
         require(msg.sender == markets[_market], "Invalid Access");
 
         //each market has its limits set locally and the factory trusts it
         IERC20(CRVUSD).safeTransfer(msg.sender, _amount);
-        emit OnBorrow(_market, _amount);
+        emit Borrow(_market, _amount);
     }
 }

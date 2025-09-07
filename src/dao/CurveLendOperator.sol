@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
@@ -15,7 +14,6 @@ import { ICurveLendMinterFactory } from "../interfaces/ICurveLendMinterFactory.s
  */
 contract CurveLendOperator is ReentrancyGuard {
     using SafeERC20 for IERC20;
-    using Address for address;
 
     address public constant CRVUSD = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
 
@@ -26,10 +24,12 @@ contract CurveLendOperator is ReentrancyGuard {
 
     event NewLimit (uint256 limit);
     event MintedAmountReduced (uint256 amount);
+    event Profit (uint256 amount);
 
     /// @notice The ```constructor``` function is called at deployment
     constructor(){}
 
+    /// @notice the ```onlyOwner``` modifier sets functions as only callable from admin address
     modifier onlyOwner() {
         require(msg.sender == admin(), "!admin");
         _;
@@ -37,7 +37,7 @@ contract CurveLendOperator is ReentrancyGuard {
 
     /// @notice The ```admin``` function returns admin role
     /// @return The address of owner/admin
-    function admin() public returns(address){
+    function admin() public view returns(address){
         return ICurveLendMinterFactory(factory).admin();
     }
 
@@ -102,7 +102,7 @@ contract CurveLendOperator is ReentrancyGuard {
         }
     }
 
-    /// @notice The ```withdraw_profit``` withdraw profits and send to factory's fee receiver
+    /// @notice The ```withdraw_profit``` function withdraws any profit and sends to factory's fee receiver
     /// @dev note this could revert if profit is more than the available liquidity in the market. must wait for availability
     /// @dev naming convention to align with other Curve contracts
     function withdraw_profit() external nonReentrant{
@@ -116,6 +116,7 @@ contract CurveLendOperator is ReentrancyGuard {
 
             //withdraw to factory fee receiver
             IERC4626(market).withdraw(currentAssets, ICurveLendMinterFactory(factory).fee_receiver(), address(this));
+            emit Profit(currentAssets);
         }
     }
 }
