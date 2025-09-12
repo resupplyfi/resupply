@@ -81,35 +81,25 @@ contract CurveLendOperator is ReentrancyGuard {
         //only reduce when needed
         require(mintedAmount > mintLimit, "can not reduce");
 
-        //withdraw funds (can over withdraw as we will redeposit left overs)
-        IERC4626(market).withdraw(_amount, address(this), address(this));
+        uint256 maxAmount = mintedAmount - mintLimit;
+        _amount = _amount > maxAmount ? maxAmount : _amount;
+
+        //withdraw funds back to factory
+        IERC4626(market).withdraw(_amount, factory, address(this));
         
-        //get balance of crvusd on this contract
-        uint256 balance = IERC20(CRVUSD).balanceOf(address(this));
-
-        //clamp to mint limit
-        uint256 returnAmount = mintedAmount - mintLimit;
-        returnAmount = balance > returnAmount ? returnAmount : balance;
-        mintedAmount -= returnAmount;
-
-        //transfer funds back to factory
-        IERC20(CRVUSD).safeTransfer(factory, returnAmount);
-        emit MintedAmountReduced(returnAmount);
-
-        //redeposit anything left over
-        if(balance > returnAmount){
-            IERC4626(market).deposit(balance - returnAmount, address(this));
-        }
+        //updated mintedAmount
+        mintedAmount -= _amount;
+        emit MintedAmountReduced(_amount);
     }
 
     /// @notice The ```withdraw_profit``` function withdraws any profit and sends to factory's fee receiver
     /// @dev note this could revert if profit is more than the available liquidity in the market. must wait for availability
     /// @dev naming convention to align with other Curve contracts
     function withdraw_profit() external nonReentrant{
-        //calculate difference of current total balance and minted amount to get profit
-        uint256 currentAssets = IERC4626(market).convertToAssets(IERC20(market).balanceOf(address(this)));
+        //get current asset total
+        uint256 currentAssets = IERC4626(market).previewRedeem(IERC20(market).balanceOf(address(this)));
 
-        //if current assets is greated than minted amount, can take profit
+        //if current assets is greater than minted amount, can take profit
         if(currentAssets > mintedAmount){
             //get difference as profit
             currentAssets -= mintedAmount;
