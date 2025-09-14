@@ -70,20 +70,20 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     /// @param _market the underlying market to use by the cloned implementation
     /// @return the address of the market operator
     /// @dev a market is ambiguous and doesnt technically need to be a CurveLend market
-    function addMarketOperator(address _market) external nonReentrant onlyOwner returns(address){
+    function addMarketOperator(address _market, uint256 _initialMintLimit) external nonReentrant onlyOwner returns(address){
         require(_market != address(0), "invalid market address");
 
         //clone a new operator
         address marketOperator = IProxyFactory(proxyFactory).clone(implementation);
-
-        //initialize
-        ICurveLendOperator(marketOperator).initialize(address(this), _market);
 
         //insert market operator into mapping, this will override an existing entry
         //if an entry is overriden, the old operator will not be allowed to borrow more
         //but should still be able to repay
         markets[_market] = marketOperator;
         emit AddMarket(_market, marketOperator);
+
+        //initialize
+        ICurveLendOperator(marketOperator).initialize(address(this), _market, _initialMintLimit);
 
         return marketOperator;
     }
@@ -104,7 +104,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
     /// @param _amount the amount the operator is requesting to borrow
     /// @dev can only borrow whats on this contract, anything over will revert.
     /// @dev operators are trusted with amounts
-    function borrow(address _market, uint256 _amount) external nonReentrant{
+    function borrow(address _market, uint256 _amount) external{
         //check that msg sender is a valid market operator
         require(msg.sender == markets[_market], "Invalid Access");
 

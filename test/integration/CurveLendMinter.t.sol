@@ -39,7 +39,7 @@ contract CurveLendMinterTest is Setup {
         marketVault = IERC4626(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
         vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
-        lender = CurveLendOperator(factory.addMarketOperator(address(market)));
+        lender = CurveLendOperator(factory.addMarketOperator(address(market), 0));
 
         vm.stopPrank();
     }
@@ -114,7 +114,7 @@ contract CurveLendMinterTest is Setup {
         lender.setMintLimit(500_000e18); //revert
 
         //new lender
-        lender = CurveLendOperator(factory.addMarketOperator(address(market)));
+        lender = CurveLendOperator(factory.addMarketOperator(address(market), 333e18));
 
         crvusdController.set_debt_ceiling(
             address(factory),

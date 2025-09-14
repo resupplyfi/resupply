@@ -44,18 +44,25 @@ contract CurveLendOperator is ReentrancyGuard {
     /// @notice The ```initialize``` function initializes the contract
     /// @param _factory the address of the operator factory
     /// @param _market the address of the underlying market to interact with
-    function initialize(address _factory, address _market) external nonReentrant{
+    function initialize(address _factory, address _market, uint256 _initialMintLimit) external nonReentrant{
         require(market == address(0),"!init");
         market = _market;
         factory = _factory;
         //approve all crvusd transfers to the underlying market
         IERC20(CRVUSD).forceApprove(_market, type(uint256).max);
+
+        //set initial limit
+        _setMintLimit(_initialMintLimit);
     }
 
 
     /// @notice The ```setMintLimit``` sets a new borrow limit for the operator
     /// @param _newLimit the new limit to use
     function setMintLimit(uint256 _newLimit) external nonReentrant onlyOwner{
+        _setMintLimit(_newLimit);
+    }
+
+    function _setMintLimit(uint256 _newLimit) internal{
         //set the new mint limit
         mintLimit = _newLimit;
         emit NewLimit(_newLimit);
