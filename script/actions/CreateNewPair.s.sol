@@ -8,14 +8,13 @@ import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 
 contract CreateNewPair is BaseAction {
-    uint256 public constant MAX_DISTRIBUTION_PER_SECOND_PER_ASSET = uint256(2e17) / 365 days; // 20% apr max distribution rate;
     uint256 public constant PROTOCOL_ID = Protocol.PROTOCOL_ID_CURVE;
-    address public constant COLLATERAL = 0x7430f11Eeb64a4ce50C8f92177485d34C48DA72c;
+    address public constant COLLATERAL = 0xb89aF59FfD0c2Bf653F45B60441B875027696733;
     address public constant STAKING = PROTOCOL_ID == Protocol.PROTOCOL_ID_CURVE ? Mainnet.CONVEX_BOOSTER : address(0);
-    uint256 public constant STAKING_ID = 483;
+    uint256 public constant STAKING_ID = 493;
 
     function run() public isBatch(Protocol.DEPLOYER) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
 
         address pair = pairDeployer.predictPairAddress(
             PROTOCOL_ID,

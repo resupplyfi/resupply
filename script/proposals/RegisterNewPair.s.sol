@@ -8,15 +8,15 @@ import { BaseProposal } from "script/proposals/BaseProposal.sol";
 
 contract RegisterNewPair is BaseAction, BaseProposal {
     uint256 public constant MAX_DISTRIBUTION_PER_SECOND_PER_ASSET = uint256(2e17) / 365 days; // 20% apr max distribution rate;
-    address public constant PAIR_ADDRESS = 0xD42535Cda82a4569BA7209857446222ABd14A82c;
-    uint256 public constant TARGET_BORROW_LIMIT = 10_000_000e18;
+    address public constant PAIR_ADDRESS = 0x5254d4f55559f9Ca38cAf40A508a5b60E9af3202;
+    uint256 public constant TARGET_BORROW_LIMIT = 6_500_000e18;
 
     function run() public isBatch(deployer) {
         IVoter.Action[] memory data = buildProposalCalldata();
         printCallData(data);
-        proposeVote(data, "Onboard fxSAVE-long LlamaLend Market. https://gov.resupply.fi/t/onboard-fxsave-long-llamalend-market/73");
+        proposeVote(data, "Onboard sdeUSD-long LlamaLend Market. https://gov.resupply.fi/t/onboard-sdeusd-long-llamalend-market/74");
 
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
         if (deployMode == DeployMode.PRODUCTION) {
             executeBatch(true);
         }
