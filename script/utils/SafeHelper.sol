@@ -126,7 +126,7 @@ abstract contract SafeHelper is Script, Test {
     modifier isBatch(address safe_) {
         // Set the Safe API base URL and multisend address based on chain
         chainId = block.chainid;
-        SAFE_API_BASE_URL = string.concat("https://safe-client.safe.global/v1/chains/", vm.toString(chainId), "/");
+        SAFE_API_BASE_URL = "https://safe-transaction-mainnet.safe.global/api/v1/";
         SAFE_MULTISEND_ADDRESS = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
         safe = safe_;
 
@@ -369,7 +369,8 @@ abstract contract SafeHelper is Script, Test {
         if (status == 200 || status == 201) {
             console2.log("Batch sent successfully");
         } else {
-            // console2.log(string(data));
+            console2.log("Send batch failed with status:", status);
+            console2.log("Response:", string(data));
             revert("Send batch failed!");
         }
     }
@@ -521,10 +522,15 @@ abstract contract SafeHelper is Script, Test {
         string memory endpoint = string.concat(
             _getSafeNonceAPIEndpoint(safe_)
         );
-        (uint256 status, bytes memory data) = endpoint.get();
+        
+        // Add proper headers for the Safe API
+        string[] memory headers = new string[](1);
+        headers[0] = "User-Agent: Mozilla/5.0 (compatible; SafeHelper/1.0)";
+        
+        (uint256 status, bytes memory data) = endpoint.get(headers);
         if (status == 200) {
             string memory resp = string(data);
-            return resp.readUint(".recommendedNonce");
+            return resp.readUint(".nonce");
         } else {
             revert(string(abi.encodePacked("Error fetching nonce: ", vm.toString(status), ", ", string(data))));
         }
@@ -536,9 +542,9 @@ abstract contract SafeHelper is Script, Test {
         return
             string.concat(
                 SAFE_API_BASE_URL,
-                'transactions/',
+                'safes/',
                 vm.toString(safe_),
-                '/propose'
+                '/multisig-transactions/'
             );
     }
 
@@ -550,7 +556,7 @@ abstract contract SafeHelper is Script, Test {
                 SAFE_API_BASE_URL,
                 'safes/',
                 vm.toString(safe_),
-                '/nonces'
+                '/'
             );
     }
 
@@ -558,6 +564,23 @@ abstract contract SafeHelper is Script, Test {
         string[] memory headers = new string[](1);
         headers[0] = "Content-Type: application/json";
         return headers;
+    }
+
+    // Helper function to get substring for debugging
+    function _substring(string memory str, uint256 startIndex, uint256 length) private pure returns (string memory) {
+        bytes memory strBytes = bytes(str);
+        if (startIndex >= strBytes.length) return "";
+
+        uint256 endIndex = startIndex + length;
+        if (endIndex > strBytes.length) {
+            endIndex = strBytes.length;
+        }
+
+        bytes memory result = new bytes(endIndex - startIndex);
+        for (uint256 i = startIndex; i < endIndex; i++) {
+            result[i - startIndex] = strBytes[i];
+        }
+        return string(result);
     }
 
     // Signatures need to be converted to hex strings with 0x prefix

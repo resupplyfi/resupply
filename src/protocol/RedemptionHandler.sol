@@ -30,14 +30,13 @@ contract RedemptionHandler is CoreOwnable{
     }
     mapping(address => RedeemptionRateInfo) public ratingData;
     uint256 public totalWeight;
-    uint256 public usageDecayRate = 1e17 / uint256(7 days); //10% per week
-    uint256 public maxUsage = 3e17; //max usage of 30%. any thing above 30% will be 0 discount.  linearly scale between 0 and maxusage
+    address public underlyingOracle;
+    uint256 public usageDecayRate = 15e16 / uint256(7 days); //15% per week
+    uint256 public maxUsage = 4e17; //max usage of 30%. any thing above 30% will be 0 discount.  linearly scale between 0 and maxusage
     uint256 public maxDiscount = 5e14; //up to 0.05% discount
 
-    address public underlyingOracle;
-
-    uint256 public overusageStart = 1000; //at what usage% do fees start
-    uint256 public overusageMax = 1500; //at what usage% do fees reach max
+    uint256 public overusageStart = 800; //at what usage% do fees start
+    uint256 public overusageMax = 1300; //at what usage% do fees reach max
     uint256 public overusageRate = 1e16; //at max
     uint256 public overWeight = 2e17; //If weight of redeem is overthis, charge over usage
 

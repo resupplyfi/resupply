@@ -8,14 +8,14 @@ import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { CreateX } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 
-contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
+contract DeployRedemptionHandler is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
     
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
 
         deployRedemptionHandler();
-       
+
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
@@ -33,17 +33,8 @@ contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
             address(createXFactory),
             encodeCREATE3Deployment(salt, bytecode)
         );
-        address redemptionH = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
-        console.log("redemption handler deployed at", redemptionH);
-        require(redemptionH.code.length > 0, "deployment failed");
-        
-        // Set address in registry
-        _executeCore(
-            address(Protocol.REGISTRY),
-            abi.encodeWithSelector(
-                IResupplyRegistry.setRedemptionHandler.selector,
-                redemptionH
-            )
-        );
+        address predictedAddress = computeCreate3AddressFromSaltPreimage(salt, deployer, true, false);
+        console.log("redemption handler deployed at", predictedAddress);
+        require(predictedAddress.code.length > 0, "deployment failed");
     }
 }
