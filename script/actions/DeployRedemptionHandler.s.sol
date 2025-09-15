@@ -15,7 +15,7 @@ contract DeployRedemptionHandler is SafeHelper, CreateXHelper, BaseAction {
         deployMode = DeployMode.FORK;
 
         deployRedemptionHandler();
-       
+
         if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
     }
 
