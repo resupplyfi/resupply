@@ -148,6 +148,7 @@ library Mainnet {
     uint256 internal constant CHAIN_ID = 1;
     address internal constant CONVEX_DEPLOYER = 0x947B7742C403f20e5FaCcDAc5E092C943E7D0277;
     address internal constant CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
+    address internal constant CONVEX_VOTEPROXY = 0x989AEb4d175e16225E39E87d0D97A3360524AD80;
     address internal constant CRV_ERC20 = 0xD533a949740bb3306d119CC777fa900bA034cd52;
     address internal constant CVX_ERC20 = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
     address internal constant FRXUSD_ERC20 = 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29;
@@ -161,6 +162,8 @@ library Mainnet {
     address internal constant CURVE_GAUGE_CONTROLLER = 0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB;
     address internal constant CURVE_CRVUSD_CONTROLLER = 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC;
     address internal constant CURVE_OWNERSHIP_AGENT = 0x40907540d8a6C65c637785e8f8B742ae6b0b9968;
+    address internal constant CURVE_OWNERSHIP_VOTING = 0xE478de485ad2fe566d49342Cbd03E49ed7DB3356;
+    address internal constant CURVE_PARAMETER_VOTING = 0xBCfF8B0b9419b9A88c44546519b1e909cF330399;
 
     //fraxlend
     address internal constant FRAXLEND_SFRXETH_FRXUSD = 0xaB3cb84c310186B2Fa4B4503624A5D90b5DcB22D;
