@@ -43,13 +43,13 @@ contract BaseCurveProposalTest is Test {
         ownershipVoting.executeVote(proposalId);
         (bool open, bool executed ,uint64 start, , ,,uint256 yea , uint256 nay , uint256 votingPower , bytes memory _script) = ownershipVoting.getVote(proposalId);
         console.log("-------- executed proposal -----------");
-        console.log("open: ", open);
-        console.log("executed: ", executed);
-        console.log("start: ", start);
-        console.log("yea: ", yea);
-        console.log("nay: ", nay);
-        console.log("votingPower: ", votingPower);
-        console.logBytes(_script);
-        console.log("can execute? ", ownershipVoting.canExecute(proposalId));
+        // console.log("open: ", open);
+        // console.log("executed: ", executed);
+        // console.log("start: ", start);
+        // console.log("yea: ", yea);
+        // console.log("nay: ", nay);
+        // console.log("votingPower: ", votingPower);
+        // console.logBytes(_script);
+        // console.log("can execute? ", ownershipVoting.canExecute(proposalId));
     }
 }

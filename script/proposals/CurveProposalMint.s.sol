@@ -5,6 +5,7 @@ import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { BaseCurveProposal } from "script/proposals/BaseCurveProposal.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
+import { ICurveLendMinterFactory } from 'src/interfaces/ICurveLendMinterFactory.sol';
 
 contract CurveProposalMint is BaseAction, BaseCurveProposal {
 
@@ -31,7 +32,7 @@ contract CurveProposalMint is BaseAction, BaseCurveProposal {
     }
 
     function buildProposalScript() public override returns (bytes memory script) {
-        BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](1);
+        BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](2);
 
         actions[0] = BaseCurveProposal.Action({
             target: Mainnet.CURVE_CRVUSD_CONTROLLER,
@@ -41,7 +42,16 @@ contract CurveProposalMint is BaseAction, BaseCurveProposal {
                 5_000_000e18)
         });
 
+        actions[1] = BaseCurveProposal.Action({
+            target: lendfactory,
+            data: abi.encodeWithSelector(
+                ICurveLendMinterFactory.addMarketOperator.selector, 
+                market,
+                5_000_000e18)
+        });
+
         console.log("Number of actions:", actions.length);
+        console.log("lend factory at: ", lendfactory);
 
         return buildScript(Mainnet.CURVE_OWNERSHIP_AGENT, actions);
     }

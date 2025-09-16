@@ -17,7 +17,7 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
 
     IERC20 public crvusd = IERC20(Mainnet.CRVUSD_ERC20);
 
-    address public factory;
+    CurveLendMinterFactory public factory;
     IERC20 public market;
 
     function setUp() public override {
@@ -29,7 +29,7 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
         ICrvusdController crvusdController = ICrvusdController(Mainnet.CURVE_CRVUSD_CONTROLLER);
         address feeReceiver = crvusdController.fee_receiver();
 
-        CurveLendMinterFactory factory = new CurveLendMinterFactory(
+        factory = new CurveLendMinterFactory(
             Mainnet.CURVE_OWNERSHIP_AGENT,
             address(crvusdController),
             feeReceiver,
@@ -45,13 +45,18 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
         bytes memory script = proposalScript.buildProposalScript();
 
         uint256 proposalId = proposeOwnershipVote(script, "Test Proposal");
-
+        console.log("crv supply balance: ", crvusd.totalSupply() );
         simulatePassingOwnershipVote(proposalId);
         executeOwnershipProposal(proposalId);
     }
 
     function test_mintAndSupply() public view {
-        console.log("minted balance: ", crvusd.balanceOf(address(factory)) );
+        console.log("factory address: ", address(factory));
+        console.log("factory crvusd balance: ", crvusd.balanceOf(address(factory)) );
+        console.log("crv supply balance: ", crvusd.totalSupply() );
+
+        address operator = factory.markets(address(market));
+        console.log("supplied shares on operator: ", market.balanceOf(operator));
     }
 
 
