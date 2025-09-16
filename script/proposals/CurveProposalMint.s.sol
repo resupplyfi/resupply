@@ -1,29 +1,24 @@
 pragma solidity 0.8.28;
 
-import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { BaseCurveProposal } from "script/proposals/BaseCurveProposal.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 import { ICurveLendMinterFactory } from 'src/interfaces/ICurveLendMinterFactory.sol';
 
-contract CurveProposalMint is BaseAction, BaseCurveProposal {
+
+contract CurveProposalMint is BaseCurveProposal {
 
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
     address public lendfactory;
     address public market;
 
-    function run() public isBatch(deployer) {
+    function run() public {
         vm.startBroadcast(deployer);
         bytes memory actions = buildProposalScript();
 
         proposeOwnershipVote(actions, "Test proposal");
-
-        deployMode = DeployMode.FORK;
-        if (deployMode == DeployMode.PRODUCTION) {
-            executeBatch(true);
-        }
     }
 
     function setDeployAddresses(address _factory, address _market) public{

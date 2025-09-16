@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol, DeploymentConfig, CreateX, Mainnet } from "src/Constants.sol";
+import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { BaseCurveProposalTest } from "test/integration/curveProposals/BaseCurveProposalTest.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";

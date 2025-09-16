@@ -2,13 +2,12 @@
 pragma solidity 0.8.28;
 
 import { Protocol, Mainnet } from "src/Constants.sol";
-import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
+import {Script} from "lib/forge-std/src/Script.sol";
 
 
-
-abstract contract BaseCurveProposal is BaseAction {
+abstract contract BaseCurveProposal is Script{
     ICurveVoting public constant ownershipVoting = ICurveVoting(Mainnet.CURVE_OWNERSHIP_VOTING);
     ICurveVoting public constant parameterVoting = ICurveVoting(Mainnet.CURVE_PARAMETER_VOTING);
 
@@ -70,7 +69,7 @@ abstract contract BaseCurveProposal is BaseAction {
     });
 
     script = buildScript(actions)
-    
+
     should build the script:
     0x0000000140907540d8a6c65c637785e8f8b742ae6b0b996800000104b61d27f60000000000000000000000002f50d538606fa9edd2b11e2446beb18c9d5846bb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000006418dfe9210000000000000000000000001169ba7f4204f26ff5af55a7aafbdaadfdf9faa20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
