@@ -59,6 +59,7 @@ import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { ICurveFactory } from "src/interfaces/curve/ICurveFactory.sol";
 import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
 import { ICurveGaugeController } from "src/interfaces/curve/ICurveGaugeController.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 
 contract Setup is Test {
@@ -703,5 +704,9 @@ contract Setup is Test {
         deal(address(govToken), address(this), amount);
         govToken.approve(address(staker), amount);
         staker.stake(address(this), amount);
+    }
+
+    function isSfrxUsdEnabled() public view returns(bool) {
+        return IERC4626(Mainnet.SFRXUSD_ERC20).previewMint(1e18) != 0;
     }
 }
