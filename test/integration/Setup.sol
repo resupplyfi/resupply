@@ -66,6 +66,7 @@ import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IRetentionIncentives } from "src/interfaces/IRetentionIncentives.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { ITreasuryManagerUpgradeable } from "src/interfaces/ITreasuryManagerUpgradeable.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract Setup is Test {
     using SafeERC20 for IERC20;
@@ -238,5 +239,9 @@ contract Setup is Test {
         vm.startPrank(address(core));
         deployer.setCreationCode(hex"");
         vm.stopPrank();
+    }
+
+    function isSfrxUsdEnabled() public view returns(bool) {
+        return IERC4626(Mainnet.SFRXUSD_ERC20).previewMint(1e18) != 0;
     }
 }

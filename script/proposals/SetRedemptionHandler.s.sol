@@ -19,7 +19,7 @@ contract SetRedemptionHandler is BaseProposal {
         deployMode = DeployMode.FORK;
 
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Upgrade redemption handler and set overusage param to 10%");
+        proposeVote(data, "Upgrade redemption handler and set overweight param to 10%");
         
         if (deployMode == DeployMode.PRODUCTION){
             executeBatch(true);

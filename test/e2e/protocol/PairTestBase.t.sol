@@ -43,7 +43,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
         frxusdToken.approve(address(sfrxusdvault), type(uint256).max);
         crvusdToken.approve(address(scrvusdvault), type(uint256).max);
         scrvusdvault.deposit(100_000_000e18, address(this));
-        sfrxusdvault.deposit(100_000_000e18, address(this));
+        if (isSfrxUsdEnabled()) sfrxusdvault.deposit(100_000_000e18, address(this));
 
         IERC20 scrvusd = IERC20(Constants.Mainnet.SCRVUSD_ERC20);
         IERC20 sfrxusd = IERC20(Constants.Mainnet.SFRXUSD_ERC20);
@@ -59,6 +59,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
 
         swapPoolsCrvUsd.add_liquidity(amounts,0,address(this));
 
+        if (!isSfrxUsdEnabled()) return;
         amounts[1] = sfrxusd.balanceOf(address(this));
         swapPoolsFrxusd.add_liquidity(amounts,0,address(this));
     }

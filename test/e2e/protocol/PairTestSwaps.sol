@@ -79,6 +79,7 @@ contract PairTestSwaps is PairTestBase {
         printUserInfo(fraxresupply, address(this));
 
         console.log("check utilities and solvency..");
+        if (!isSfrxUsdEnabled()) return; // bypass if sfrxUSD is not mintable
         uint256 maxltv = fraxresupply.maxLTV();
         uint256 toborrow = 100_000e18;
         uint256 slippage = 999e15;
@@ -94,6 +95,7 @@ contract PairTestSwaps is PairTestBase {
         
         // uint256 startingfraxCollateral = frxcollateral.balanceOf(address(this));
         // uint256 startingcrvusdCollateral = crvcollateral.balanceOf(address(this));
+
         fraxresupply.leveragedPosition(defaultswapper, toborrow, 10_000e18, 0, fraxpath);
 
         printPairInfo(fraxresupply);
