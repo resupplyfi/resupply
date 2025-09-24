@@ -336,7 +336,7 @@ contract Setup is Test {
         );
         assertEq(address(vestManager), vestManagerAddress);
         
-        voter = new Voter(address(core), IGovStaker(address(staker)), 100, 3000);
+        voter = new Voter(address(core), address(staker), 100, 3000, 10);
         stakingToken = govToken;
 
         vm.prank(address(core));
