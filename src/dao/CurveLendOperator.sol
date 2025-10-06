@@ -16,6 +16,8 @@ contract CurveLendOperator is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     address public constant CRVUSD = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
+    address public constant BURN_ADDRESS = address(0xdead);
+    uint256 public constant REQUIRED_BURN_AMOUNT = 1000e18; //1000:1 starting share to asset ratio
 
     address public market;
     address public factory;
@@ -48,6 +50,13 @@ contract CurveLendOperator is ReentrancyGuard {
         require(market == address(0),"!init");
         market = _market;
         factory = _factory;
+
+
+        //while the DAO should ensure that any market an operator is properly setup and in working condition,
+        //one simple integrity check we can do here is to check if shares have been burnt
+        require(IERC20(_market).balanceOf(BURN_ADDRESS) >= REQUIRED_BURN_AMOUNT, "Must burn first");
+
+
         //approve all crvusd transfers to the underlying market
         IERC20(CRVUSD).forceApprove(_market, type(uint256).max);
 
@@ -72,7 +81,7 @@ contract CurveLendOperator is ReentrancyGuard {
             //get difference of mintedAmount and newLimit
             uint256 difference = _newLimit - mintedAmount;
 
-            //pull needed funds from factory (will fail if factory does not have adaquate funds)
+            //pull needed funds from factory (will fail if factory does not have adequate funds)
             ICurveLendMinterFactory(factory).borrow(market, difference);
             mintedAmount += difference;
 
@@ -84,7 +93,9 @@ contract CurveLendOperator is ReentrancyGuard {
     /// @notice The ```reduceAmount``` reduce supplied token amounts on market and return to factory
     /// @param _amount amount to reduce
     /// @dev openly callable as market may not always be liquid enough to remove entire balance
-    function reduceAmount(uint256 _amount) external nonReentrant{
+    /// @dev reduceAmount will clamp to value so that minted amount does not go below mint limit
+    /// @return final amount reduced
+    function reduceAmount(uint256 _amount) external nonReentrant returns(uint256){
         //only reduce when needed
         require(mintedAmount > mintLimit, "can not reduce");
 
@@ -97,6 +108,8 @@ contract CurveLendOperator is ReentrancyGuard {
         //updated mintedAmount
         mintedAmount -= _amount;
         emit MintedAmountReduced(_amount);
+
+        return _amount;
     }
 
     /// @notice The ```withdraw_profit``` function withdraws any profit and sends to factory's fee receiver

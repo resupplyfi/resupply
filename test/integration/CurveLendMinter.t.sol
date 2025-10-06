@@ -57,7 +57,8 @@ contract CurveLendMinterTest is Setup {
         console.log("mint limit: ", lender.mintLimit());
         console.log("minted amount: ", mintedAmount);
         console.log("profit: ", currentAssets > mintedAmount ? (currentAssets - mintedAmount) : 0 );
-
+        console.log("burn: ", address(0xdead));
+        console.log("shares on burn: ", market.balanceOf(address(0xdead)));
     }
 
     function test_basicLending() public {

@@ -21,7 +21,7 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
 
     address public constant CRVUSD = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
     address public constant proxyFactory = 0x66807B5598A848602734B82E432dD88DBE13fC8f;
-    address public immutable crvusdController;
+    address public immutable crvusdControllerFactory;
     
     address public fee_receiver;
     address public implementation;
@@ -29,20 +29,20 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
 
     event SetImplementation (address indexed _implementation);
     event SetFeeReceiver (address indexed _receiver);
-    event AddMarket (address indexed _market, address indexed _lender);
+    event AddMarket (address indexed _market, address indexed _operator);
     event RemoveMarket (address indexed _market);
-    event Borrow (address indexed _market, uint256 _amount);
+    event Borrow (address indexed _market, address indexed _operator, uint256 _amount);
 
     /// @notice The ```constructor``` function is called at deployment
     /// @param _owner the owner of this factory
-    /// @param _crvusdController the crvUSD controller
+    /// @param _crvusdControllerFactory the crvUSD controller factory
     /// @param _feeReceiver initial fee receiver to send profits
     /// @param _initialImplementation initial implementation of market operators
-    constructor(address _owner, address _crvusdController, address _feeReceiver, address _initialImplementation) Ownable(_owner) {
-        crvusdController = _crvusdController;
+    constructor(address _owner, address _crvusdControllerFactory, address _feeReceiver, address _initialImplementation) Ownable(_owner) {
+        crvusdControllerFactory = _crvusdControllerFactory;
         implementation = _initialImplementation;
         fee_receiver = _feeReceiver;
-        IERC20(CRVUSD).forceApprove(_crvusdController, type(uint256).max);
+        IERC20(CRVUSD).forceApprove(_crvusdControllerFactory, type(uint256).max);
     }
 
     /// @notice The ```admin``` function returns admin role
@@ -110,6 +110,6 @@ contract CurveLendMinterFactory is Ownable, ReentrancyGuard {
 
         //each market has its limits set locally and the factory trusts it
         IERC20(CRVUSD).safeTransfer(msg.sender, _amount);
-        emit Borrow(_market, _amount);
+        emit Borrow(_market, msg.sender, _amount);
     }
 }
