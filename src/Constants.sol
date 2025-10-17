@@ -164,6 +164,7 @@ library Mainnet {
     address internal constant CURVE_OWNERSHIP_AGENT = 0x40907540d8a6C65c637785e8f8B742ae6b0b9968;
     address internal constant CURVE_OWNERSHIP_VOTING = 0xE478de485ad2fe566d49342Cbd03E49ed7DB3356;
     address internal constant CURVE_PARAMETER_VOTING = 0xBCfF8B0b9419b9A88c44546519b1e909cF330399;
+    address internal constant CURVE_LENDING_FACTORY = 0xd99391DF68CDb38A89828a6d51F3976E3e76aFFF;
 
     //fraxlend
     address internal constant FRAXLEND_SFRXETH_FRXUSD = 0xaB3cb84c310186B2Fa4B4503624A5D90b5DcB22D;
