@@ -22,29 +22,33 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
 
     function setUp() public override {
         super.setUp();
-
-        //deploy implementation and factory
-        CurveLendOperator lenderImpl = new CurveLendOperator();
-
-        ICrvusdController crvusdController = ICrvusdController(Mainnet.CURVE_CRVUSD_CONTROLLER);
-        address feeReceiver = crvusdController.fee_receiver();
-
-        factory = new CurveLendMinterFactory(
-            Mainnet.CURVE_OWNERSHIP_AGENT,
-            address(crvusdController),
-            feeReceiver,
-            address(lenderImpl)
-        );
-
+        proposalScript = new CurveProposalMint();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
-        proposalScript = new CurveProposalMint();
+        bool deploynew = false;
+
+        if(deploynew){
+            //deploy implementation and factory
+            CurveLendOperator lenderImpl = new CurveLendOperator();
+
+            ICrvusdController crvusdController = ICrvusdController(Mainnet.CURVE_CRVUSD_CONTROLLER);
+            address feeReceiver = crvusdController.fee_receiver();
+
+            factory = new CurveLendMinterFactory(
+                Mainnet.CURVE_OWNERSHIP_AGENT,
+                address(crvusdController),
+                feeReceiver,
+                address(lenderImpl)
+            );
+        }else{
+            factory = CurveLendMinterFactory(Mainnet.CURVE_LENDING_FACTORY);
+        }
 
         proposalScript.setDeployAddresses(address(factory), address(market));
 
         bytes memory script = proposalScript.buildProposalScript();
 
-        uint256 proposalId = proposeOwnershipVote(script, "Test Proposal");
+        uint256 proposalId = proposeOwnershipVote(script, "Mint and lend 5m crvUSD to the sreUSD Lending Market");
         console.log("crv supply balance: ", crvusd.totalSupply() );
         simulatePassingOwnershipVote(proposalId);
         executeOwnershipProposal(proposalId);

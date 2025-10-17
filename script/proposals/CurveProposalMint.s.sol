@@ -15,10 +15,14 @@ contract CurveProposalMint is BaseCurveProposal {
     address public market;
 
     function run() public {
+
+        lendfactory = Mainnet.CURVE_LENDING_FACTORY;
+        market = Mainnet.CURVELEND_SREUSD_CRVUSD;
+
         vm.startBroadcast(deployer);
         bytes memory actions = buildProposalScript();
 
-        proposeOwnershipVote(actions, "Test proposal");
+        proposeOwnershipVote(actions, "Mint and lend 5m crvUSD to the sreUSD Lending Market");
     }
 
     function setDeployAddresses(address _factory, address _market) public{
@@ -47,6 +51,7 @@ contract CurveProposalMint is BaseCurveProposal {
 
         console.log("Number of actions:", actions.length);
         console.log("lend factory at: ", lendfactory);
+        console.log("lend market at: ", market);
 
         return buildScript(Mainnet.CURVE_OWNERSHIP_AGENT, actions);
     }
