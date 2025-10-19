@@ -22,4 +22,5 @@ interface ICurveVoting{
             bytes memory script
         );
     function canExecute(uint256 _voteId) external view returns (bool);
+    function votesLength() external view returns (uint256);
 }
