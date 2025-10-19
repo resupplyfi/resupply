@@ -19,7 +19,7 @@ contract YBEmissionsRecipient is BaseCurveProposal {
         bytes memory actions = buildProposalScript();
         console.logBytes(actions);
 
-        proposeOwnershipVote(actions, "Set recipient ");
+        proposeOwnershipVote(actions, "Set YB emissions recipient to splitter");
     }
 
     function buildProposalScript() public override returns (bytes memory script) {
