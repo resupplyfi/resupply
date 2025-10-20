@@ -2,12 +2,12 @@ pragma solidity 0.8.28;
 
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { BaseCurveProposal } from "script/proposals/BaseCurveProposal.sol";
+import { BaseCurveProposal } from "script/proposals/curve/BaseCurveProposal.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 import { ICurveLendMinterFactory } from 'src/interfaces/ICurveLendMinterFactory.sol';
 
 
-contract CurveProposalMint is BaseCurveProposal {
+contract CurveProposalMintYB is BaseCurveProposal {
 
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
