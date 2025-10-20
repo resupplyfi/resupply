@@ -5,7 +5,7 @@ import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { BaseCurveProposalTest } from "test/integration/curveProposals/BaseCurveProposalTest.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
-import { CurveProposalMintYB } from "script/proposals/curve/CurveProposalMint.s.sol";
+import { CurveProposalMint } from "script/proposals/curve/CurveProposalMint.s.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import { CurveLendOperator } from "src/dao/CurveLendOperator.sol";
@@ -13,7 +13,7 @@ import { CurveLendMinterFactory } from "src/dao/CurveLendMinterFactory.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 
 contract CurveProposalMintTest is BaseCurveProposalTest {
-    CurveProposalMintYB proposalScript;
+    CurveProposalMint proposalScript;
 
     IERC20 public crvusd = IERC20(Mainnet.CRVUSD_ERC20);
 
@@ -22,7 +22,7 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
 
     function setUp() public override {
         super.setUp();
-        proposalScript = new CurveProposalMintYB();
+        proposalScript = new CurveProposalMint();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
         bool deploynew = false;

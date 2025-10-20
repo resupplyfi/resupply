@@ -7,7 +7,7 @@ import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 import { ICurveLendMinterFactory } from 'src/interfaces/ICurveLendMinterFactory.sol';
 
 
-contract CurveProposalMintYB is BaseCurveProposal {
+contract CurveProposalMint is BaseCurveProposal {
 
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
