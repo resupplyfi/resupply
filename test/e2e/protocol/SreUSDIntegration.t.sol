@@ -9,7 +9,6 @@ import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.
 import { MockReUsdOracle } from "test/mocks/MockReUsdOracle.sol";
 import { PairTestBase } from "test/e2e/protocol/PairTestBase.t.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 contract SreUSDIntegrationTest is PairTestBase {
     MockReUsdOracle public mockReUsdOracle;
@@ -57,7 +56,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         depositToStakedStable(1000e18);
         address pair = pairs[0];
         uint256 borrowAmount = 10_000e18;
-        borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
         // Advance time and add interest to generate fees
         skip(1 days);
         IResupplyPair(pair).addInterest(false);
@@ -86,7 +85,7 @@ contract SreUSDIntegrationTest is PairTestBase {
     function test_InterestRatesIncreaseWhenOffPeg() public {
         address pair = pairs[0];
         uint256 borrowAmount = 10_000e18;
-        borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
         
         // Step 1
         setPeg(1e18);
@@ -148,7 +147,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         for (uint256 i = 0; i < 4; i++) {
             address pair = pairs[0];
             uint256 borrowAmount = 10_000e18;
-            borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+            borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
             skip(1 days);
             IResupplyPair(pair).addInterest(false);
             advanceEpochsWithdrawFeesAndDistributeFees(1);
@@ -164,7 +163,7 @@ contract SreUSDIntegrationTest is PairTestBase {
     function test_TimeWeightedFeesAndLogger() public {
         address pair = pairs[0];
         uint256 borrowAmount = 10_000e18;
-        borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
 
         // Start at peg and skip to fresh epoch
         setPeg(1e18);

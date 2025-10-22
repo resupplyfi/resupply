@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { RewardDistributorMultiEpoch } from "src/protocol/RewardDistributorMultiEpoch.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
@@ -99,7 +99,7 @@ contract PairTestFeeFlow is PairTestBase {
         console.log("\nwarp to check claimables\n");
         printDistributionInfo();
 
-        RewardDistributorMultiEpoch.EarnedData[] memory earnedData = pair.earned(address(this));
+        IResupplyPair.EarnedData[] memory earnedData = pair.earned(address(this));
         console.log("govToken rewards before claim: ", stakingToken.balanceOf(address(this)));
         pair.getReward(address(this));
         console.log("govToken rewards after claim: ", stakingToken.balanceOf(address(this)));
@@ -311,7 +311,7 @@ contract PairTestFeeFlow is PairTestBase {
         console.log("weight of current pair: ", pairEmissionStream.balanceOf(address(pair)));
         console.log("total pair weight: ", pairEmissionStream.totalSupply());
         console.log("emissions earned by pair: ", pairEmissionStream.earned(address(pair)));
-        RewardDistributorMultiEpoch.EarnedData[] memory earnedData = pair.earned(address(this));
+        IResupplyPair.EarnedData[] memory earnedData = pair.earned(address(this));
         uint256 rlength =  earnedData.length;
         for(uint256 i = 0; i < rlength; i++){
             console.log("borrow rewards -> earned token: ", earnedData[i].token, ", amount: ", earnedData[i].amount);

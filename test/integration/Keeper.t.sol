@@ -2,13 +2,11 @@
 pragma solidity 0.8.28;
 
 import { console } from "forge-std/console.sol";
-import { Protocol } from "src/Constants.sol";
 import { Setup } from "test/integration/Setup.sol";
-import { Upgrades, UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { KeeperV1 } from "src/helpers/keepers/KeeperV1.sol";
 import { KeeperV2 } from "src/helpers/keepers/KeeperV2.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract KeeperTest is Setup {
     address proxy;

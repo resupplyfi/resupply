@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";

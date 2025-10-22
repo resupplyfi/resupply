@@ -5,7 +5,7 @@ import { PairTestBase } from "./PairTestBase.t.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { MockOracle } from "test/mocks/MockOracle.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";

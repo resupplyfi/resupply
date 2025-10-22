@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import "src/Constants.sol" as Constants;
 import { console } from "lib/forge-std/src/console.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
 import { RewardDistributorMultiEpoch } from "src/protocol/RewardDistributorMultiEpoch.sol";
 import { Setup } from "test/e2e/Setup.sol";
@@ -25,8 +25,8 @@ contract PairTestSwaps is PairTestBase {
         addSwapLiquidity();
 
         address[] memory _pairs = registry.getAllPairAddresses();
-        ResupplyPair fraxresupply = ResupplyPair(_pairs[_pairs.length - 1]); 
-        ResupplyPair curveresupply = ResupplyPair(_pairs[0]); 
+        IResupplyPair fraxresupply = IResupplyPair(_pairs[_pairs.length - 1]); 
+        IResupplyPair curveresupply = IResupplyPair(_pairs[0]); 
 
         vm.prank(fraxresupply.owner());
         fraxresupply.setBorrowLimit(type(uint128).max);
@@ -34,8 +34,8 @@ contract PairTestSwaps is PairTestBase {
         vm.prank(curveresupply.owner());
         curveresupply.setBorrowLimit(type(uint128).max);
         
-        IERC20 crvusd = curveresupply.underlying();
-        IERC20 frxusd = fraxresupply.underlying();
+        IERC20 crvusd = IERC20(curveresupply.underlying());
+        IERC20 frxusd = IERC20(fraxresupply.underlying());
         
         deal(address(crvusd), address(this), 10_000e18);
         deal(address(frxusd), address(this), 10_000e18);

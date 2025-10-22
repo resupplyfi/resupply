@@ -9,7 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { BytesLib } from "solidity-bytes-utils/contracts/BytesLib.sol";
 import { OdosApi } from "test/utils/OdosApi.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
@@ -18,7 +18,7 @@ contract SwapperOdosTest is PairTestBase {
     address public weth = OdosApi.WETH;
     address public usdc = OdosApi.USDC;
     bytes public odosPayload;
-    ResupplyPair public _pair;
+    IResupplyPair public _pair;
     address public _core = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
     ResupplyPairDeployer pairDeployer = ResupplyPairDeployer(0x5555555524De7C56C1B20128dbEAace47d2C0417);
     IResupplyRegistry _registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
@@ -31,7 +31,7 @@ contract SwapperOdosTest is PairTestBase {
 
     function test_LiveOdosSwap() public {
         address[] memory pairs = _registry.getAllPairAddresses();
-        _pair = ResupplyPair(pairs[1]);
+        _pair = IResupplyPair(pairs[1]);
         address collateral = address(_pair.collateral());
         vm.startPrank(address(_core));
         swapper = new SwapperOdos(_core);
@@ -53,7 +53,7 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Odos payload:", _bytesToFullHex(odosPayload));
 
         uint256 initialUnderlyingAmount = 100_000e18;
-        IERC20 underlying = _pair.underlying();
+        IERC20 underlying = IERC20(_pair.underlying());
         deal(address(underlying), address(this), initialUnderlyingAmount);
         underlying.approve(address(_pair), initialUnderlyingAmount);
         uint256 minCollateralOut = IERC4626(collateral).convertToShares(borrowAmount * 9000 / 10000);
@@ -118,7 +118,7 @@ contract SwapperOdosTest is PairTestBase {
         assertGt(pairs.length, 0);
         for (uint i = 0; i < pairs.length; i++) {
             address _pair = pairs[i];
-            address collateral = address(ResupplyPair(_pair).collateral());
+            address collateral = address(IResupplyPair(_pair).collateral());
             address odosRouter = swapper.odosRouter();
             assertGt(IERC20(collateral).allowance(address(swapper), odosRouter), 1e40);
         }
@@ -132,7 +132,7 @@ contract SwapperOdosTest is PairTestBase {
         assertGt(pairs.length, 0);
         for (uint i = 0; i < pairs.length; i++) {
             address _pair = pairs[i];
-            address collateral = address(ResupplyPair(_pair).collateral());
+            address collateral = address(IResupplyPair(_pair).collateral());
             address odosRouter = swapper.odosRouter();
             assertEq(IERC20(collateral).allowance(address(swapper), odosRouter), 0);
         }
@@ -178,7 +178,7 @@ contract SwapperOdosTest is PairTestBase {
         }
     }
 
-    function toAmount(ResupplyPair _pair, uint256 shares) internal view returns (uint256 amount) {
+    function toAmount(IResupplyPair _pair, uint256 shares) internal view returns (uint256 amount) {
         (uint256 totalBorrow, uint256 totalBorrowShares) = _pair.totalBorrow();
         if (totalBorrowShares == 0) {
             amount = shares;

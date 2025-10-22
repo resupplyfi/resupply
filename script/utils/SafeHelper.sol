@@ -408,12 +408,7 @@ abstract contract SafeHelper is Script, Test {
             );
     }
 
-    function _getTypedData(
-        address safe_,
-        Batch memory batch_
-    ) private returns (string memory) {
-        // Create EIP712 structured data for the batch transaction to sign externally via cast
-
+    function _buildEIP712Types() private returns (string memory) {
         // EIP712Domain Field Types
         string[] memory domainTypes = new string[](2);
         string memory t = "domainType0";
@@ -459,9 +454,10 @@ abstract contract SafeHelper is Script, Test {
         // Create the top level types object
         t = "topLevelTypes";
         t.serialize("EIP712Domain", domainTypes);
-        string memory types = t.serialize("SafeTx", txnTypes);
+        return t.serialize("SafeTx", txnTypes);
+    }
 
-        // Create the message object
+    function _buildMessage(Batch memory batch_) private returns (string memory) {
         string memory m = "message";
         m.serialize("to", batch_.to);
         m.serialize("value", batch_.value);
@@ -472,12 +468,23 @@ abstract contract SafeHelper is Script, Test {
         m.serialize("gasPrice", batch_.gasPrice);
         m.serialize("gasToken", address(0));
         m.serialize("refundReceiver", address(0));
-        string memory message = m.serialize("nonce", batch_.nonce);
+        return m.serialize("nonce", batch_.nonce);
+    }
 
-        // Create the domain object
+    function _buildDomain(address safe_) private returns (string memory) {
         string memory d = "domain";
         d.serialize("verifyingContract", safe_);
-        string memory domain = d.serialize("chainId", chainId);
+        return d.serialize("chainId", chainId);
+    }
+
+    function _getTypedData(
+        address safe_,
+        Batch memory batch_
+    ) private returns (string memory) {
+        // Create EIP712 structured data for the batch transaction to sign externally via cast
+        string memory types = _buildEIP712Types();
+        string memory message = _buildMessage(batch_);
+        string memory domain = _buildDomain(safe_);
 
         // Create the payload object
         string memory p = "payload";
@@ -486,9 +493,7 @@ abstract contract SafeHelper is Script, Test {
         p.serialize("domain", domain);
         string memory payload = p.serialize("message", message);
 
-        payload = _stripSlashQuotes(payload);
-
-        return payload;
+        return _stripSlashQuotes(payload);
     }
 
     function _stripSlashQuotes(

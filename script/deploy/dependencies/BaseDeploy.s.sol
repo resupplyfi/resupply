@@ -3,7 +3,7 @@ import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { console } from "forge-std/console.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";

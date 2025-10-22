@@ -1,7 +1,7 @@
 pragma solidity ^0.8.22;
 
-import "forge-std/Test.sol";
-import "forge-std/console2.sol";
+import { Test } from "forge-std/Test.sol";
+import { console2 } from "forge-std/console2.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { GovStaker } from "src/dao/staking/GovStaker.sol";
 import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";

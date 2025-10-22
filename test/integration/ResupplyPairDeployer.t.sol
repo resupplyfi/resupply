@@ -6,17 +6,13 @@ import {Test} from "forge-std/Test.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/integration/Setup.sol";
 import {console2} from "forge-std/console2.sol";
-import {console} from "lib/forge-std/src/console.sol";
-import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
+import {ResupplyPairConvex} from "src/protocol/pair/ResupplyPairConvex.sol";
 import {IResupplyPair} from "src/interfaces/IResupplyPair.sol";
 import {IResupplyPairDeployer} from "src/interfaces/IResupplyPairDeployer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {IAuthHook} from "src/interfaces/IAuthHook.sol";
-import {IResupplyRegistry} from "src/interfaces/IResupplyRegistry.sol";
 import {ICurveLendingVault} from "src/interfaces/curve/ICurveLendingVault.sol";
-import {DeployInfo} from "test/utils/DeployInfo.sol";
 
 contract ResupplyPairDeployerTest is Setup {
     using Strings for uint256;
@@ -26,7 +22,7 @@ contract ResupplyPairDeployerTest is Setup {
     function setUp() public override {
         super.setUp();
         vm.prank(address(core));
-        deployer.setCreationCode(type(ResupplyPair).creationCode);
+        deployer.setCreationCode(type(ResupplyPairConvex).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
     }
@@ -119,7 +115,7 @@ contract ResupplyPairDeployerTest is Setup {
         console2.log("Current collateral ID:", currentCollateralId);
         
         // Deploy a new pair with the same collateral
-        ResupplyPair newPair = deployLendingPair(
+        IResupplyPair newPair = deployLendingPair(
             _protocolId,
             _collateral,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -183,7 +179,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_deployLendingPair() public {
-        ResupplyPair pair = deployLendingPair(
+        IResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -195,7 +191,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_AtomicRegisterOnDeploy() public {
-        ResupplyPair pair = deployLendingPair(
+        IResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -218,7 +214,7 @@ contract ResupplyPairDeployerTest is Setup {
         );
         assertEq(pairAddressViaCustomConfig, predictedAddressViaDefaultConfig);
         console2.log("Predicted Pair Address: ", pairAddressViaCustomConfig);
-        ResupplyPair pair = deployLendingPair(
+        IResupplyPair pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
@@ -228,7 +224,7 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_DeployPermissions(address _deployer) public {
-        ResupplyPair pair;
+        IResupplyPair pair;
         address someGuy = address(0x123);
         // Deployer is not approved
         vm.expectRevert(abi.encodeWithSelector(ResupplyPairDeployer.ApprovedDeployersOnly.selector));
@@ -266,7 +262,7 @@ contract ResupplyPairDeployerTest is Setup {
         vm.expectRevert(abi.encodeWithSelector(
             IResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
         ));
-        ResupplyPair pair = deployLendingPair(
+        IResupplyPair pair = deployLendingPair(
             0,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
             uint256(0)

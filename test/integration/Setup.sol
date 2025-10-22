@@ -6,12 +6,10 @@ import { DeploymentConfig } from "src/Constants.sol";
 
 // DAO Contracts
 import { Test } from "lib/forge-std/src/Test.sol";
-import { console } from "lib/forge-std/src/console.sol";
 import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { IGovStakerEscrow } from "src/interfaces/IGovStakerEscrow.sol";
 import { IEmissionsController } from "src/interfaces/IEmissionsController.sol";
 import { IGovToken } from "src/interfaces/IGovToken.sol";
 import { IStablecoin } from "src/interfaces/IStablecoin.sol";
@@ -44,7 +42,6 @@ import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { ILiquidationHandler } from "src/interfaces/ILiquidationHandler.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { ISwapper } from "src/interfaces/ISwapper.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 // Incentive Contracts
 import { ISimpleRewardStreamer } from "src/interfaces/ISimpleRewardStreamer.sol";
@@ -142,11 +139,11 @@ contract Setup is Test {
         _newprice = ICurveExchange(address(swapPoolsCrvUsd)).get_dy(0, 1, 100e18);
     }
 
-    function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(IResupplyPair p){
         return deployLendingPairWithCustomConfigAs(address(core), _protocolId, _collateral, _stakingId);
     }
 
-    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(IResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deploy(
             _protocolId,
@@ -165,10 +162,10 @@ contract Setup is Test {
         );
         if(_pairAddress == address(0)) {
             vm.stopPrank();
-            return ResupplyPair(address(0));
+            return IResupplyPair(address(0));
         }
         registry.addPair(_pairAddress);
-        p = ResupplyPair(_pairAddress);
+        p = IResupplyPair(_pairAddress);
         // ensure default state is written
         assertGt(p.minimumBorrowAmount(), 0);
         assertGt(p.minimumRedemption(), 0);
@@ -177,7 +174,7 @@ contract Setup is Test {
         return p;
     }
 
-    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(IResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deployWithDefaultConfig(
             _protocolId,
@@ -187,10 +184,10 @@ contract Setup is Test {
         );
         if(_pairAddress == address(0)) {
             vm.stopPrank();
-            return ResupplyPair(address(0));
+            return IResupplyPair(address(0));
         }
         registry.addPair(_pairAddress);
-        p = ResupplyPair(_pairAddress);
+        p = IResupplyPair(_pairAddress);
         // ensure default state is written
         assertGt(p.minimumBorrowAmount(), 0);
         assertGt(p.minimumRedemption(), 0);

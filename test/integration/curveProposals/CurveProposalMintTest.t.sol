@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol, Mainnet } from "src/Constants.sol";
+import { Mainnet } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { BaseCurveProposalTest } from "test/integration/curveProposals/BaseCurveProposalTest.sol";
-import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
-import { CurveProposalMint } from "script/proposals/curve/CurveProposalMint.s.sol";
+import { CurveProposalMint } from "script/proposals/CurveProposalMint.s.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import { CurveLendOperator } from "src/dao/CurveLendOperator.sol";

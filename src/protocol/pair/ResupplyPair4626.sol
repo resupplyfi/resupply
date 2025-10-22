@@ -8,6 +8,7 @@ pragma solidity 0.8.28;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairCore } from "src/protocol/pair/ResupplyPairCore.sol";
@@ -17,7 +18,6 @@ import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
 import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { EpochTracker } from "src/dependencies/EpochTracker.sol";
 
 contract ResupplyPair is ResupplyPairCore, EpochTracker {
@@ -25,13 +25,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
+    address public immutable vault;
     uint256 public lastFeeEpoch;
-    address public constant CRV = 0xD533a949740bb3306d119CC777fa900bA034cd52;
-    address public constant CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
-
-    // Staking Info
-    address public immutable convexBooster;
-    uint256 public convexPid;
 
     /// @param _core Core contract address
     /// @param _configData config data
@@ -43,26 +38,12 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         bytes memory _immutables,
         bytes memory _customConfigData
     ) ResupplyPairCore(_core, _configData, _immutables, _customConfigData) EpochTracker(_core) {
-
-        (, address _govToken, address _convexBooster, uint256 _convexpid) = abi.decode(
+        (address _govToken, address _vault) = abi.decode(
             _customConfigData,
-            (string, address, address, uint256)
+            (address, address)
         );
-        //add gov token rewards
         _insertRewardToken(_govToken);
-
-        //convex info
-        if(_convexBooster != address(0)){
-            convexBooster = _convexBooster;
-            convexPid = _convexpid;
-            //approve
-            collateral.forceApprove(convexBooster, type(uint256).max);
-            //add rewards for curve staking
-            _insertRewardToken(CRV);
-            _insertRewardToken(CVX);
-
-            emit SetConvexPool(_convexpid);
-        }
+        vault = _vault;
     }
 
 
@@ -363,67 +344,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
         }
     }
 
-    /// @notice The ```SetConvexPool``` event fires when convex pool id is updated
-    /// @param pid the convex pool id
-    event SetConvexPool(uint256 pid);
-
-    /// @notice The ```setConvexPool``` function is called update the underlying convex pool
-    /// @dev
-    /// @param pid the convex pool id
-    function setConvexPool(uint256 pid) external onlyOwner{
-        _updateConvexPool(pid);
-        emit SetConvexPool(pid);
-    }
-
-    function _updateConvexPool(uint256 _pid) internal{
-        uint256 currentPid = convexPid;
-        if(currentPid != _pid){
-            //get previous staking
-            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
-            //get balance
-            uint256 stakedBalance = IConvexStaking(_rewards).balanceOf(address(this));
-            
-            if(stakedBalance > 0){
-                //withdraw
-                IConvexStaking(_rewards).withdrawAndUnwrap(stakedBalance,false);
-                if(collateral.balanceOf(address(this)) < stakedBalance){
-                    revert IncorrectStakeBalance();
-                }
-            }
-
-            //stake in new pool
-            IConvexStaking(convexBooster).deposit(_pid, stakedBalance, true);
-
-            //update pid
-            convexPid = _pid;
-        }
-    }
-
-    function _stakeUnderlying(uint256 _amount) internal override{
-        uint256 currentPid = convexPid;
-        if(currentPid != 0){
-            IConvexStaking(convexBooster).deposit(currentPid, _amount, true);
-        }
-    }
-
-    function _unstakeUnderlying(uint256 _amount) internal override{
-        uint256 currentPid = convexPid;
-        if(currentPid != 0){
-            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
-            IConvexStaking(_rewards).withdrawAndUnwrap(_amount, false);
-        }
-    }
-
     function totalCollateral() public view override returns(uint256 _totalCollateralBalance){
-        uint256 currentPid = convexPid;
-        if(currentPid != 0){
-            //get staking
-            (,,,address _rewards,,) = IConvexStaking(convexBooster).poolInfo(currentPid);
-            //get balance
-            _totalCollateralBalance = IConvexStaking(_rewards).balanceOf(address(this));
-        }else{
-            _totalCollateralBalance = collateral.balanceOf(address(this));   
-        }
+        _totalCollateralBalance = IERC4626(vault).convertToAssets(IERC20(vault).balanceOf(address(this)));
     }
 
     // ============================================================================================
@@ -443,4 +365,8 @@ contract ResupplyPair is ResupplyPairCore, EpochTracker {
     function unpause() external onlyOwner{
         if (borrowLimit == 0) _setBorrowLimit(previousBorrowLimit);
     }
+
+    function _stakeUnderlying(uint256 _amount) internal override {}
+
+    function _unstakeUnderlying(uint256 _amount) internal override {}
 }
