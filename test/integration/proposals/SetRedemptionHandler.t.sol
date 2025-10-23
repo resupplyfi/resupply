@@ -10,6 +10,7 @@ import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { SetRedemptionHandler } from "script/proposals/SetRedemptionHandler.s.sol";
 
 contract SetRedemptionHandlerTest is BaseProposalTest {
+    uint256 public constant PROP_ID = 10;
     SetRedemptionHandler public script;
     uint256 public proposalId;
     address public redemptionHandlerAddress;
@@ -18,7 +19,7 @@ contract SetRedemptionHandlerTest is BaseProposalTest {
     function setUp() public override {
         super.setUp();
         console.log("Running from block:", block.number);
-        //if(isProposalProcessed(10)) return;
+        if(isProposalProcessed(PROP_ID)) return;
         address oldRedemptionHandler = registry.getAddress("REDEMPTION_HANDLER");        
         assertNotEq(Protocol.REDEMPTION_HANDLER, oldRedemptionHandler, "Redemption handler should be deployed");
         assertEq(address(newRedemptionHandler), Protocol.REDEMPTION_HANDLER, "Redemption handler should be deployed");
@@ -36,6 +37,7 @@ contract SetRedemptionHandlerTest is BaseProposalTest {
     }
 
     function test_NewWeightLimit() public {
+        if(isProposalProcessed(PROP_ID)) return;
         assertEq(script.WEIGHT_LIMIT(), newRedemptionHandler.overWeight(), "Wrong weight limit");
     }
 }

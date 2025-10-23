@@ -155,23 +155,24 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_DeployInfoSet() public {
+        IResupplyPair pair;
         vm.expectRevert(abi.encodeWithSelector(
             ResupplyPairDeployer.InvalidBorrowOrCollateralTokenLookup.selector
         ));
-        IResupplyPair pair = deployLendingPair(
+        pair = deployLendingPair(
             0,
             Mainnet.FRAXLEND_SFRXETH_FRXUSD,
             uint256(0)
         );
 
-        IResupplyPair pair2 = deployLendingPair(
+        pair = deployLendingPair(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
         (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(address(pair));
-        assertEq(protocolId, 0);
-        assertEq(deployTime, uint40(block.timestamp));
+        assertEq(protocolId, 0, "Wrong protocol id");
+        assertEq(deployTime, uint40(block.timestamp), "Wrong deploy time");
 
         pair = deployLendingPair(
             1,
@@ -179,8 +180,8 @@ contract ResupplyPairDeployerTest is Setup {
             uint256(0)
         );
         (protocolId, deployTime) = deployer.deployInfo(address(pair));
-        assertEq(protocolId, 1);
-        assertEq(deployTime, uint40(block.timestamp));
+        assertEq(protocolId, 1, "Wrong protocol id");
+        assertEq(deployTime, uint40(block.timestamp), "Wrong deploy time");
     }
 
     function _predictPairAddressWithCustomConfig(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal view returns(address){

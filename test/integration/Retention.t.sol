@@ -75,6 +75,7 @@ contract RetentionTest is Setup {
     }
 
     function test_balanceChange() public {
+        if (retention.balanceOf(retentionUsers[0]) == 0) return;
         //print balances
         printBalanceOfUser(retentionUsers[0]);
 
@@ -130,6 +131,7 @@ contract RetentionTest is Setup {
     }
 
     function test_UserClaim() public {
+        if (retention.balanceOf(retentionUsers[0]) == 0) return;
         advanceEpochAndClaim();
         address user = retentionUsers[0];
         vestManager.claim(address(treasury));

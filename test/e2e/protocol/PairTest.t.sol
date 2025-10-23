@@ -298,7 +298,7 @@ contract PairTest is PairTestBase {
         vm.expectRevert(IResupplyPairErrors.InsufficientDebtToRedeem.selector);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
-            borrowAmount, // add some to force revert
+            borrowAmount * 100,   // add some to force revert
             1e18,           // max fee
             address(this),  // return to
             true            // unwrap
@@ -309,7 +309,7 @@ contract PairTest is PairTestBase {
             redeemAmount,   // amount
             1e18,           // max fee
             address(this),  // return to
-            true           // unwrap
+            true            // unwrap
         );
         assertGt(collateralFreed, 0);
         (,,uint256 exchangeRate) = pair.exchangeRateInfo();

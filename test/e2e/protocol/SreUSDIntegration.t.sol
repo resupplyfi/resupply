@@ -20,14 +20,17 @@ contract SreUSDIntegrationTest is PairTestBase {
         asset = IERC20(address(stablecoin));
         console.log("Total pairs found:", registry.registeredPairsLength());
         require(registry.registeredPairsLength() > 0, "Pairs not found but needed");
-
+        pairs = registry.getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            underlying.approve(pairs[i], type(uint256).max);
+            IERC20(IResupplyPair(pairs[i]).collateral()).approve(pairs[i], type(uint256).max);
+        }
         // Setup mock oracle for easier price manipulation in tests
         mockReUsdOracle = new MockReUsdOracle();
         vm.startPrank(address(core));
         registry.setAddress("REUSD_ORACLE", address(mockReUsdOracle));
         priceWatcher.setOracle();
         vm.stopPrank();
-        pairs = registry.getAllPairAddresses();
         console.log("Number of pairs found:", pairs.length);
         depositToGovStaker(1000e18);
         distributeWeeklyFees();
