@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/integration/Setup.sol";
 import {console2} from "forge-std/console2.sol";
-import {ResupplyPairConvex} from "src/protocol/pair/ResupplyPairConvex.sol";
+import {ResupplyPair} from "src/protocol/ResupplyPair.sol";
 import {IResupplyPair} from "src/interfaces/IResupplyPair.sol";
 import {IResupplyPairDeployer} from "src/interfaces/IResupplyPairDeployer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -22,7 +22,7 @@ contract ResupplyPairDeployerTest is Setup {
     function setUp() public override {
         super.setUp();
         vm.prank(address(core));
-        deployer.setCreationCode(type(ResupplyPairConvex).creationCode);
+        deployer.setCreationCode(type(ResupplyPair).creationCode);
         deal(address(Mainnet.CRVUSD_ERC20), address(deployer), 100e18);
         deal(address(Mainnet.FRXUSD_ERC20), address(deployer), 100e18);
     }

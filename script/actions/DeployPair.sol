@@ -11,7 +11,7 @@ import { ICurvePool } from "src/interfaces/curve/ICurvePool.sol";
 import { console } from "forge-std/console.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ResupplyPairConvex } from "src/protocol/pair/ResupplyPairConvex.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 contract DeployPair is BaseAction {
     address public constant deployer = Protocol.DEPLOYER;
@@ -58,7 +58,7 @@ contract DeployPair is BaseAction {
 
     function updatePairImplementation() public{
         console.log("\n*** updating implementation...");
-        _executeCore(Protocol.PAIR_DEPLOYER_V2, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPairConvex).creationCode));
+        _executeCore(Protocol.PAIR_DEPLOYER_V2, abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
     }
 
     function deployLendingPair(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address){

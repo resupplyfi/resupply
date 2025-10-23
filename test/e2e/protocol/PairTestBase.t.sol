@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import "src/Constants.sol" as Constants;
 import { console } from "lib/forge-std/src/console.sol";
 import { Utilities } from "src/protocol/Utilities.sol";
-import { ResupplyPairConvex } from "src/protocol/pair/ResupplyPairConvex.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

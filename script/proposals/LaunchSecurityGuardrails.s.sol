@@ -11,7 +11,7 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
-import { ResupplyPairConvex } from "src/protocol/pair/ResupplyPairConvex.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
 
@@ -68,7 +68,7 @@ contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
             target: Protocol.PAIR_DEPLOYER_V2,
             data: abi.encodeWithSelector(
                 IResupplyPairDeployer.setCreationCode.selector,
-                type(ResupplyPairConvex).creationCode
+                type(ResupplyPair).creationCode
             )
         });
     }

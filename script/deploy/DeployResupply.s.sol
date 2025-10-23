@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { ResupplyPairConvex } from "src/protocol/pair/ResupplyPairConvex.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
 import { ICore } from "src/interfaces/ICore.sol";
@@ -159,7 +159,7 @@ contract DeployResupply is DeployResupplyDao, DeployResupplyProtocol {
     }
 
     function configurationStep1() public {
-        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPairConvex).creationCode));
+        _executeCore(address(pairDeployer), abi.encodeWithSelector(ResupplyPairDeployer.setCreationCode.selector, type(ResupplyPair).creationCode));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setVestManager.selector, address(vestManager)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setTreasury.selector, address(treasury)));
         _executeCore(address(registry), abi.encodeWithSelector(ResupplyRegistry.setStaker.selector, address(staker)));

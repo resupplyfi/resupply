@@ -30,7 +30,7 @@ import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { ResupplyPairConvex } from "src/protocol/pair/ResupplyPairConvex.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
@@ -184,7 +184,7 @@ contract Setup is Test {
         deal(Mainnet.FRXUSD_ERC20, address(deployer), 100e18);
 
         vm.startPrank(address(core));
-        deployer.setCreationCode(type(ResupplyPairConvex).creationCode);
+        deployer.setCreationCode(type(ResupplyPair).creationCode);
         deployer.addSupportedProtocol(
             "CurveLend",
             1e18,
