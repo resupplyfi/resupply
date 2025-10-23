@@ -14,8 +14,6 @@ import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 contract CurveProposalMintTest is BaseCurveProposalTest {
     CurveProposalMint proposalScript;
 
-    IERC20 public crvusd = IERC20(Mainnet.CRVUSD_ERC20);
-
     CurveLendMinterFactory public factory;
     IERC20 public market;
 

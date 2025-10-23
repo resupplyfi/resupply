@@ -5,7 +5,6 @@ import { Protocol } from "src/Constants.sol";
 import { Test } from "forge-std/Test.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 
 contract BaseProposalTest is Test, Setup {
 
