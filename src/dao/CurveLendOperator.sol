@@ -117,7 +117,7 @@ contract CurveLendOperator is ReentrancyGuard {
     /// @dev naming convention to align with other Curve contracts
     function withdraw_profit() external nonReentrant{
         //get current asset total
-        uint256 currentAssets = IERC4626(market).previewRedeem(IERC20(market).balanceOf(address(this)));
+        uint256 currentAssets = IERC4626(market).convertToAssets(IERC20(market).balanceOf(address(this)));
 
         //if current assets is greater than minted amount, can take profit
         if(currentAssets > mintedAmount){
