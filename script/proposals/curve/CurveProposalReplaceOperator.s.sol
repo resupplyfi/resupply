@@ -12,12 +12,10 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
 
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
-    address public lendfactory;
     address public market;
 
     function run() public {
 
-        lendfactory = Mainnet.CURVE_LENDING_FACTORY;
         market = Mainnet.CURVELEND_SREUSD_CRVUSD;
 
         vm.startBroadcast(deployer);
@@ -28,8 +26,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         proposeOwnershipVote(actions, metadata);
     }
 
-    function setDeployAddresses(address _factory, address _market) public{
-        lendfactory = _factory;
+    function setDeployAddresses(address _market) public{
         market = _market;
     }
 
@@ -50,13 +47,13 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
             target: Mainnet.CURVE_CRVUSD_CONTROLLER,
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
-                lendfactory,
+                Mainnet.CURVE_LENDING_FACTORY,
                 10_000_000e18)
         });
 
         //create new operator and fund
         actions[2] = BaseCurveProposal.Action({
-            target: lendfactory,
+            target: Mainnet.CURVE_LENDING_FACTORY,
             data: abi.encodeWithSelector(
                 ICurveLendMinterFactory.addMarketOperator.selector, 
                 market,
@@ -86,12 +83,12 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
             target: Mainnet.CURVE_CRVUSD_CONTROLLER,
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
-                lendfactory,
+                Mainnet.CURVE_LENDING_FACTORY,
                 0)
         });
 
         console.log("Number of actions:", actions.length);
-        console.log("lend factory at: ", lendfactory);
+        console.log("lend factory at: ", Mainnet.CURVE_LENDING_FACTORY);
         console.log("lend market at: ", market);
 
         return buildScript(Mainnet.CURVE_OWNERSHIP_AGENT, actions);

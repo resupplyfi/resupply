@@ -25,6 +25,8 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         proposalScript = new CurveProposalReplaceOperator();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
+        proposalScript.setDeployAddresses(address(market));
+
         factory = CurveLendMinterFactory(Mainnet.CURVE_LENDING_FACTORY);
 
         bytes memory script = proposalScript.buildProposalScript();
