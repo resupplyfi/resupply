@@ -17,7 +17,7 @@ import { ICurveLendOperator } from 'src/interfaces/curve/ICurveLendOperator.sol'
 
 contract CurveProposalUpdateOperator is BaseCurveProposalTest {
     CurveProposalReplaceOperator proposalScript;
-    ICurveLendOperator oldoperator = ICurveLendOperator(0x6119e210E00d4BE2Df1B240D82B1c3DECEdbBBf0);
+    ICurveLendOperator oldoperator;
     CurveLendOperator operator;
     CurveLendMinterFactory public factory;
     address public feeReceiver;
@@ -43,6 +43,7 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         simulatePassingOwnershipVote(proposalId);
         executeOwnershipProposal(proposalId);
         feeReceiver = factory.fee_receiver();
+        oldoperator = ICurveLendOperator(proposalScript.OLD_OPERATOR());
         operator = CurveLendOperator(factory.markets(address(market)));
     }
 
