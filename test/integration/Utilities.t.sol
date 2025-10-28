@@ -5,7 +5,6 @@ import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { Utilities } from "src/protocol/Utilities.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 
 contract UtilitiesTest is Setup {

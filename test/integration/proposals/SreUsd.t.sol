@@ -5,20 +5,15 @@ import { Protocol, DeploymentConfig, CreateX, Mainnet } from "src/Constants.sol"
 import { console } from "forge-std/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
-import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
-import { DeployInfo } from "script/actions/DeployFixes.s.sol";
 import { LaunchSreUsd } from "script/proposals/LaunchSreUsd.s.sol";
 import { ICreateX } from "src/interfaces/ICreateX.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
 import { IGovStaker } from "src/interfaces/IGovStaker.sol";
-import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculatorV2.sol";
 
 contract SreUsdTest is BaseProposalTest, CreateXHelper {
     ICreateX createX = ICreateX(CreateX.CREATEX_DEPLOYER);

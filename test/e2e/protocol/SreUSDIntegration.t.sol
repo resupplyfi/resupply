@@ -9,7 +9,6 @@ import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.
 import { MockReUsdOracle } from "test/mocks/MockReUsdOracle.sol";
 import { PairTestBase } from "test/e2e/protocol/PairTestBase.t.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 contract SreUSDIntegrationTest is PairTestBase {
     MockReUsdOracle public mockReUsdOracle;
@@ -21,14 +20,17 @@ contract SreUSDIntegrationTest is PairTestBase {
         asset = IERC20(address(stablecoin));
         console.log("Total pairs found:", registry.registeredPairsLength());
         require(registry.registeredPairsLength() > 0, "Pairs not found but needed");
-
+        pairs = registry.getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            underlying.approve(pairs[i], type(uint256).max);
+            IERC20(IResupplyPair(pairs[i]).collateral()).approve(pairs[i], type(uint256).max);
+        }
         // Setup mock oracle for easier price manipulation in tests
         mockReUsdOracle = new MockReUsdOracle();
         vm.startPrank(address(core));
         registry.setAddress("REUSD_ORACLE", address(mockReUsdOracle));
         priceWatcher.setOracle();
         vm.stopPrank();
-        pairs = registry.getAllPairAddresses();
         console.log("Number of pairs found:", pairs.length);
         depositToGovStaker(1000e18);
         distributeWeeklyFees();
@@ -57,7 +59,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         depositToStakedStable(1000e18);
         address pair = pairs[0];
         uint256 borrowAmount = 10_000e18;
-        borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
         // Advance time and add interest to generate fees
         skip(1 days);
         IResupplyPair(pair).addInterest(false);
@@ -86,7 +88,7 @@ contract SreUSDIntegrationTest is PairTestBase {
     function test_InterestRatesIncreaseWhenOffPeg() public {
         address pair = pairs[0];
         uint256 borrowAmount = 10_000e18;
-        borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
         
         // Step 1
         setPeg(1e18);
@@ -148,7 +150,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         for (uint256 i = 0; i < 4; i++) {
             address pair = pairs[0];
             uint256 borrowAmount = 10_000e18;
-            borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+            borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
             skip(1 days);
             IResupplyPair(pair).addInterest(false);
             advanceEpochsWithdrawFeesAndDistributeFees(1);
@@ -164,7 +166,7 @@ contract SreUSDIntegrationTest is PairTestBase {
     function test_TimeWeightedFeesAndLogger() public {
         address pair = pairs[0];
         uint256 borrowAmount = 10_000e18;
-        borrow(ResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
 
         // Start at peg and skip to fresh epoch
         setPeg(1e18);

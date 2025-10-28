@@ -9,8 +9,9 @@ import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 contract LaunchSecurityGuardrails is BaseAction, BaseProposal {
 

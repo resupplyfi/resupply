@@ -8,7 +8,6 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { DeployInfo } from "script/actions/DeployFixes.s.sol";
 import { LaunchSecurityGuardrails } from "script/proposals/LaunchSecurityGuardrails.s.sol";

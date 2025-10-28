@@ -27,9 +27,10 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 // Protocol Contracts
 import { Stablecoin } from "src/protocol/Stablecoin.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { ResupplyRegistry } from "src/protocol/ResupplyRegistry.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { InsurancePool } from "src/protocol/InsurancePool.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
@@ -109,8 +110,8 @@ contract Setup is Test {
     SwapperOdos public odosSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
-    ResupplyPair public testPair;
-    ResupplyPair public testPair2;
+    IResupplyPair public testPair;
+    IResupplyPair public testPair2;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
     FeeLogger public feeLogger;
@@ -407,14 +408,14 @@ contract Setup is Test {
         borrowLimitController = new BorrowLimitController(address(core));
         vm.prank(address(core));
         registry.setAddress("BORROW_LIMIT_CONTROLLER", address(borrowLimitController));
-        setOperatorPermission(address(borrowLimitController), address(0), ResupplyPair.setBorrowLimit.selector, true);
+        setOperatorPermission(address(borrowLimitController), address(0), IResupplyPair.setBorrowLimit.selector, true);
     }
 
-    function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPair(uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(IResupplyPair p){
         return deployLendingPairWithCustomConfigAs(address(core), _protocolId, _collateral, _stakingId);
     }
 
-    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair p){
+    function deployLendingPairWithCustomConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(IResupplyPair p){
         vm.startPrank(address(_deployer));
         address _pairAddress = deployer.deploy(
             _protocolId,
@@ -433,10 +434,10 @@ contract Setup is Test {
         );
         if(_pairAddress == address(0)) {
             vm.stopPrank();
-            return ResupplyPair(address(0));
+            return IResupplyPair(address(0));
         }
         registry.addPair(_pairAddress);
-        p = ResupplyPair(_pairAddress);
+        p = IResupplyPair(_pairAddress);
         // ensure default state is written
         assertGt(p.minimumBorrowAmount(), 0);
         assertGt(p.minimumRedemption(), 0);
@@ -445,7 +446,7 @@ contract Setup is Test {
         return p;
     }
 
-    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(ResupplyPair){
+    function deployLendingPairWithDefaultConfigAs(address _deployer, uint256 _protocolId, address _collateral, uint256 _stakingId) public returns(IResupplyPair){
         vm.prank(address(_deployer));
         address _pairAddress = deployer.deployWithDefaultConfig(
             _protocolId,
@@ -453,7 +454,7 @@ contract Setup is Test {
             _protocolId == 0 ? Mainnet.CONVEX_BOOSTER : address(0),
             _protocolId == 0 ? _stakingId : 0
         );
-        return ResupplyPair(_pairAddress);
+        return IResupplyPair(_pairAddress);
     }
 
     function deployDefaultLendingPairs() public{

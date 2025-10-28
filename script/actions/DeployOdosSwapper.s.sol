@@ -9,8 +9,8 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
+import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
 
 contract LaunchSetup3 is SafeHelper, CreateXHelper, BaseAction {
     address public constant deployer = Protocol.DEPLOYER;

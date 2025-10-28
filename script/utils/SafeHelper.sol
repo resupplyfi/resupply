@@ -176,6 +176,21 @@ abstract contract SafeHelper is Script, Test {
     // - `value` as in msg.value, sent as a `uint256` (=> 32 bytes),
     // -  length of `data` as a `uint256` (=> 32 bytes),
     // - `data` as `bytes`.
+    function _checkAndCreateNewBatchIfNeeded(uint256 gasUsed_) private {
+        uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
+        // Check if adding this transaction would exceed our max gas limit. If so create a new batch.
+        if (gasInCurrentBatch + gasUsed_ > maxGasPerBatch) {
+            // Only create a new batch if the current one has transactions
+            if (batches[currentBatchIndex].encodedTxns.length > 0) {
+                currentBatchIndex++;
+                batches.push(BatchData({
+                    encodedTxns: new bytes[](0),
+                    totalGas: 0
+                }));
+            }
+        }
+    }
+
     function addToBatch(
         address to_,
         uint256 value_,
@@ -190,18 +205,7 @@ abstract contract SafeHelper is Script, Test {
         uint256 gasUsed = gasStart - gasleft();
         if (deployMode == DeployMode.FORK) vm.stopBroadcast();
 
-        uint256 gasInCurrentBatch = batches[currentBatchIndex].totalGas;
-        // Check if adding this transaction would exceed our max gas limit. If so create a new batch.
-        if (gasInCurrentBatch + gasUsed > maxGasPerBatch) {
-            // Only create a new batch if the current one has transactions
-            if (batches[currentBatchIndex].encodedTxns.length > 0) {
-                currentBatchIndex++;
-                batches.push(BatchData({
-                    encodedTxns: new bytes[](0),
-                    totalGas: 0
-                }));
-            }
-        }
+        _checkAndCreateNewBatchIfNeeded(gasUsed);
 
         // Encode the transaction and add it to the current batch
         bytes memory encodedTxn = abi.encodePacked(Operation.CALL, to_, value_, data_.length, data_);
@@ -272,24 +276,15 @@ abstract contract SafeHelper is Script, Test {
         return currentBatchIndex + 1;
     }
 
-    function _signBatch(
-        address safe_,
-        Batch memory batch_
-    ) private returns (Batch memory) {
-        // Get the typed data to sign
-        string memory typedData = _getTypedData(safe_, batch_);
-
-        // Construct the sign command
-        string memory commandStart = "cast wallet sign ";
-        string memory wallet;
+    function _buildWalletParam() private view returns (string memory) {
         if (walletType == LOCAL) {
-            wallet = string.concat(
+            return string.concat(
                 "--private-key ",
                 vm.toString(privateKey),
                 " "
             );
         } else if (walletType == LEDGER) {
-            wallet = string.concat(
+            return string.concat(
                 "--ledger --mnemonic-index ",
                 vm.toString(mnemonicIndex),
                 " "
@@ -297,20 +292,33 @@ abstract contract SafeHelper is Script, Test {
         } else {
             revert("Unsupported wallet type");
         }
-        string memory commandEnd = "--data ";
+    }
 
-        // Sign the typed data from the CLI and get the signature
+    function _buildSignCommand(string memory typedData_) private view returns (string[] memory) {
+        string memory wallet = _buildWalletParam();
         string[] memory inputs = new string[](3);
         inputs[0] = "bash";
         inputs[1] = "-c";
         inputs[2] = string.concat(
-            commandStart,
+            "cast wallet sign ",
             wallet,
-            commandEnd,
+            "--data ",
             "'",
-            typedData,
+            typedData_,
             "'"
         );
+        return inputs;
+    }
+
+    function _signBatch(
+        address safe_,
+        Batch memory batch_
+    ) private returns (Batch memory) {
+        // Get the typed data to sign
+        string memory typedData = _getTypedData(safe_, batch_);
+
+        // Build and execute sign command
+        string[] memory inputs = _buildSignCommand(typedData);
         bytes memory signature = vm.ffi(inputs);
 
         // Set the signature on the batch
@@ -334,10 +342,7 @@ abstract contract SafeHelper is Script, Test {
         }
     }
 
-    function _sendBatch(address safe_, Batch memory batch_) private {
-        string memory endpoint = _getSafeTransactionAPIEndpoint(safe_);
-
-        // Create json payload for API call to Gnosis transaction service
+    function _buildBatchPayload(address safe_, Batch memory batch_) private returns (string memory) {
         string memory placeholder = "";
         placeholder.serialize("safe", safe_);
         placeholder.serialize("to", batch_.to);
@@ -348,8 +353,10 @@ abstract contract SafeHelper is Script, Test {
         placeholder.serialize("safeTxGas", vm.toString(batch_.safeTxGas));
         placeholder.serialize("baseGas", vm.toString(batch_.baseGas));
         placeholder.serialize("gasPrice", vm.toString(batch_.gasPrice));
+
         string memory txnHash = vm.toString(batch_.txHash);
         string memory sig = bytesToHexString(batch_.signature);
+
         placeholder.serialize("contractTransactionHash", txnHash);
         console2.log('txnHash',txnHash);
         console2.log('signer',_getSignerAddress());
@@ -358,7 +365,13 @@ abstract contract SafeHelper is Script, Test {
         placeholder.serialize("refundReceiver", address(0));
         placeholder.serialize("nonce", vm.toString(batch_.nonce));
         placeholder.serialize("signature", sig);
-        string memory payload = placeholder.serialize("sender", vm.toString(_getSignerAddress()));
+
+        return placeholder.serialize("sender", vm.toString(_getSignerAddress()));
+    }
+
+    function _sendBatch(address safe_, Batch memory batch_) private {
+        string memory endpoint = _getSafeTransactionAPIEndpoint(safe_);
+        string memory payload = _buildBatchPayload(safe_, batch_);
 
         // Send batch
         (uint256 status, bytes memory data) = endpoint.post(
@@ -408,12 +421,7 @@ abstract contract SafeHelper is Script, Test {
             );
     }
 
-    function _getTypedData(
-        address safe_,
-        Batch memory batch_
-    ) private returns (string memory) {
-        // Create EIP712 structured data for the batch transaction to sign externally via cast
-
+    function _buildEIP712Types() private returns (string memory) {
         // EIP712Domain Field Types
         string[] memory domainTypes = new string[](2);
         string memory t = "domainType0";
@@ -459,9 +467,10 @@ abstract contract SafeHelper is Script, Test {
         // Create the top level types object
         t = "topLevelTypes";
         t.serialize("EIP712Domain", domainTypes);
-        string memory types = t.serialize("SafeTx", txnTypes);
+        return t.serialize("SafeTx", txnTypes);
+    }
 
-        // Create the message object
+    function _buildMessage(Batch memory batch_) private returns (string memory) {
         string memory m = "message";
         m.serialize("to", batch_.to);
         m.serialize("value", batch_.value);
@@ -472,12 +481,23 @@ abstract contract SafeHelper is Script, Test {
         m.serialize("gasPrice", batch_.gasPrice);
         m.serialize("gasToken", address(0));
         m.serialize("refundReceiver", address(0));
-        string memory message = m.serialize("nonce", batch_.nonce);
+        return m.serialize("nonce", batch_.nonce);
+    }
 
-        // Create the domain object
+    function _buildDomain(address safe_) private returns (string memory) {
         string memory d = "domain";
         d.serialize("verifyingContract", safe_);
-        string memory domain = d.serialize("chainId", chainId);
+        return d.serialize("chainId", chainId);
+    }
+
+    function _getTypedData(
+        address safe_,
+        Batch memory batch_
+    ) private returns (string memory) {
+        // Create EIP712 structured data for the batch transaction to sign externally via cast
+        string memory types = _buildEIP712Types();
+        string memory message = _buildMessage(batch_);
+        string memory domain = _buildDomain(safe_);
 
         // Create the payload object
         string memory p = "payload";
@@ -486,9 +506,7 @@ abstract contract SafeHelper is Script, Test {
         p.serialize("domain", domain);
         string memory payload = p.serialize("message", message);
 
-        payload = _stripSlashQuotes(payload);
-
-        return payload;
+        return _stripSlashQuotes(payload);
     }
 
     function _stripSlashQuotes(

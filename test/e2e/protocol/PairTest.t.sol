@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import "src/Constants.sol" as Constants;
 import { console } from "lib/forge-std/src/console.sol";
-import { ResupplyPair } from "src/protocol/ResupplyPair.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -75,8 +75,8 @@ contract PairTest is PairTestBase {
         uint256 redeemAmount = 10_000e18;
 
         address[] memory _pairs = registry.getAllPairAddresses();
-        ResupplyPair otherpair = ResupplyPair(_pairs[1]);
-        IERC20 otherCollateral = otherpair.collateral();
+        IResupplyPair otherpair = IResupplyPair(_pairs[1]);
+        IERC20 otherCollateral = IERC20(otherpair.collateral());
         otherCollateral.approve(address(otherpair), type(uint256).max);
         underlying.approve(address(otherpair), type(uint256).max);
 
@@ -298,7 +298,7 @@ contract PairTest is PairTestBase {
         vm.expectRevert(IResupplyPairErrors.InsufficientDebtToRedeem.selector);
         uint256 collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
-            borrowAmount, // add some to force revert
+            borrowAmount * 100,   // add some to force revert
             1e18,           // max fee
             address(this),  // return to
             true            // unwrap
@@ -309,7 +309,7 @@ contract PairTest is PairTestBase {
             redeemAmount,   // amount
             1e18,           // max fee
             address(this),  // return to
-            true           // unwrap
+            true            // unwrap
         );
         assertGt(collateralFreed, 0);
         (,,uint256 exchangeRate) = pair.exchangeRateInfo();
@@ -370,7 +370,7 @@ contract PairTest is PairTestBase {
         
         
         vm.expectEmit(true, false, false, false); // False to not check topics 2/3 or data
-        emit ResupplyPair.WithdrawFees(
+        emit IResupplyPair.WithdrawFees(
             registry.feeDeposit(), // recipient
             pair.claimableFees(),   // fees
             pair.claimableOtherFees() // otherFees
