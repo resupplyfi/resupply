@@ -125,15 +125,16 @@ contract CurveLendOperator is ReentrancyGuard {
     /// @notice The ```withdraw_profit``` function withdraws any profit and sends to factory's fee receiver
     /// @dev note this could revert if profit is more than the available liquidity in the market. must wait for availability
     /// @dev naming convention to align with other Curve contracts
-    function withdraw_profit() external nonReentrant{
+    /// @return _profit amount withdrawn
+    function withdraw_profit() external nonReentrant returns(uint256 _profit){
         //get profit
-        uint256 p = profit();
+        _profit = profit();
 
         //if non zero, withdraw
-        if(p > 0){
+        if(_profit > 0){
             //withdraw to factory fee receiver
-            IERC4626(market).withdraw(p, ICurveLendMinterFactory(factory).fee_receiver(), address(this));
-            emit Profit(p);
+            IERC4626(market).withdraw(_profit, ICurveLendMinterFactory(factory).fee_receiver(), address(this));
+            emit Profit(_profit);
         }
     }
 }

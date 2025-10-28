@@ -13,11 +13,14 @@ import { CurveLendMinterFactory } from "src/dao/CurveLendMinterFactory.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 import { ICurveLendController } from 'src/interfaces/curve/ICurveLendController.sol';
 import { ICurveLendingVault } from 'src/interfaces/curve/ICurveLendingVault.sol';
+import { ICurveLendOperator } from 'src/interfaces/curve/ICurveLendOperator.sol';
 
 contract CurveProposalUpdateOperator is BaseCurveProposalTest {
     CurveProposalReplaceOperator proposalScript;
-
+    ICurveLendOperator oldoperator = ICurveLendOperator(0x6119e210E00d4BE2Df1B240D82B1c3DECEdbBBf0);
+    CurveLendOperator operator;
     CurveLendMinterFactory public factory;
+    address public feeReceiver;
     IERC20 public market;
 
     function setUp() public override {
@@ -39,15 +42,14 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         console.log("crvusd supply balance before: ", crvusd.totalSupply() );
         simulatePassingOwnershipVote(proposalId);
         executeOwnershipProposal(proposalId);
+        feeReceiver = factory.fee_receiver();
+        operator = CurveLendOperator(factory.markets(address(market)));
     }
 
     function test_mintAndSupply() public {
         console.log("factory address: ", address(factory));
         console.log("factory crvusd balance: ", crvusd.balanceOf(address(factory)) );
         console.log("crvusd supply balance: ", crvusd.totalSupply() );
-
-        CurveLendOperator oldoperator = CurveLendOperator(0x6119e210E00d4BE2Df1B240D82B1c3DECEdbBBf0);
-        CurveLendOperator operator = CurveLendOperator(factory.markets(address(market)));
         console.log("supplied shares on operator: ", market.balanceOf(address(operator)));
         console.log("supplied shares on oldoperator: ", market.balanceOf(address(oldoperator)));
         console.log("older operator mintLimit: ", oldoperator.mintLimit());
@@ -65,6 +67,13 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         operator.withdraw_profit();
         console.log("withdraw profit...");
         console.log("supplied shares on operator: ", market.balanceOf(address(operator)));
+    }
+
+    function test_ProfitIsWithdrawnFromOldOperator() public {
+        uint256 beforeBalance = crvusd.balanceOf(feeReceiver);
+        oldoperator.withdraw_profit();
+        uint256 afterBalance = crvusd.balanceOf(feeReceiver);
+        assertEq(afterBalance, beforeBalance, "should have no profit after proposal");
     }
 
     function test_CanWithdrawProfitWithFullUtilization() public {
@@ -93,8 +102,9 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
 
         // Deposit profit to operator to make it available as profit to be withdrawn.
         vault.deposit(profit, address(this));
-        operator.withdraw_profit();
-        uint256 afterBalance = crvusd.balanceOf(feeReceiver);
-        assertGt(afterBalance, beforeBalance, "no profit was received");
+        profit = operator.withdraw_profit();
+        uint256 gain = crvusd.balanceOf(feeReceiver) - beforeBalance;
+        assertGt(gain, 0, "no profit was received");
+        assertEq(profit, gain, "profit should be equal to gain");
     }
 }

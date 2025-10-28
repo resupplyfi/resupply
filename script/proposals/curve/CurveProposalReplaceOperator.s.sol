@@ -9,7 +9,7 @@ import { ICurveLendOperator } from "src/interfaces/ICurveLendOperator.sol";
 
 
 contract CurveProposalReplaceOperator is BaseCurveProposal {
-
+    address oldoperator = 0x6119e210E00d4BE2Df1B240D82B1c3DECEdbBBf0;
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
     address public market;
@@ -34,7 +34,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
     }
 
     function buildProposalScript() public override returns (bytes memory script) {
-        BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](6);
+        BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](7);
 
         //update implementation
         actions[0] = BaseCurveProposal.Action({
@@ -62,18 +62,25 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
                 10_000_000e18)
         });
 
-        address oldoperator = address(0x6119e210E00d4BE2Df1B240D82B1c3DECEdbBBf0);
-
-        //reduce old operator cap to 0 setMintLimit(uint256)
+        //withdraw profit from old operator withdraw_profit()
         actions[3] = BaseCurveProposal.Action({
             target: oldoperator,
             data: abi.encodeWithSelector(
+                ICurveLendOperator.withdraw_profit.selector
+            )
+        });
+
+        //reduce old operator cap to 0 setMintLimit(uint256)
+        actions[4] = BaseCurveProposal.Action({
+            target: oldoperator,
+            data: abi.encodeWithSelector(
                 ICurveLendOperator.setMintLimit.selector, 
-                0)
+                0
+            )
         });
 
         //reduce old operator active amount to 0 reduceAmount(uint256)
-        actions[4] = BaseCurveProposal.Action({
+        actions[5] = BaseCurveProposal.Action({
             target: oldoperator,
             data: abi.encodeWithSelector(
                 ICurveLendOperator.reduceAmount.selector, 
@@ -81,7 +88,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         });
 
         //return debt ceiling back to 10m
-        actions[5] = BaseCurveProposal.Action({
+        actions[6] = BaseCurveProposal.Action({
             target: Mainnet.CURVE_CRVUSD_CONTROLLER,
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
