@@ -22,7 +22,7 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
         proposalScript = new CurveProposalMint();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
-        bool deploynew = false;
+        bool deploynew = true;
 
         if(deploynew){
             //deploy implementation and factory
@@ -59,6 +59,4 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
         address operator = factory.markets(address(market));
         console.log("supplied shares on operator: ", market.balanceOf(operator));
     }
-
-
 }
