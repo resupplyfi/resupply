@@ -15,7 +15,7 @@ import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 contract CurveProposalUpdateOperator is BaseCurveProposalTest {
     CurveProposalReplaceOperator proposalScript;
 
-    IERC20 public crvusd = IERC20(Mainnet.CRVUSD_ERC20);
+    // IERC20 public crvusd = IERC20(Mainnet.CRVUSD_ERC20);
 
     CurveLendMinterFactory public factory;
     IERC20 public market;
@@ -25,7 +25,9 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         proposalScript = new CurveProposalReplaceOperator();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
-        proposalScript.setDeployAddresses(address(market));
+        CurveLendOperator lenderImpl = new CurveLendOperator();
+
+        proposalScript.setDeployAddresses(address(market), address(lenderImpl));
 
         factory = CurveLendMinterFactory(Mainnet.CURVE_LENDING_FACTORY);
 
@@ -34,7 +36,7 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         string memory metadata = "Update lending operator implementation. Increase lending to sreusd market to 10m.";
         console.log("meta: ", metadata);
         uint256 proposalId = proposeOwnershipVote(script, metadata);
-        console.log("crv supply balance: ", crvusd.totalSupply() );
+        console.log("crvusd supply balance before: ", crvusd.totalSupply() );
         simulatePassingOwnershipVote(proposalId);
         executeOwnershipProposal(proposalId);
     }
@@ -42,16 +44,27 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
     function test_mintAndSupply() public {
         console.log("factory address: ", address(factory));
         console.log("factory crvusd balance: ", crvusd.balanceOf(address(factory)) );
-        console.log("crv supply balance: ", crvusd.totalSupply() );
+        console.log("crvusd supply balance: ", crvusd.totalSupply() );
 
         CurveLendOperator oldoperator = CurveLendOperator(0x6119e210E00d4BE2Df1B240D82B1c3DECEdbBBf0);
-        address operator = factory.markets(address(market));
-        console.log("supplied shares on operator: ", market.balanceOf(operator));
+        CurveLendOperator operator = CurveLendOperator(factory.markets(address(market)));
+        console.log("supplied shares on operator: ", market.balanceOf(address(operator)));
         console.log("supplied shares on oldoperator: ", market.balanceOf(address(oldoperator)));
+        console.log("older operator mintLimit: ", oldoperator.mintLimit());
+        console.log("older operator mintedAmount: ", oldoperator.mintedAmount());
 
-        console.log("withdraw profit...");
+
+        console.log("withdraw profit on old operator...");
         oldoperator.withdraw_profit();
         console.log("supplied shares on oldoperator: ", market.balanceOf(address(oldoperator)));
+
+        skip(5 days);
+        console.log("advance time...");
+        console.log("supplied shares on operator: ", market.balanceOf(address(operator)));
+        console.log("profits: ", operator.profit());
+        operator.withdraw_profit();
+        console.log("withdraw profit...");
+        console.log("supplied shares on operator: ", market.balanceOf(address(operator)));
     }
 
 

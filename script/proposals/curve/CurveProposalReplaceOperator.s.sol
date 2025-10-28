@@ -5,17 +5,19 @@ import { console } from "lib/forge-std/src/console.sol";
 import { BaseCurveProposal } from "script/proposals/curve/BaseCurveProposal.sol";
 import { ICrvusdController } from 'src/interfaces/ICrvusdController.sol';
 import { ICurveLendMinterFactory } from 'src/interfaces/ICurveLendMinterFactory.sol';
-import { CurveLendOperator } from "src/dao/CurveLendOperator.sol";
-import { CurveLendMinterFactory } from "src/dao/CurveLendMinterFactory.sol";
+import { ICurveLendOperator } from "src/interfaces/ICurveLendOperator.sol";
+
 
 contract CurveProposalReplaceOperator is BaseCurveProposal {
 
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
     address public market;
+    address public newimplementation;
 
     function run() public {
 
+        newimplementation = address(0);//todo fill
         market = Mainnet.CURVELEND_SREUSD_CRVUSD;
 
         vm.startBroadcast(deployer);
@@ -26,19 +28,19 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         proposeOwnershipVote(actions, metadata);
     }
 
-    function setDeployAddresses(address _market) public{
+    function setDeployAddresses(address _market, address _newimp) public{
         market = _market;
+        newimplementation = _newimp;
     }
 
     function buildProposalScript() public override returns (bytes memory script) {
         BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](6);
 
-        address newimplementation = address(0);//todo fill
         //update implementation
         actions[0] = BaseCurveProposal.Action({
             target: Mainnet.CURVE_LENDING_FACTORY,
             data: abi.encodeWithSelector(
-                CurveLendMinterFactory.setImplementation.selector, 
+                ICurveLendMinterFactory.setImplementation.selector, 
                 newimplementation)
         });
 
@@ -48,7 +50,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
                 Mainnet.CURVE_LENDING_FACTORY,
-                10_000_000e18)
+                15_000_000e18)
         });
 
         //create new operator and fund
@@ -66,7 +68,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         actions[3] = BaseCurveProposal.Action({
             target: oldoperator,
             data: abi.encodeWithSelector(
-                CurveLendOperator.setMintLimit.selector, 
+                ICurveLendOperator.setMintLimit.selector, 
                 0)
         });
 
@@ -74,20 +76,21 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         actions[4] = BaseCurveProposal.Action({
             target: oldoperator,
             data: abi.encodeWithSelector(
-                CurveLendOperator.reduceAmount.selector, 
-                0)
+                ICurveLendOperator.reduceAmount.selector, 
+                5_000_000e18)
         });
 
-        //burn the returned amount  ICrvusdController.set_debt_ceiling(0)
+        //return debt ceiling back to 10m
         actions[5] = BaseCurveProposal.Action({
             target: Mainnet.CURVE_CRVUSD_CONTROLLER,
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
                 Mainnet.CURVE_LENDING_FACTORY,
-                0)
+                10_000_000e18)
         });
 
         console.log("Number of actions:", actions.length);
+        console.log("new impl:", newimplementation);
         console.log("lend factory at: ", Mainnet.CURVE_LENDING_FACTORY);
         console.log("lend market at: ", market);
 

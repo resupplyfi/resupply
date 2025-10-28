@@ -112,21 +112,28 @@ contract CurveLendOperator is ReentrancyGuard {
         return _amount;
     }
 
-    /// @notice The ```withdraw_profit``` function withdraws any profit and sends to factory's fee receiver
-    /// @dev note this could revert if profit is more than the available liquidity in the market. must wait for availability
-    /// @dev naming convention to align with other Curve contracts
-    function withdraw_profit() external nonReentrant{
+    /// @notice The ```profit``` function returns how much assets may be claimed as profit
+    /// @return the amount of assets that can be claimed
+    function profit() public view returns(uint256){
         //get current asset total
         uint256 currentAssets = IERC4626(market).convertToAssets(IERC20(market).balanceOf(address(this)));
 
         //if current assets is greater than minted amount, can take profit
-        if(currentAssets > mintedAmount){
-            //get difference as profit
-            currentAssets -= mintedAmount;
+        return currentAssets > mintedAmount ? currentAssets - mintedAmount : 0;
+    }
 
+    /// @notice The ```withdraw_profit``` function withdraws any profit and sends to factory's fee receiver
+    /// @dev note this could revert if profit is more than the available liquidity in the market. must wait for availability
+    /// @dev naming convention to align with other Curve contracts
+    function withdraw_profit() external nonReentrant{
+        //get profit
+        uint256 p = profit();
+
+        //if non zero, withdraw
+        if(p > 0){
             //withdraw to factory fee receiver
-            IERC4626(market).withdraw(currentAssets, ICurveLendMinterFactory(factory).fee_receiver(), address(this));
-            emit Profit(currentAssets);
+            IERC4626(market).withdraw(p, ICurveLendMinterFactory(factory).fee_receiver(), address(this));
+            emit Profit(p);
         }
     }
 }
