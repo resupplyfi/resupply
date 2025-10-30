@@ -7,7 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { IProxyFactory } from "../interfaces/IProxyFactory.sol";
-import { ICurveLendOperator } from "../interfaces/ICurveLendOperator.sol";
+import { ICurveLendOperator } from "../interfaces/curve/ICurveLendOperator.sol";
 
 
 /**

@@ -11,7 +11,7 @@ import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
 import { IRewards } from "src/interfaces/IRewards.sol";
 import { IConvexPoolUtil } from "src/interfaces/convex/IConvexPoolUtil.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
-import { ICurveLend } from "src/interfaces/curve/ICurveLend.sol";
+import { ICurveLendingVault } from "src/interfaces/curve/ICurveLendingVault.sol";
 import { IFraxLend } from "../interfaces/frax/IFraxLend.sol";
 import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
@@ -64,7 +64,7 @@ contract Utilities is ResupplyPairConstants{
         (bool success, ) = collateral.staticcall(abi.encodeWithSelector(bytes4(keccak256("collateral_token()"))));
         if(success){
             //curvelend
-            _rate = ICurveLend(collateral).lend_apr() / (365 * 86400);
+            _rate = ICurveLendingVault(collateral).lend_apr() / (365 * 86400);
         }else{
             //fraxlend
             (,,,IFraxLend.CurrentRateInfo memory rateInfo, IFraxLend.VaultAccount memory _totalAsset, IFraxLend.VaultAccount memory _totalBorrow) 
