@@ -70,12 +70,12 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         console.log("supplied shares on operator: ", market.balanceOf(address(operator)));
     }
 
-    function test_ProfitIsWithdrawnFromOldOperator() public {
-        uint256 beforeBalance = crvusd.balanceOf(feeReceiver);
-        oldoperator.withdraw_profit();
-        uint256 afterBalance = crvusd.balanceOf(feeReceiver);
-        assertEq(afterBalance, beforeBalance, "should have no profit after proposal");
-    }
+    // function test_ProfitIsWithdrawnFromOldOperator() public {
+    //     uint256 beforeBalance = crvusd.balanceOf(feeReceiver);
+    //     oldoperator.withdraw_profit();
+    //     uint256 afterBalance = crvusd.balanceOf(feeReceiver);
+    //     assertEq(afterBalance, beforeBalance, "should have no profit after proposal");
+    // }
 
     function test_CanWithdrawProfitWithFullUtilization() public {
         ICurveLendingVault vault = ICurveLendingVault(address(market));

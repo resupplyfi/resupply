@@ -17,13 +17,13 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
 
     function run() public {
 
-        newimplementation = address(0);//todo fill
+        newimplementation = address(0xB64e295a69928d3404E576a8fF3c8766559cB8F5);
         market = Mainnet.CURVELEND_SREUSD_CRVUSD;
 
         vm.startBroadcast(deployer);
         bytes memory actions = buildProposalScript();
 
-        string memory metadata = "Update lending operator implementation. Increase lending to sreusd market to 10m.";
+        string memory metadata = "Update lending operator implementation. Increase lending to sreusd market to 15m.";
         console.log("meta: ", metadata);
         proposeOwnershipVote(actions, metadata);
     }
@@ -34,7 +34,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
     }
 
     function buildProposalScript() public override returns (bytes memory script) {
-        BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](7);
+        BaseCurveProposal.Action[] memory actions = new BaseCurveProposal.Action[](6);
 
         //update implementation
         actions[0] = BaseCurveProposal.Action({
@@ -50,7 +50,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
                 Mainnet.CURVE_LENDING_FACTORY,
-                15_000_000e18)
+                20_000_000e18)
         });
 
         //create new operator and fund
@@ -59,19 +59,19 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
             data: abi.encodeWithSelector(
                 ICurveLendMinterFactory.addMarketOperator.selector, 
                 market,
-                10_000_000e18)
+                15_000_000e18)
         });
 
         //withdraw profit from old operator withdraw_profit()
-        actions[3] = BaseCurveProposal.Action({
-            target: OLD_OPERATOR,
-            data: abi.encodeWithSelector(
-                ICurveLendOperator.withdraw_profit.selector
-            )
-        });
+        // actions[3] = BaseCurveProposal.Action({
+        //     target: OLD_OPERATOR,
+        //     data: abi.encodeWithSelector(
+        //         ICurveLendOperator.withdraw_profit.selector
+        //     )
+        // });
 
         //reduce old operator cap to 0 setMintLimit(uint256)
-        actions[4] = BaseCurveProposal.Action({
+        actions[3] = BaseCurveProposal.Action({
             target: OLD_OPERATOR,
             data: abi.encodeWithSelector(
                 ICurveLendOperator.setMintLimit.selector, 
@@ -80,7 +80,7 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         });
 
         //reduce old operator active amount to 0 reduceAmount(uint256)
-        actions[5] = BaseCurveProposal.Action({
+        actions[4] = BaseCurveProposal.Action({
             target: OLD_OPERATOR,
             data: abi.encodeWithSelector(
                 ICurveLendOperator.reduceAmount.selector, 
@@ -88,12 +88,12 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
         });
 
         //return debt ceiling back to 10m
-        actions[6] = BaseCurveProposal.Action({
+        actions[5] = BaseCurveProposal.Action({
             target: Mainnet.CURVE_CRVUSD_CONTROLLER,
             data: abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector, 
                 Mainnet.CURVE_LENDING_FACTORY,
-                10_000_000e18)
+                15_000_000e18)
         });
 
         console.log("Number of actions:", actions.length);
