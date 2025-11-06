@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { console } from "forge-std/console.sol";
 import { Protocol } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
@@ -36,6 +37,10 @@ contract AdjustBorrowLimits is BaseProposal {
             PairData memory pair = pairData[i];
             IResupplyPair pairContract = IResupplyPair(pair.pair);
             uint256 currentBorrowLimit = pairContract.borrowLimit();
+            string memory action = currentBorrowLimit < pair.targetLimit ? "ramping up" : "decreasing";
+            console.log("Adjusting borrow limit for", pair.pairName);
+            console.log("  Action:", action);
+            console.log("  ", currentBorrowLimit, "-> ", pair.targetLimit);
             // if increasing, use the borrow limit controller to ramp
             if (currentBorrowLimit < pair.targetLimit) {
                 actions[i] = IVoter.Action({
