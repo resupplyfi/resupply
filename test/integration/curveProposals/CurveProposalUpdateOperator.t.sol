@@ -76,6 +76,10 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
     //     assertEq(afterBalance, beforeBalance, "should have no profit after proposal");
     // }
 
+    function test_OldOperatorHasNoDebt() public {
+        assertEq(oldoperator.mintedAmount(), 0, "old operator should have no debt");
+    }
+
     function test_CanWithdrawProfitWithFullUtilization() public {
         ICurveLendingVault vault = ICurveLendingVault(address(market));
         IERC20 collateral = IERC20(vault.collateral_token());

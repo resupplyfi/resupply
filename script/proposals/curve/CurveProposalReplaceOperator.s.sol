@@ -75,12 +75,12 @@ contract CurveProposalReplaceOperator is BaseCurveProposal {
             )
         });
 
-        //reduce old operator active amount to 0 reduceAmount(uint256)
+        //reduce old operator active amount to 0 reduceAmount(amount_to_reduce)
         actions[4] = BaseCurveProposal.Action({
             target: OLD_OPERATOR,
             data: abi.encodeWithSelector(
                 ICurveLendOperator.reduceAmount.selector, 
-                0
+                5_000_000e18
             )
         });
 
