@@ -23,4 +23,5 @@ interface ICurveVoting{
         );
     function canExecute(uint256 _voteId) external view returns (bool);
     function votesLength() external view returns (uint256);
+    function canVote(uint256 _voteId, address _voter) external view returns (bool);
 }

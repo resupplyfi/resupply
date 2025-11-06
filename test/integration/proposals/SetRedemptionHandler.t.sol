@@ -5,7 +5,6 @@ import { console } from "lib/forge-std/src/console.sol";
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { SetRedemptionHandler } from "script/proposals/SetRedemptionHandler.s.sol";
 

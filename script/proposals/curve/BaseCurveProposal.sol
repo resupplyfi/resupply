@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { Script } from "lib/forge-std/src/Script.sol";
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
-import {Script} from "lib/forge-std/src/Script.sol";
-
+import { ICurveEDAOAdminProxy } from "src/interfaces/curve/ICurveEDAOAdminProxy.sol";
+import { ICurveLendMinterFactory } from 'src/interfaces/ICurveLendMinterFactory.sol';
 
 abstract contract BaseCurveProposal is Script{
     ICurveVoting public constant ownershipVoting = ICurveVoting(Mainnet.CURVE_OWNERSHIP_VOTING);
@@ -57,6 +58,20 @@ abstract contract BaseCurveProposal is Script{
     }
 
     function buildProposalScript() public virtual returns (bytes memory actions);
+
+    function _executeViaMintFactoryEDAOProxy(address _target, bytes memory _data) internal returns (Action memory) {
+        address admin = ICurveLendMinterFactory(_target).admin();
+        require(admin == Mainnet.CURVE_MINT_FACTORY_EDAO_ADMIN_PROXY, "Target is not admin of EDAO proxy");
+        return Action({
+            target: Mainnet.CURVE_MINT_FACTORY_EDAO_ADMIN_PROXY,
+            data: abi.encodeWithSelector(
+                ICurveEDAOAdminProxy.execute.selector,
+                _target,
+                _data
+            )
+        });
+    }
+
     /*
     example add gauge
     actions[0] = BaseCurveProposal.Action({

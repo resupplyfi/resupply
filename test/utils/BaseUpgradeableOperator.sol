@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
-import { Protocol } from "src/Constants.sol";
-import { Upgrades, UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 

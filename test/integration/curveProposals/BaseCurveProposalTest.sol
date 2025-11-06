@@ -2,11 +2,9 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { Protocol, Mainnet } from "src/Constants.sol";
+import { Mainnet } from "src/Constants.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { Test } from "forge-std/Test.sol";
-import { Setup } from "test/integration/Setup.sol";
-import { IVoter } from "src/interfaces/IVoter.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
 
 
@@ -21,33 +19,46 @@ contract BaseCurveProposalTest is Test, Setup {
         proposalId = ownershipVoting.newVote(script, metadata, false, false);
     }
 
-    function simulatePassingOwnershipVote(uint256 proposalId) public {
-        vm.prank(Mainnet.CONVEX_VOTEPROXY);
-        ownershipVoting.votePct(proposalId, 1e18,0, false);
-        skip(VOTING_PERIOD);
+    function simulatePassingProposal(uint256 proposalId) public {
+        address[] memory voters = new address[](3);
+        voters[0] = Mainnet.CONVEX_VOTEPROXY;
+        voters[1] = Mainnet.YEARN_VOTEPROXY;
+        voters[2] = Mainnet.SD_VOTEPROXY;
+        simulateYayVotes(proposalId, voters);
+        executeOwnershipProposal(proposalId);
+    }
 
-        // (bool open, bool executed ,uint64 start, , ,,uint256 yea , uint256 nay , uint256 votingPower , bytes memory _script) = ownershipVoting.getVote(proposalId);
-        // console.log("open: ", open);
-        // console.log("executed: ", executed);
-        // console.log("start: ", start);
-        // console.log("yea: ", yea);
-        // console.log("nay: ", nay);
-        // console.log("votingPower: ", votingPower);
-        // console.logBytes(_script);
-        // console.log("can execute? ", ownershipVoting.canExecute(proposalId));
+    function simulateYayVotes(uint256 proposalId, address[] memory _voters) public {
+        for (uint256 i = 0; i < _voters.length; i++) {
+            if (!ownershipVoting.canVote(proposalId, _voters[i])) continue;
+            vm.prank(_voters[i]);
+            ownershipVoting.votePct(proposalId, 1e18,0, false);
+        }
     }
 
     function executeOwnershipProposal(uint256 proposalId) public {
-        ownershipVoting.executeVote(proposalId);
         (bool open, bool executed ,uint64 start, , ,,uint256 yea , uint256 nay , uint256 votingPower , bytes memory _script) = ownershipVoting.getVote(proposalId);
-        console.log("-------- executed proposal -----------");
-        // console.log("open: ", open);
-        // console.log("executed: ", executed);
-        // console.log("start: ", start);
-        // console.log("yea: ", yea);
-        // console.log("nay: ", nay);
-        // console.log("votingPower: ", votingPower);
-        // console.logBytes(_script);
-        // console.log("can execute? ", ownershipVoting.canExecute(proposalId));
+        if (executed) return;
+        uint256 timeUntilExecutable = start + VOTING_PERIOD;
+        timeUntilExecutable = timeUntilExecutable > block.timestamp ? timeUntilExecutable - block.timestamp : 0;
+        if (timeUntilExecutable > 0) skip(timeUntilExecutable);
+        ownershipVoting.executeVote(proposalId);
+    }
+
+    function getWhaleVoters() public pure returns (address[] memory) {
+        address[] memory voters = new address[](3);
+        voters[0] = Mainnet.CONVEX_VOTEPROXY;
+        voters[1] = Mainnet.YEARN_VOTEPROXY;
+        voters[2] = Mainnet.SD_VOTEPROXY;
+        return voters;
+    }
+
+    function dependsOnProposal(uint256 proposalId) public {
+        (bool open, bool executed ,uint64 start, , ,,uint256 yea , uint256 nay , uint256 votingPower , bytes memory _script) = ownershipVoting.getVote(proposalId);
+        if (!open) {
+            if (!executed) executeOwnershipProposal(proposalId);
+            return;
+        }
+        simulatePassingProposal(proposalId);
     }
 }

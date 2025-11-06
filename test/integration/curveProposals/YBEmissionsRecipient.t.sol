@@ -22,8 +22,7 @@ contract YBEmissionsRecipientTest is BaseCurveProposalTest {
         bytes memory script = proposalScript.buildProposalScript();
 
         uint256 proposalId = proposeOwnershipVote(script, "Set the recipient of the inflationary vest to 0x0997f89c451124EadF00f87DE77924D77A38419a");
-        simulatePassingOwnershipVote(proposalId);
-        executeOwnershipProposal(proposalId);
+        simulatePassingProposal(proposalId);
     }
 
     function test_recipientSet() public view {
