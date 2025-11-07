@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
+import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { Setup } from "test/e2e/Setup.sol";
@@ -126,7 +126,7 @@ contract PairTest is PairTestBase {
         console.log("nextFee", nextFee);
         console.log("real fee", totalFee);
 
-        uint256 crvusdprice = underlyingoracle.getPrices(Constants.Mainnet.CRVUSD_ERC20);
+        uint256 crvusdprice = underlyingoracle.getPrices(Mainnet.CRVUSD_ERC20);
         uint256 gascost = vm.snapshotGasLastCall("curvePriceGas");
         console.log("curve price gas: ", gascost);
         console.log("crvusd price: ", crvusdprice);
@@ -304,6 +304,17 @@ contract PairTest is PairTestBase {
             true            // unwrap
         );
         
+        // clamp redeemAmount to available liquidity in Curve lending pool
+        address vault = pair.collateral();
+        uint256 availableLiquidity = underlying.balanceOf(vault);
+        (, uint256 protocolId) = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2).deployInfo(address(pair));
+        if (protocolId == 0) {
+            // Curve Lending Vault keeps liquidity in controller contract
+            address controller = ICurveLendingVault(pair.collateral()).controller();
+            availableLiquidity = underlying.balanceOf(controller);
+        }
+        redeemAmount = redeemAmount > availableLiquidity ? availableLiquidity : redeemAmount;
+
         collateralFreed = redemptionHandler.redeemFromPair(
             address(pair),  // pair
             redeemAmount,   // amount
@@ -319,7 +330,6 @@ contract PairTest is PairTestBase {
         assertEq(stablecoinBalBefore - stablecoin.balanceOf(address(this)), redeemAmount);
         uint256 feesPaid = redeemAmount - underlyingGain;
         assertGt(feesPaid, 0);
-        
 
         (uint256 totalDebtAfter, ) = pair.totalBorrow();
         uint256 debtWrittenOff = totalDebtBefore - totalDebtAfter;
