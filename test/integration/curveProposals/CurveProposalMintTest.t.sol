@@ -47,8 +47,7 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
 
         uint256 proposalId = proposeOwnershipVote(script, "Mint and lend 5m crvUSD to the sreUSD Lending Market");
         console.log("crv supply balance: ", crvusd.totalSupply() );
-        simulatePassingOwnershipVote(proposalId);
-        executeOwnershipProposal(proposalId);
+        simulatePassingProposal(proposalId);
     }
 
     function test_mintAndSupply() public view {

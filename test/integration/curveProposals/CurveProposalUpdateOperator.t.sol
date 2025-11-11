@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import { Protocol, Mainnet } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { BaseCurveProposalTest } from "test/integration/curveProposals/BaseCurveProposalTest.sol";
-import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
 import { CurveProposalReplaceOperator } from "script/proposals/curve/CurveProposalReplaceOperator.s.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -25,6 +24,7 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
 
     function setUp() public override {
         super.setUp();
+        dependsOnProposal(1252); // https://www.curve.finance/dao/ethereum/proposals/1252-ownership
         proposalScript = new CurveProposalReplaceOperator();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
@@ -40,8 +40,7 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
         console.log("meta: ", metadata);
         uint256 proposalId = proposeOwnershipVote(script, metadata);
         console.log("crvusd supply balance before: ", crvusd.totalSupply() );
-        simulatePassingOwnershipVote(proposalId);
-        executeOwnershipProposal(proposalId);
+        simulatePassingProposal(proposalId);
         feeReceiver = factory.fee_receiver();
         oldoperator = ICurveLendOperator(proposalScript.OLD_OPERATOR());
         operator = CurveLendOperator(factory.markets(address(market)));
@@ -76,6 +75,10 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
     //     uint256 afterBalance = crvusd.balanceOf(feeReceiver);
     //     assertEq(afterBalance, beforeBalance, "should have no profit after proposal");
     // }
+
+    function test_OldOperatorHasNoDebt() public {
+        assertEq(oldoperator.mintedAmount(), 0, "old operator should have no debt");
+    }
 
     function test_CanWithdrawProfitWithFullUtilization() public {
         ICurveLendingVault vault = ICurveLendingVault(address(market));
