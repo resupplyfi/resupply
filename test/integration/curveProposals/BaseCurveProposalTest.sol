@@ -61,4 +61,10 @@ contract BaseCurveProposalTest is Test, Setup {
         }
         simulatePassingProposal(proposalId);
     }
+
+    function isExecuted(uint256 proposalId) public returns (bool) {
+        if (proposalId == 0) return false;
+        (,bool executed,,,,,, , ,) = ownershipVoting.getVote(proposalId);
+        return executed;
+    }
 }

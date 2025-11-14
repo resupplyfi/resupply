@@ -22,4 +22,7 @@ interface IRedemptionHandler {
     function setDiscountInfo(uint256 _rate, uint256 _maxUsage, uint256 _maxDiscount) external;
     function setBaseRedemptionFee(uint256 _fee) external;
     function overWeight() external view returns(uint256);
+    function overusageStart() external view returns(uint256);
+    function overusageMax() external view returns(uint256);
+    function overusageRate() external view returns(uint256);
 }

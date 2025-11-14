@@ -24,6 +24,7 @@ contract CurveProposalUpdateOperator is BaseCurveProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if (isExecuted(1259)) vm.skip(true); // will cause the full suite to be skipped
         dependsOnProposal(1252); // https://www.curve.finance/dao/ethereum/proposals/1252-ownership
         proposalScript = new CurveProposalReplaceOperator();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);

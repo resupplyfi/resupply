@@ -62,28 +62,23 @@ contract CurveLendMinterTest is Setup {
     }
 
     function test_basicLending() public {
-
-        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
+        address admin = crvusdController.admin();
+        vm.prank(admin);
         crvusdController.set_debt_ceiling(
             address(factory),
             10_000_000e18
         );
 
+        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
         lender.setMintLimit(1_000_000e18);
-        vm.stopPrank();
 
         printInfo();
-
-
-        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
-
         lender.setMintLimit(500_000e18); //reduce limit
         printInfo();
         lender.reduceAmount(100_000e18); //under repay
         printInfo();
         lender.reduceAmount(600_000e18); //over repay
         printInfo();
-        vm.stopPrank();
 
         console.log("\n\n------\n");
         vm.warp(vm.getBlockTimestamp() + 1 days);
@@ -95,13 +90,11 @@ contract CurveLendMinterTest is Setup {
         console.log("\n\n------\n");
         vm.warp(vm.getBlockTimestamp() + 1 days);
         printInfo();
-        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
 
         lender.setMintLimit(0); //reduce limit
         printInfo();
         lender.reduceAmount(500_000e18); //repay all
         printInfo();
-        vm.stopPrank();
 
         console.log("\n\n------\n");
         vm.warp(vm.getBlockTimestamp() + 1 days);
@@ -109,7 +102,6 @@ contract CurveLendMinterTest is Setup {
         lender.withdraw_profit();
         printInfo();
 
-        vm.startPrank(Mainnet.CURVE_OWNERSHIP_AGENT);
         factory.removeMarketOperator(address(market));
         vm.expectRevert();
         lender.setMintLimit(500_000e18); //revert
@@ -117,18 +109,25 @@ contract CurveLendMinterTest is Setup {
         //new lender
         lender = CurveLendOperator(factory.addMarketOperator(address(market), 333e18));
 
+        vm.stopPrank();
+        vm.prank(admin);
         crvusdController.set_debt_ceiling(
             address(factory),
             0
         );
+        
         printInfo();
         vm.expectRevert();
+        vm.prank(Mainnet.CURVE_OWNERSHIP_AGENT);
         lender.setMintLimit(500_000e18); //revert
 
+        vm.prank(admin);
         crvusdController.set_debt_ceiling(
             address(factory),
             10_000_000e18
         );
+
+        vm.prank(Mainnet.CURVE_OWNERSHIP_AGENT);
         lender.setMintLimit(500_000e18); //works
         printInfo();
         vm.stopPrank();
