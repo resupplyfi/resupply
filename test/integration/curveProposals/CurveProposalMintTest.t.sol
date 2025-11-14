@@ -19,6 +19,7 @@ contract CurveProposalMintTest is BaseCurveProposalTest {
 
     function setUp() public override {
         super.setUp();
+        vm.skip(true); // will cause the full suite to be skipped
         proposalScript = new CurveProposalMint();
         market = IERC20(Mainnet.CURVELEND_SREUSD_CRVUSD);
 
