@@ -8,9 +8,10 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
+import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 
 contract AdjustBorrowLimits is BaseProposal {
-
+    IRedemptionHandler public redemptionHandler = IRedemptionHandler(Protocol.REDEMPTION_HANDLER);
     struct PairData {
         address pair;
         uint256 targetLimit;
@@ -32,8 +33,9 @@ contract AdjustBorrowLimits is BaseProposal {
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
         PairData[] memory pairData = getPairData();
-        actions = new IVoter.Action[](pairData.length);
-        for (uint256 i = 0; i < pairData.length; i++) {
+        actions = new IVoter.Action[](pairData.length + 1);
+        uint256 i;
+        for (; i < pairData.length; i++) {
             PairData memory pair = pairData[i];
             IResupplyPair pairContract = IResupplyPair(pair.pair);
             uint256 currentBorrowLimit = pairContract.borrowLimit();
@@ -65,10 +67,21 @@ contract AdjustBorrowLimits is BaseProposal {
             }
             
         }
+
+        actions[i] = IVoter.Action({
+            target: Protocol.REDEMPTION_HANDLER,
+            data: abi.encodeWithSelector(
+                IRedemptionHandler.setOverusageInfo.selector,
+                redemptionHandler.overusageRate(),// OVERUSAGE_RATE,
+                redemptionHandler.overusageStart(),// OVERUSAGE_START,
+                1100 // OVERUSAGE_MAX down from 1300
+            )
+        });
+
     }
 
     function getPairData() public view returns (PairData[] memory) {
-        PairData[] memory pairData = new PairData[](4);
+        PairData[] memory pairData = new PairData[](5);
         pairData[0] = PairData({
             pair: 0x3b037329Ff77B5863e6a3c844AD2a7506ABe5706,
             targetLimit: 0,
@@ -85,6 +98,11 @@ contract AdjustBorrowLimits is BaseProposal {
             pairName: "CurveLend: crvUSD/tBTC"
         });
         pairData[3] = PairData({
+            pair: 0x08064A8eEecf71203449228f3eaC65E462009fdF,
+            targetLimit: 0,
+            pairName: "CurveLend: crvUSD/sDOLA (old)"
+        });
+        pairData[4] = PairData({
             pair: 0xD42535Cda82a4569BA7209857446222ABd14A82c,
             targetLimit: 25_000_000e18,
             pairName: "CurveLend: crvUSD/fxSAVE"

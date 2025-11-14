@@ -11,9 +11,15 @@ import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.so
 
 contract AdjustBorrowLimitsTest is BaseProposalTest {
     AdjustBorrowLimits public script;
+    uint256 public overusageStart;
+    uint256 public overusageMax;
+    uint256 public overusageRate;
 
     function setUp() public override {
         super.setUp();
+        overusageStart = redemptionHandler.overusageStart();
+        overusageMax = redemptionHandler.overusageMax();
+        overusageRate = redemptionHandler.overusageRate();
         borrowLimitController = IBorrowLimitController(Protocol.BORROW_LIMIT_CONTROLLER);
         script = new AdjustBorrowLimits();
         IVoter.Action[] memory actions = script.buildProposalCalldata();
@@ -72,5 +78,14 @@ contract AdjustBorrowLimitsTest is BaseProposalTest {
             borrowLimitController.updatePairBorrowLimit(pairs[i].pair);
             assertEq(IResupplyPair(pairs[i].pair).borrowLimit(), pairs[i].targetLimit, "Borrow limit should be at target limit after ramp");
         }
+    }
+
+    function test_OverusageInfoUpdated() public {
+        // Max should have been decreased from 1300 to 1100
+        assertNotEq(redemptionHandler.overusageMax(), overusageMax, "Max should have been decreased");
+        assertEq(redemptionHandler.overusageMax(), 1100, "Max should be 1100");
+        // Others values should be the same
+        assertEq(redemptionHandler.overusageStart(), overusageStart, "Start should be the same");
+        assertEq(redemptionHandler.overusageRate(), overusageRate, "Rate should be the same");
     }
 }
