@@ -59,7 +59,14 @@ contract Keeper {
     }
 
     function canWork() external view returns (bool) {
-        return canDistributeWeeklyFees();
+        address[] memory pairs = registry.getAllPairAddresses();
+        if (canDistributeWeeklyFees()) return true;
+        if (canClaimRetentionEmissions()) return true;
+        for (uint256 i = 0; i < pairs.length; i++) 
+            if (canWithdrawFees(pairs[i])) return true;
+        for (uint256 i = 0; i < operators.length; i++)
+            if (canWithdrawProfit(operators[i])) return true;
+        return false;
     }
 
     function canDistributeWeeklyFees() public view returns (bool) {
