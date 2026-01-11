@@ -35,6 +35,12 @@ contract GuardianTest is Setup {
 
         stakeAndSkip(user, 1_000_000e18);
         createSimpleProposal(user);
+
+        // Ensure pairs have non-zero borrow limits for testing
+        vm.startPrank(address(core));
+        testPair.setBorrowLimit(1_000_000e18);
+        testPair2.setBorrowLimit(1_000_000e18);
+        vm.stopPrank();
     }
 
     function test_SetGuardian() public {
