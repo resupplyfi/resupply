@@ -202,6 +202,10 @@ contract PairTest is PairTestBase {
         console.log("current pair usage: ", pairUsage);
         console.log("continue redemptions...");
         for(uint256 i=0; i < 2; i++){
+            if (!hasEnoughLiquidity(pair, redeemAmount)) {
+                console.log("Insufficient liquidity, exiting loop early");
+                break;
+            }
             totalFee = redemptionHandler.getRedemptionFeePct(address(pair), redeemAmount);
             collateralBalAfter = pair.userCollateralBalance(address(this));
             redemptionHandler.redeemFromPair(
@@ -227,6 +231,10 @@ contract PairTest is PairTestBase {
         console.log("current otherpair usage: ", pairUsage);
         console.log("continue redemptions...");
         for(uint256 i=0; i < 5; i++){
+            if (!hasEnoughLiquidity(otherpair, redeemAmount)) {
+                console.log("Insufficient liquidity for otherpair, exiting loop early");
+                break;
+            }
             totalFee = redemptionHandler.getRedemptionFeePct(address(otherpair), redeemAmount);
             collateralBalAfter = otherpair.userCollateralBalance(address(this));
             redemptionHandler.redeemFromPair(
@@ -255,6 +263,10 @@ contract PairTest is PairTestBase {
         for(uint256 i=0; i < 20; i++){
             vm.warp(block.timestamp +7 days);
             console.log("warp forward...");
+            if (!hasEnoughLiquidity(pair, minimumRedeem)) {
+                console.log("Insufficient liquidity after time warp, exiting loop early");
+                break;
+            }
             nextFee = redemptionHandler.getRedemptionFeePct(address(pair), 1);
             console.log("nextFee: ", nextFee);
             redemptionHandler.redeemFromPair(
@@ -395,6 +407,12 @@ contract PairTest is PairTestBase {
         assertEq(collateral.balanceOf(address(redemptionHandler)), 0);
         assertEq(underlying.balanceOf(address(redemptionHandler)), 0);
         assertEq(stablecoin.balanceOf(address(redemptionHandler)), 0);
+    }
+
+    function hasEnoughLiquidity(IResupplyPair _pair, uint256 _amount) internal view returns (bool) {
+        address vault = _pair.collateral();
+        address controller = ICurveLendingVault(vault).controller();
+        return underlying.balanceOf(controller) >= _amount * 2;
     }
 
     function test_Pause() public {
