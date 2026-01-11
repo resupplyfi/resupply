@@ -10,6 +10,7 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 
 contract AdjustBorrowLimitsTest is BaseProposalTest {
+    uint256 public constant PROP_ID = 11;
     AdjustBorrowLimits public script;
     uint256 public overusageStart;
     uint256 public overusageMax;
@@ -17,6 +18,7 @@ contract AdjustBorrowLimitsTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if(isProposalProcessed(PROP_ID)) return;
         overusageStart = redemptionHandler.overusageStart();
         overusageMax = redemptionHandler.overusageMax();
         overusageRate = redemptionHandler.overusageRate();
@@ -29,6 +31,7 @@ contract AdjustBorrowLimitsTest is BaseProposalTest {
     }
 
     function test_DecreasingPairsUpdated() public {
+        if(isProposalProcessed(PROP_ID)) return;
         AdjustBorrowLimits.PairData[] memory pairData = script.getPairData();
         for (uint256 i = 0; i < pairData.length; i++) {
             AdjustBorrowLimits.PairData memory pair = pairData[i];
@@ -43,6 +46,7 @@ contract AdjustBorrowLimitsTest is BaseProposalTest {
     }
 
     function test_IncreasingPairsUpdated() public {
+        if(isProposalProcessed(PROP_ID)) return;
         AdjustBorrowLimits.PairData[] memory pairData = script.getPairData();
         uint256 numPairs = 0;
         uint256 i;
@@ -81,6 +85,7 @@ contract AdjustBorrowLimitsTest is BaseProposalTest {
     }
 
     function test_OverusageInfoUpdated() public {
+        if(isProposalProcessed(PROP_ID)) return;
         // Max should have been decreased from 1300 to 1100
         assertNotEq(redemptionHandler.overusageMax(), overusageMax, "Max should have been decreased");
         assertEq(redemptionHandler.overusageMax(), 1100, "Max should be 1100");
