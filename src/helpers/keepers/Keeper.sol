@@ -64,8 +64,6 @@ contract Keeper {
         if (canClaimRetentionEmissions()) return true;
         for (uint256 i = 0; i < pairs.length; i++) 
             if (canWithdrawFees(pairs[i])) return true;
-        for (uint256 i = 0; i < operators.length; i++)
-            if (canWithdrawProfit(operators[i])) return true;
         return false;
     }
 
