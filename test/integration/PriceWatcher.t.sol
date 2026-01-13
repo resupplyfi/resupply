@@ -24,10 +24,12 @@ contract PriceWatcherTest is Setup {
         priceWatcher = new PriceWatcher(address(registry));
         UPDATE_INTERVAL = priceWatcher.UPDATE_INTERVAL();
         interestRateCalculator = new InterestRateCalculatorV2(
-            "V2",
-            2e16 / uint256(365 days) * 2,//4% - we multiply by 2 to adjust for rate ratio base
-            5e17,
-            1e17,
+            address(core),
+            "V2", //suffix
+            2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
+            0.5e18, //rate ratio base
+            0.625e18, //rate ratio base for collateral
+            0.2e18, //rate ratio additional (a % of base)
             address(priceWatcher)
         );
         vm.startPrank(address(core));

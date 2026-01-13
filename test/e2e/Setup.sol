@@ -386,10 +386,12 @@ contract Setup is Test {
         registry.setAddress("REUSD_ORACLE", address(reusdOracle));
         priceWatcher = new PriceWatcher(address(registry));
         rateCalculator = new InterestRateCalculatorV2(
+            address(core),
             "V2", //suffix
             2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
-            5e17, //rate ratio base
-            1e17, //rate ratio additional
+            0.5e18, //rate ratio base
+            0.625e18, //rate ratio base for collateral
+            0.2e18, //rate ratio additional (a % of base)
             address(priceWatcher) //price watcher
         );
         feeDeposit = new FeeDeposit(address(core), address(registry), address(stablecoin));

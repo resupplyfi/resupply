@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IStakedFrax } from "../interfaces/frax/IStakedFrax.sol";
 import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 
 /// @title Calculate rates based on the underlying vaults with some floor settings
-contract InterestRateCalculatorV2 is IRateCalculator {
+contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
     using Strings for uint256;
 
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
@@ -19,8 +21,11 @@ contract InterestRateCalculatorV2 is IRateCalculator {
 
     /// @notice the absolute minimum rate
     uint256 public immutable minimumRate;
-    uint256 public immutable rateRatioBase;
+    uint256 public rateRatioBase;
+    uint256 public rateRatioBaseCollateral;
     uint256 public immutable rateRatioAdditional;
+
+    event SetRateInfo(uint256 _rateRatioBase, uint256 _rateRatioBaseCollateral);
 
     /// @notice The ```constructor``` function
     /// @param _suffix The suffix of the contract name
@@ -29,24 +34,42 @@ contract InterestRateCalculatorV2 is IRateCalculator {
     /// @param _rateRatioAdditional additional max ratio added to base
     /// @param _priceWatcher price watcher contract
     constructor(
+        address _core,
         string memory _suffix,
         uint256 _minimumRate,
         uint256 _rateRatioBase,
+        uint256 _rateRatioBaseCollateral,
         uint256 _rateRatioAdditional,
         address _priceWatcher
-    ) {
+    ) CoreOwnable(_core){
         suffix = _suffix;
         minimumRate = _minimumRate;
         rateRatioBase = _rateRatioBase;
+        rateRatioBaseCollateral = _rateRatioBaseCollateral;
         rateRatioAdditional = _rateRatioAdditional;
         priceWatcher = _priceWatcher;
         require(priceWatcher != address(0), "PriceWatcher must be set");
+        emit SetRateInfo(_rateRatioBase, _rateRatioBaseCollateral);
     }
 
     /// @notice The ```name``` function returns the name of the rate contract
     /// @return memory name of contract
     function name() external view returns (string memory) {
         return string(abi.encodePacked("InterestRateCalculator ", suffix));
+    }
+
+    function setRateInfo(uint256 _rateRatioBase, uint256 _rateRatioBaseCollateral) external onlyOwner{
+
+        uint256 _additionalBaseRate = _rateRatioBase * rateRatioAdditional / 1e18;
+        uint256 _additionalBaseCollateralRate = _rateRatioBaseCollateral * rateRatioAdditional / 1e18;
+
+        //if additional changes to % then this needs to be updated
+        require(_rateRatioBase + _additionalBaseRate < 1e18, "total rate must be below 100%");
+        require(_rateRatioBaseCollateral + _additionalBaseCollateralRate < 1e18, "total collateral rate must be below 100%");
+
+        rateRatioBase = _rateRatioBase;
+        rateRatioBaseCollateral = _rateRatioBaseCollateral;
+        emit SetRateInfo(_rateRatioBase, _rateRatioBaseCollateral);
     }
 
     /// @notice The ```version``` function returns the semantic version of the rate contract
@@ -56,7 +79,7 @@ contract InterestRateCalculatorV2 is IRateCalculator {
     /// @return _patch Patch version
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
         _major = 2;
-        _minor = 0;
+        _minor = 1;
         _patch = 0;
     }
 
@@ -84,6 +107,29 @@ contract InterestRateCalculatorV2 is IRateCalculator {
         uint256 _deltaTime,
         uint256 _previousShares
     ) external view returns (uint64 _newRatePerSec, uint128 _newShares) {
+        return _getNewRate(msg.sender, _vault, _deltaTime, _previousShares);
+    }
+
+    /// @notice The ```getPairRate``` function calculates interest rates using underlying rates and minimums
+    /// @param _pair The Resupply pair address to check
+    /// @return _newRatePerSec The new interest rate, 18 decimals of precision
+    /// @return _newShares The new number of shares, 18 decimals of precision
+    function getPairRate(
+        address _pair
+    ) external view returns (uint64 _newRatePerSec, uint128 _newShares) {
+        (uint64 lastTimestamp, , uint128 lastShares) = IResupplyPair(_pair).currentRateInfo();
+        address collateral = IResupplyPair(_pair).collateral();
+        uint256 deltaTime = block.timestamp - lastTimestamp;
+
+        return _getNewRate(_pair, collateral, deltaTime, lastShares);
+    }
+
+    function _getNewRate(
+        address _pair,
+        address _vault,
+        uint256 _deltaTime,
+        uint256 _previousShares
+    ) internal view returns (uint64 _newRatePerSec, uint128 _newShares) {
         //update how many shares 1e18 of assets are
         _newShares = uint128(IERC4626(_vault).convertToShares(1e18));
         //get new price of previous shares
@@ -101,17 +147,25 @@ contract InterestRateCalculatorV2 is IRateCalculator {
         //this lets us base our minimum rates on a "risk free rate" product
         uint256 riskFreeRate = sfrxusdRates();
         _newRatePerSec = uint64(riskFreeRate > minimumRate ? riskFreeRate : minimumRate);
+        uint256 _rateBase = rateRatioBase;
 
-        //if difference is over some minimum, return difference
+        //if collateral rate is more than minimum and riskfree, use collateral rate
         //if not, return minimum
-        _newRatePerSec = uint64(difference > _newRatePerSec ? difference : _newRatePerSec);
+        if(difference >= _newRatePerSec){
+            _newRatePerSec = uint64(difference);
+            _rateBase = rateRatioBaseCollateral;
+        }
+
+        //rateRatioAdditional is a % of base so we need to convert to see how much we add on
+        //note: in previous version this was just directly added to rateBase
+        uint256 _additionalRate = _rateBase * rateRatioAdditional / 1e18;
 
         //calculte and apply `rateRatio` multiplier which is computed using the following:
         // 1. priceWeight: which represents the off-peg boost
-        // 2. ratioBase: used to achieve the "half" rate of indicators like sfrxusd and underlying rates
-        // 3. ratioAdditional: amplifier for off-peg boost
-        uint256 priceweight = IPriceWatcher(priceWatcher).findPairPriceWeight(msg.sender);
-        uint256 rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        // 2. _rateBase: used to achieve the a portion of the rate of indicators like sfrxusd and underlying rates
+        // 3. _additionalRate: amplifier for off-peg boost
+        uint256 priceweight = IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
+        uint256 rateRatio = _rateBase + (_additionalRate * priceweight / 1e6);
         _newRatePerSec = uint64(_newRatePerSec * rateRatio / 1e18);
     }
 }
