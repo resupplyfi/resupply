@@ -13,8 +13,14 @@ interface IOperator {
     function withdraw_profit() external;
 }
 
+interface ISreUsd {
+    function lastRewardsDistribution() external view returns (uint256);
+    function syncRewardsAndDistribution() external;
+}
+
 contract Keeper {
     IResupplyRegistry public constant registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
+    ISreUsd public constant sreUsd = ISreUsd(0x557AB1e003951A73c12D16F0fEA8490E39C33C35);
     uint256 public constant startTime = 1741824000;
     uint256 public constant epochLength = 1 weeks;
 
@@ -48,6 +54,7 @@ contract Keeper {
 
     function work() external {
         if (canDistributeWeeklyFees()) _getFeeDepositController().distribute();
+        if (canSyncSreUsdRewards()) sreUsd.syncRewardsAndDistribution();
         address[] memory pairs = registry.getAllPairAddresses();
         for (uint256 i = 0; i < pairs.length; i++) {
             if (canWithdrawFees(pairs[i])) IResupplyPair(pairs[i]).withdrawFees();
@@ -61,6 +68,7 @@ contract Keeper {
     function canWork() external view returns (bool) {
         address[] memory pairs = registry.getAllPairAddresses();
         if (canDistributeWeeklyFees()) return true;
+        if (canSyncSreUsdRewards()) return true;
         if (canClaimRetentionEmissions()) return true;
         for (uint256 i = 0; i < pairs.length; i++) 
             if (canWithdrawFees(pairs[i])) return true;
@@ -86,6 +94,11 @@ contract Keeper {
 
     function canWithdrawProfit(address _operator) public view returns (bool) {
         return IOperator(_operator).profit() > minProfit;
+    }
+
+    function canSyncSreUsdRewards() public view returns (bool) {
+        uint256 lastRewardsDistribution = sreUsd.lastRewardsDistribution();
+        return ((lastRewardsDistribution - startTime) / epochLength) < getEpoch();
     }
 
     function _getFeeDepositController() internal view returns (IFeeDepositController) {
