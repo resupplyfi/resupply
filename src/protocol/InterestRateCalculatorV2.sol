@@ -111,17 +111,22 @@ contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
     }
 
     /// @notice The ```getPairRate``` function calculates interest rates using underlying rates and minimums
+    /// @dev return values are simplified compared to getNewRate
     /// @param _pair The Resupply pair address to check
     /// @return _newRatePerSec The new interest rate, 18 decimals of precision
-    /// @return _newShares The new number of shares, 18 decimals of precision
     function getPairRate(
         address _pair
-    ) external view returns (uint64 _newRatePerSec, uint128 _newShares) {
+    ) external view returns (uint256 _newRatePerSec) {
         (uint64 lastTimestamp, , uint128 lastShares) = IResupplyPair(_pair).currentRateInfo();
         address collateral = IResupplyPair(_pair).collateral();
         uint256 deltaTime = block.timestamp - lastTimestamp;
 
-        return _getNewRate(_pair, collateral, deltaTime, lastShares);
+        //ensure deltatime is not 0
+        if(deltaTime == 0){
+            deltaTime = 1;
+        }
+
+        (_newRatePerSec, ) = _getNewRate(_pair, collateral, deltaTime, lastShares);
     }
 
     function _getNewRate(

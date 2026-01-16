@@ -7,6 +7,10 @@ interface IInterestRateCalculatorV2 {
         uint256 _previousShares
     ) external view returns (uint64 _newRatePerSec, uint128 _newShares);
 
+    function getPairRate(
+        address _pair
+    ) external view returns (uint256 _newRatePerSec);
+
     function minimumRate() external view returns (uint256);
 
     function name() external view returns (string memory);
@@ -20,6 +24,7 @@ interface IInterestRateCalculatorV2 {
     function suffix() external view returns (string memory);
 
     function rateRatioBase() external view returns (uint256);
+    function rateRatioBaseCollateral() external view returns (uint256);
     function rateRatioAdditional() external view returns (uint256);
 
     function version()
