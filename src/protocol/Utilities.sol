@@ -96,8 +96,21 @@ contract Utilities is ResupplyPairConstants{
             _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
             _ratePerSecond = underlyingRate > riskFreeRate ? underlyingRate : riskFreeRate;
         }else{
-            //with v2.1 can get directly from the calculator
-            _ratePerSecond = calculator.getPairRate(_pair);
+            // Try V2.1+ getPairRate first, fall back to V2.0.0 logic
+            try calculator.getPairRate(_pair) returns (uint256 rate) {
+                _ratePerSecond = rate;
+            } catch {
+                // V2.0.0 fallback: use same logic as V1 but with rateRatioBase from calculator
+                try calculator.rateRatioBase() returns (uint256 _rateRatioBase) {
+                    rateRatio = _rateRatioBase;
+                } catch {
+                    rateRatio = 0.5e18; // default if no rateRatioBase
+                }
+                underlyingRate = underlyingRate * rateRatio / 1e18;
+                uint256 riskFreeRate = sfrxusdRates() * rateRatio / 1e18;
+                _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
+                _ratePerSecond = underlyingRate > _ratePerSecond ? underlyingRate : _ratePerSecond;
+            }
         }
     }
 
