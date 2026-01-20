@@ -20,6 +20,13 @@ contract UpdateInterestCalculator is Setup {
         asset = IERC20(address(stablecoin));
 
         //new interest calculator new params
+        _updateRateCalc();
+        
+    }
+
+    function _updateRateCalc() internal{
+        vm.startPrank(address(core));
+
         calcv2 = new InterestRateCalculatorV2(
             address(core),
             2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
@@ -28,12 +35,6 @@ contract UpdateInterestCalculator is Setup {
             0.2e18, //rate ratio additional (a % of base)
             Protocol.PRICE_WATCHER
         );
-
-        
-    }
-
-    function updateRateCalc() internal{
-        vm.startPrank(address(core));
 
         //update all pair's interest calculator
         for (uint256 i = 0; i < pairs.length; i++) {
@@ -80,6 +81,7 @@ contract UpdateInterestCalculator is Setup {
                 uint256 underlyingRate = utilities.getUnderlyingSupplyRate(pair);
                 uint256 sfrxusdRate = utilities.sfrxusdRates();
                 uint256 rate = calcv2.getPairRate(pair);
+                assertGt(rate, 0, "rate should never be 0");
                 console.log("--------------------------------");
                 console.log("Pair", pair, IResupplyPair(pair).name());
                 console.log("%18e", underlyingRate * 365 * 86400, "underlying apr");
@@ -93,9 +95,7 @@ contract UpdateInterestCalculator is Setup {
     function test_Initialization() public {
         //check previous rates
         printRatesFromUtilities();
-
-        //set new rate calc with same parameters as before
-        updateRateCalc();
+        
         vm.startPrank(address(core));
         calcv2.setRateInfo(0.5e18,0.5e18);
         vm.stopPrank();
@@ -121,5 +121,18 @@ contract UpdateInterestCalculator is Setup {
 
     function test_GetPairInterestRates() public {
         printRatesFromUtilities();
+    }
+
+    function test_SetRateInfo_RevertsWhenTotalAbove100() public {
+        vm.startPrank(address(core));
+        // values violate: base + base*additional >= 1e18
+        vm.expectRevert("total rate must be below 100%");
+        calcv2.setRateInfo(0.90e18, 0.5e18); // with additional=0.2e18 this violates
+        vm.stopPrank();
+    }
+
+    function test_AccessControlOnSetRateInfo() public {
+        vm.expectRevert(); // or your specific revert selector/message
+        calcv2.setRateInfo(0.5e18, 0.5e18);
     }
 }
