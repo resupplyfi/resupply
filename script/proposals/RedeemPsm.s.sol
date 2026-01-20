@@ -10,8 +10,8 @@ contract RedeemPsm is BaseProposal {
     IPrismaFactory public constant factoryMkUsd = IPrismaFactory(0x70b66E20766b775B2E9cE5B718bbD285Af59b7E1);
     IPrismaFactory public constant factoryUltra = IPrismaFactory(0xDb2222735e926f3a18D7d1D0CFeEf095A66Aea2A);
 
-    address public constant REDEEMER_MKUSD = 0xCeBA8b2Cb0D608eCa56eC272635F7901d8CE2bE5;
-    address public constant REDEEMER_ULTRA = 0x1bE54C3a59626D3Af3FDFa04094970DD44e54926;
+    address public constant REDEEMER_MKUSD = 0x8ccc7a5871fE5A844bccd407E15B4b6dCBC3700e;
+    address public constant REDEEMER_ULTRA = 0xF43c6EaE516eCc807978737Fc66b1FaB0413369F;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
