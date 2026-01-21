@@ -24,7 +24,7 @@ contract PairTestBase is Setup, ResupplyPairConstants {
 
         deployDefaultLendingPairs();
         address[] memory _pairs = registry.getAllPairAddresses();
-        pair = IResupplyPair(_pairs[3]); 
+        pair = IResupplyPair(_pairs[5]); 
         collateral = IERC20(pair.collateral());
         underlying = IERC20(pair.underlying());
         printPairInfo(pair);
