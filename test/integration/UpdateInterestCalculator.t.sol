@@ -19,13 +19,14 @@ contract UpdateInterestCalculator is Setup {
         super.setUp();
         asset = IERC20(address(stablecoin));
 
+        //shouldnt need to do this
         //checkpoint all
-        for (uint256 i = 0; i < pairs.length; i++) {
-            IResupplyPair(pairs[i]).addInterest(false);
-        }
+        // for (uint256 i = 0; i < pairs.length; i++) {
+        //     IResupplyPair(pairs[i]).addInterest(false);
+        // }
 
-        //move time ahead 
-        skip(100);
+        // //move time ahead 
+        // skip(100);
 
         //show rates before we update
         printRatesFromUtilities();
@@ -90,7 +91,7 @@ contract UpdateInterestCalculator is Setup {
             if(calculator == address(calcv2)){
                 uint256 underlyingRate = utilities.getUnderlyingSupplyRate(pair);
                 uint256 sfrxusdRate = utilities.sfrxusdRates();
-                uint256 rate = calcv2.getPairRate(pair);
+                uint256 rate = utilities.getPairInterestRate(pair);
                 assertGt(rate, 0, "rate should never be 0");
                 console.log("--------------------------------");
                 console.log("Pair", pair, IResupplyPair(pair).name());

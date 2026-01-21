@@ -115,34 +115,6 @@ contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
         uint256 _deltaTime,
         uint256 _previousShares
     ) external view returns (uint64 _newRatePerSec, uint128 _newShares) {
-        return _getNewRate(msg.sender, _vault, _deltaTime, _previousShares);
-    }
-
-    /// @notice The ```getPairRate``` function calculates interest rates using underlying rates and minimums
-    /// @dev return values are simplified compared to getNewRate
-    /// @param _pair The Resupply pair address to check
-    /// @return _newRatePerSec The new interest rate, 18 decimals of precision
-    function getPairRate(
-        address _pair
-    ) external view returns (uint256 _newRatePerSec) {
-        (uint64 lastTimestamp, , uint128 lastShares) = IResupplyPair(_pair).currentRateInfo();
-        address collateral = IResupplyPair(_pair).collateral();
-        uint256 deltaTime = block.timestamp - lastTimestamp;
-
-        //ensure deltatime is not 0
-        if(deltaTime == 0){
-            deltaTime = 1;
-        }
-
-        (_newRatePerSec, ) = _getNewRate(_pair, collateral, deltaTime, lastShares);
-    }
-
-    function _getNewRate(
-        address _pair,
-        address _vault,
-        uint256 _deltaTime,
-        uint256 _previousShares
-    ) internal view returns (uint64 _newRatePerSec, uint128 _newShares) {
         //update how many shares 1e18 of assets are
         _newShares = uint128(IERC4626(_vault).convertToShares(1e18));
         //get new price of previous shares
@@ -156,6 +128,27 @@ contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
         //that was equivalent to 1e18 assets at previous timestamp, this becomes our proper rate for 1e18 borrowed
         difference /= _deltaTime;
 
+        return _getNewRate(msg.sender, difference);
+    }
+
+    /// @notice The ```getPairRateWithUnderlying``` function calculates interest rates using underlying rates and minimums
+    /// @dev return values are simplified compared to getNewRate
+    /// @param _pair The Resupply pair address to check
+    /// @param _underlyingRate The current block rate of the collateral yield
+    /// @return _newRatePerSec The new interest rate, 18 decimals of precision
+    function getPairRateWithUnderlying(
+        address _pair,
+        uint256 _underlyingRate
+    ) external view returns (uint256 _newRatePerSec) {
+
+
+        (_newRatePerSec, ) = _getNewRate(_pair, _underlyingRate);
+    }
+
+    function _getNewRate(
+        address _pair,
+        uint256 _underlyingRate
+    ) internal view returns (uint64 _newRatePerSec, uint128 _newShares) {
         //take ratio of sfrxusd rate and compare to our hard minimum, take higher as our minimum
         //this lets us base our minimum rates on a "risk free rate" product
         uint256 riskFreeRate = sfrxusdRates();
@@ -163,8 +156,8 @@ contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
         uint256 _rateBase;
 
         // compare collateral rate to max(risk_free_rate, minimum_rate) and set _rateBase accordingly
-        if(difference >= _newRatePerSec){
-            _newRatePerSec = uint64(difference);
+        if(_underlyingRate >= _newRatePerSec){
+            _newRatePerSec = uint64(_underlyingRate);
             _rateBase = rateRatioBaseCollateral;
         }
         else {
