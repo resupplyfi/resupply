@@ -19,9 +19,19 @@ contract UpdateInterestCalculator is Setup {
         super.setUp();
         asset = IERC20(address(stablecoin));
 
-        //new interest calculator new params
+        //checkpoint all
+        for (uint256 i = 0; i < pairs.length; i++) {
+            IResupplyPair(pairs[i]).addInterest(false);
+        }
+
+        //move time ahead 
+        skip(100);
+
+        //show rates before we update
+        printRatesFromUtilities();
+
+        //update calculator
         _updateRateCalc();
-        
     }
 
     function _updateRateCalc() internal{
@@ -51,7 +61,7 @@ contract UpdateInterestCalculator is Setup {
 
     function printRatesFromUtilities() internal{
         // This helps us test our utilities contract with the new sreusd config
-        Utilities utilities = new Utilities(address(registry));
+        Utilities utilities = Utilities(address(0x2B2df195212766FD87fDc8415D67E5Aba5dCaa04)); //old utilities
         address[] memory pairs = registry.getAllPairAddresses();
         console.log("Number of pairs:", pairs.length);
         
@@ -93,15 +103,11 @@ contract UpdateInterestCalculator is Setup {
 
 
     function test_Initialization() public {
-        //check previous rates
-        printRatesFromUtilities();
+        //set calc to same ratio as before
         
         vm.startPrank(address(core));
         calcv2.setRateInfo(0.5e18,0.5e18);
         vm.stopPrank();
-
-        //jump forward in time
-        // skip(10);
 
         //check new rates are same as previous
         printRatesFromCalculator();
