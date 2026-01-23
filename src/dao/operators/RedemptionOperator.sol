@@ -41,7 +41,6 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
     int128 public immutable frxusdIndexFraxPool;
     int128 public immutable sfrxusdIndexFraxPool;
 
-    bool private inFlash;
     uint256 public lastProfit;
     address public owner;
     mapping(address => bool) public approvedCallers;
@@ -82,21 +81,11 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         uint256 minProfit,
         uint256 maxFeePct
     ) external nonReentrant onlyApproved returns (uint256 profit) {
-        require(!inFlash, "flash active");
         require(flashAmount != 0, "invalid flash amount");
         require(IERC20(reusd).balanceOf(address(this)) <= reusdDust, "leftover reusd");
 
         IResupplyPair pair = IResupplyPair(bestPair);
         address flashAsset = pair.underlying();
-        require(_isSupportedAsset(flashAsset), "invalid flash asset");
-
-        uint256 minRedemption = pair.minimumRedemption();
-        uint256 maxRedeemable = IRedemptionHandler(_redemptionHandler()).getMaxRedeemableDebt(bestPair);
-        require(maxRedeemable >= minRedemption, "insufficient redeemable");
-        require(minReusdFromSwap >= minRedemption, "min reusd too low");
-        require(minReusdFromSwap <= maxRedeemable, "min reusd too high");
-
-        inFlash = true;
 
         bytes memory data = abi.encode(
             bestPair,
@@ -116,8 +105,6 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         } else {
             IFraxLoan(frxUsdFlashLender).getFraxloan(flashAsset, flashAmount, data);
         }
-
-        require(!inFlash, "flash active");
         profit = lastProfit;
     }
 
@@ -140,21 +127,20 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         for (uint256 i = 0; i < length; i++) {
             address pair = pairs[i];
             address flashAsset = IResupplyPair(pair).underlying();
-            if (!_isSupportedAsset(flashAsset)) continue;
             if (flashAsset == crvUsd && !crvAllowed) continue;
             if (flashAsset == frxUsd && !frxAllowed) continue;
 
             uint256 maxRedeemable = IRedemptionHandler(handler).getMaxRedeemableDebt(pair);
             if (maxRedeemable == 0) continue;
 
-            uint256 expectedReusd;
+            uint256 reusdOut;
             if (flashAsset == frxUsd) {
                 uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).get_dy(
                     frxusdIndexFraxPool,
                     sfrxusdIndexFraxPool,
                     flashAmount
                 );
-                expectedReusd = ICurveExchange(reusdSfrxPool).get_dy(
+                reusdOut = ICurveExchange(reusdSfrxPool).get_dy(
                     sfrxIndex,
                     reusdIndexSfrx,
                     sfrxOut
@@ -162,13 +148,13 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
             } else {
                 (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(flashAsset);
                 uint256 shares = IERC4626(vault).previewDeposit(flashAmount);
-                expectedReusd = ICurveExchange(pool).get_dy(vaultIndex, reusdIndex, shares);
+                reusdOut = ICurveExchange(pool).get_dy(vaultIndex, reusdIndex, shares);
             }
-            if (expectedReusd == 0) continue;
-            if (expectedReusd > maxRedeemable) continue;
-            if (expectedReusd < IResupplyPair(pair).minimumRedemption()) continue;
+            if (reusdOut == 0) continue;
+            if (reusdOut > maxRedeemable) continue;
+            if (reusdOut < IResupplyPair(pair).minimumRedemption()) continue;
 
-            (uint256 expectedUnderlying,,) = IRedemptionHandler(handler).previewRedeem(pair, expectedReusd);
+            (uint256 expectedUnderlying,,) = IRedemptionHandler(handler).previewRedeem(pair, reusdOut);
             if (expectedUnderlying == 0) continue;
 
             uint256 feeEstimate = _flashFeeEstimate(flashAsset, flashAmount);
@@ -177,7 +163,7 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
             if (candidateProfit > profit) {
                 profit = candidateProfit;
                 bestPair = pair;
-                redeemAmount = expectedReusd;
+                redeemAmount = reusdOut;
             }
         }
 
@@ -212,7 +198,6 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         bytes calldata data,
         bool useCrvUsd
     ) internal {
-        require(inFlash, "flash inactive");
         (
             address pair,
             address assetExpected,
@@ -288,11 +273,9 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         }
 
         lastProfit = profit;
-        inFlash = false;
     }
 
     function sweep(address token, address to, uint256 amount) external onlyOwner {
-        require(!inFlash, "flash active");
         require(to != address(0), "invalid recipient");
         IERC20(token).safeTransfer(to, amount);
         emit Swept(token, to, amount);
@@ -336,10 +319,6 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         if (coin0 == vaultToken && coin1 == reusdToken) return (0, 1);
         if (coin1 == vaultToken && coin0 == reusdToken) return (1, 0);
         require(false, "invalid flash asset");
-    }
-
-    function _isSupportedAsset(address flashAsset) internal view returns (bool) {
-        return flashAsset == crvUsd || flashAsset == frxUsd;
     }
 
     function _redemptionHandler() internal view returns (address) {
