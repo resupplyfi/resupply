@@ -20,6 +20,7 @@ out
 tenderly/
 snapshots
 abis/
+bot
 
 # files
 *.env

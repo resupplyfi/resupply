@@ -15,6 +15,7 @@ interface IRedemptionHandler {
     ) external returns(uint256);
 
     function previewRedeem(address _pair, uint256 _amount) external view returns(uint256 _returnedUnderlying, uint256 _returnedCollateral, uint256 _fee);
+    function getMaxRedeemableDebt(address _pair) external view returns (uint256);
 
     function setWeightLimit(uint256 _weightLimit) external;
     function setUnderlyingOracle(address _oracle) external;
