@@ -179,6 +179,43 @@ contract RedemptionOperatorTest is Setup {
         assertEq(IERC20(Mainnet.FRXUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
     }
 
+    function test_ExecuteRedemption_FrxUsdFallbackToCrvUsd() public {
+        address pairAddress = _findPair(Mainnet.FRXUSD_ERC20);
+        require(pairAddress != address(0), "pair not found");
+        IResupplyPair pair = IResupplyPair(pairAddress);
+
+        _seedPair(pair);
+        uint256 maxRedeemable = IRedemptionHandler(address(redemptionHandler)).getMaxRedeemableDebt(pairAddress);
+        require(maxRedeemable > 0, "no redeemable debt");
+
+        deal(Mainnet.FRXUSD_ERC20, redemptionOperator.frxUsdFlashLender(), 1);
+
+        (uint256 flashAmount, uint256 profit, uint256 redeemAmount) =
+            _makeProfitableFallback(pairAddress);
+        require(profit > 0, "no profit");
+
+        uint256 treasuryBefore = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
+        vm.prank(bot);
+        redemptionOperator.executeRedemption(
+            pairAddress,
+            flashAmount,
+            redeemAmount,
+            0,
+            type(uint256).max
+        );
+
+        uint256 lastProfit = redemptionOperator.lastProfit();
+        assertGt(lastProfit, 0, "profit not recorded");
+        uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
+        assertEq(treasuryAfter - treasuryBefore, lastProfit, "treasury != profit");
+        assertLe(
+            IERC20(address(stablecoin)).balanceOf(address(redemptionOperator)),
+            redemptionOperator.reusdDust(),
+            "leftover reusd"
+        );
+        assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
+    }
+
     function _skewPool(address flashAsset, bool buyReusd, uint256 amountIn) internal returns (uint256 amountOut) {
         if (flashAsset == Mainnet.FRXUSD_ERC20) {
             (address reusdPool, int128 sfrxIndex, int128 reusdIndex) = _reusdSfrxPoolConfig();
@@ -344,6 +381,34 @@ contract RedemptionOperatorTest is Setup {
                     candidateRedeem > 0 &&
                     IResupplyPair(bestPair).underlying() == flashAsset
                 ) {
+                    return (currentFlash, candidateProfit, candidateRedeem);
+                }
+
+                currentAmountIn = currentAmountIn * 2;
+            }
+        }
+
+        return (0, 0, 0);
+    }
+
+    function _makeProfitableFallback(address pair)
+        internal
+        returns (uint256 flashAmount, uint256 profit, uint256 redeemAmount)
+    {
+        uint256[3] memory flashAmounts = [uint256(10_000e18), uint256(5_000e18), uint256(1_000e18)];
+        uint256 amountIn = 500_000e18;
+        uint256 maxIterations = 3;
+
+        for (uint256 f = 0; f < flashAmounts.length; f++) {
+            uint256 currentFlash = flashAmounts[f];
+            uint256 currentAmountIn = amountIn;
+
+            for (uint256 i = 0; i < maxIterations; i++) {
+                _skewPool(Mainnet.FRXUSD_ERC20, false, currentAmountIn);
+                (bool profitable, uint256 candidateProfit, address bestPair, uint256 candidateRedeem) =
+                    redemptionOperator.isProfitable(currentFlash);
+
+                if (bestPair == pair && profitable && candidateProfit > 0 && candidateRedeem > 0) {
                     return (currentFlash, candidateProfit, candidateRedeem);
                 }
 

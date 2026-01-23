@@ -32,6 +32,7 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
     address public constant reusdScrvPool = 0xc522A6606BBA746d7960404F22a3DB936B6F4F50;
     address public constant reusdSfrxPool = 0xed785Af60bEd688baa8990cD5c4166221599A441;
     address public constant frxusdSfrxusdPool = 0xF292eB6c5dcb693Eaaf392D0562a01C3710E5978;
+    address public constant crvUsdFrxUsdPool = 0x13e12BB0E6A2f1A3d6901a59a9d585e89A6243e1;
     uint256 public immutable reusdDust;
 
     int128 public immutable scrvIndex;
@@ -40,6 +41,8 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
     int128 public immutable reusdIndexSfrx;
     int128 public immutable frxusdIndexFraxPool;
     int128 public immutable sfrxusdIndexFraxPool;
+    int128 public immutable crvUsdIndexFrxPool;
+    int128 public immutable frxUsdIndexFrxPool;
 
     uint256 public lastProfit;
     address public owner;
@@ -55,6 +58,7 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         (scrvIndex, reusdIndexScrv) = _resolveIndices(reusdScrvPool, sCrvUsd, reusd);
         (sfrxIndex, reusdIndexSfrx) = _resolveIndices(reusdSfrxPool, sFrxUsd, reusd);
         (frxusdIndexFraxPool, sfrxusdIndexFraxPool) = _resolveIndices(frxusdSfrxusdPool, frxUsd, sFrxUsd);
+        (crvUsdIndexFrxPool, frxUsdIndexFrxPool) = _resolveIndices(crvUsdFrxUsdPool, crvUsd, frxUsd);
         _setApprovals();
     }
 
@@ -85,25 +89,33 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         require(IERC20(reusd).balanceOf(address(this)) <= reusdDust, "leftover reusd");
 
         IResupplyPair pair = IResupplyPair(bestPair);
-        address flashAsset = pair.underlying();
+        address underlyingAsset = pair.underlying();
+        address loanAsset = underlyingAsset;
+        if (underlyingAsset == frxUsd) {
+            uint256 frxAvailable = IERC20(frxUsd).balanceOf(frxUsdFlashLender);
+            if (flashAmount > frxAvailable) {
+                loanAsset = crvUsd;
+            }
+        }
 
         bytes memory data = abi.encode(
             bestPair,
-            flashAsset,
+            underlyingAsset,
+            loanAsset,
             flashAmount,
             minReusdFromSwap,
             minProfit,
             maxFeePct
         );
-        if (flashAsset == crvUsd) {
+        if (loanAsset == crvUsd) {
             IERC3156FlashLender(crvUsdFlashLender).flashLoan(
                 IERC3156FlashBorrower(address(this)),
-                flashAsset,
+                loanAsset,
                 flashAmount,
                 data
             );
         } else {
-            IFraxLoan(frxUsdFlashLender).getFraxloan(flashAsset, flashAmount, data);
+            IFraxLoan(frxUsdFlashLender).getFraxloan(loanAsset, flashAmount, data);
         }
         profit = lastProfit;
     }
@@ -126,19 +138,39 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
 
         for (uint256 i = 0; i < length; i++) {
             address pair = pairs[i];
-            address flashAsset = IResupplyPair(pair).underlying();
-            if (flashAsset == crvUsd && !crvAllowed) continue;
-            if (flashAsset == frxUsd && !frxAllowed) continue;
+            address underlyingAsset = IResupplyPair(pair).underlying();
+            address loanAsset = underlyingAsset;
+            if (underlyingAsset == crvUsd) {
+                if (!crvAllowed) continue;
+            } else if (underlyingAsset == frxUsd) {
+                if (frxAllowed) {
+                    loanAsset = frxUsd;
+                } else if (crvAllowed) {
+                    loanAsset = crvUsd;
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            }
 
             uint256 maxRedeemable = IRedemptionHandler(handler).getMaxRedeemableDebt(pair);
             if (maxRedeemable == 0) continue;
 
             uint256 reusdOut;
-            if (flashAsset == frxUsd) {
+            if (underlyingAsset == frxUsd) {
+                uint256 frxAmount = flashAmount;
+                if (loanAsset == crvUsd) {
+                    frxAmount = ICurveExchange(crvUsdFrxUsdPool).get_dy(
+                        crvUsdIndexFrxPool,
+                        frxUsdIndexFrxPool,
+                        flashAmount
+                    );
+                }
                 uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).get_dy(
                     frxusdIndexFraxPool,
                     sfrxusdIndexFraxPool,
-                    flashAmount
+                    frxAmount
                 );
                 reusdOut = ICurveExchange(reusdSfrxPool).get_dy(
                     sfrxIndex,
@@ -146,7 +178,7 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
                     sfrxOut
                 );
             } else {
-                (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(flashAsset);
+                (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(underlyingAsset);
                 uint256 shares = IERC4626(vault).previewDeposit(flashAmount);
                 reusdOut = ICurveExchange(pool).get_dy(vaultIndex, reusdIndex, shares);
             }
@@ -157,9 +189,18 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
             (uint256 expectedUnderlying,,) = IRedemptionHandler(handler).previewRedeem(pair, reusdOut);
             if (expectedUnderlying == 0) continue;
 
-            uint256 feeEstimate = _flashFeeEstimate(flashAsset, flashAmount);
-            if (expectedUnderlying <= flashAmount + feeEstimate) continue;
-            uint256 candidateProfit = expectedUnderlying - flashAmount - feeEstimate;
+            uint256 grossUnderlying = expectedUnderlying;
+            if (underlyingAsset == frxUsd && loanAsset == crvUsd) {
+                grossUnderlying = ICurveExchange(crvUsdFrxUsdPool).get_dy(
+                    frxUsdIndexFrxPool,
+                    crvUsdIndexFrxPool,
+                    expectedUnderlying
+                );
+            }
+
+            uint256 feeEstimate = _flashFeeEstimate(loanAsset, flashAmount);
+            if (grossUnderlying <= flashAmount + feeEstimate) continue;
+            uint256 candidateProfit = grossUnderlying - flashAmount - feeEstimate;
             if (candidateProfit > profit) {
                 profit = candidateProfit;
                 bestPair = pair;
@@ -180,7 +221,7 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         require(msg.sender == crvUsdFlashLender, "invalid callback caller");
         require(initiator == address(this), "invalid callback caller");
         require(token == crvUsd, "invalid token");
-        _handleFlashCallback(token, amount, fee, data, true);
+        _handleFlashCallback(token, amount, fee, data);
         return FLASH_CALLBACK_SUCCESS;
     }
 
@@ -188,31 +229,36 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         require(msg.sender == frxUsdFlashLender, "invalid callback caller");
         require(asset == frxUsd, "invalid token");
         uint256 fee = _fraxFee(amount);
-        _handleFlashCallback(asset, amount, fee, data, false);
+        _handleFlashCallback(asset, amount, fee, data);
     }
 
-    function _handleFlashCallback(
-        address asset,
-        uint256 amount,
-        uint256 fee,
-        bytes calldata data,
-        bool useCrvUsd
-    ) internal {
+    function _handleFlashCallback(address asset, uint256 amount, uint256 fee, bytes calldata data) internal {
         (
             address pair,
             address assetExpected,
+            address loanAsset,
             uint256 amountExpected,
             uint256 minReusdFromSwap,
             uint256 minProfit,
             uint256 maxFeePct
-        ) = abi.decode(data, (address, address, uint256, uint256, uint256, uint256));
-        require(asset == assetExpected && amount == amountExpected, "invalid callback data");
+        ) = abi.decode(data, (address, address, address, uint256, uint256, uint256, uint256));
+        require(asset == loanAsset && amount == amountExpected, "invalid callback data");
 
         uint256 reusdOut;
-        if (useCrvUsd) {
-            (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(asset);
-            uint256 shares = IERC4626(vault).deposit(amount, address(this));
+        uint256 swapInputAmount = amount;
+        if (loanAsset == crvUsd && assetExpected == frxUsd) {
+            swapInputAmount = ICurveExchange(crvUsdFrxUsdPool).exchange(
+                crvUsdIndexFrxPool,
+                frxUsdIndexFrxPool,
+                amount,
+                0,
+                address(this)
+            );
+        }
 
+        if (assetExpected == crvUsd) {
+            (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(assetExpected);
+            uint256 shares = IERC4626(vault).deposit(swapInputAmount, address(this));
             reusdOut = ICurveExchange(pool).exchange(
                 vaultIndex,
                 reusdIndex,
@@ -224,11 +270,10 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
             uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).exchange(
                 frxusdIndexFraxPool,
                 sfrxusdIndexFraxPool,
-                amount,
+                swapInputAmount,
                 0,
                 address(this)
             );
-
             reusdOut = ICurveExchange(reusdSfrxPool).exchange(
                 sfrxIndex,
                 reusdIndexSfrx,
@@ -255,12 +300,21 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
             address(this),
             true
         );
+        if (loanAsset == crvUsd && assetExpected == frxUsd) {
+            underlyingFromRedeem = ICurveExchange(crvUsdFrxUsdPool).exchange(
+                frxUsdIndexFrxPool,
+                crvUsdIndexFrxPool,
+                underlyingFromRedeem,
+                0,
+                address(this)
+            );
+        }
 
         uint256 totalOwed = amount + fee;
         uint256 balance = IERC20(asset).balanceOf(address(this));
         require(balance >= totalOwed + minProfit, "not profitable");
 
-        if (useCrvUsd) {
+        if (asset == crvUsd) {
             // crvUSD flash lender expects push repayment (balance delta), not allowance pull.
             IERC20(asset).safeTransfer(crvUsdFlashLender, totalOwed);
         } else {
@@ -336,6 +390,8 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         IERC20(sFrxUsd).forceApprove(reusdSfrxPool, type(uint256).max);
         IERC20(reusd).forceApprove(reusdSfrxPool, type(uint256).max);
         IERC20(sFrxUsd).forceApprove(frxusdSfrxusdPool, type(uint256).max);
+        IERC20(crvUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
+        IERC20(frxUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
 
         IERC20(reusd).forceApprove(handler, type(uint256).max);
     }
