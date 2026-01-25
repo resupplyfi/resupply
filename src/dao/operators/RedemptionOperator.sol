@@ -20,6 +20,9 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
 
     bytes32 private constant FLASH_CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
+    uint256 public constant MIN_FLASH = 5_000e18;
+    uint256 public constant MIN_PROFIT = 5e18;
+
     address public constant registry = 0x10101010E0C3171D894B71B3400668aF311e7D94;
     address public constant reusd = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
     address public constant treasury = 0x4444444455bF42de586A88426E5412971eA48324;
@@ -78,13 +81,41 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         emit CallerApproved(account, status);
     }
 
+    /// @notice Permissionless redemption using the best pair from isProfitable.
+    /// @param flashAmount Amount to flash borrow for the attempt.
+    /// @return profit Profit realized in the borrowed asset.
+    function executeRedemption(uint256 flashAmount) external returns (uint256 profit) {
+        require(flashAmount >= MIN_FLASH, "size too small");
+        (address bestPair, uint256 estimatedProfit, uint256 redeemAmount) = isProfitable(flashAmount);
+        require(estimatedProfit > MIN_PROFIT, "profit too small");
+        return _executeRedemption(bestPair, flashAmount, redeemAmount, estimatedProfit - 1, 1e18);
+    }
+
+
+    /// @notice Approved-only redemption with caller-supplied parameters.
+    /// @param bestPair Pair to redeem against.
+    /// @param flashAmount Amount to flash borrow for the attempt.
+    /// @param minReusdFromSwap Minimum reUSD out from the Curve swap.
+    /// @param minProfit Minimum profit required in the borrowed asset.
+    /// @param maxFeePct Max redemption fee percentage (1e18 precision).
+    /// @return profit Profit realized in the borrowed asset.
     function executeRedemption(
         address bestPair,
         uint256 flashAmount,
         uint256 minReusdFromSwap,
         uint256 minProfit,
         uint256 maxFeePct
-    ) external nonReentrant onlyApproved returns (uint256 profit) {
+    ) external onlyApproved returns (uint256 profit) {
+        return _executeRedemption(bestPair, flashAmount, minReusdFromSwap, minProfit, maxFeePct);
+    }
+
+    function _executeRedemption(
+        address bestPair,
+        uint256 flashAmount,
+        uint256 minReusdFromSwap,
+        uint256 minProfit,
+        uint256 maxFeePct
+    ) internal nonReentrant returns (uint256 profit) {
         require(flashAmount != 0, "invalid flash amount");
         require(IERC20(reusd).balanceOf(address(this)) <= reusdDust, "leftover reusd");
 
@@ -120,13 +151,18 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
         profit = lastProfit;
     }
 
+    /// @notice Simulates profitability across all pairs for a flash amount.
+    /// @param flashAmount Amount to flash borrow for simulation.
+    /// @return bestPair Pair with the highest expected profit.
+    /// @return profit Expected profit for the best pair.
+    /// @return redeemAmount Expected reUSD redeem amount for the best pair.
     function isProfitable(uint256 flashAmount)
-        external
+        public
         view
-        returns (bool profitable, uint256 profit, address bestPair, uint256 redeemAmount)
+        returns (address bestPair, uint256 profit, uint256 redeemAmount)
     {
         if (flashAmount == 0) {
-            return (false, 0, address(0), 0);
+            return (address(0), 0, 0);
         }
         uint256 maxCrvFlash = IERC3156FlashLender(crvUsdFlashLender).maxFlashLoan(crvUsd);
         bool crvAllowed = flashAmount <= maxCrvFlash;
@@ -207,8 +243,6 @@ contract RedemptionOperator is ReentrancyGuard, IERC3156FlashBorrower, IFraxLoan
                 redeemAmount = reusdOut;
             }
         }
-
-        profitable = profit > 0;
     }
 
     function onFlashLoan(
