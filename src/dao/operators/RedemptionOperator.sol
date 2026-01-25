@@ -412,7 +412,7 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         return IResupplyRegistry(registry).redemptionHandler();
     }
 
-    // Useful if RH address changes.
+    // Approve current RH. Useful if address changes.
     function approveRH() external {
         IERC20(reusd).forceApprove(_redemptionHandler(), type(uint256).max);
     }
@@ -429,8 +429,8 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         IERC20(crvUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
         IERC20(frxUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
 
-        address handler = _redemptionHandler();
-        IERC20(reusd).forceApprove(handler, type(uint256).max);
+        // approve current RH
+        IERC20(reusd).forceApprove(_redemptionHandler(), type(uint256).max);
     }
 
 }
