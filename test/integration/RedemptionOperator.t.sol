@@ -12,6 +12,8 @@ import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IFraxLoan } from "src/interfaces/IFraxLoan.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { Protocol, Mainnet } from "src/Constants.sol";
 
 contract RedemptionOperatorTest is Setup {
@@ -22,8 +24,17 @@ contract RedemptionOperatorTest is Setup {
 
     function setUp() public override {
         super.setUp();
-        redemptionOperator = new RedemptionOperator(1e12);
-        redemptionOperator.setApprovedCaller(bot, true);
+        address[] memory initialApproved = new address[](1);
+        initialApproved[0] = bot;
+        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, initialApproved);
+        Options memory options;
+        options.unsafeSkipAllChecks = true;
+        address proxy = Upgrades.deployUUPSProxy(
+            "RedemptionOperator.sol:RedemptionOperator",
+            initializerData,
+            options
+        );
+        redemptionOperator = RedemptionOperator(proxy);
         _ensureFraxLoanWhitelist();
     }
 
@@ -136,15 +147,8 @@ contract RedemptionOperatorTest is Setup {
             type(uint256).max
         );
 
-        uint256 lastProfit = redemptionOperator.lastProfit();
-        assertGt(lastProfit, 0, "profit not recorded");
         uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertEq(treasuryAfter - treasuryBefore, lastProfit, "treasury != profit");
-        assertLe(
-            IERC20(address(stablecoin)).balanceOf(address(redemptionOperator)),
-            redemptionOperator.reusdDust(),
-            "leftover reusd"
-        );
+        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
         assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
     }
 
@@ -166,15 +170,8 @@ contract RedemptionOperatorTest is Setup {
         vm.prank(address(0xCAFE));
         redemptionOperator.executeRedemption(flashAmount);
 
-        uint256 lastProfit = redemptionOperator.lastProfit();
-        assertGt(lastProfit, 0, "profit not recorded");
         uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertEq(treasuryAfter - treasuryBefore, lastProfit, "treasury != profit");
-        assertLe(
-            IERC20(address(stablecoin)).balanceOf(address(redemptionOperator)),
-            redemptionOperator.reusdDust(),
-            "leftover reusd"
-        );
+        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
         assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
     }
 
@@ -201,15 +198,8 @@ contract RedemptionOperatorTest is Setup {
             type(uint256).max
         );
 
-        uint256 lastProfit = redemptionOperator.lastProfit();
-        assertGt(lastProfit, 0, "profit not recorded");
         uint256 treasuryAfter = IERC20(Mainnet.FRXUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertEq(treasuryAfter - treasuryBefore, lastProfit, "treasury != profit");
-        assertLe(
-            IERC20(address(stablecoin)).balanceOf(address(redemptionOperator)),
-            redemptionOperator.reusdDust(),
-            "leftover reusd"
-        );
+        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
         assertEq(IERC20(Mainnet.FRXUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
     }
 
@@ -238,15 +228,8 @@ contract RedemptionOperatorTest is Setup {
             type(uint256).max
         );
 
-        uint256 lastProfit = redemptionOperator.lastProfit();
-        assertGt(lastProfit, 0, "profit not recorded");
         uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertEq(treasuryAfter - treasuryBefore, lastProfit, "treasury != profit");
-        assertLe(
-            IERC20(address(stablecoin)).balanceOf(address(redemptionOperator)),
-            redemptionOperator.reusdDust(),
-            "leftover reusd"
-        );
+        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
         assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
     }
 
