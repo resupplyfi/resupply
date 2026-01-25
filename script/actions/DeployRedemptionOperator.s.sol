@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { Protocol } from "src/Constants.sol";
+import { UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 
 contract DeployRedemptionOperator is BaseAction {
     function run() public {
@@ -13,11 +14,8 @@ contract DeployRedemptionOperator is BaseAction {
         bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, approved);
 
         vm.startBroadcast(vm.envUint("PK_RESUPPLY"));
-        deployUUPSProxy(
-            "RedemptionOperator.sol:RedemptionOperator",
-            initializerData,
-            true // unsafeSkipAllChecks
-        );
+        RedemptionOperator impl = new RedemptionOperator();
+        UnsafeUpgrades.deployUUPSProxy(address(impl), initializerData);
         vm.stopBroadcast();
     }
 }

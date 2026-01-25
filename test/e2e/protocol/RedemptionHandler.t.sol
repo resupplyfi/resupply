@@ -1,16 +1,35 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { MockOracle } from "test/mocks/MockOracle.sol";
+import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
+import { Protocol } from "src/Constants.sol";
 
 contract RedemptionHandlerTest is Setup {
+    using SafeERC20 for IERC20;
+
     MockOracle mockOracle;
+    RedemptionOperator redemptionOperator;
 
     function setUp() public override {
         super.setUp();
         deployDefaultLendingPairs();
         mockOracle = new MockOracle("Mock Oracle", 1e18);
+
+        address[] memory callers = new address[](1);
+        callers[0] = address(this);
+        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, callers);
+        Options memory options;
+        options.unsafeSkipAllChecks = true;
+        address proxy = Upgrades.deployUUPSProxy(
+            "RedemptionOperator.sol:RedemptionOperator",
+            initializerData,
+            options
+        );
+        redemptionOperator = RedemptionOperator(proxy);
     }
 
     function test_SetBaseRedemptionFee() public {
@@ -80,4 +99,77 @@ contract RedemptionHandlerTest is Setup {
         assertGt(fee, 0, "Fee should be greater than 0");
         assertLe(fee, 1e18, "Fee should not exceed 100%");
     }
+
+    function test_RedemptionGuardBlocksUnapproved() public {
+        vm.prank(address(core));
+        redemptionHandler.updateGuardSettings(true, 98e16);
+
+        vm.mockCall(
+            address(reusdOracle),
+            abi.encodeWithSelector(IReusdOracle.rawPriceAsCrvusd.selector),
+            abi.encode(1e18)
+        );
+
+        vm.expectRevert("redemption guarded");
+        redemptionHandler.redeemFromPair(address(testPair), 0, type(uint256).max, address(this), true);
+    }
+
+    function test_RedemptionGuardAllowsApprovedRedeemer() public {
+        RedemptionHandler mainnetHandler = new RedemptionHandler(address(core), Protocol.REGISTRY, address(0));
+        vm.startPrank(address(core));
+        mainnetHandler.setApprovedRedeemer(address(redemptionOperator), true);
+        mainnetHandler.updateGuardSettings(true, 98e16);
+        vm.stopPrank();
+
+        address mainnetOracle = IResupplyRegistry(Protocol.REGISTRY).getAddress("REUSD_ORACLE");
+        vm.mockCall(
+            mainnetOracle,
+            abi.encodeWithSelector(IReusdOracle.rawPriceAsCrvusd.selector),
+            abi.encode(1e18)
+        );
+
+        IResupplyRegistry mainnetRegistry = IResupplyRegistry(Protocol.REGISTRY);
+        vm.prank(Protocol.CORE);
+        mainnetRegistry.setRedemptionHandler(address(mainnetHandler));
+
+        address[] memory pairs = mainnetRegistry.getAllPairAddresses();
+        uint256 redeemAmount;
+        address pairToRedeem;
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address pair = pairs[i];
+            uint256 minRedemption = IResupplyPair(pair).minimumRedemption();
+            uint256 maxRedeemable = mainnetHandler.getMaxRedeemableDebt(pair);
+            if (maxRedeemable >= minRedemption) {
+                redeemAmount = minRedemption;
+                pairToRedeem = pair;
+                break;
+            }
+        }
+        require(pairToRedeem != address(0), "no redeemable pair on fork");
+
+        address debtToken = mainnetRegistry.token();
+        deal(debtToken, address(redemptionOperator), redeemAmount);
+
+        vm.prank(address(redemptionOperator));
+        IERC20(debtToken).forceApprove(address(mainnetHandler), type(uint256).max);
+
+        vm.prank(address(redemptionOperator));
+        uint256 received = mainnetHandler.redeemFromPair(
+            pairToRedeem,
+            redeemAmount,
+            type(uint256).max,
+            address(this),
+            true
+        );
+        assertGt(received, 0, "no collateral received");
+    }
+
+    function test_GuardSettingsUpdated() public {
+        vm.prank(address(core));
+        redemptionHandler.updateGuardSettings(true, 97e16);
+        assertTrue(redemptionHandler.guardEnabled());
+        assertEq(redemptionHandler.permissionlessPriceThreshold(), 97e16);
+    }
+
+    
 }

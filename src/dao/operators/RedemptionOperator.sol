@@ -81,6 +81,10 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         }
     }
 
+    function setApprovals() external {
+        _setApprovals();
+    }
+
     function setApprovedCaller(address _caller, bool _status) external onlyOwner {
         require(_caller != address(0), "invalid account");
         approvedCallers[_caller] = _status;

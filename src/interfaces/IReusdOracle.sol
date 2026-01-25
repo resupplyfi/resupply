@@ -5,4 +5,5 @@ interface IReusdOracle {
     function price() external view returns (uint256 _price);
     function priceAsCrvusd() external view returns (uint256 _price);
     function priceAsFrxusd() external view returns (uint256 _price);
+    function rawPriceAsCrvusd() external view returns (uint256 _price);
 }

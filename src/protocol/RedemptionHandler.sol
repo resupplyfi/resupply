@@ -10,6 +10,7 @@ import { IOracle } from "../interfaces/IOracle.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IMintable } from "../interfaces/IMintable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IReusdOracle } from "src/interfaces/IReusdOracle.sol";
 
 //Contract that interacts with pairs to perform redemptions
 //Can swap out this contract for another to change logic on how redemption fees are calculated.
@@ -40,11 +41,27 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public overusageRate = 1e16; //at max
     uint256 public overWeight = 2e17; //If weight of redeem is overthis, charge over usage
 
+    uint256 public permissionlessPriceThreshold = 985e16; // $0.985
+    bool public guardEnabled;
+    mapping(address caller => bool approved) public approvedRedeemer;
+
     event SetBaseRedemptionFee(uint256 _fee);
     event SetWeightLimit(uint256 _weightLimit);
     event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);
     event SetOverusageInfo(uint256 _fee, uint256 _start, uint256 _end);
     event SetUnderlyingOracle(address indexed _oracle);
+    event ApprovedRedeemerSet(address redeemer, bool approved);
+    event GuardSettingsUpdated(bool guardEnabled, uint256 priceThreshold);
+
+    modifier redemptionGuard() {
+        require(
+            approvedRedeemer[msg.sender] ||
+            !guardEnabled ||
+            reUsdOraclePrice() < permissionlessPriceThreshold,
+            "redemption guarded"
+        );
+        _;
+    }
 
     constructor(address _core, address _registry, address _underlyingOracle) CoreOwnable(_core){
         registry = _registry;
@@ -89,6 +106,17 @@ contract RedemptionHandler is CoreOwnable{
         underlyingOracle = _oracle;
         emit SetUnderlyingOracle(_oracle);
     }
+
+    function setApprovedRedeemer(address _redeemer, bool _approved) external onlyOwner{
+        approvedRedeemer[_redeemer] = _approved;
+        emit ApprovedRedeemerSet(_redeemer, _approved);
+    }
+
+    function updateGuardSettings(bool _guardEnabled, uint256 _permissionlessPriceThreshold) external onlyOwner {
+        guardEnabled = _guardEnabled;
+        permissionlessPriceThreshold = _permissionlessPriceThreshold;
+        emit GuardSettingsUpdated(_guardEnabled, _permissionlessPriceThreshold);
+    } 
 
     /// @notice Estimates the maximum amount of debt that can be redeemed from a pair
     function getMaxRedeemableDebt(address _pair) external view returns(uint256){
@@ -210,6 +238,11 @@ contract RedemptionHandler is CoreOwnable{
     }
 
 
+    function reUsdOraclePrice() public view returns (uint256) {
+        return IReusdOracle(IResupplyRegistry(registry).getAddress("REUSD_ORACLE")).rawPriceAsCrvusd();
+    }
+
+
     /// @notice Redeem stablecoins for collateral from a pair
     /// @param _pair The address of the pair to redeem from
     /// @param _amount The amount of stablecoins to redeem
@@ -223,7 +256,7 @@ contract RedemptionHandler is CoreOwnable{
         uint256 _maxFeePct,
         address _receiver,
         bool _redeemToUnderlying
-    ) external returns(uint256){
+    ) external redemptionGuard returns(uint256){
         //get fee
         (uint256 feePct, RedeemptionRateInfo memory rdata, uint256 _newTotalWeight) = _getRedemptionFee(_pair, _amount);
         
