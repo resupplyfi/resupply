@@ -42,7 +42,7 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public overWeight = 2e17; //If weight of redeem is overthis, charge over usage
 
     uint256 public permissionlessPriceThreshold = 985e16; // $0.985
-    bool public guardEnabled;
+    bool public guardEnabled = true;
     mapping(address caller => bool approved) public approvedRedeemer;
 
     event SetBaseRedemptionFee(uint256 _fee);

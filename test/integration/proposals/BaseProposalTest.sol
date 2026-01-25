@@ -16,10 +16,13 @@ contract BaseProposalTest is Test, Setup {
     }
 
     function simulatePassingVote(uint256 proposalId) public {
+        address extraUser = 0xAAc0aa431c237C2C0B5f041c8e59B3f1a43aC78F;
         vm.prank(Protocol.PERMA_STAKER_CONVEX);
         voter.voteForProposal(Protocol.PERMA_STAKER_CONVEX, proposalId);
         vm.prank(Protocol.PERMA_STAKER_YEARN);
         voter.voteForProposal(Protocol.PERMA_STAKER_YEARN, proposalId);
+        vm.prank(extraUser);
+        voter.voteForProposal(extraUser, proposalId);
         skip(voter.votingPeriod());
     }
 

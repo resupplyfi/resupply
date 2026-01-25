@@ -126,6 +126,10 @@ contract VoterTest is Setup {
         vm.prank(user2);
         voter.voteForProposal(user2, proposalId);
 
+        address extraUser = 0xAAc0aa431c237C2C0B5f041c8e59B3f1a43aC78F;
+        vm.prank(extraUser);
+        voter.voteForProposal(extraUser, proposalId);
+
         assertEq(voter.quorumReached(proposalId), true);
         assertEq(voter.canExecute(proposalId), false);
         skip(voter.VOTING_PERIOD());
@@ -317,10 +321,14 @@ contract VoterTest is Setup {
     }
 
     function passProposal(uint256 propId) public {
+        address user3 = 0xAAc0aa431c237C2C0B5f041c8e59B3f1a43aC78F;
         vm.prank(user1);
         voter.voteForProposal(user1, propId);
         vm.prank(user2);
         voter.voteForProposal(user2, propId);
+        vm.prank(user3);
+        voter.voteForProposal(user3, propId);
         skip(voter.VOTING_PERIOD() + voter.EXECUTION_DELAY());
+        
     }
 }
