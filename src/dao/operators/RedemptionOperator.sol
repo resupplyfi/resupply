@@ -91,15 +91,6 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         emit CallerApproved(_caller, _status);
     }
 
-    /// @notice Permissionless redemption using the best pair from isProfitable.
-    /// @param flashAmount Amount to flash borrow for the attempt.
-    function executeRedemption(uint256 flashAmount) external {
-        require(flashAmount >= MIN_FLASH, "size too small");
-        (address bestPair, uint256 estimatedProfit, uint256 redeemAmount) = isProfitable(flashAmount);
-        require(estimatedProfit > MIN_PROFIT, "profit too small");
-        _executeRedemption(bestPair, flashAmount, redeemAmount, estimatedProfit, 1e18);
-    }
-
 
     /// @notice Approved-only redemption with caller-supplied parameters.
     /// @param bestPair Pair to redeem against.
@@ -113,17 +104,7 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         uint256 minReusdFromSwap,
         uint256 minProfit,
         uint256 maxFeePct
-    ) external onlyApproved {
-        _executeRedemption(bestPair, flashAmount, minReusdFromSwap, minProfit, maxFeePct);
-    }
-
-    function _executeRedemption(
-        address bestPair,
-        uint256 flashAmount,
-        uint256 minReusdFromSwap,
-        uint256 minProfit,
-        uint256 maxFeePct
-    ) internal nonReentrant {
+    ) external onlyApproved nonReentrant {
         require(flashAmount != 0, "invalid flash amount");
 
         IResupplyPair pair = IResupplyPair(bestPair);

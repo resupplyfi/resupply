@@ -152,29 +152,6 @@ contract RedemptionOperatorTest is Setup {
         assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
     }
 
-    function test_ExecuteRedemption_Permissionless() public {
-        address pairAddress = _findPair(Mainnet.CRVUSD_ERC20);
-        require(pairAddress != address(0), "pair not found");
-        IResupplyPair pair = IResupplyPair(pairAddress);
-
-        _seedPair(pair);
-        uint256 maxRedeemable = IRedemptionHandler(address(redemptionHandler)).getMaxRedeemableDebt(pairAddress);
-        require(maxRedeemable > 0, "no redeemable debt");
-
-        (uint256 flashAmount, uint256 profit, uint256 redeemAmount) =
-            _makeProfitable(Mainnet.CRVUSD_ERC20, pairAddress);
-        require(profit > 0, "no profit");
-        require(flashAmount >= redemptionOperator.MIN_FLASH(), "flash too small");
-
-        uint256 treasuryBefore = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        vm.prank(address(0xCAFE));
-        redemptionOperator.executeRedemption(flashAmount);
-
-        uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
-        assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
-    }
-
     function test_ExecuteRedemption_FrxUsdPair() public {
         address pairAddress = _findPair(Mainnet.FRXUSD_ERC20);
         require(pairAddress != address(0), "pair not found");
