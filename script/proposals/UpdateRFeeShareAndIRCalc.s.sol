@@ -21,11 +21,11 @@ contract UpdateRFeeShareAndIRCalc is BaseAction, BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](numPairs * 3);
+        actions = new IVoter.Action[](numPairs * 2);
         for (uint256 i = 0; i < pairs.length; i++) {
             // Update redemption fee share
             prevProtocolRedemptionFee = IResupplyPair(pairs[i]).protocolRedemptionFee();
-            uint256 index = i * 3;
+            uint256 index = i * 2;
             actions[index] = IVoter.Action({
                 target: pairs[i],
                 data: abi.encodeWithSelector(
@@ -36,13 +36,6 @@ contract UpdateRFeeShareAndIRCalc is BaseAction, BaseProposal {
             require(newProtocolRedemptionFee < prevProtocolRedemptionFee, "Fee too high");
 
             actions[index + 1] = IVoter.Action({
-                target: pairs[i],
-                data: abi.encodeWithSelector(
-                    IResupplyPair.addInterest.selector,
-                    false
-                )
-            });
-            actions[index + 2] = IVoter.Action({
                 target: pairs[i],
                 data: abi.encodeWithSelector(
                     IResupplyPair.setRateCalculator.selector,
