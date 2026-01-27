@@ -196,6 +196,38 @@ contract Setup is Test {
         return p;
     }
 
+    function _cleanPairName(string memory name) internal pure returns (string memory) {
+        bytes memory data = bytes(name);
+        bytes memory prefix = bytes("Resupply Pair (");
+        if (data.length >= prefix.length) {
+            bool matches = true;
+            for (uint256 i = 0; i < prefix.length; i++) {
+                if (data[i] != prefix[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                uint256 start = prefix.length;
+                uint256 end = data.length;
+                for (uint256 i = start; i < data.length; i++) {
+                    if (data[i] == ")") {
+                        end = i;
+                        break;
+                    }
+                }
+                bytes memory out = new bytes(data.length - start - (end < data.length ? 1 : 0));
+                uint256 j = 0;
+                for (uint256 i = start; i < data.length; i++) {
+                    if (i == end) continue;
+                    out[j++] = data[i];
+                }
+                return string(out);
+            }
+        }
+        return name;
+    }
+
     function deployCurveLendingVaultAndGauge(
         address _collateral
     ) public returns(address vault, address gauge, uint256 convexPoolId){
