@@ -118,9 +118,7 @@ contract Setup is Test {
     constructor() {}
 
     function setUp() public virtual {
-        string memory mainnetUrl = vm.envString("MAINNET_URL");
-        uint256 forkBlock = vm.envOr("REDEMPTION_FORK_BLOCK", uint256(24292422));
-        vm.createSelectFork(mainnetUrl, forkBlock);
+        vm.createSelectFork(vm.envString("MAINNET_URL"));
         deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
         // This line can be removed once BASIC_VAULT_ORACLE is deployed via DeployFixes.s.sol
         if (Protocol.BASIC_VAULT_ORACLE.code.length == 0) vm.etch(Protocol.BASIC_VAULT_ORACLE, address(new BasicVaultOracle("Basic Vault Oracle")).code);

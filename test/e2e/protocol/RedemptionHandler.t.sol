@@ -7,6 +7,12 @@ import { MockOracle } from "test/mocks/MockOracle.sol";
 import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { Protocol } from "src/Constants.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
+import { IReusdOracle } from "src/interfaces/IReusdOracle.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 
 contract RedemptionHandlerTest is Setup {
     using SafeERC20 for IERC20;
