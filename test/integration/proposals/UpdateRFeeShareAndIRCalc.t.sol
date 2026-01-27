@@ -6,6 +6,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { Protocol } from "src/Constants.sol";
 import { UpdateRFeeShareAndIRCalc } from "script/proposals/UpdateRFeeShareAndIRCalc.s.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
 contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
     uint256 public constant PROP_ID = 15;
@@ -13,6 +14,7 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
     address public samplePair;
     address public oldRateCalculator;
     uint256 public oldProtocolRedemptionFee;
+    ResupplyPairDeployer.ConfigData public oldDefaultConfig;
 
     function setUp() public override {
         super.setUp();
@@ -20,8 +22,7 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
         testPair = IResupplyPair(pairs[5]);
         oldRateCalculator = IResupplyPair(address(testPair)).rateCalculator();
         oldProtocolRedemptionFee = IResupplyPair(address(testPair)).protocolRedemptionFee();
-        vm.prank(Protocol.CORE);
-        voter.setQuorumPct(1);
+        oldDefaultConfig = ResupplyPairDeployer(address(deployer)).defaultConfigData();
         script = new UpdateRFeeShareAndIRCalc();
         IVoter.Action[] memory actions = script.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);
@@ -55,6 +56,19 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
             );
         }
         assertNotEq(oldProtocolRedemptionFee, 0.05e18, "old fee matches new");
+    }
+
+    function test_DefaultConfigUpdated() public {
+        if (isProposalProcessed(PROP_ID)) return;
+        ResupplyPairDeployer.ConfigData memory newConfig = ResupplyPairDeployer(address(deployer)).defaultConfigData();
+        assertEq(newConfig.oracle, oldDefaultConfig.oracle, "oracle changed");
+        assertEq(newConfig.maxLTV, oldDefaultConfig.maxLTV, "maxLTV changed");
+        assertEq(newConfig.initialBorrowLimit, oldDefaultConfig.initialBorrowLimit, "borrow limit changed");
+        assertEq(newConfig.liquidationFee, oldDefaultConfig.liquidationFee, "liquidation fee changed");
+        assertEq(newConfig.mintFee, oldDefaultConfig.mintFee, "mint fee changed");
+        assertEq(newConfig.protocolRedemptionFee, oldDefaultConfig.protocolRedemptionFee, "protocol fee changed");
+        assertEq(newConfig.rateCalculator, Protocol.INTEREST_RATE_CALCULATOR_V2_1, "rate calculator not updated");
+        assertNotEq(oldDefaultConfig.rateCalculator, newConfig.rateCalculator, "rate calculator unchanged");
     }
 
 }

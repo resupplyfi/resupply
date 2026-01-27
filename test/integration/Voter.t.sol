@@ -32,6 +32,8 @@ contract VoterTest is Setup {
         voter = IVoter(voterAddress);
         vm.prank(address(core));
         core.setVoter(voterAddress);
+        vm.prank(address(core));
+        voter.setQuorumPct(1);
     }
 
     function test_createProposal() public {
