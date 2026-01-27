@@ -2,11 +2,10 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { Protocol, DeploymentConfig } from "src/Constants.sol";
+import { Protocol } from "src/Constants.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { CancelProposalPermissions } from "script/proposals/CancelProposalPermissions.s.sol";
 
 contract CancelProposalPermissionsTest is BaseProposalTest {

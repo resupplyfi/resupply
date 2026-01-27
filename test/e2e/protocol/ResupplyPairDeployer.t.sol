@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Protocol, Mainnet, DeploymentConfig} from "src/Constants.sol";
-import {Test} from "forge-std/Test.sol";
+import {Mainnet, DeploymentConfig} from "src/Constants.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/e2e/Setup.sol";
 import {console2} from "forge-std/console2.sol";

@@ -5,7 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { OFTCore } from "@layerzerolabs/oft-evm/contracts/OFTCore.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeCastLib } from "src/libraries/solmate/SafeCastLib.sol";
-import { LinearRewardsErc4626, ERC20 } from "./LinearRewardsErc4626.sol";
+import { LinearRewardsErc4626 } from "./LinearRewardsErc4626.sol";
 
 /**
  * @title Savings reUSD

@@ -2,10 +2,8 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { Protocol, Mainnet } from "src/Constants.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { RegisterNewPair } from "script/proposals/RegisterNewPair.s.sol";
 
 contract RegisterNewPairTest is BaseProposalTest {

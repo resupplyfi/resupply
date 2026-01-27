@@ -1,10 +1,8 @@
 pragma solidity ^0.8.22;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { SimpleReceiverFactory } from "src/dao/emissions/receivers/SimpleReceiverFactory.sol";
 import { SimpleReceiver } from "src/dao/emissions/receivers/SimpleReceiver.sol";
-import { GovToken } from "src/dao/GovToken.sol";
 import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 
 contract SimpleReceiverFactoryTest is Setup {

@@ -1,8 +1,7 @@
 pragma solidity 0.8.28;
 
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { Protocol, Prisma } from "src/Constants.sol";
-import { ITreasury } from "src/interfaces/ITreasury.sol";
+import { Protocol } from "src/Constants.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { TenderlyHelper } from "script/utils/TenderlyHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";

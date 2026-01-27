@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
-import { console } from "lib/forge-std/src/console.sol";
-import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 import { IBasicVaultOracle } from "src/interfaces/IBasicVaultOracle.sol";

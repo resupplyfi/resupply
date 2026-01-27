@@ -3,8 +3,6 @@ pragma solidity 0.8.28;
 
 import { Setup } from "test/e2e/Setup.sol";
 import { TreasuryManager } from "src/dao/operators/TreasuryManager.sol";
-import { ICore } from "src/interfaces/ICore.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";

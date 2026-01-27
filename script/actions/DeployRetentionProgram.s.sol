@@ -5,7 +5,6 @@ import { Protocol } from "src/Constants.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { SafeHelper } from "script/utils/SafeHelper.sol";
 import { CreateXHelper } from "script/utils/CreateXHelper.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "forge-std/console.sol";
 import { RetentionIncentives } from "src/dao/RetentionIncentives.sol";
 import { RetentionProgramJsonParser } from "test/utils/RetentionProgramJsonParser.sol";

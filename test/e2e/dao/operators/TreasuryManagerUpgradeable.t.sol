@@ -2,10 +2,7 @@
 pragma solidity 0.8.28;
 
 import { console } from "forge-std/console.sol";
-import { Protocol, DeploymentConfig } from "src/Constants.sol";
 import { TreasuryManagerUpgradeable } from "src/dao/operators/TreasuryManagerUpgradeable.sol";
-import { Upgrades, UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
-import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { BaseUpgradeableOperatorTest } from "test/utils/BaseUpgradeableOperator.sol";
 import { IPrismaCore } from "src/interfaces/prisma/IPrismaCore.sol";
 import { ISimpleReceiver } from "src/interfaces/ISimpleReceiver.sol";
@@ -14,7 +11,6 @@ import { EmissionsController } from "src/dao/emissions/EmissionsController.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { ITreasury } from "src/interfaces/ITreasury.sol";
-import { ICore } from "src/interfaces/ICore.sol";
 import { Setup } from "test/e2e/Setup.sol";
 
 contract TreasuryManagerUpgradeableTest is Setup, BaseUpgradeableOperatorTest {

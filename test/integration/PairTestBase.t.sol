@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
 import { Protocol, DeploymentConfig } from "src/Constants.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { console } from "lib/forge-std/src/console.sol";

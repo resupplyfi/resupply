@@ -6,15 +6,12 @@ pragma solidity 0.8.28;
  * @notice Based on code from Drake Evans and Frax Finance's lending pair contract (https://github.com/FraxFinance/fraxlend), adapted for Resupply Finance
  */
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ResupplyPairCore } from "src/protocol/pair/ResupplyPairCore.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { VaultAccount, VaultAccountingLibrary } from "src/libraries/VaultAccount.sol";
 import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
-import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";

@@ -1,7 +1,5 @@
 pragma solidity ^0.8.22;
 
-import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 import { Setup } from "../Setup.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

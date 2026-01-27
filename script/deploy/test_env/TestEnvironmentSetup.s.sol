@@ -2,7 +2,6 @@ import "src/Constants.sol" as Constants;
 import { DeploymentConfig } from "src/Constants.sol";
 import { console } from "forge-std/console.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { BaseDeploy } from "script/deploy/dependencies/BaseDeploy.s.sol";
 import { DeployResupply } from "script/deploy/DeployResupply.s.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";

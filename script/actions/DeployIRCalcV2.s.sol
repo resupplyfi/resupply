@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
 import { Protocol } from "src/Constants.sol";
 import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";

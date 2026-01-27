@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { Protocol } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { SavingsReUSD } from "src/protocol/sreusd/sreUSD.sol";
-import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
+import { LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { FeeDepositController } from "src/protocol/FeeDepositController.sol";
