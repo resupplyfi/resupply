@@ -74,7 +74,7 @@ library Protocol {
     address constant UTILITIES = 0x5f896C250DA6b462873813ceEc47F3e4D8CBA464;
     address constant SWAPPER = 0x042f48346be16Be381190a7397A80808243f3b2e;
     address constant SWAPPER_ODOS = 0x3Ae884D1a67650501278001FDa40DCa975D9194D;
-    address constant KEEPER_PROXY = 0x49F6D2B208006fdB5a42CE71C4339150ecBD4761;
+    address constant KEEPER = 0x49F7AA38af55322dE009ADD5f10a602CD26Ee958;
     
     
     // Pools and Gauges

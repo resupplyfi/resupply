@@ -71,4 +71,9 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
         assertNotEq(oldDefaultConfig.rateCalculator, newConfig.rateCalculator, "rate calculator unchanged");
     }
 
+    function test_UtilitiesRegistryUpdated() public {
+        address utilities = registry.getAddress("UTILITIES");
+        assertEq(utilities, Protocol.UTILITIES, "utilities not updated");
+    }
+
 }
