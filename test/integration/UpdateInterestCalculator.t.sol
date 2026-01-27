@@ -38,14 +38,18 @@ contract UpdateInterestCalculator is Setup {
     function _updateRateCalc() internal{
         vm.startPrank(address(core));
 
-        calcv2 = new InterestRateCalculatorV2(
-            address(core),
-            2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
-            0.5e18, //rate ratio base
-            0.625e18, //rate ratio base for collateral
-            0.2e18, //rate ratio additional (a % of base)
-            Protocol.PRICE_WATCHER
-        );
+        //create a new calculator
+        // calcv2 = new InterestRateCalculatorV2(
+        //     address(core),
+        //     2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base
+        //     0.5e18, //rate ratio base
+        //     0.625e18, //rate ratio base for collateral
+        //     0.2e18, //rate ratio additional (a % of base)
+        //     Protocol.PRICE_WATCHER
+        // );
+
+        //grab deployed version for final testing
+        calcv2 = InterestRateCalculatorV2(Protocol.INTEREST_RATE_CALCULATOR_V2);
 
         //update all pair's interest calculator
         for (uint256 i = 0; i < pairs.length; i++) {
@@ -81,7 +85,8 @@ contract UpdateInterestCalculator is Setup {
 
     function printRatesFromCalculator() internal{
         // This helps us test our utilities contract with the new sreusd config
-        Utilities utilities = new Utilities(address(registry));
+        // Utilities utilities = new Utilities(address(registry)); //deploy new utilities
+        Utilities utilities = Utilities(Protocol.UTILITIES); //already deployed so grab live version
         address[] memory pairs = registry.getAllPairAddresses();
         console.log("Number of pairs:", pairs.length);
         
