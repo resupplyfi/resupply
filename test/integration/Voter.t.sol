@@ -1,4 +1,5 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { Setup } from "test/integration/Setup.sol";
 import { MockPair } from "test/mocks/MockPair.sol";

@@ -7,7 +7,7 @@
  *      The library lets you concatenate, slice and type cast bytes arrays both in memory and storage.
  * ref: https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/BytesLib.sol
  */
-pragma solidity ^0.8.22;
+pragma solidity 0.8.28;
 
 library BytesLib {
     function slice(
