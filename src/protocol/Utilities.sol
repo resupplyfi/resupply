@@ -96,20 +96,8 @@ contract Utilities is ResupplyPairConstants{
             _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
             _ratePerSecond = underlyingRate > riskFreeRate ? underlyingRate : riskFreeRate;
         }else{
-            //for v2 (and any future versions) use a combination of base+additional
-            //with a price weight applied
-            uint256 rateRatioBase = calculator.rateRatioBase();
-            uint256 rateRatioAdditional = calculator.rateRatioAdditional();
-            address priceWatcher = IResupplyRegistry(registry).getAddress("PRICE_WATCHER");
-            uint256 priceweight =  IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
-            rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
-
-            //get greater of underlying, sfrxusd, or minimum
-            underlyingRate = underlyingRate;
-            uint256 riskFreeRate = sfrxusdRates();
-            _ratePerSecond = minimumRate > riskFreeRate ? minimumRate : riskFreeRate;
-            _ratePerSecond = underlyingRate > riskFreeRate ? underlyingRate : riskFreeRate;
-            _ratePerSecond = _ratePerSecond * rateRatio / 1e18;
+            //with v2.1 we can supply the calculator with underlying apr to get current rate
+            _ratePerSecond = calculator.getPairRateWithUnderlying(_pair, getUnderlyingSupplyRate(_pair));
         }
     }
 

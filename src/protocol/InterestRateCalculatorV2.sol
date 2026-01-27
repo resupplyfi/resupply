@@ -1,52 +1,85 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { CoreOwnable } from '../dependencies/CoreOwnable.sol';
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IRateCalculator } from "../interfaces/IRateCalculator.sol";
 import { IERC4626 } from "../interfaces/IERC4626.sol";
 import { IStakedFrax } from "../interfaces/frax/IStakedFrax.sol";
 import { IPriceWatcher } from "../interfaces/IPriceWatcher.sol";
+import { IResupplyPair } from "../interfaces/IResupplyPair.sol";
 
 /// @title Calculate rates based on the underlying vaults with some floor settings
-contract InterestRateCalculatorV2 is IRateCalculator {
+contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
     using Strings for uint256;
+
+    uint256 internal constant _MAJOR = 2;
+    uint256 internal constant _MINOR = 1;
+    uint256 internal constant _PATCH = 0;
 
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
 
     address public immutable priceWatcher;
-    /// @notice The name suffix for the interest rate calculator
-    string public suffix;
-
-    /// @notice the absolute minimum rate
+    /// @notice the absolute minimum borrow rate per second (1e18 scaled)
     uint256 public immutable minimumRate;
-    uint256 public immutable rateRatioBase;
+    /// @notice off-peg amplifier expressed as a percentage of the selected base multiplier.
+    /// @dev 1e18 = +100% of base when priceweight == 1e6.
     uint256 public immutable rateRatioAdditional;
+    /// @notice multiplier applied when risk-free rate is selected (1e18 = 1x)
+    uint256 public rateRatioBase;
+    /// @notice multiplier applied when collateral rate is selected (1e18 = 1x)
+    uint256 public rateRatioBaseCollateral;
+
+    event SetRateInfo(uint256 _rateRatioBase, uint256 _rateRatioBaseCollateral);
 
     /// @notice The ```constructor``` function
-    /// @param _suffix The suffix of the contract name
     /// @param _minimumRate Floor rate applied during rate calculation
     /// @param _rateRatioBase ratio base of both the underlying APR and sFRXUSD rate
     /// @param _rateRatioAdditional additional max ratio added to base
     /// @param _priceWatcher price watcher contract
     constructor(
-        string memory _suffix,
+        address _core,
         uint256 _minimumRate,
         uint256 _rateRatioBase,
+        uint256 _rateRatioBaseCollateral,
         uint256 _rateRatioAdditional,
         address _priceWatcher
-    ) {
-        suffix = _suffix;
+    ) CoreOwnable(_core){
         minimumRate = _minimumRate;
         rateRatioBase = _rateRatioBase;
+        rateRatioBaseCollateral = _rateRatioBaseCollateral;
         rateRatioAdditional = _rateRatioAdditional;
         priceWatcher = _priceWatcher;
         require(priceWatcher != address(0), "PriceWatcher must be set");
+        emit SetRateInfo(_rateRatioBase, _rateRatioBaseCollateral);
     }
 
-    /// @notice The ```name``` function returns the name of the rate contract
-    /// @return memory name of contract
-    function name() external view returns (string memory) {
-        return string(abi.encodePacked("InterestRateCalculator ", suffix));
+    function name() external pure returns (string memory) {
+        return string(
+            abi.encodePacked(
+                "InterestRateCalculator v",
+                Strings.toString(_MAJOR), ".",
+                Strings.toString(_MINOR), ".",
+                Strings.toString(_PATCH)
+            )
+        );
+    }
+
+    /// @notice Updates the base multipliers used to derive the per-second borrow rate.
+    /// @param _rateRatioBase 1e18 scaled multiplier applied when risk-free rate is selected.
+    /// @param _rateRatioBaseCollateral 1e18 scaled multiplier applied when collateral rate is selected.
+    function setRateInfo(uint256 _rateRatioBase, uint256 _rateRatioBaseCollateral) external onlyOwner{
+
+        uint256 _additionalBaseRate = _rateRatioBase * rateRatioAdditional / 1e18;
+        uint256 _additionalBaseCollateralRate = _rateRatioBaseCollateral * rateRatioAdditional / 1e18;
+
+        //if additional changes to % then this needs to be updated
+        require(_rateRatioBase + _additionalBaseRate < 1e18, "total rate must be below 100%");
+        require(_rateRatioBaseCollateral + _additionalBaseCollateralRate < 1e18, "total collateral rate must be below 100%");
+
+        rateRatioBase = _rateRatioBase;
+        rateRatioBaseCollateral = _rateRatioBaseCollateral;
+        emit SetRateInfo(_rateRatioBase, _rateRatioBaseCollateral);
     }
 
     /// @notice The ```version``` function returns the semantic version of the rate contract
@@ -55,9 +88,7 @@ contract InterestRateCalculatorV2 is IRateCalculator {
     /// @return _minor Minor version
     /// @return _patch Patch version
     function version() external pure returns (uint256 _major, uint256 _minor, uint256 _patch) {
-        _major = 2;
-        _minor = 0;
-        _patch = 0;
+        return (_MAJOR, _MINOR, _PATCH);
     }
 
     function sfrxusdRates() public view returns(uint256 fraxPerSecond){
@@ -97,21 +128,52 @@ contract InterestRateCalculatorV2 is IRateCalculator {
         //that was equivalent to 1e18 assets at previous timestamp, this becomes our proper rate for 1e18 borrowed
         difference /= _deltaTime;
 
+        return _getNewRate(msg.sender, difference);
+    }
+
+    /// @notice The ```getPairRateWithUnderlying``` function calculates interest rates using underlying rates and minimums
+    /// @dev return values are simplified compared to getNewRate
+    /// @param _pair The Resupply pair address to check
+    /// @param _underlyingRate The current block rate of the collateral yield
+    /// @return _newRatePerSec The new interest rate, 18 decimals of precision
+    function getPairRateWithUnderlying(
+        address _pair,
+        uint256 _underlyingRate
+    ) external view returns (uint256 _newRatePerSec) {
+
+
+        (_newRatePerSec, ) = _getNewRate(_pair, _underlyingRate);
+    }
+
+    function _getNewRate(
+        address _pair,
+        uint256 _underlyingRate
+    ) internal view returns (uint64 _newRatePerSec, uint128 _newShares) {
         //take ratio of sfrxusd rate and compare to our hard minimum, take higher as our minimum
         //this lets us base our minimum rates on a "risk free rate" product
         uint256 riskFreeRate = sfrxusdRates();
         _newRatePerSec = uint64(riskFreeRate > minimumRate ? riskFreeRate : minimumRate);
+        uint256 _rateBase;
 
-        //if difference is over some minimum, return difference
-        //if not, return minimum
-        _newRatePerSec = uint64(difference > _newRatePerSec ? difference : _newRatePerSec);
+        // compare collateral rate to max(risk_free_rate, minimum_rate) and set _rateBase accordingly
+        if(_underlyingRate >= _newRatePerSec){
+            _newRatePerSec = uint64(_underlyingRate);
+            _rateBase = rateRatioBaseCollateral;
+        }
+        else {
+            _rateBase = rateRatioBase;
+        }
+
+        //rateRatioAdditional is a % of base so we need to convert to see how much we add on
+        //note: in previous version this was just directly added to rateBase
+        uint256 _additionalRate = _rateBase * rateRatioAdditional / 1e18;
 
         //calculte and apply `rateRatio` multiplier which is computed using the following:
         // 1. priceWeight: which represents the off-peg boost
-        // 2. ratioBase: used to achieve the "half" rate of indicators like sfrxusd and underlying rates
-        // 3. ratioAdditional: amplifier for off-peg boost
-        uint256 priceweight = IPriceWatcher(priceWatcher).findPairPriceWeight(msg.sender);
-        uint256 rateRatio = rateRatioBase + (rateRatioAdditional * priceweight / 1e6);
+        // 2. _rateBase: used to achieve the a portion of the rate indicators like sfrxusd and underlying rates
+        // 3. _additionalRate: amplifier for off-peg boost
+        uint256 priceweight = IPriceWatcher(priceWatcher).findPairPriceWeight(_pair);
+        uint256 rateRatio = _rateBase + (_additionalRate * priceweight / 1e6);
         _newRatePerSec = uint64(_newRatePerSec * rateRatio / 1e18);
     }
 }

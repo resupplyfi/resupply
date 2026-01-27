@@ -92,6 +92,7 @@ library OdosApi {
             "\"outputTokens\": [{\"tokenAddress\": \"", vm.toString(outputToken), "\", \"proportion\": 1}],",
             "\"userAddr\": \"", vm.toString(userAddress), "\",",
             "\"slippageLimitPercent\": ", vm.toString(slippagePct), ",",
+            "\"sourceBlacklist\": [\"Balancer V3 Weighted\"],",
             "\"disableRFQs\": true,",
             "\"compact\": true",
             "}"
