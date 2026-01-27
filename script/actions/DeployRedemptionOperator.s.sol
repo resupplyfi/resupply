@@ -13,7 +13,7 @@ contract DeployRedemptionOperator is BaseAction {
         approved[1] = 0x1ba323F8a6544b81Dc1F068b1400A6ebe7Ea0f52;
         bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, approved);
 
-        vm.startBroadcast(vm.envUint("PK_RESUPPLY"));
+        vm.startBroadcast(loadPrivateKey());
         RedemptionOperator impl = new RedemptionOperator();
         UnsafeUpgrades.deployUUPSProxy(address(impl), initializerData);
         vm.stopBroadcast();

@@ -22,6 +22,8 @@ interface IRedemptionHandler {
     function setOverusageInfo(uint256 _rate, uint256 _start, uint256 _end) external;
     function setDiscountInfo(uint256 _rate, uint256 _maxUsage, uint256 _maxDiscount) external;
     function setBaseRedemptionFee(uint256 _fee) external;
+    function setApprovedRedeemer(address _redeemer, bool _approved) external;
+    function updateGuardSettings(bool _guardEnabled, uint256 _permissionlessPriceThreshold) external;
     function overWeight() external view returns(uint256);
     function overusageStart() external view returns(uint256);
     function overusageMax() external view returns(uint256);
