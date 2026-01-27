@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol } from "src/Constants.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
@@ -17,7 +14,6 @@ import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IStakedFrax } from "src/interfaces/frax/IStakedFrax.sol";
-import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
 import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculatorV2.sol";
 
 /*
