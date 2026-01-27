@@ -60,7 +60,7 @@ contract DeployFixes is SafeHelper, CreateXHelper, BaseAction {
             deployer,
             ResupplyPairDeployer.ConfigData({
                 oracle: Protocol.BASIC_VAULT_ORACLE,
-                rateCalculator: Protocol.INTEREST_RATE_CALCULATOR_V2,
+                rateCalculator: Protocol.INTEREST_RATE_CALCULATOR_V2_1,
                 maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
                 initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
                 liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,

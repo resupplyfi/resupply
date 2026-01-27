@@ -5,12 +5,8 @@ import "src/Constants.sol" as Constants;
 import { console } from "lib/forge-std/src/console.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
-import { RewardDistributorMultiEpoch } from "src/protocol/RewardDistributorMultiEpoch.sol";
-import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { Vm } from "forge-std/Vm.sol";
 
 contract PairTestSwaps is PairTestBase {
     function setUp() public override {

@@ -2,7 +2,6 @@ import { CreateX } from "src/Constants.sol";
 import { DeploymentConfig } from "src/Constants.sol";
 import { BaseDeploy } from "./BaseDeploy.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { InterestRateCalculator } from "src/protocol/InterestRateCalculator.sol";
 import { BasicVaultOracle } from "src/protocol/BasicVaultOracle.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";

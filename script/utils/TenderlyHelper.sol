@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import {console} from "lib/forge-std/src/console.sol";
 import {SafeHelper} from "script/utils/SafeHelper.sol";

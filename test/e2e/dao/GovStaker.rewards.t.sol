@@ -1,13 +1,11 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { GovStaker } from "src/dao/staking/GovStaker.sol";
-import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
 import { MockToken } from "test/mocks/MockToken.sol";
-import { IGovStakerEscrow } from "src/interfaces/IGovStakerEscrow.sol";
-import { IGovStaker } from "src/interfaces/IGovStaker.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { MultiRewardsDistributor } from "src/dao/staking/MultiRewardsDistributor.sol";
 

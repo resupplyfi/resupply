@@ -1,8 +1,7 @@
 pragma solidity 0.8.28;
 
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { Protocol, Mainnet } from "src/Constants.sol";
-import { console } from "lib/forge-std/src/console.sol";
+import { Protocol } from "src/Constants.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 

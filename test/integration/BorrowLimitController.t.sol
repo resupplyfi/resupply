@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { Protocol } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { BorrowLimitController } from "src/dao/operators/BorrowLimitController.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";

@@ -14,7 +14,7 @@ contract DeployProxy is BaseAction {
     address public proxy;
 
     function run() public {
-        vm.startBroadcast(vm.envUint("PK_RESUPPLY"));
+        vm.startBroadcast(loadPrivateKey());
 
         // Deploy guardian operator
         proxy = deployGuardianOperator();

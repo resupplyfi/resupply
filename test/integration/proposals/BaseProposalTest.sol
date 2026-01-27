@@ -9,6 +9,8 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 contract BaseProposalTest is Test, Setup {
 
     function createProposal(IVoter.Action[] memory actions) public returns (uint256) {
+        vm.prank(Protocol.CORE);
+        voter.setQuorumPct(1);
         vm.prank(Protocol.PERMA_STAKER_CONVEX);
         return voter.createNewProposal(Protocol.PERMA_STAKER_CONVEX, actions, "Test proposal");
     }

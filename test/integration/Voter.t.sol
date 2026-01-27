@@ -1,11 +1,6 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-import { Test } from "forge-std/Test.sol";
-import { console2 } from "forge-std/console2.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { GovStaker } from "src/dao/staking/GovStaker.sol";
-import { GovStakerEscrow } from "src/dao/staking/GovStakerEscrow.sol";
-import { MockToken } from "test/mocks/MockToken.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { MockPair } from "test/mocks/MockPair.sol";
 import { Voter } from "src/dao/Voter.sol";
@@ -32,6 +27,8 @@ contract VoterTest is Setup {
         voter = IVoter(voterAddress);
         vm.prank(address(core));
         core.setVoter(voterAddress);
+        vm.prank(address(core));
+        voter.setQuorumPct(1);
     }
 
     function test_createProposal() public {

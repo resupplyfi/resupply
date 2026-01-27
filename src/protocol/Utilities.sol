@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Protocol } from "src/Constants.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IRateCalculator } from "src/interfaces/IRateCalculator.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IOracle } from "src/interfaces/IOracle.sol";
 import { IRewardHandler } from "src/interfaces/IRewardHandler.sol";
@@ -17,7 +14,6 @@ import { ISwapper } from "src/interfaces/ISwapper.sol";
 import { ResupplyPairConstants } from "src/protocol/pair/ResupplyPairConstants.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IStakedFrax } from "src/interfaces/frax/IStakedFrax.sol";
-import { IPriceWatcher } from "src/interfaces/IPriceWatcher.sol";
 import { IInterestRateCalculatorV2 } from "src/interfaces/IInterestRateCalculatorV2.sol";
 
 /*
@@ -25,9 +21,9 @@ This is a utility library which is mainly used for off chain calculations
 */
 contract Utilities is ResupplyPairConstants{
     address public constant INTEREST_RATE_CALCULATORV1 = address(0x77777777729C405efB6Ac823493e6111F0070D67);
-    address public constant convexPoolUtil = address(0x5Fba69a794F395184b5760DAf1134028608e5Cd1);
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
     address public constant sreusd = address(0x557AB1e003951A73c12D16F0fEA8490E39C33C35);
+    address public constant convexPoolUtil = address(0x5Fba69a794F395184b5760DAf1134028608e5Cd1);
 
     address public immutable registry;
     uint32 public constant TYPE_UNDEFINED = 0;
@@ -37,6 +33,10 @@ contract Utilities is ResupplyPairConstants{
 
     constructor(address _registry){
         registry = _registry;
+    }
+
+    function name() external pure returns (string memory) {
+        return "Resupply Utilities";
     }
 
     function sfrxusdRates() public view returns(uint256 ratePerSecond){

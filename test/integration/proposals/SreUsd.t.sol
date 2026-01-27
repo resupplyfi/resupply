@@ -60,7 +60,7 @@ contract SreUsdTest is BaseProposalTest, CreateXHelper {
 
     function test_pairRateCalculatorUpdated() public view {
         for (uint256 i = 0; i < pairs.length; i++) {
-            assertEq(IResupplyPair(pairs[i]).rateCalculator(), Protocol.INTEREST_RATE_CALCULATOR_V2);
+            assertEq(IResupplyPair(pairs[i]).rateCalculator(), Protocol.INTEREST_RATE_CALCULATOR_V2_0);
         }
     }
 
@@ -137,7 +137,7 @@ contract SreUsdTest is BaseProposalTest, CreateXHelper {
         require(predictedAddress.code.length > 0, "deployment failed");
 
         // 5. Deploy InterestRateCalculatorV2
-        salt = CreateX.SALT_INTEREST_RATE_CALCULATOR_V2;
+        salt = CreateX.SALT_INTEREST_RATE_CALCULATOR_V2_0;
         constructorArgs = abi.encode(
             "V2", // Suffix
             2e16 / uint256(365 days) * 2, //4% - we multiply by 2 to adjust for rate ratio base

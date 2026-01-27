@@ -4,11 +4,7 @@ pragma solidity 0.8.28;
 import { console } from "lib/forge-std/src/console.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { RewardDistributorMultiEpoch } from "src/protocol/RewardDistributorMultiEpoch.sol";
-import { Setup } from "test/e2e/Setup.sol";
 import { PairTestBase } from "./PairTestBase.t.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
 
 contract PairTestFeeFlow is PairTestBase {
     function setUp() public override {

@@ -1,13 +1,10 @@
 pragma solidity 0.8.28;
 
-import "src/Constants.sol" as Constants;
+import { Mainnet, DeploymentConfig, Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { DeploymentConfig } from "src/Constants.sol";
-import { Protocol, VMConstants } from "src/Constants.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { ICurvePool } from "src/interfaces/curve/ICurvePool.sol";
 import { console } from "forge-std/console.sol";
 import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -34,8 +31,8 @@ contract DeployPair is BaseAction {
             updatePairImplementation();
         }
         
-        // address pair = deployLendingPair(FRAXLEND,address(Constants.Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
-        address pair = deployLendingPair(CURVELEND,address(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Constants.Mainnet.CONVEX_BOOSTER), uint256(Constants.Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
+        // address pair = deployLendingPair(FRAXLEND,address(Mainnet.FRAXLEND_WBTC_FRXUSD), address(0), uint256(0));
+        address pair = deployLendingPair(CURVELEND,address(Mainnet.CURVELEND_SDOLA2_CRVUSD), address(Mainnet.CONVEX_BOOSTER), uint256(Mainnet.CURVELEND_SDOLA2_CRVUSD_ID));
         printPairVersion(pair);
         
         if(ADD_TO_REGISTRY){

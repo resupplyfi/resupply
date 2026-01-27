@@ -1,10 +1,10 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { Setup } from "test/e2e/Setup.sol";
 import { VestManager } from "src/dao/tge/VestManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { MockToken } from "test/mocks/MockToken.sol";
 import { VestManagerInitParams } from "test/e2e/helpers/VestManagerInitParams.sol";
 import { AutoStakeCallback } from "src/dao/staking/AutoStakeCallback.sol";
 

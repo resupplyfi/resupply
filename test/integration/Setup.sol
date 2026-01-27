@@ -83,7 +83,7 @@ contract Setup is Test {
     IStablecoin public stablecoin = IStablecoin(Protocol.STABLECOIN);
     IBasicVaultOracle public oracle = IBasicVaultOracle(Protocol.BASIC_VAULT_ORACLE);
     IUnderlyingOracle public underlyingoracle = IUnderlyingOracle(Protocol.UNDERLYING_ORACLE);
-    IInterestRateCalculator public rateCalculator = IInterestRateCalculator(Protocol.INTEREST_RATE_CALCULATOR_V2);
+    IInterestRateCalculator public rateCalculator = IInterestRateCalculator(Protocol.INTEREST_RATE_CALCULATOR_V2_1);
     IResupplyPairDeployer public deployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
     IRedemptionHandler public redemptionHandler = IRedemptionHandler(Protocol.REDEMPTION_HANDLER);
     ILiquidationHandler public liquidationHandler = ILiquidationHandler(Protocol.LIQUIDATION_HANDLER);
@@ -194,6 +194,38 @@ contract Setup is Test {
         assertGt(p.minimumLeftoverDebt(), 0);
         vm.stopPrank();
         return p;
+    }
+
+    function _cleanPairName(string memory name) internal pure returns (string memory) {
+        bytes memory data = bytes(name);
+        bytes memory prefix = bytes("Resupply Pair (");
+        if (data.length >= prefix.length) {
+            bool matches = true;
+            for (uint256 i = 0; i < prefix.length; i++) {
+                if (data[i] != prefix[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                uint256 start = prefix.length;
+                uint256 end = data.length;
+                for (uint256 i = start; i < data.length; i++) {
+                    if (data[i] == ")") {
+                        end = i;
+                        break;
+                    }
+                }
+                bytes memory out = new bytes(data.length - start - (end < data.length ? 1 : 0));
+                uint256 j = 0;
+                for (uint256 i = start; i < data.length; i++) {
+                    if (i == end) continue;
+                    out[j++] = data[i];
+                }
+                return string(out);
+            }
+        }
+        return name;
     }
 
     function deployCurveLendingVaultAndGauge(

@@ -1,9 +1,7 @@
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-import "forge-std/Test.sol";
 import { Setup } from "test/e2e/Setup.sol";
-import { IGovStaker } from "src/interfaces/IGovStaker.sol";
-import { GovStaker } from "src/dao/staking/GovStaker.sol";
 import { VestManagerInitParams } from "test/e2e/helpers/VestManagerInitParams.sol";
 import { MockGovStaker } from "test/mocks/MockGovStaker.sol";
 

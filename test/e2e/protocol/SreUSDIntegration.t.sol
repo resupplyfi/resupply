@@ -2,9 +2,7 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { ERC20, LinearRewardsErc4626 } from "src/protocol/sreusd/LinearRewardsErc4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Setup } from "test/e2e/Setup.sol";
 import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 import { MockReUsdOracle } from "test/mocks/MockReUsdOracle.sol";
 import { PairTestBase } from "test/e2e/protocol/PairTestBase.t.sol";
