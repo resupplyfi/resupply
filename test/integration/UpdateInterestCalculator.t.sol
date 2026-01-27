@@ -49,7 +49,7 @@ contract UpdateInterestCalculator is Setup {
         // );
 
         //grab deployed version for final testing
-        calcv2 = InterestRateCalculatorV2(Protocol.INTEREST_RATE_CALCULATOR_V2);
+        calcv2 = InterestRateCalculatorV2(Protocol.INTEREST_RATE_CALCULATOR_V2_1);
 
         //update all pair's interest calculator
         for (uint256 i = 0; i < pairs.length; i++) {

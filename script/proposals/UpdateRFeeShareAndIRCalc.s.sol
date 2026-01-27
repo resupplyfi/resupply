@@ -39,7 +39,7 @@ contract UpdateRFeeShareAndIRCalc is BaseAction, BaseProposal {
                 target: pairs[i],
                 data: abi.encodeWithSelector(
                     IResupplyPair.setRateCalculator.selector,
-                    Protocol.INTEREST_RATE_CALCULATOR_V2,
+                    Protocol.INTEREST_RATE_CALCULATOR_V2_1,
                     true
                 )
             });

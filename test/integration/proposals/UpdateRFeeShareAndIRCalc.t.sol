@@ -34,13 +34,13 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
         for (uint256 i = 0; i < pairs.length; i++) {
             assertEq(
                 address(IResupplyPair(pairs[i]).rateCalculator()),
-                Protocol.INTEREST_RATE_CALCULATOR_V2,
+                Protocol.INTEREST_RATE_CALCULATOR_V2_1,
                 "rate calculator not updated"
             );
         }
         assertNotEq(
             oldRateCalculator,
-            Protocol.INTEREST_RATE_CALCULATOR_V2,
+            Protocol.INTEREST_RATE_CALCULATOR_V2_1,
             "old calculator matches new"
         );
     }

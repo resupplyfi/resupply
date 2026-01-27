@@ -64,7 +64,7 @@ contract SecurityGuardrailsTest is BaseProposalTest {
         (address[] memory previouslyDeployedPairs, ResupplyPairDeployer.DeployInfo[] memory previouslyDeployedPairsInfo) = DeployInfo.getDeployInfo();
         ResupplyPairDeployer.ConfigData memory configData = ResupplyPairDeployer.ConfigData({
             oracle: Protocol.BASIC_VAULT_ORACLE,
-            rateCalculator: Protocol.INTEREST_RATE_CALCULATOR_V2,
+            rateCalculator: Protocol.INTEREST_RATE_CALCULATOR_V2_0,
             maxLTV: DeploymentConfig.DEFAULT_MAX_LTV,
             initialBorrowLimit: DeploymentConfig.DEFAULT_BORROW_LIMIT,
             liquidationFee: DeploymentConfig.DEFAULT_LIQ_FEE,
