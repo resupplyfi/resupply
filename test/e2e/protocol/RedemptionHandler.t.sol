@@ -106,7 +106,7 @@ contract RedemptionHandlerTest is Setup {
         assertLe(fee, 1e18, "Fee should not exceed 100%");
     }
 
-    function test_RedemptionGuardBlocksUnapproved() public {
+    function test_RedemptionGuard() public {
         vm.prank(address(core));
         redemptionHandler.updateGuardSettings(true, 98e16);
 
@@ -120,11 +120,11 @@ contract RedemptionHandlerTest is Setup {
         redemptionHandler.redeemFromPair(address(testPair), 0, type(uint256).max, address(this), true);
     }
 
-    function test_RedemptionGuardAllowsApprovedRedeemer() public {
-        RedemptionHandler mainnetHandler = new RedemptionHandler(address(core), Protocol.REGISTRY, address(0));
+    function test_RedemptionGuardAllowsApproved() public {
+        RedemptionHandler rh = new RedemptionHandler(address(core), Protocol.REGISTRY, address(0));
         vm.startPrank(address(core));
-        mainnetHandler.setApprovedRedeemer(address(redemptionOperator), true);
-        mainnetHandler.updateGuardSettings(true, 98e16);
+        rh.setApprovedRedeemer(address(redemptionOperator), true);
+        rh.updateGuardSettings(true, 98e16);
         vm.stopPrank();
 
         address mainnetOracle = IResupplyRegistry(Protocol.REGISTRY).getAddress("REUSD_ORACLE");
@@ -136,7 +136,7 @@ contract RedemptionHandlerTest is Setup {
 
         IResupplyRegistry mainnetRegistry = IResupplyRegistry(Protocol.REGISTRY);
         vm.prank(Protocol.CORE);
-        mainnetRegistry.setRedemptionHandler(address(mainnetHandler));
+        mainnetRegistry.setRedemptionHandler(address(rh));
 
         address[] memory pairs = mainnetRegistry.getAllPairAddresses();
         uint256 redeemAmount;
@@ -144,7 +144,7 @@ contract RedemptionHandlerTest is Setup {
         for (uint256 i = 0; i < pairs.length; i++) {
             address pair = pairs[i];
             uint256 minRedemption = IResupplyPair(pair).minimumRedemption();
-            uint256 maxRedeemable = mainnetHandler.getMaxRedeemableDebt(pair);
+            uint256 maxRedeemable = rh.getMaxRedeemableDebt(pair);
             if (maxRedeemable >= minRedemption) {
                 redeemAmount = minRedemption;
                 pairToRedeem = pair;
@@ -157,10 +157,10 @@ contract RedemptionHandlerTest is Setup {
         deal(debtToken, address(redemptionOperator), redeemAmount);
 
         vm.prank(address(redemptionOperator));
-        IERC20(debtToken).forceApprove(address(mainnetHandler), type(uint256).max);
+        IERC20(debtToken).forceApprove(address(rh), type(uint256).max);
 
         vm.prank(address(redemptionOperator));
-        uint256 received = mainnetHandler.redeemFromPair(
+        uint256 received = rh.redeemFromPair(
             pairToRedeem,
             redeemAmount,
             type(uint256).max,
@@ -176,6 +176,4 @@ contract RedemptionHandlerTest is Setup {
         assertTrue(redemptionHandler.guardEnabled());
         assertEq(redemptionHandler.permissionlessPriceThreshold(), 97e16);
     }
-
-    
 }

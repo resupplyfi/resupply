@@ -12,6 +12,8 @@ import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperat
 import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
+import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
+import { IRedemptionOperator } from "src/interfaces/IRedemptionOperator.sol";
 
 contract GuardianUpgradeable is BaseUpgradeableOperator {
     using SafeERC20 for IERC20;
@@ -26,6 +28,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         bool cancelProposal;
         bool updateProposalDescription;
         bool setRegistryAddress;
+        bool setRedemptionOperatorApprovedCaller;
         bool revokeSwapperApprovals;
         bool pauseIPWithdrawals;
         bool cancelRamp;
@@ -127,6 +130,30 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         );
     }
 
+    function setRedemptionOperatorApprovedCaller(address caller, bool approved) external onlyGuardian {
+        address redemptionOperator = _getRedemptionOperator();
+        core.execute(
+            redemptionOperator,
+            abi.encodeWithSelector(IRedemptionOperator.setApprovedCaller.selector, caller, approved)
+        );
+    }
+
+    function setRedemptionHandlerApprovedRedeemer(address redeemer, bool approved) external onlyGuardian {
+        address handler = _getRedemptionHandler();
+        core.execute(
+            handler,
+            abi.encodeWithSelector(IRedemptionHandler.setApprovedRedeemer.selector, redeemer, approved)
+        );
+    }
+
+    function updateRedemptionGuardSettings(bool guardEnabled, uint256 priceThreshold) external onlyGuardian {
+        address handler = _getRedemptionHandler();
+        core.execute(
+            handler,
+            abi.encodeWithSelector(IRedemptionHandler.updateGuardSettings.selector, guardEnabled, priceThreshold)
+        );
+    }
+
     function recoverERC20(IERC20 token) external onlyGuardian {
         token.safeTransfer(guardian, token.balanceOf(address(this)));
     }
@@ -147,10 +174,12 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         address swapper = registry.getAddress("SWAPPER_ODOS");
         address insurancePool = registry.getAddress("INSURANCE_POOL");
         address voter = _getVoter();
+        address redemptionOperator = _getRedemptionOperator();
         permissions.pauseAllPairs = hasPermission(address(0), IResupplyPair.pause.selector);
         permissions.cancelProposal = hasPermission(voter, IVoter.cancelProposal.selector);
         permissions.updateProposalDescription = hasPermission(voter, IVoter.updateProposalDescription.selector);
         permissions.setRegistryAddress = hasPermission(address(registry), IResupplyRegistry.setAddress.selector);
+        permissions.setRedemptionOperatorApprovedCaller = hasPermission(redemptionOperator, IRedemptionOperator.setApprovedCaller.selector);
         permissions.revokeSwapperApprovals = hasPermission(swapper, ISwapperOdos.revokeApprovals.selector);
         permissions.pauseIPWithdrawals = hasPermission(insurancePool, IInsurancePool.setWithdrawTimers.selector);
         permissions.cancelRamp = hasPermission(address(0), IBorrowLimitController.cancelRamp.selector);
@@ -166,5 +195,13 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
 
     function _getVoter() internal view returns (address) {
         return registry.getAddress("VOTER");
+    }
+
+    function _getRedemptionHandler() internal view returns (address) {
+        return registry.getAddress("REDEMPTION_HANDLER");
+    }
+
+    function _getRedemptionOperator() internal view returns (address) {
+        return registry.getAddress("REDEMPTION_OPERATOR");
     }
 }
