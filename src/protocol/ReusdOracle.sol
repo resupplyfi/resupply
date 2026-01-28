@@ -33,15 +33,6 @@ contract ReusdOracle {
         _price = ICurveOracle(reusd_scrvusd_pool).price_oracle(0);
         //convert price from reusd per crvusd to crvusd per reusd
         _price = 1e36 / _price;
-
-        //get redemption base fee
-        //fee could be less than base via discounts but assume discounts are 0
-        address rhandler = IResupplyRegistry(registry).redemptionHandler();
-        uint256 rfee = IRedemptionHandler(rhandler).baseRedemptionFee();
-        uint256 floorrate = 1e18 - rfee;
-
-        //take higher of pool price and redemption floor
-        _price = _price > floorrate ? _price : floorrate;
     }
 
     /// @notice The ```_reusdToFrxusd``` function returns price of reusd as frxusd
@@ -52,15 +43,6 @@ contract ReusdOracle {
         _price = ICurveOracle(reusd_sfrxusd_pool).price_oracle(0);
         //convert price from reusd per frxusd to frxusd per reusd
         _price = 1e36 / _price;
-
-        //get redemption base fee
-        //fee could be less than base via discounts but assume discounts are 0
-        address rhandler = IResupplyRegistry(registry).redemptionHandler();
-        uint256 rfee = IRedemptionHandler(rhandler).baseRedemptionFee();
-        uint256 floorrate = 1e18 - rfee;
-
-        //take higher of pool price and redemption floor
-        _price = _price > floorrate ? _price : floorrate;
     }
 
     /// @notice The ```price``` function returns the price of reusd
@@ -68,7 +50,7 @@ contract ReusdOracle {
     function price() external view returns (uint256 _price) {
         //price of reusd in terms of crvusd
         _price = _reusdToCrvusd();
-
+        _price = _clamp(_price);
         //convert crvusd price to usd using crvusd's aggregate oracle
         uint256 aggprice = ICurveOracle(crvusd_oracle).price();
         _price = _price * aggprice / 1e18;
@@ -79,6 +61,7 @@ contract ReusdOracle {
     function priceAsCrvusd() external view returns (uint256 _price) {
         //price of reusd in terms of crvusd
         _price = _reusdToCrvusd();
+        _price = _clamp(_price);
     }
 
     /// @notice The ```priceAsFrxusd``` function returns the price of reusd as crvusd
@@ -86,6 +69,25 @@ contract ReusdOracle {
     function priceAsFrxusd() external view returns (uint256 _price) {
         //price of reusd in terms of crvusd
         _price = _reusdToFrxusd();
+        _price = _clamp(_price);
+    }
+
+    /// @notice Returns the price of reusd as crvusd without redemption fee clamp
+    /// @return _price is price of reusd in terms of crvusd without redemption fee clamp
+    function rawPriceAsCrvusd() external view returns (uint256 _price) {
+        //price of reusd in terms of crvusd
+        _price = _reusdToCrvusd();
+    }
+
+    function _clamp(uint256 _price) internal view returns (uint256) {
+        //get redemption base fee
+        //fee could be less than base via discounts but assume discounts are 0
+        address rhandler = IResupplyRegistry(registry).redemptionHandler();
+        uint256 rfee = IRedemptionHandler(rhandler).baseRedemptionFee();
+        uint256 floorrate = 1e18 - rfee;
+
+        //take higher of pool price and redemption floor
+        return _price > floorrate ? _price : floorrate;
     }
 
     function decimals() external pure returns (uint8) {
