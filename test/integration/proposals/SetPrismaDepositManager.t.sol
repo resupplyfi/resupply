@@ -35,7 +35,7 @@ contract SetPrismaDepositManagerTest is BaseProposalTest {
         address receiver = forwarder.receiver();
         uint256 receiverBefore = crvusdToken.balanceOf(receiver);
 
-        uint256 claimed = forwarder.claim();
+        uint256 claimed = forwarder.claimFees();
         assertGt(claimed, 0, "claim should be non-zero");
         assertEq(crvusdToken.balanceOf(receiver), receiverBefore + claimed);
     }
