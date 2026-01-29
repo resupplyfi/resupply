@@ -8,7 +8,6 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 
 contract SetPrismaDepositManager is BaseAction, BaseProposal {
-    // TODO: replace with PrismaFeeForwarder address before production.
     address public constant FORWARDER = Prisma.PRISMA_FEE_FORWARDER;
 
     function run() public isBatch(deployer) {
