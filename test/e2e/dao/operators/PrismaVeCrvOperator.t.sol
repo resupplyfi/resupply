@@ -7,10 +7,12 @@ import { PrismaVeCrvOperator } from "src/dao/operators/PrismaVeCrvOperator.sol";
 import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
 import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
+import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { CurveVoteHelper } from "test/utils/CurveVoteHelper.sol";
 
-contract PrismaVeCrvOperatorTest is Setup {
+contract PrismaVeCrvOperatorTest is Setup, CurveVoteHelper {
     PrismaVeCrvOperator public operator;
 
     function setUp() public override {
@@ -112,4 +114,25 @@ contract PrismaVeCrvOperatorTest is Setup {
         vm.prank(Protocol.DEPLOYER);
         operator.voteForGaugeWeights(votes);
     }
+
+    function test_VoteInCurveDao() public {
+        bytes memory script = buildOwnershipScript(
+            Protocol.REUSD_SCRVUSD_GAUGE,
+            abi.encodeWithSelector(bytes4(keccak256("set_killed(bool)")), false)
+        );
+        ICurveVoting ownershipVoting = ICurveVoting(Mainnet.CURVE_OWNERSHIP_VOTING);
+        vm.prank(Mainnet.CONVEX_VOTEPROXY);
+        uint256 proposalId = ownershipVoting.newVote(script, "Test vote", false, false);
+
+        assertTrue(ownershipVoting.canVote(proposalId, Prisma.VOTER_PROXY), "prisma voter cannot vote");
+        (,,, , , , uint256 yeaBefore, uint256 nayBefore, ,) = ownershipVoting.getVote(proposalId);
+
+        vm.prank(Protocol.DEPLOYER);
+        operator.voteInCurveDao(Mainnet.CURVE_OWNERSHIP_VOTING, proposalId, true);
+
+        (,,, , , , uint256 yeaAfter, uint256 nayAfter, ,) = ownershipVoting.getVote(proposalId);
+        assertGt(yeaAfter, yeaBefore, "yea not increased");
+        assertEq(nayAfter, nayBefore, "nay changed");
+    }
+
 }

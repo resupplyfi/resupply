@@ -10,8 +10,6 @@ import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
 import { ICurveFeeDistributor } from "src/interfaces/curve/ICurveFeeDistributor.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 
-interface IAragon {}
-
 contract PrismaVeCrvOperator is CoreOwnable {
     using SafeERC20 for IERC20;
 
@@ -135,8 +133,8 @@ contract PrismaVeCrvOperator is CoreOwnable {
     /// @param aragon The Curve DAO Aragon voting contract.
     /// @param id The proposal id.
     /// @param support Whether to support the proposal.
-    function voteInCurveDao(IAragon aragon, uint256 id, bool support) external onlyOwnerOrOperator {
-        IPrismaVoterProxy(PRISMA_VOTER).voteInCurveDao(address(aragon), id, support);
+    function voteInCurveDao(address aragon, uint256 id, bool support) external onlyOwnerOrOperator {
+        IPrismaVoterProxy(PRISMA_VOTER).voteInCurveDao(aragon, id, support);
     }
 
     /// @notice Vote for gauge weights.

@@ -25,7 +25,7 @@ contract SetPrismaVeCrvOperator is BaseAction, BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](4);
+        actions = new IVoter.Action[](5);
         actions[0] = IVoter.Action({
             target: Prisma.VOTER_PROXY,
             data: abi.encodeWithSelector(
@@ -59,17 +59,7 @@ contract SetPrismaVeCrvOperator is BaseAction, BaseProposal {
                 abi.encodeWithSelector(IResupplyRegistry.setAddress.selector, REGISTRY_KEY, OPERATOR)
             )
         });
-
-        // on-chain approval for boost delegation (execute via prisma voter)
-        actions = _appendApprove(actions);
-    }
-
-    function _appendApprove(IVoter.Action[] memory actions) internal view returns (IVoter.Action[] memory out) {
-        out = new IVoter.Action[](actions.length + 1);
-        for (uint256 i = 0; i < actions.length; i++) {
-            out[i] = actions[i];
-        }
-        out[actions.length] = IVoter.Action({
+        actions[4] = IVoter.Action({
             target: Prisma.VOTER_PROXY,
             data: abi.encodeWithSelector(
                 IPrismaVoterProxy.execute.selector,

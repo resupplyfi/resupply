@@ -5,9 +5,10 @@ import { Mainnet } from "src/Constants.sol";
 import { Setup } from "test/integration/Setup.sol";
 import { Test } from "forge-std/Test.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
+import { CurveVoteHelper } from "test/utils/CurveVoteHelper.sol";
 
 
-contract BaseCurveProposalTest is Test, Setup {
+contract BaseCurveProposalTest is Test, Setup, CurveVoteHelper {
 
     ICurveVoting public constant ownershipVoting = ICurveVoting(Mainnet.CURVE_OWNERSHIP_VOTING);
     ICurveVoting public constant parameterVoting = ICurveVoting(Mainnet.CURVE_PARAMETER_VOTING);
