@@ -120,10 +120,9 @@ contract RedemptionHandlerTest is Setup {
         redemptionHandler.redeemFromPair(address(testPair), 0, type(uint256).max, address(this), true);
     }
 
-    function test_RedemptionGuardAllowsApproved() public {
+    function test_RedemptionGuardAllowsOperator() public {
         RedemptionHandler rh = new RedemptionHandler(address(core), Protocol.REGISTRY, address(0));
         vm.startPrank(address(core));
-        rh.setApprovedRedeemer(address(redemptionOperator), true);
         rh.updateGuardSettings(true, 98e16);
         vm.stopPrank();
 
@@ -135,8 +134,10 @@ contract RedemptionHandlerTest is Setup {
         );
 
         IResupplyRegistry mainnetRegistry = IResupplyRegistry(Protocol.REGISTRY);
-        vm.prank(Protocol.CORE);
+        vm.startPrank(Protocol.CORE);
+        mainnetRegistry.setAddress("REDEMPTION_OPERATOR", address(redemptionOperator));
         mainnetRegistry.setRedemptionHandler(address(rh));
+        vm.stopPrank();
 
         address[] memory pairs = mainnetRegistry.getAllPairAddresses();
         uint256 redeemAmount;

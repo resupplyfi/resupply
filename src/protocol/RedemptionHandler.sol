@@ -41,21 +41,19 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public overusageRate = 1e16; //at max
     uint256 public overWeight = 2e17; //If weight of redeem is overthis, charge over usage
 
-    uint256 public permissionlessPriceThreshold = 985e16; // $0.985
+    uint256 public permissionlessPriceThreshold = .985e18;
     bool public guardEnabled = true;
-    mapping(address caller => bool approved) public approvedRedeemer;
 
     event SetBaseRedemptionFee(uint256 _fee);
     event SetWeightLimit(uint256 _weightLimit);
     event SetDiscountInfo(uint256 _fee, uint256 _maxUsage, uint256 _maxDiscount);
     event SetOverusageInfo(uint256 _fee, uint256 _start, uint256 _end);
     event SetUnderlyingOracle(address indexed _oracle);
-    event ApprovedRedeemerSet(address redeemer, bool approved);
     event GuardSettingsUpdated(bool guardEnabled, uint256 priceThreshold);
 
     modifier redemptionGuard() {
         require(
-            approvedRedeemer[msg.sender] ||
+            msg.sender == redemptionOperator() ||
             !guardEnabled ||
             reUsdOraclePrice() < permissionlessPriceThreshold,
             "redemption guarded"
@@ -105,11 +103,6 @@ contract RedemptionHandler is CoreOwnable{
     function setUnderlyingOracle(address _oracle) external onlyOwner{
         underlyingOracle = _oracle;
         emit SetUnderlyingOracle(_oracle);
-    }
-
-    function setApprovedRedeemer(address _redeemer, bool _approved) external onlyOwner{
-        approvedRedeemer[_redeemer] = _approved;
-        emit ApprovedRedeemerSet(_redeemer, _approved);
     }
 
     function updateGuardSettings(bool _guardEnabled, uint256 _permissionlessPriceThreshold) external onlyOwner {
@@ -324,4 +317,7 @@ contract RedemptionHandler is CoreOwnable{
         _returnedUnderlying = IERC4626(collateralVault).previewRedeem(_returnedCollateral);
     }
 
+    function redemptionOperator() public view returns (address) {
+        return IResupplyRegistry(registry).getAddress("REDEMPTION_OPERATOR");
+    }
 }

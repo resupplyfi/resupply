@@ -31,27 +31,9 @@ contract RedemptionOperator is BaseAction, BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](6);
+        actions = new IVoter.Action[](4);
 
         actions[0] = IVoter.Action({
-            target: NEW_REDEMPTION_HANDLER,
-            data: abi.encodeWithSelector(
-                IRedemptionHandler.setApprovedRedeemer.selector,
-                REDEMPTION_OPERATOR,
-                true
-            )
-        });
-
-        actions[1] = IVoter.Action({
-            target: NEW_REDEMPTION_HANDLER,
-            data: abi.encodeWithSelector(
-                IRedemptionHandler.setApprovedRedeemer.selector,
-                Protocol.DEPLOYER,
-                true
-            )
-        });
-
-        actions[2] = IVoter.Action({
             target: NEW_REDEMPTION_HANDLER,
             data: abi.encodeWithSelector(
                 IRedemptionHandler.updateGuardSettings.selector,
@@ -60,7 +42,7 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[3] = IVoter.Action({
+        actions[1] = IVoter.Action({
             target: address(registry),
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setRedemptionHandler.selector,
@@ -68,7 +50,7 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[4] = IVoter.Action({
+        actions[2] = IVoter.Action({
             target: address(registry),
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setAddress.selector,
@@ -77,7 +59,7 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[5] = IVoter.Action({
+        actions[3] = IVoter.Action({
             target: address(registry),
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setAddress.selector,

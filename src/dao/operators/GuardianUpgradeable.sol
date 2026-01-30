@@ -138,14 +138,6 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         );
     }
 
-    function setRedemptionHandlerApprovedRedeemer(address redeemer, bool approved) external onlyGuardian {
-        address handler = _getRedemptionHandler();
-        core.execute(
-            handler,
-            abi.encodeWithSelector(IRedemptionHandler.setApprovedRedeemer.selector, redeemer, approved)
-        );
-    }
-
     function updateRedemptionGuardSettings(bool guardEnabled, uint256 priceThreshold) external onlyGuardian {
         address handler = _getRedemptionHandler();
         core.execute(

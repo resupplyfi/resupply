@@ -96,7 +96,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         setOperatorPermission(address(guardianContract), address(0), IBorrowLimitController.cancelRamp.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IInsurancePool.setWithdrawTimers.selector, true);
         setOperatorPermission(address(guardianContract), address(redemptionOperator), IRedemptionOperator.setApprovedCaller.selector, true);
-        setOperatorPermission(address(guardianContract), address(redemptionHandler), IRedemptionHandler.setApprovedRedeemer.selector, true);
         setOperatorPermission(address(guardianContract), address(redemptionHandler), IRedemptionHandler.updateGuardSettings.selector, true);
     }
 
@@ -395,22 +394,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         vm.prank(address(1));
         vm.expectRevert("!guardian");
         guardianContract.setRedemptionOperatorApprovedCaller(address(0xBEEF), true);
-    }
-
-    function test_SetRedemptionHandlerApprovedRedeemer() public {
-        address redeemer = address(0xCAFE);
-        assertFalse(redemptionHandler.approvedRedeemer(redeemer));
-
-        vm.prank(guardian);
-        guardianContract.setRedemptionHandlerApprovedRedeemer(redeemer, true);
-
-        assertTrue(redemptionHandler.approvedRedeemer(redeemer));
-    }
-
-    function test_SetRedemptionHandlerApprovedRedeemer_NotGuardian() public {
-        vm.prank(address(1));
-        vm.expectRevert("!guardian");
-        guardianContract.setRedemptionHandlerApprovedRedeemer(address(0xCAFE), true);
     }
 
     function test_UpdateRedemptionGuardSettings() public {
