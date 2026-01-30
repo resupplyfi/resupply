@@ -10,9 +10,9 @@ import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
 import { ICurveVoting } from "src/interfaces/curve/ICurveVoting.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { CurveVoteHelper } from "test/utils/CurveVoteHelper.sol";
+import { CurveGovHelper } from "test/utils/CurveGovHelper.sol";
 
-contract PrismaVeCrvOperatorTest is Setup, CurveVoteHelper {
+contract PrismaVeCrvOperatorTest is Setup, CurveGovHelper {
     PrismaVeCrvOperator public operator;
 
     function setUp() public override {
