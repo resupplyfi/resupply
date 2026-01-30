@@ -164,6 +164,7 @@ library Mainnet {
     // Curve Misc
     address internal constant CURVE_STABLE_FACTORY = 0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf;
     address internal constant CURVE_ESCROW = 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2;
+    address internal constant CURVE_BOOST_DELEGATION = 0xD37A6aa3d8460Bd2b6536d608103D880695A23CD;
     address internal constant CURVE_GAUGE_CONTROLLER = 0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB;
     address internal constant CURVE_CRVUSD_CONTROLLER = 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC;
     address internal constant CURVE_OWNERSHIP_AGENT = 0x40907540d8a6C65c637785e8f8B742ae6b0b9968;

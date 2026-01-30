@@ -2,8 +2,8 @@
 pragma solidity 0.8.28;
 
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
-import { Prisma } from "src/Constants.sol";
-import { PrismaFeeForwarder } from "src/dao/operators/PrismaFeeForwarder.sol";
+import { Prisma, Protocol } from "src/Constants.sol";
+import { PrismaVeCrvOperator } from "src/dao/operators/PrismaVeCrvOperator.sol";
 import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 import { SetPrismaDepositManager } from "script/proposals/SetPrismaDepositManager.s.sol";
 
@@ -28,15 +28,23 @@ contract SetPrismaDepositManagerTest is BaseProposalTest {
 
     function test_ForwarderClaimIncreasesReceiverBalance() public {
         // if (isProposalProcessed(PROP_ID)) return;
-        PrismaFeeForwarder forwarder = PrismaFeeForwarder(script.FORWARDER());
+        PrismaVeCrvOperator forwarder = PrismaVeCrvOperator(script.FORWARDER());
         uint256 amount = 1_000e18;
 
         deal(address(crvusdToken), Prisma.VOTER_PROXY, amount);
         address receiver = forwarder.receiver();
         uint256 receiverBefore = crvusdToken.balanceOf(receiver);
 
+        vm.prank(Protocol.DEPLOYER);
         uint256 claimed = forwarder.claimFees();
         assertGt(claimed, 0, "claim should be non-zero");
         assertEq(crvusdToken.balanceOf(receiver), receiverBefore + claimed);
+
+        deal(address(crvusdToken), Prisma.VOTER_PROXY, amount);
+        uint256 scrvBefore = scrvusd.balanceOf(receiver);
+        vm.prank(Protocol.DEPLOYER);
+        claimed = forwarder.claimFees(true, receiver);
+        assertGt(claimed, 0, "claim should be non-zero");
+        assertGt(scrvusd.balanceOf(receiver), scrvBefore);
     }
 }
