@@ -112,7 +112,7 @@ contract RedemptionHandlerTest is Setup {
 
         vm.mockCall(
             address(reusdOracle),
-            abi.encodeWithSelector(IReusdOracle.rawPriceAsCrvusd.selector),
+            abi.encodeWithSelector(IReusdOracle.oraclePriceAsCrvusd.selector),
             abi.encode(1e18)
         );
 
@@ -130,7 +130,7 @@ contract RedemptionHandlerTest is Setup {
         address mainnetOracle = IResupplyRegistry(Protocol.REGISTRY).getAddress("REUSD_ORACLE");
         vm.mockCall(
             mainnetOracle,
-            abi.encodeWithSelector(IReusdOracle.rawPriceAsCrvusd.selector),
+            abi.encodeWithSelector(IReusdOracle.oraclePriceAsCrvusd.selector),
             abi.encode(1e18)
         );
 

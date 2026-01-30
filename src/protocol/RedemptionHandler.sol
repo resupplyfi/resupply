@@ -37,7 +37,7 @@ contract RedemptionHandler is CoreOwnable{
     uint256 public maxDiscount = 5e14; //up to 0.05% discount
 
     uint256 public overusageStart = 800; //at what usage% do fees start
-    uint256 public overusageMax = 1300; //at what usage% do fees reach max
+    uint256 public overusageMax = 1100; //at what usage% do fees reach max
     uint256 public overusageRate = 1e16; //at max
     uint256 public overWeight = 2e17; //If weight of redeem is overthis, charge over usage
 
@@ -239,7 +239,7 @@ contract RedemptionHandler is CoreOwnable{
 
 
     function reUsdOraclePrice() public view returns (uint256) {
-        return IReusdOracle(IResupplyRegistry(registry).getAddress("REUSD_ORACLE")).rawPriceAsCrvusd();
+        return IReusdOracle(IResupplyRegistry(registry).getAddress("REUSD_ORACLE")).oraclePriceAsCrvusd();
     }
 
 
