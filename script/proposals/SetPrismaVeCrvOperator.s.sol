@@ -11,13 +11,13 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
 
 contract SetPrismaVeCrvOperator is BaseAction, BaseProposal {
-    address public constant OPERATOR = Prisma.PRISMA_FEE_FORWARDER;
+    address public constant OPERATOR = Prisma.PRISMA_VECRV_OPERATOR;
     string public constant REGISTRY_KEY = "PRISMA_VECRV_OPERATOR";
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Set Prisma veCRV operator");
+        proposeVote(data, "Setup Operator for Prisma veCRV");
 
         if (deployMode == DeployMode.PRODUCTION) {
             executeBatch(true);

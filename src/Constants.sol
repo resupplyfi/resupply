@@ -118,7 +118,7 @@ library Prisma {
     address constant FEE_RECEIVER = 0xfdCE0267803C6a0D209D3721d2f01Fd618e9CBF8;
     address constant PSM_MKUSD = 0x9d7634b2B99c2684611c0Ac3150bAF6AEEa4Ed77;
     address constant PSM_ULTRA = 0xAe21Fe5B61998b143f721CE343aa650a6d5EadCe;
-    address constant PRISMA_FEE_FORWARDER = 0xdFe63a64bdA32DDfda04f3FFd12a215FC6cBc187;
+    address constant PRISMA_VECRV_OPERATOR = 0xdFe63a64bdA32DDfda04f3FFd12a215FC6cBc187;
 }
 
 library VMConstants {
