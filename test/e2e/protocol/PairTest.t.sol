@@ -15,8 +15,10 @@ contract PairTest is PairTestBase {
     function setUp() public override {
         super.setUp();
         stablecoin.approve(address(redemptionHandler), type(uint256).max);
-        vm.prank(pair.owner());
+        vm.startPrank(pair.owner());
         pair.setBorrowLimit(500_000e18);
+        redemptionHandler.updateGuardSettings(false, 1e18);
+        vm.stopPrank();
     }
 
     function test_AddCollateral() public {
