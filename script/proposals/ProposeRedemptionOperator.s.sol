@@ -5,12 +5,11 @@ import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
-import { ICore } from "src/interfaces/ICore.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { Protocol } from "src/Constants.sol";
 
-contract RedemptionOperator is BaseAction, BaseProposal {
+contract ProposeRedemptionOperator is BaseAction, BaseProposal {
     // TODO: replace placeholders
     address public constant NEW_REDEMPTION_HANDLER = address(0);
     address public constant REDEMPTION_OPERATOR = address(0);
@@ -18,7 +17,7 @@ contract RedemptionOperator is BaseAction, BaseProposal {
     address public constant UPGRADE_OPERATOR = address(0);
 
     bool public constant GUARD_ENABLED = true;
-    uint256 public constant PERMISSIONLESS_PRICE_THRESHOLD = 985e16;
+    uint256 public constant PERMISSIONLESS_PRICE_THRESHOLD = .985e18;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -35,8 +34,9 @@ contract RedemptionOperator is BaseAction, BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](5);
+        actions = new IVoter.Action[](7);
 
+        // Set guard settings in new Redemption Handler
         actions[0] = IVoter.Action({
             target: NEW_REDEMPTION_HANDLER,
             data: abi.encodeWithSelector(
@@ -46,7 +46,16 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[1] = IVoter.Action({
+        // Give Upgrade Operator permission to upgrade impl for Redemption Operator
+        actions[1] = setOperatorPermission(
+            UPGRADE_OPERATOR,
+            REDEMPTION_OPERATOR,
+            IUpgradeableOperator.upgradeToAndCall.selector,
+            true
+        );
+
+        // Update Redemption Handler registry key
+        actions[2] = IVoter.Action({
             target: address(registry),
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setRedemptionHandler.selector,
@@ -54,7 +63,8 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[2] = IVoter.Action({
+        // Add REDEMPTION_OPERATOR registry key
+        actions[3] = IVoter.Action({
             target: address(registry),
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setAddress.selector,
@@ -63,7 +73,8 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[3] = IVoter.Action({
+        // Update REUSD_ORACLE registry key
+        actions[4] = IVoter.Action({
             target: address(registry),
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setAddress.selector,
@@ -72,9 +83,18 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             )
         });
 
-        actions[4] = setOperatorPermission(
+        // Allow Guardian to update redemption guard settings
+        actions[5] = setOperatorPermission(
+            Protocol.OPERATOR_GUARDIAN_PROXY,
+            NEW_REDEMPTION_HANDLER,
+            IRedemptionHandler.updateGuardSettings.selector,
+            true
+        );
+
+        // Allow Upgrade Operator to upgrade Guardian proxy
+        actions[6] = setOperatorPermission(
             UPGRADE_OPERATOR,
-            REDEMPTION_OPERATOR,
+            Protocol.OPERATOR_GUARDIAN_PROXY,
             IUpgradeableOperator.upgradeToAndCall.selector,
             true
         );

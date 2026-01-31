@@ -44,6 +44,7 @@ abstract contract BaseProposal is BaseAction {
         );
     }
 
+    /// @notice Helper to build an operator-permission action executed via Core.
     function setOperatorPermission(
         address caller,
         address target,
