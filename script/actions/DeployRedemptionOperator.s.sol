@@ -8,10 +8,11 @@ import { UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 
 contract DeployRedemptionOperator is BaseAction {
     function run() public {
-        address[] memory approved = new address[](2);
+        address[] memory approved = new address[](3);
         approved[0] = Protocol.DEPLOYER;
         approved[1] = 0x1ba323F8a6544b81Dc1F068b1400A6ebe7Ea0f52;
-        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, approved);
+        approved[2] = 0x051C42Ee7A529410a10E5Ec11B9E9b8bA7cbb795;
+        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, (Protocol.DEPLOYER, approved));
 
         vm.startBroadcast(loadPrivateKey());
         RedemptionOperator impl = new RedemptionOperator();

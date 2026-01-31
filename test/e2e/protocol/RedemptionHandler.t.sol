@@ -27,7 +27,7 @@ contract RedemptionHandlerTest is Setup {
 
         address[] memory callers = new address[](1);
         callers[0] = address(this);
-        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, callers);
+        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, (Protocol.DEPLOYER, callers));
         Options memory options;
         options.unsafeSkipAllChecks = true;
         address proxy = Upgrades.deployUUPSProxy(

@@ -6,7 +6,6 @@ import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
 import { UpgradeOperator } from "src/dao/operators/UpgradeOperator.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IFraxLoan } from "src/interfaces/IFraxLoan.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
@@ -26,7 +25,7 @@ contract RedemptionOperatorTest is Setup {
         super.setUp();
         address[] memory initialApproved = new address[](1);
         initialApproved[0] = bot;
-        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, initialApproved);
+        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, (Protocol.DEPLOYER, initialApproved));
         Options memory options;
         options.unsafeSkipAllChecks = true;
         address proxy = Upgrades.deployUUPSProxy(
@@ -95,6 +94,16 @@ contract RedemptionOperatorTest is Setup {
             0,
             type(uint256).max
         );
+    }
+
+    function test_ManagerCanSetApprovedCaller() public {
+        address caller = address(0xBEEF);
+        assertEq(redemptionOperator.manager(), Protocol.DEPLOYER);
+        assertFalse(redemptionOperator.approvedCallers(caller));
+
+        vm.prank(Protocol.DEPLOYER);
+        redemptionOperator.setApprovedCaller(caller, true);
+        assertTrue(redemptionOperator.approvedCallers(caller));
     }
 
     function test_UpgradeOperator_CanUpgradeRedemptionOperator() public {
@@ -181,18 +190,7 @@ contract RedemptionOperatorTest is Setup {
     }
 
     function _seedPair(IResupplyPair pair) internal {
-        address[] memory pairs = new address[](1);
-        pairs[0] = address(pair);
-        _mockPairs(pairs);
         _ensureDebt(pair);
-    }
-
-    function _mockPairs(address[] memory pairs) internal {
-        vm.mockCall(
-            address(registry),
-            abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector),
-            abi.encode(pairs)
-        );
     }
 
     function _ensureFraxLoanWhitelist() internal {

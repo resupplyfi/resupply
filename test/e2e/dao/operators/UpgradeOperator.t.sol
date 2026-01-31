@@ -18,7 +18,7 @@ contract UpgradeOperatorTest is Setup {
     function setUp() public override {
         super.setUp();
 
-        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, new address[](0));
+        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, (Protocol.DEPLOYER, new address[](0)));
         Options memory options;
         options.unsafeSkipAllChecks = true;
         proxy = Upgrades.deployUUPSProxy(

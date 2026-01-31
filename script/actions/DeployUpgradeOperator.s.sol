@@ -11,8 +11,6 @@ contract DeployUpgradeOperator is BaseAction {
         vm.startBroadcast(loadPrivateKey());
         UpgradeOperator operator = new UpgradeOperator(Protocol.CORE, Protocol.DEPLOYER);
         console.log("UpgradeOperator deployed at", address(operator));
-        console.log("Manager", operator.manager());
-        console.log("Owner (core)", operator.owner());
         vm.stopBroadcast();
     }
 }

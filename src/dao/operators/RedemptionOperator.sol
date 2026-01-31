@@ -6,7 +6,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC3156FlashBorrower } from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 import { IERC3156FlashLender } from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
-
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
@@ -49,8 +48,10 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
     int128 public constant frxUsdIndexFrxPool = 0;
 
     mapping(address => bool) public approvedCallers;
+    address public manager;
 
     event CallerApproved(address indexed account, bool status);
+    event ManagerSet(address indexed manager);
     event RedemptionExecuted(
         address indexed caller,
         address indexed pair,
@@ -68,9 +69,18 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         _;
     }
 
-    function initialize(address[] calldata _callers) external initializer {
+    modifier onlyOwnerOrManager() {
+        require(msg.sender == manager || msg.sender == owner(), "!authorized");
+        _;
+    }
+
+    function initialize(address _manager, address[] calldata _callers) external initializer {
+        require(_manager != address(0), "invalid manager");
         __ReentrancyGuard_init();
         _setApprovals();
+
+        manager = _manager;
+        emit ManagerSet(_manager);
 
         uint256 length = _callers.length;
         for (uint256 i = 0; i < length; i++) {
@@ -85,7 +95,13 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         _setApprovals();
     }
 
-    function setApprovedCaller(address _caller, bool _status) external onlyOwner {
+    function setManager(address _manager) external onlyOwner {
+        require(_manager != address(0), "invalid manager");
+        manager = _manager;
+        emit ManagerSet(_manager);
+    }
+
+    function setApprovedCaller(address _caller, bool _status) external onlyOwnerOrManager {
         require(_caller != address(0), "invalid account");
         approvedCallers[_caller] = _status;
         emit CallerApproved(_caller, _status);

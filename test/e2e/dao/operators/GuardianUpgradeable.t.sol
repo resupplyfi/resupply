@@ -15,15 +15,10 @@ import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
-import { IRedemptionOperator } from "src/interfaces/IRedemptionOperator.sol";
-import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
-import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
-import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 
 contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     address public guardian = Protocol.DEPLOYER;
     GuardianUpgradeable public guardianContract;
-    RedemptionOperator public redemptionOperator;
     IResupplyPair public pair;
     address[] public pairs;
 
@@ -35,7 +30,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         super.setUp();
         deployProxyAndImplementation();
         guardianContract = GuardianUpgradeable(proxy);
-        deployRedemptionOperator();
         setupPermissions();
         pairs = registry.getAllPairAddresses();
         pair = IResupplyPair(pairs[0]);
@@ -71,11 +65,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         );
         vm.mockCall(
             address(Protocol.REGISTRY),
-            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "REDEMPTION_OPERATOR"),
-            abi.encode(address(redemptionOperator))
-        );
-        vm.mockCall(
-            address(Protocol.REGISTRY),
             abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector),
             abi.encode(registry.getAllPairAddresses())
         );
@@ -95,21 +84,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         setOperatorPermission(address(guardianContract), address(0), ISwapperOdos.revokeApprovals.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IBorrowLimitController.cancelRamp.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IInsurancePool.setWithdrawTimers.selector, true);
-        setOperatorPermission(address(guardianContract), address(redemptionOperator), IRedemptionOperator.setApprovedCaller.selector, true);
         setOperatorPermission(address(guardianContract), address(redemptionHandler), IRedemptionHandler.updateGuardSettings.selector, true);
-    }
-
-    function deployRedemptionOperator() internal {
-        address[] memory callers = new address[](0);
-        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, callers);
-        Options memory options;
-        options.unsafeSkipAllChecks = true;
-        address redemptionOperatorProxy = Upgrades.deployUUPSProxy(
-            "RedemptionOperator.sol:RedemptionOperator",
-            initializerData,
-            options
-        );
-        redemptionOperator = RedemptionOperator(redemptionOperatorProxy);
     }
 
     function test_GuardianSet() public {
@@ -268,7 +243,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertTrue(permissions.cancelProposal, "cancelProposal should be true");
         assertTrue(permissions.updateProposalDescription, "updateProposalDescription should be true");
         // assertTrue(permissions.setRegistryAddress, "setRegistryAddress should be true");
-        assertTrue(permissions.setRedemptionOperatorApprovedCaller, "setRedemptionOperatorApprovedCaller should be true");
         assertTrue(permissions.revokeSwapperApprovals, "revokeSwapperApprovals should be true");
     }
 
@@ -317,13 +291,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
             false,
             IAuthHook(address(0))
         );
-        core.setOperatorPermissions(
-            address(guardianContract),
-            address(redemptionOperator),
-            IRedemptionOperator.setApprovedCaller.selector,
-            false,
-            IAuthHook(address(0))
-        );
         vm.stopPrank();
 
         GuardianUpgradeable.Permissions memory permissions = guardianContract.viewPermissions();
@@ -333,7 +300,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         assertFalse(permissions.cancelProposal, "cancelProposal should be false");
         assertFalse(permissions.updateProposalDescription, "updateProposalDescription should be false");
         assertFalse(permissions.setRegistryAddress, "setRegistryAddress should be false");
-        assertFalse(permissions.setRedemptionOperatorApprovedCaller, "setRedemptionOperatorApprovedCaller should be false");
         assertFalse(permissions.revokeSwapperApprovals, "revokeSwapperApprovals should be false");
     }
 
@@ -378,22 +344,6 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         vm.prank(address(1));
         vm.expectRevert("!guardian");
         guardianContract.revokeSwapperApprovals();
-    }
-
-    function test_SetRedemptionOperatorApprovedCaller() public {
-        address caller = address(0xBEEF);
-        assertFalse(redemptionOperator.approvedCallers(caller));
-
-        vm.prank(guardian);
-        guardianContract.setRedemptionOperatorApprovedCaller(caller, true);
-
-        assertTrue(redemptionOperator.approvedCallers(caller));
-    }
-
-    function test_SetRedemptionOperatorApprovedCaller_NotGuardian() public {
-        vm.prank(address(1));
-        vm.expectRevert("!guardian");
-        guardianContract.setRedemptionOperatorApprovedCaller(address(0xBEEF), true);
     }
 
     function test_UpdateRedemptionGuardSettings() public {

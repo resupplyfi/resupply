@@ -38,4 +38,14 @@ contract UpgradeOperator is CoreOwnable {
         );
         emit UpgradeExecuted(target, newImplementation, data);
     }
+
+    /// @notice Returns true if this operator is authorized to upgrade the given proxy.
+    function canUpgrade(address target) external view returns (bool) {
+        (bool authorized,) = core.operatorPermissions(
+            address(this),
+            target,
+            IUpgradeableOperator.upgradeToAndCall.selector
+        );
+        return authorized;
+    }
 }
