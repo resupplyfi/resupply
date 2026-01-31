@@ -5,6 +5,8 @@ import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
+import { ICore } from "src/interfaces/ICore.sol";
+import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { Protocol } from "src/Constants.sol";
 
@@ -13,6 +15,7 @@ contract RedemptionOperator is BaseAction, BaseProposal {
     address public constant NEW_REDEMPTION_HANDLER = address(0);
     address public constant REDEMPTION_OPERATOR = address(0);
     address public constant NEW_REUSD_ORACLE = address(0);
+    address public constant UPGRADE_OPERATOR = address(0);
 
     bool public constant GUARD_ENABLED = true;
     uint256 public constant PERMISSIONLESS_PRICE_THRESHOLD = 985e16;
@@ -26,12 +29,13 @@ contract RedemptionOperator is BaseAction, BaseProposal {
             require(NEW_REDEMPTION_HANDLER != address(0), "RedemptionHandler not set");
             require(REDEMPTION_OPERATOR != address(0), "RedemptionOperator not set");
             require(NEW_REUSD_ORACLE != address(0), "REUSD_ORACLE not set");
+            require(UPGRADE_OPERATOR != address(0), "UpgradeOperator not set");
             executeBatch(true);
         }
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](4);
+        actions = new IVoter.Action[](5);
 
         actions[0] = IVoter.Action({
             target: NEW_REDEMPTION_HANDLER,
@@ -67,5 +71,12 @@ contract RedemptionOperator is BaseAction, BaseProposal {
                 NEW_REUSD_ORACLE
             )
         });
+
+        actions[4] = setOperatorPermission(
+            UPGRADE_OPERATOR,
+            REDEMPTION_OPERATOR,
+            IUpgradeableOperator.upgradeToAndCall.selector,
+            true
+        );
     }
 }

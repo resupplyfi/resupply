@@ -44,6 +44,25 @@ abstract contract BaseProposal is BaseAction {
         );
     }
 
+    function setOperatorPermission(
+        address caller,
+        address target,
+        bytes4 selector,
+        bool enable
+    ) internal pure returns (IVoter.Action memory action) {
+        action = IVoter.Action({
+            target: Protocol.CORE,
+            data: abi.encodeWithSelector(
+                ICore.setOperatorPermissions.selector,
+                caller,
+                target,
+                selector,
+                enable,
+                address(0)
+            )
+        });
+    }
+
 
     function getAddPairToRegistryCallData(address _pair) public returns(bytes memory){
         return abi.encodeWithSelector(

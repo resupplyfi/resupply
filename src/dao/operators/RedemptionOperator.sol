@@ -224,9 +224,8 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
 
             uint256 feeEstimate = _flashFeeEstimate(loanAsset, flashAmount);
             if (grossUnderlying <= flashAmount + feeEstimate) continue;
-            uint256 candidateProfit = grossUnderlying - flashAmount - feeEstimate;
-            if (candidateProfit > profit) {
-                profit = candidateProfit;
+            profit = grossUnderlying - flashAmount - feeEstimate;
+            if (profit > 0) {
                 bestPair = pair;
                 redeemAmount = reusdOut;
             }

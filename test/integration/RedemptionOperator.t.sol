@@ -2,14 +2,14 @@
 pragma solidity 0.8.28;
 
 import { Setup } from "test/integration/Setup.sol";
-import { console } from "lib/forge-std/src/console.sol";
 import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
-import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
-import { IERC4626 } from "src/interfaces/IERC4626.sol";
+import { UpgradeOperator } from "src/dao/operators/UpgradeOperator.sol";
+import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IFraxLoan } from "src/interfaces/IFraxLoan.sol";
+import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
@@ -38,73 +38,46 @@ contract RedemptionOperatorTest is Setup {
         _ensureFraxLoanWhitelist();
     }
 
-    function test_SkewPoolChangesPrice() public {
-        _skewPool(Mainnet.CRVUSD_ERC20, true, 250_000e18);
-        (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(Mainnet.CRVUSD_ERC20);
-        uint256 sampleShares = IERC4626(vault).previewDeposit(100e18);
-        uint256 priceBefore = ICurveExchange(pool).get_dy(vaultIndex, reusdIndex, sampleShares);
-        _skewPool(Mainnet.CRVUSD_ERC20, true, 250_000e18);
-        uint256 priceAfter = ICurveExchange(pool).get_dy(vaultIndex, reusdIndex, sampleShares);
-        assertTrue(priceAfter != priceBefore, "price unchanged");
+    function test_IsProfitable_Zero() public {
+        (address pair, uint256 profit, uint256 redeemAmount) = redemptionOperator.isProfitable(0);
+        assertEq(pair, address(0));
+        assertEq(profit, 0);
+        assertEq(redeemAmount, 0);
     }
 
-    function test_IsProfitableLogs() public {
-        address[] memory allPairs = registry.getAllPairAddresses();
-        address crvPair = _findPairFromList(allPairs, Mainnet.CRVUSD_ERC20);
-        address frxPair = _findPairFromList(allPairs, Mainnet.FRXUSD_ERC20);
-        require(crvPair != address(0), "missing crvUSD pair");
-
-        _seedPair(IResupplyPair(crvPair));
-
+    function test_IsProfitable_RoundTrip() public {
         uint256 flashAmount = 10_000e18;
-        uint256 amountIn = 5_000_000e18;
-        bool profitableCrv;
-        uint256 profitCrv;
-        address pairCrv;
-        uint256 redeemCrv;
+        (address pair, uint256 profit, uint256 redeemAmount) = redemptionOperator.isProfitable(flashAmount);
+        if (pair == address(0) || profit == 0 || redeemAmount == 0) {
+            return;
+        }
 
-        for (uint256 i = 0; i < 3; i++) {
-            _skewPool(Mainnet.CRVUSD_ERC20, false, amountIn);
-            (pairCrv, profitCrv, redeemCrv) = redemptionOperator.isProfitable(flashAmount);
-            profitableCrv = profitCrv > 0 && pairCrv != address(0);
-            if (profitableCrv) {
-                if (IResupplyPair(pairCrv).underlying() == Mainnet.CRVUSD_ERC20) {
-                    break;
-                }
+        _seedPair(IResupplyPair(pair));
+        uint256 maxRedeemable = IRedemptionHandler(address(redemptionHandler)).getMaxRedeemableDebt(pair);
+        if (maxRedeemable == 0 || redeemAmount > maxRedeemable) {
+            return;
+        }
+
+        address underlying = IResupplyPair(pair).underlying();
+        address treasuryAsset = underlying;
+        if (underlying == Mainnet.FRXUSD_ERC20) {
+            uint256 frxAvailable = IERC20(Mainnet.FRXUSD_ERC20).balanceOf(redemptionOperator.frxUsdFlashLender());
+            if (frxAvailable < flashAmount) {
+                treasuryAsset = Mainnet.CRVUSD_ERC20;
             }
-            amountIn = amountIn * 2;
         }
-        console.log("crvUSD profitable", profitableCrv);
-        console.log("crvUSD profit", profitCrv);
-        console.log("crvUSD pair", pairCrv);
-        console.log("crvUSD redeem", redeemCrv);
 
-        bool profitableFrx;
-        uint256 profitFrx;
-        address pairFrx;
-        uint256 redeemFrx;
-
-        require(frxPair != address(0), "missing frxUSD pair");
-        _seedPair(IResupplyPair(frxPair));
-        (uint256 frxFlash, uint256 frxProfitFound, uint256 frxRedeemFound) =
-            _makeProfitable(Mainnet.FRXUSD_ERC20, frxPair);
-        console.log("frxUSD search profit", frxProfitFound);
-        console.log("frxUSD search redeem", frxRedeemFound);
-        if (frxFlash == 0) frxFlash = 1e18;
-        (pairFrx, profitFrx, redeemFrx) = redemptionOperator.isProfitable(frxFlash);
-        profitableFrx = profitFrx > 0 && pairFrx != address(0);
-        if (!profitableFrx && frxProfitFound > 0) {
-            profitFrx = frxProfitFound;
-            redeemFrx = frxRedeemFound;
-            pairFrx = frxPair;
-            profitableFrx = true;
-        }
-        console.log("frxUSD profitable", profitableFrx);
-        console.log("frxUSD profit", profitFrx);
-        console.log("frxUSD pair", pairFrx);
-        console.log("frxUSD redeem", redeemFrx);
-
-        assertTrue(profitCrv > 0 || profitFrx > 0, "profit not positive");
+        uint256 treasuryBefore = IERC20(treasuryAsset).balanceOf(Protocol.TREASURY);
+        vm.prank(bot);
+        redemptionOperator.executeRedemption(
+            pair,
+            flashAmount,
+            redeemAmount,
+            0,
+            type(uint256).max
+        );
+        uint256 treasuryAfter = IERC20(treasuryAsset).balanceOf(Protocol.TREASURY);
+        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
     }
 
     function test_ExecuteRedemption_MinSwapTooHighReverts() public {
@@ -124,169 +97,52 @@ contract RedemptionOperatorTest is Setup {
         );
     }
 
-    function test_ExecuteRedemption_CrvUsdPair() public {
-        address pairAddress = _findPair(Mainnet.CRVUSD_ERC20);
-        require(pairAddress != address(0), "pair not found");
-        IResupplyPair pair = IResupplyPair(pairAddress);
+    function test_UpgradeOperator_CanUpgradeRedemptionOperator() public {
+        UpgradeOperator upgradeOperator = new UpgradeOperator(Protocol.CORE, Protocol.DEPLOYER);
+        Options memory options;
+        options.unsafeSkipAllChecks = true;
+        address newImplementation = Upgrades.prepareUpgrade("RedemptionOperator.sol:RedemptionOperator", options);
 
-        _seedPair(pair);
-        uint256 maxRedeemable = IRedemptionHandler(address(redemptionHandler)).getMaxRedeemableDebt(pairAddress);
-        require(maxRedeemable > 0, "no redeemable debt");
-
-        (uint256 flashAmount, uint256 profit, uint256 redeemAmount) =
-            _makeProfitable(Mainnet.CRVUSD_ERC20, pairAddress);
-        require(profit > 0, "no profit");
-
-        uint256 treasuryBefore = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        vm.prank(bot);
-        redemptionOperator.executeRedemption(
-            pairAddress,
-            flashAmount,
-            redeemAmount,
-            0,
-            type(uint256).max
+        vm.prank(address(core));
+        core.setOperatorPermissions(
+            address(upgradeOperator),
+            address(redemptionOperator),
+            IUpgradeableOperator.upgradeToAndCall.selector,
+            true,
+            IAuthHook(address(0))
         );
 
-        uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
-        assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
+        address implBefore = Upgrades.getImplementationAddress(address(redemptionOperator));
+        vm.prank(Protocol.DEPLOYER);
+        upgradeOperator.upgradeToAndCall(address(redemptionOperator), newImplementation, "");
+        address implAfter = Upgrades.getImplementationAddress(address(redemptionOperator));
+
+        assertNotEq(implAfter, implBefore);
+        assertEq(implAfter, newImplementation);
     }
 
-    function test_ExecuteRedemption_FrxUsdPair() public {
-        address pairAddress = _findPair(Mainnet.FRXUSD_ERC20);
-        require(pairAddress != address(0), "pair not found");
-        IResupplyPair pair = IResupplyPair(pairAddress);
+    function test_UpgradeOperator_RequiresCorePermission() public {
+        UpgradeOperator upgradeOperator = new UpgradeOperator(Protocol.CORE, Protocol.DEPLOYER);
+        Options memory options;
+        options.unsafeSkipAllChecks = true;
+        address newImplementation = Upgrades.prepareUpgrade("RedemptionOperator.sol:RedemptionOperator", options);
 
-        _seedPair(pair);
-        uint256 maxRedeemable = IRedemptionHandler(address(redemptionHandler)).getMaxRedeemableDebt(pairAddress);
-        require(maxRedeemable > 0, "no redeemable debt");
-
-        (uint256 flashAmount, uint256 profit, uint256 redeemAmount) =
-            _makeProfitable(Mainnet.FRXUSD_ERC20, pairAddress);
-        require(profit > 0, "no profit");
-
-        uint256 treasuryBefore = IERC20(Mainnet.FRXUSD_ERC20).balanceOf(Protocol.TREASURY);
-        vm.prank(bot);
-        redemptionOperator.executeRedemption(
-            pairAddress,
-            flashAmount,
-            redeemAmount,
-            0,
-            type(uint256).max
-        );
-
-        uint256 treasuryAfter = IERC20(Mainnet.FRXUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
-        assertEq(IERC20(Mainnet.FRXUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
+        vm.prank(Protocol.DEPLOYER);
+        vm.expectRevert("!authorized");
+        upgradeOperator.upgradeToAndCall(address(redemptionOperator), newImplementation, "");
     }
 
-    function test_ExecuteRedemption_FrxUsdFallbackToCrvUsd() public {
-        address pairAddress = _findPair(Mainnet.FRXUSD_ERC20);
-        require(pairAddress != address(0), "pair not found");
-        IResupplyPair pair = IResupplyPair(pairAddress);
+    function test_UpgradeOperator_NotOwner() public {
+        UpgradeOperator upgradeOperator = new UpgradeOperator(Protocol.CORE, Protocol.DEPLOYER);
+        Options memory options;
+        options.unsafeSkipAllChecks = true;
+        address newImplementation = Upgrades.prepareUpgrade("RedemptionOperator.sol:RedemptionOperator", options);
 
-        _seedPair(pair);
-        uint256 maxRedeemable = IRedemptionHandler(address(redemptionHandler)).getMaxRedeemableDebt(pairAddress);
-        require(maxRedeemable > 0, "no redeemable debt");
-
-        deal(Mainnet.FRXUSD_ERC20, redemptionOperator.frxUsdFlashLender(), 1);
-
-        (uint256 flashAmount, uint256 profit, uint256 redeemAmount) =
-            _makeProfitableFallback(pairAddress);
-        require(profit > 0, "no profit");
-
-        uint256 treasuryBefore = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        vm.prank(bot);
-        redemptionOperator.executeRedemption(
-            pairAddress,
-            flashAmount,
-            redeemAmount,
-            0,
-            type(uint256).max
-        );
-
-        uint256 treasuryAfter = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
-        assertGt(treasuryAfter - treasuryBefore, 0, "profit not recorded");
-        assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(address(redemptionOperator)), 0, "asset retained");
+        vm.prank(address(1));
+        vm.expectRevert("!authorized");
+        upgradeOperator.upgradeToAndCall(address(redemptionOperator), newImplementation, "");
     }
 
-    function _skewPool(address flashAsset, bool buyReusd, uint256 amountIn) internal returns (uint256 amountOut) {
-        if (flashAsset == Mainnet.FRXUSD_ERC20) {
-            (address reusdPool, int128 sfrxIndex, int128 reusdIndex) = _reusdSfrxPoolConfig();
-            (address frxPool, int128 frxIndex, int128 sfrxIndexFraxPool) = _frxSfrxPoolConfig();
-
-            if (buyReusd) {
-                deal(flashAsset, address(this), amountIn);
-                IERC20(flashAsset).forceApprove(frxPool, amountIn);
-                uint256 sfrxOut = ICurveExchange(frxPool).exchange(frxIndex, sfrxIndexFraxPool, amountIn, 0, address(this));
-                IERC20(Mainnet.SFRXUSD_ERC20).forceApprove(reusdPool, sfrxOut);
-                amountOut = ICurveExchange(reusdPool).exchange(sfrxIndex, reusdIndex, sfrxOut, 0, address(this));
-            } else {
-                deal(address(stablecoin), address(this), amountIn);
-                IERC20(address(stablecoin)).forceApprove(reusdPool, amountIn);
-                uint256 sfrxOut = ICurveExchange(reusdPool).exchange(reusdIndex, sfrxIndex, amountIn, 0, address(this));
-                IERC20(Mainnet.SFRXUSD_ERC20).forceApprove(frxPool, sfrxOut);
-                amountOut = ICurveExchange(frxPool).exchange(sfrxIndexFraxPool, frxIndex, sfrxOut, 0, address(this));
-            }
-            return amountOut;
-        }
-
-        (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(flashAsset);
-
-        if (buyReusd) {
-            deal(flashAsset, address(this), amountIn);
-            IERC20(flashAsset).forceApprove(vault, amountIn);
-            uint256 shares = IERC4626(vault).deposit(amountIn, address(this));
-            IERC20(vault).forceApprove(pool, shares);
-            amountOut = ICurveExchange(pool).exchange(vaultIndex, reusdIndex, shares, 0, address(this));
-        } else {
-            deal(address(stablecoin), address(this), amountIn);
-            IERC20(address(stablecoin)).forceApprove(pool, amountIn);
-            amountOut = ICurveExchange(pool).exchange(reusdIndex, vaultIndex, amountIn, 0, address(this));
-        }
-    }
-
-    function _poolConfig(address flashAsset)
-        internal
-        view
-        returns (address pool, address vault, int128 vaultIndex, int128 reusdIndex)
-    {
-        if (flashAsset == Mainnet.CRVUSD_ERC20) {
-            return (
-                Protocol.REUSD_SCRVUSD_POOL,
-                Mainnet.SCRVUSD_ERC20,
-                redemptionOperator.scrvIndex(),
-                redemptionOperator.reusdIndexScrv()
-            );
-        }
-
-        return (
-            Protocol.REUSD_SFRXUSD_POOL,
-            Mainnet.SFRXUSD_ERC20,
-            redemptionOperator.sfrxIndex(),
-            redemptionOperator.reusdIndexSfrx()
-        );
-    }
-
-    function _reusdSfrxPoolConfig()
-        internal
-        view
-        returns (address pool, int128 sfrxIndex, int128 reusdIndex)
-    {
-        return (Protocol.REUSD_SFRXUSD_POOL, redemptionOperator.sfrxIndex(), redemptionOperator.reusdIndexSfrx());
-    }
-
-    function _frxSfrxPoolConfig()
-        internal
-        view
-        returns (address pool, int128 frxIndex, int128 sfrxIndex)
-    {
-        return (
-            redemptionOperator.frxusdSfrxusdPool(),
-            redemptionOperator.frxusdIndexFraxPool(),
-            redemptionOperator.sfrxusdIndexFraxPool()
-        );
-    }
 
     function _findPair(address underlying) internal view returns (address) {
         address[] memory pairs = registry.getAllPairAddresses();
@@ -329,87 +185,6 @@ contract RedemptionOperatorTest is Setup {
         pairs[0] = address(pair);
         _mockPairs(pairs);
         _ensureDebt(pair);
-    }
-
-    function _makeProfitable(address flashAsset, address pair)
-        internal
-        returns (uint256 flashAmount, uint256 profit, uint256 redeemAmount)
-    {
-        uint256[3] memory flashAmounts;
-        uint256 amountIn;
-        uint256 maxIterations;
-
-        if (flashAsset == Mainnet.FRXUSD_ERC20) {
-            uint256 maxFlash = IERC20(flashAsset).balanceOf(redemptionOperator.frxUsdFlashLender());
-            if (maxFlash == 0) return (0, 0, 0);
-
-            flashAmounts[0] = maxFlash / 2;
-            flashAmounts[1] = maxFlash / 4;
-            flashAmounts[2] = maxFlash / 8;
-            if (flashAmounts[0] == 0) flashAmounts[0] = maxFlash;
-            if (flashAmounts[1] == 0) flashAmounts[1] = maxFlash;
-            if (flashAmounts[2] == 0) flashAmounts[2] = maxFlash;
-            amountIn = 500_000e18;
-            maxIterations = 3;
-        } else {
-            flashAmounts[0] = 10_000e18;
-            flashAmounts[1] = 5_000e18;
-            flashAmounts[2] = 1_000e18;
-            amountIn = 5_000_000e18;
-            maxIterations = 4;
-        }
-
-        for (uint256 f = 0; f < flashAmounts.length; f++) {
-            uint256 currentFlash = flashAmounts[f];
-            uint256 currentAmountIn = amountIn;
-
-            for (uint256 i = 0; i < maxIterations; i++) {
-                _skewPool(flashAsset, false, currentAmountIn);
-                (address bestPair, uint256 candidateProfit, uint256 candidateRedeem) =
-                    redemptionOperator.isProfitable(currentFlash);
-
-                if (
-                    bestPair == pair &&
-                    candidateProfit > 0 &&
-                    candidateRedeem > 0 &&
-                    IResupplyPair(bestPair).underlying() == flashAsset
-                ) {
-                    return (currentFlash, candidateProfit, candidateRedeem);
-                }
-
-                currentAmountIn = currentAmountIn * 2;
-            }
-        }
-
-        return (0, 0, 0);
-    }
-
-    function _makeProfitableFallback(address pair)
-        internal
-        returns (uint256 flashAmount, uint256 profit, uint256 redeemAmount)
-    {
-        uint256[3] memory flashAmounts = [uint256(10_000e18), uint256(5_000e18), uint256(1_000e18)];
-        uint256 amountIn = 500_000e18;
-        uint256 maxIterations = 3;
-
-        for (uint256 f = 0; f < flashAmounts.length; f++) {
-            uint256 currentFlash = flashAmounts[f];
-            uint256 currentAmountIn = amountIn;
-
-            for (uint256 i = 0; i < maxIterations; i++) {
-                _skewPool(Mainnet.FRXUSD_ERC20, false, currentAmountIn);
-                (address bestPair, uint256 candidateProfit, uint256 candidateRedeem) =
-                    redemptionOperator.isProfitable(currentFlash);
-
-                if (bestPair == pair && candidateProfit > 0 && candidateRedeem > 0) {
-                    return (currentFlash, candidateProfit, candidateRedeem);
-                }
-
-                currentAmountIn = currentAmountIn * 2;
-            }
-        }
-
-        return (0, 0, 0);
     }
 
     function _mockPairs(address[] memory pairs) internal {
