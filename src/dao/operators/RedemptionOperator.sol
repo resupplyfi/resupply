@@ -11,8 +11,7 @@ import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
-import { IFraxLoan } from "src/interfaces/IFraxLoan.sol";
-import { IFraxLoanCallback } from "src/interfaces/IFraxLoanCallback.sol";
+import { IFraxLoan, IFraxLoanCallback } from "src/interfaces/IFraxLoan.sol";
 import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
 
 contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeable, IERC3156FlashBorrower, IFraxLoanCallback {

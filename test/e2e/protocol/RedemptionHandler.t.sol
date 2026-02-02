@@ -4,12 +4,9 @@ pragma solidity 0.8.28;
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { Setup } from "test/e2e/Setup.sol";
 import { MockOracle } from "test/mocks/MockOracle.sol";
-import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
-import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { Protocol } from "src/Constants.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
 import { IReusdOracle } from "src/interfaces/IReusdOracle.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -18,24 +15,13 @@ contract RedemptionHandlerTest is Setup {
     using SafeERC20 for IERC20;
 
     MockOracle mockOracle;
-    RedemptionOperator redemptionOperator;
+    address redemptionOperator;
 
     function setUp() public override {
         super.setUp();
         deployDefaultLendingPairs();
         mockOracle = new MockOracle("Mock Oracle", 1e18);
-
-        address[] memory callers = new address[](1);
-        callers[0] = address(this);
-        bytes memory initializerData = abi.encodeCall(RedemptionOperator.initialize, (Protocol.DEPLOYER, callers));
-        Options memory options;
-        options.unsafeSkipAllChecks = true;
-        address proxy = Upgrades.deployUUPSProxy(
-            "RedemptionOperator.sol:RedemptionOperator",
-            initializerData,
-            options
-        );
-        redemptionOperator = RedemptionOperator(proxy);
+        redemptionOperator = address(0xBEEF);
     }
 
     function test_SetBaseRedemptionFee() public {
@@ -155,12 +141,12 @@ contract RedemptionHandlerTest is Setup {
         require(pairToRedeem != address(0), "no redeemable pair on fork");
 
         address debtToken = mainnetRegistry.token();
-        deal(debtToken, address(redemptionOperator), redeemAmount);
+        deal(debtToken, redemptionOperator, redeemAmount);
 
-        vm.prank(address(redemptionOperator));
+        vm.prank(redemptionOperator);
         IERC20(debtToken).forceApprove(address(rh), type(uint256).max);
 
-        vm.prank(address(redemptionOperator));
+        vm.prank(redemptionOperator);
         uint256 received = rh.redeemFromPair(
             pairToRedeem,
             redeemAmount,

@@ -10,3 +10,7 @@ interface IFraxLoan {
     function timelockAddress() external view returns (address);
     function setExempt(address user, bool value) external;
 }
+
+interface IFraxLoanCallback {
+    function onFraxLoan(address asset, uint256 amount, bytes calldata data) external;
+}
