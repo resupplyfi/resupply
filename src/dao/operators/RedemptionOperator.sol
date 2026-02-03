@@ -379,7 +379,7 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         );
     }
 
-    function sweep(address token, address to, uint256 amount) external onlyOwner {
+    function sweep(address token, address to, uint256 amount) external onlyOwnerOrManager {
         require(to != address(0), "invalid recipient");
         IERC20(token).safeTransfer(to, amount);
         emit Swept(token, to, amount);
@@ -418,7 +418,7 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
     }
 
     // Approve current RH. Useful if address changes.
-    function approveRH() external {
+    function approveRH() public {
         IERC20(reusd).forceApprove(_redemptionHandler(), type(uint256).max);
     }
 
@@ -433,9 +433,8 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         IERC20(sFrxUsd).forceApprove(frxusdSfrxusdPool, type(uint256).max);
         IERC20(crvUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
         IERC20(frxUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
-
         // approve current RH
-        IERC20(reusd).forceApprove(_redemptionHandler(), type(uint256).max);
+        approveRH();
     }
 
 }

@@ -106,6 +106,12 @@ contract RedemptionOperatorTest is Setup {
         assertTrue(redemptionOperator.approvedCallers(caller));
     }
 
+    function test_SetApprovedCaller_NotOwnerOrManager() public {
+        vm.prank(address(1));
+        vm.expectRevert("!authorized");
+        redemptionOperator.setApprovedCaller(address(0xBEEF), true);
+    }
+
     function test_UpgradeOperator_CanUpgradeRedemptionOperator() public {
         UpgradeOperator upgradeOperator = new UpgradeOperator(Protocol.CORE, Protocol.DEPLOYER);
         Options memory options;

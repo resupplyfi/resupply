@@ -10,6 +10,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IReusdOracle } from "src/interfaces/IReusdOracle.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 
 contract RedemptionHandlerTest is Setup {
     using SafeERC20 for IERC20;
@@ -112,35 +113,16 @@ contract RedemptionHandlerTest is Setup {
         rh.updateGuardSettings(true, 98e16);
         vm.stopPrank();
 
-        address mainnetOracle = IResupplyRegistry(Protocol.REGISTRY).getAddress("REUSD_ORACLE");
-        vm.mockCall(
-            mainnetOracle,
-            abi.encodeWithSelector(IReusdOracle.oraclePriceAsCrvusd.selector),
-            abi.encode(1e18)
-        );
+        IResupplyRegistry reg = IResupplyRegistry(rh.registry());
 
-        IResupplyRegistry mainnetRegistry = IResupplyRegistry(Protocol.REGISTRY);
         vm.startPrank(Protocol.CORE);
-        mainnetRegistry.setAddress("REDEMPTION_OPERATOR", address(redemptionOperator));
-        mainnetRegistry.setRedemptionHandler(address(rh));
+        reg.setAddress("REDEMPTION_OPERATOR", address(redemptionOperator));
+        reg.setRedemptionHandler(address(rh));
         vm.stopPrank();
 
-        address[] memory pairs = mainnetRegistry.getAllPairAddresses();
-        uint256 redeemAmount;
-        address pairToRedeem;
-        for (uint256 i = 0; i < pairs.length; i++) {
-            address pair = pairs[i];
-            uint256 minRedemption = IResupplyPair(pair).minimumRedemption();
-            uint256 maxRedeemable = rh.getMaxRedeemableDebt(pair);
-            if (maxRedeemable >= minRedemption) {
-                redeemAmount = minRedemption;
-                pairToRedeem = pair;
-                break;
-            }
-        }
-        require(pairToRedeem != address(0), "no redeemable pair on fork");
+        (address pairToRedeem, uint256 redeemAmount) = _requireRedeemablePair(rh, reg);
 
-        address debtToken = mainnetRegistry.token();
+        address debtToken = reg.token();
         deal(debtToken, redemptionOperator, redeemAmount);
 
         vm.prank(redemptionOperator);
@@ -157,10 +139,105 @@ contract RedemptionHandlerTest is Setup {
         assertGt(received, 0, "no collateral received");
     }
 
+    function test_RedemptionGuardDisabled_AllowsPermissionless() public {
+        RedemptionHandler rh = new RedemptionHandler(address(core), Protocol.REGISTRY, address(0));
+        vm.prank(address(core));
+        rh.updateGuardSettings(false, 98e16);
+
+        IResupplyRegistry reg = IResupplyRegistry(rh.registry());
+
+        vm.prank(Protocol.CORE);
+        reg.setRedemptionHandler(address(rh));
+
+        (address pairToRedeem, uint256 redeemAmount) = _requireRedeemablePair(rh, reg);
+
+        address debtToken = reg.token();
+        deal(debtToken, address(this), redeemAmount);
+        IERC20(debtToken).forceApprove(address(rh), type(uint256).max);
+
+        uint256 received = rh.redeemFromPair(
+            pairToRedeem,
+            redeemAmount,
+            type(uint256).max,
+            address(this),
+            true
+        );
+        assertGt(received, 0, "no collateral received");
+    }
+
+    function test_RedemptionGuardBelowThreshold_AllowsPermissionless() public {
+        RedemptionHandler rh = new RedemptionHandler(address(core), Protocol.REGISTRY, address(0));
+        vm.prank(address(core));
+        rh.updateGuardSettings(true, 98e16);
+
+        IResupplyRegistry reg = IResupplyRegistry(rh.registry());
+
+        vm.startPrank(Protocol.CORE);
+        reg.setAddress("REUSD_ORACLE", address(reusdOracle));
+        reg.setRedemptionHandler(address(rh));
+        vm.stopPrank();
+
+        vm.mockCall(
+            address(reusdOracle),
+            abi.encodeWithSelector(IReusdOracle.oraclePriceAsCrvusd.selector),
+            abi.encode(97e16)
+        );
+
+        (address pairToRedeem, uint256 redeemAmount) = _requireRedeemablePair(rh, reg);
+
+        address debtToken = reg.token();
+        deal(debtToken, address(this), redeemAmount);
+        IERC20(debtToken).forceApprove(address(rh), type(uint256).max);
+
+        uint256 received = rh.redeemFromPair(
+            pairToRedeem,
+            redeemAmount,
+            type(uint256).max,
+            address(this),
+            true
+        );
+        assertGt(received, 0, "no collateral received");
+    }
+
     function test_GuardSettingsUpdated() public {
         vm.prank(address(core));
         redemptionHandler.updateGuardSettings(true, 97e16);
         assertTrue(redemptionHandler.guardEnabled());
         assertEq(redemptionHandler.permissionlessPriceThreshold(), 97e16);
+    }
+
+    function _requireRedeemablePair(RedemptionHandler rh, IResupplyRegistry reg)
+        internal
+        returns (address pairToRedeem, uint256 redeemAmount)
+    {
+        _skewReusdScrvPool();
+        (pairToRedeem, redeemAmount) = _findRedeemablePair(rh, reg);
+        require(pairToRedeem != address(0), "no redeemable pair on fork");
+    }
+
+    function _findRedeemablePair(RedemptionHandler rh, IResupplyRegistry reg)
+        internal
+        view
+        returns (address pairToRedeem, uint256 redeemAmount)
+    {
+        address[] memory pairs = reg.getAllPairAddresses();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address pair = pairs[i];
+            uint256 minRedemption = IResupplyPair(pair).minimumRedemption();
+            uint256 maxRedeemable = rh.getMaxRedeemableDebt(pair);
+            if (maxRedeemable >= minRedemption) {
+                return (pair, minRedemption);
+            }
+        }
+    }
+
+    function _skewReusdScrvPool() internal {
+        address pool = Protocol.REUSD_SCRVUSD_POOL;
+        address token = ICurveExchange(pool).coins(0);
+
+        uint256 amount = 10_000_000e18;
+        deal(token, address(this), amount);
+        IERC20(token).forceApprove(pool, amount);
+        ICurveExchange(pool).exchange(int128(0), int128(1), amount, 0, address(this));
     }
 }
