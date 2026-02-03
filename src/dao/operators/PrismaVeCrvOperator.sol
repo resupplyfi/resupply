@@ -25,33 +25,33 @@ contract PrismaVeCrvOperator is CoreOwnable {
     
     address public receiver = 0x4444444455bF42de586A88426E5412971eA48324;
     uint256 public convexBoostShare = 0.667e18;
-    address public operator;
+    address public manager;
 
     event ReceiverSet(address indexed receiver);
     event BoostShareSet(uint256 convexShare, uint256 yearnShare);
-    event OperatorSet(address indexed operator);
+    event ManagerSet(address indexed manager);
 
     constructor(address _core) CoreOwnable(_core) {
         IERC20(CRVUSD).forceApprove(SCRVUSD, type(uint256).max);
-        operator = 0xFE11a5009f2121622271e7dd0FD470264e076af6;
-        emit OperatorSet(operator);
+        manager = 0xFE11a5009f2121622271e7dd0FD470264e076af6;
+        emit ManagerSet(manager);
     }
 
-    modifier onlyOwnerOrOperator() {
-        require(msg.sender == owner() || msg.sender == operator, "!authorized");
+    modifier onlyOwnerOrManager() {
+        require(msg.sender == owner() || msg.sender == manager, "!authorized");
         _;
     }
 
-    /// @notice Set the operator address allowed to perform actions.
-    /// @param _operator The new operator address.
-    function setOperator(address _operator) external onlyOwner {
-        operator = _operator;
-        emit OperatorSet(_operator);
+    /// @notice Set the manager address allowed to perform actions.
+    /// @param _manager The new manager address.
+    function setManager(address _manager) external onlyOwner {
+        manager = _manager;
+        emit ManagerSet(_manager);
     }
 
     /// @notice Claim Prisma fees and forward to the receiver without wrapping.
     /// @return amount The amount of crvUSD claimed from the voter.
-    function claimFees() external onlyOwnerOrOperator returns (uint256 amount) {
+    function claimFees() external onlyOwnerOrManager returns (uint256 amount) {
         return _claimFees(false, receiver);
     }
 
@@ -59,7 +59,7 @@ contract PrismaVeCrvOperator is CoreOwnable {
     /// @param wrap Whether to wrap crvUSD into scrvUSD.
     /// @param recipient The recipient address (defaults to receiver if zero).
     /// @return amount The amount of crvUSD claimed from the voter.
-    function claimFees(bool wrap, address recipient) external onlyOwnerOrOperator returns (uint256 amount) {
+    function claimFees(bool wrap, address recipient) external onlyOwnerOrManager returns (uint256 amount) {
         return _claimFees(wrap, recipient);
     }
 
@@ -82,7 +82,7 @@ contract PrismaVeCrvOperator is CoreOwnable {
     }
 
     /// @notice Delegate available Prisma boost between Convex and Yearn.
-    function delegateBoost() external onlyOwnerOrOperator {
+    function delegateBoost() external onlyOwnerOrManager {
         uint256 _endtime = extendLock();
         uint256 _amount = delegableBalance();
         if (_amount == 0) return;
@@ -100,7 +100,7 @@ contract PrismaVeCrvOperator is CoreOwnable {
     }
 
     /// @notice Max lock the Prisma voter
-    function extendLock() public onlyOwnerOrOperator returns (uint256 lockEnd) {
+    function extendLock() public onlyOwnerOrManager returns (uint256 lockEnd) {
         bytes memory _lockCalldata = abi.encodeWithSelector(
             ICurveEscrow.increase_unlock_time.selector,
             block.timestamp + (4 * 365 days)
@@ -116,14 +116,14 @@ contract PrismaVeCrvOperator is CoreOwnable {
 
     /// @notice Set the share of boost delegated to Convex (1e18 = 100%).
     /// @param _newConvexShare The new Convex boost share. Yearn share is the remainder.
-    function setBoostShare(uint256 _newConvexShare) external onlyOwnerOrOperator {
+    function setBoostShare(uint256 _newConvexShare) external onlyOwnerOrManager {
         convexBoostShare = _newConvexShare;
         emit BoostShareSet(_newConvexShare, 1e18 - _newConvexShare);
     }
 
     /// @notice Set the receiver for wrapped fee distributions.
     /// @param _receiver The address to receive scrvUSD.
-    function setReceiver(address _receiver) external onlyOwnerOrOperator {
+    function setReceiver(address _receiver) external onlyOwnerOrManager {
         require(_receiver != address(0), "invalid receiver");
         receiver = _receiver;
         emit ReceiverSet(_receiver);
@@ -133,13 +133,13 @@ contract PrismaVeCrvOperator is CoreOwnable {
     /// @param aragon The Curve DAO Aragon voting contract.
     /// @param id The proposal id.
     /// @param support Whether to support the proposal.
-    function voteInCurveDao(address aragon, uint256 id, bool support) external onlyOwnerOrOperator {
+    function voteInCurveDao(address aragon, uint256 id, bool support) external onlyOwnerOrManager {
         IPrismaVoterProxy(PRISMA_VOTER).voteInCurveDao(aragon, id, support);
     }
 
     /// @notice Vote for gauge weights.
     /// @param votes The gauge weight votes to cast.
-    function voteForGaugeWeights(IPrismaVoterProxy.GaugeWeightVote[] calldata votes) external onlyOwnerOrOperator {
+    function voteForGaugeWeights(IPrismaVoterProxy.GaugeWeightVote[] calldata votes) external onlyOwnerOrManager {
         IPrismaVoterProxy(PRISMA_VOTER).voteForGaugeWeights(votes);
     }
 }
