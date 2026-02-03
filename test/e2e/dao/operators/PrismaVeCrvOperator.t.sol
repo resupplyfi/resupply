@@ -72,6 +72,21 @@ contract PrismaVeCrvOperatorTest is Setup, CurveGovHelper {
 
     }
 
+    function test_ManagerDefaultsAndCanUpdate() public {
+        assertEq(operator.manager(), Protocol.DEPLOYER);
+        address newManager = address(0xBEEF);
+
+        vm.prank(address(core));
+        operator.setManager(newManager);
+        assertEq(operator.manager(), newManager);
+    }
+
+    function test_SetManager_NotOwner() public {
+        vm.prank(address(1));
+        vm.expectRevert("!core");
+        operator.setManager(address(0xBEEF));
+    }
+
     function test_BoostDelegation() public {
         skip(1 weeks);
         IVeBoost boost = IVeBoost(operator.BOOST_DELEGATION());
