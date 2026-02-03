@@ -35,4 +35,5 @@ contract BaseProposalTest is Test, Setup {
         (,,,,,,bool processed,, ) = voter.getProposalData(proposalId);
         return processed;
     }
+
 }

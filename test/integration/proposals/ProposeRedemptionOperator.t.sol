@@ -5,6 +5,8 @@ import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.so
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { Protocol } from "src/Constants.sol";
 import { ProposeRedemptionOperator as RedemptionOperatorProposal } from "script/proposals/ProposeRedemptionOperator.s.sol";
 
@@ -75,5 +77,17 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
         (ok, data) = handler.staticcall(abi.encodeWithSignature("permissionlessPriceThreshold()"));
         require(ok, "permissionlessPriceThreshold unavailable");
         assertEq(abi.decode(data, (uint256)), proposal.PERMISSIONLESS_PRICE_THRESHOLD());
+    }
+
+    function test_DefaultDeployConfigMatchesFirstPair() public {
+        if (!proposalExecuted) return;
+        address[] memory pairs = registry.getAllPairAddresses();
+        require(pairs.length > 0, "no pairs");
+        IResupplyPair pair = IResupplyPair(pairs[0]);
+
+        ResupplyPairDeployer.ConfigData memory cfg =
+            ResupplyPairDeployer(address(deployer)).defaultConfigData();
+        assertEq(cfg.rateCalculator, pair.rateCalculator());
+        assertEq(cfg.protocolRedemptionFee, pair.protocolRedemptionFee());
     }
 }

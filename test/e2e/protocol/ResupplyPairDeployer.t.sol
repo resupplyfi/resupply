@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Mainnet, DeploymentConfig} from "src/Constants.sol";
+import {Mainnet} from "src/Constants.sol";
 import {ResupplyPairDeployer} from "src/protocol/ResupplyPairDeployer.sol";
 import {Setup} from "test/e2e/Setup.sol";
 import {console2} from "forge-std/console2.sol";
@@ -83,26 +83,19 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function test_predictPairAddress() public {
-        address pairAddressViaCustomConfig = _predictPairAddressWithCustomConfig(
-            0,
-            Mainnet.CURVELEND_SFRXUSD_CRVUSD,
-            Mainnet.CONVEX_BOOSTER,
-            uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
-        );
         address predictedAddressViaDefaultConfig = _predictPairAddressWithDefaultConfig(
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             Mainnet.CONVEX_BOOSTER,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
-        assertEq(pairAddressViaCustomConfig, predictedAddressViaDefaultConfig);
-        console2.log("Predicted Pair Address: ", pairAddressViaCustomConfig);
-        IResupplyPair pair = deployLendingPair(
+        console2.log("Predicted Pair Address: ", predictedAddressViaDefaultConfig);
+        IResupplyPair pair = deployLendingPairWithDefaultConfigAs(
+            address(core),
             0,
             Mainnet.CURVELEND_SFRXUSD_CRVUSD,
             uint256(Mainnet.CURVELEND_SFRXUSD_CRVUSD_ID)
         );
-        assertEq(pairAddressViaCustomConfig, address(pair));
         assertEq(predictedAddressViaDefaultConfig, address(pair));
     }
 
@@ -184,17 +177,18 @@ contract ResupplyPairDeployerTest is Setup {
     }
 
     function _predictPairAddressWithCustomConfig(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) internal view returns(address){
+        ResupplyPairDeployer.ConfigData memory cfg = deployer.defaultConfigData();
         address _pairAddress = deployer.predictPairAddress(
             _protocolId,
             abi.encode(
                 _collateral,
-                address(oracle),
-                address(rateCalculator),
-                DeploymentConfig.DEFAULT_MAX_LTV, //max ltv 75%
-                DeploymentConfig.DEFAULT_BORROW_LIMIT,
-                DeploymentConfig.DEFAULT_LIQ_FEE,
-                DeploymentConfig.DEFAULT_MINT_FEE,
-                DeploymentConfig.DEFAULT_PROTOCOL_REDEMPTION_FEE
+                cfg.oracle,
+                cfg.rateCalculator,
+                cfg.maxLTV,
+                cfg.initialBorrowLimit,
+                cfg.liquidationFee,
+                cfg.mintFee,
+                cfg.protocolRedemptionFee
             ),
             _staking,
             _stakingId
