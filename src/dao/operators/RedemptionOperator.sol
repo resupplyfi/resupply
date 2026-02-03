@@ -239,10 +239,16 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
 
             uint256 feeEstimate = _flashFeeEstimate(loanAsset, flashAmount);
             if (grossUnderlying <= flashAmount + feeEstimate) continue;
-            profit = grossUnderlying - flashAmount - feeEstimate;
-            if (profit > 0) {
-                bestPair = pair;
-                redeemAmount = reusdOut;
+            uint256 candidateProfit = grossUnderlying - flashAmount - feeEstimate;
+            if (candidateProfit > 0) {
+                if (
+                    candidateProfit > profit ||
+                    (candidateProfit == profit && (redeemAmount == 0 || reusdOut < redeemAmount))
+                ) {
+                    profit = candidateProfit;
+                    bestPair = pair;
+                    redeemAmount = reusdOut;
+                }
             }
         }
     }
