@@ -225,6 +225,10 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
             if (reusdOut > maxRedeemable) continue;
             if (reusdOut < IResupplyPair(pair).minimumRedemption()) continue;
 
+            IERC4626 collateralVault = IERC4626(IResupplyPair(pair).collateral());
+            uint256 requiredShares = collateralVault.convertToShares(reusdOut);
+            if (requiredShares > collateralVault.maxRedeem(pair)) continue;
+
             (uint256 expectedUnderlying,,) = IRedemptionHandler(handler).previewRedeem(pair, reusdOut);
             if (expectedUnderlying == 0) continue;
 
