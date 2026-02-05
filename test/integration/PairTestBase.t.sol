@@ -22,7 +22,11 @@ contract PairTestBase is Setup, ResupplyPairConstants {
     function setUp() public virtual override {
         super.setUp();
         address[] memory _pairs = registry.getAllPairAddresses();
-        pair = IResupplyPair(_pairs[0]); 
+        pair = IResupplyPair(_pairs[0]);
+        if(pair.borrowLimit() < 10_000_000e18) {
+            vm.prank(address(core));
+            pair.setBorrowLimit(10_000_000e18);
+        }
         collateral = IERC20(pair.collateral());
         underlying = IERC20(pair.underlying());
         printPairInfo(pair);
