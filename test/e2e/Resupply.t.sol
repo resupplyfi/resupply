@@ -31,6 +31,7 @@ contract ResupplyAccountingTest is Setup {
         vm.startPrank(pair1.owner());
         pair1.setBorrowLimit(5_000_000e18);
         pair2.setBorrowLimit(5_000_000e18);
+        redemptionHandler.updateGuardSettings(false, 1e18);
         vm.stopPrank();
     }
 

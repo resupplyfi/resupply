@@ -14,6 +14,7 @@ import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
+import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 
 contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     address public guardian = Protocol.DEPLOYER;
@@ -59,6 +60,11 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         );
         vm.mockCall(
             address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "REDEMPTION_HANDLER"),
+            abi.encode(address(redemptionHandler))
+        );
+        vm.mockCall(
+            address(Protocol.REGISTRY),
             abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector),
             abi.encode(registry.getAllPairAddresses())
         );
@@ -78,6 +84,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         setOperatorPermission(address(guardianContract), address(0), ISwapperOdos.revokeApprovals.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IBorrowLimitController.cancelRamp.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IInsurancePool.setWithdrawTimers.selector, true);
+        setOperatorPermission(address(guardianContract), address(redemptionHandler), IRedemptionHandler.updateGuardSettings.selector, true);
     }
 
     function test_GuardianSet() public {
@@ -337,6 +344,22 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         vm.prank(address(1));
         vm.expectRevert("!guardian");
         guardianContract.revokeSwapperApprovals();
+    }
+
+    function test_UpdateRedemptionGuardSettings() public {
+        uint256 newThreshold = 900e16;
+
+        vm.prank(guardian);
+        guardianContract.updateRedemptionGuardSettings(false, newThreshold);
+
+        assertFalse(redemptionHandler.guardEnabled());
+        assertEq(redemptionHandler.permissionlessPriceThreshold(), newThreshold);
+    }
+
+    function test_UpdateRedemptionGuardSettings_NotGuardian() public {
+        vm.prank(address(1));
+        vm.expectRevert("!guardian");
+        guardianContract.updateRedemptionGuardSettings(false, 900e16);
     }
 
     function test_SetGuardedRegistryKey() public {

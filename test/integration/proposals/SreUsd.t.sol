@@ -60,7 +60,7 @@ contract SreUsdTest is BaseProposalTest, CreateXHelper {
 
     function test_pairRateCalculatorUpdated() public view {
         for (uint256 i = 0; i < pairs.length; i++) {
-            assertEq(IResupplyPair(pairs[i]).rateCalculator(), Protocol.INTEREST_RATE_CALCULATOR_V2_0);
+            assertEq(IResupplyPair(pairs[i]).rateCalculator(), Protocol.INTEREST_RATE_CALCULATOR_V2_1);
         }
     }
 

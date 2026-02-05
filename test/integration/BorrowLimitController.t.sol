@@ -70,7 +70,8 @@ contract BorrowLimitControllerTest is Setup {
             console.log("\n\nskip forward in time and call update..");
             skip(1 days);
             (, ,uint64 start ,) = borrowController.pairLimits(address(pair));
-            if(start==0) vm.expectRevert();
+            uint256 borrowLimit = pair.borrowLimit();
+            if(start == 0 || borrowLimit == 0) vm.expectRevert();
             borrowController.updatePairBorrowLimit(address(pair));
             printRampInfo(address(pair));
         }
