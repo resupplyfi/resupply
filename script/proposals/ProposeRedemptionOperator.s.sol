@@ -11,10 +11,10 @@ import { Protocol } from "src/Constants.sol";
 
 contract ProposeRedemptionOperator is BaseAction, BaseProposal {
     // TODO: replace placeholders
-    address public constant NEW_REDEMPTION_HANDLER = address(0);
-    address public constant REDEMPTION_OPERATOR = address(0);
-    address public constant NEW_REUSD_ORACLE = address(0);
-    address public constant UPGRADE_OPERATOR = address(0);
+    address public constant NEW_REDEMPTION_HANDLER = Protocol.REDEMPTION_HANDLER;
+    address public constant REDEMPTION_OPERATOR = Protocol.OPERATOR_REDEMPTION_PROXY;
+    address public constant NEW_REUSD_ORACLE = Protocol.REUSD_ORACLE;
+    address public constant UPGRADE_OPERATOR = Protocol.OPERATOR_UPGRADE;
 
     bool public constant GUARD_ENABLED = true;
     uint256 public constant PERMISSIONLESS_PRICE_THRESHOLD = .985e18;
