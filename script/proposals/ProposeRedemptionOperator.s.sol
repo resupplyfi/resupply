@@ -7,6 +7,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
+import { IUnderlyingOracle } from "src/interfaces/IUnderlyingOracle.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
@@ -23,7 +24,7 @@ contract ProposeRedemptionOperator is BaseAction, BaseProposal {
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Set redemption operator, handler, and oracle");
+        proposeVote(data, "Introduce a Redemption Guard to Reduce Value Leakage");
 
         if (deployMode == DeployMode.PRODUCTION) {
             require(NEW_REDEMPTION_HANDLER != address(0), "RedemptionHandler not set");

@@ -6,6 +6,7 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IUnderlyingOracle } from "src/interfaces/IUnderlyingOracle.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { Protocol } from "src/Constants.sol";
 import { ProposeRedemptionOperator } from "script/proposals/ProposeRedemptionOperator.s.sol";
@@ -103,5 +104,17 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
         assertEq(newConfig.rateCalculator, oldDefaultConfig.rateCalculator, "rate calculator not updated");
         assertEq(proposal.newProtocolRedemptionFee(), newConfig.protocolRedemptionFee, "fee doesnt match");
         assertNotEq(newConfig.protocolRedemptionFee, oldDefaultConfig.protocolRedemptionFee, "fee unchanged");
+    }
+
+    function test_RedemptionHandlerOracle() public {
+        if (!proposalExecuted) return;
+
+        address configuredOracle = IRedemptionHandler(proposal.NEW_REDEMPTION_HANDLER()).underlyingOracle();
+        assertEq(configuredOracle, Protocol.UNDERLYING_ORACLE, "wrong underlying oracle");
+        assertEq(
+            IUnderlyingOracle(configuredOracle).frxusd_oracle(),
+            0x9B4a96210bc8D9D55b1908B465D8B0de68B7fF83,
+            "wrong frxusd oracle"
+        );
     }
 }

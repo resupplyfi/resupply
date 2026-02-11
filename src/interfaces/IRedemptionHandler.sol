@@ -13,6 +13,7 @@ interface IRedemptionHandler {
         address _receiver,
         bool _redeemToUnderlying
     ) external returns(uint256);
+    function underlyingOracle() external view returns(address);
 
     function previewRedeem(address _pair, uint256 _amount) external view returns(uint256 _returnedUnderlying, uint256 _returnedCollateral, uint256 _fee);
     function getMaxRedeemableDebt(address _pair) external view returns (uint256);
