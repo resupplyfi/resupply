@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import { Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
-import { Protocol } from "src/Constants.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
 contract ProposeRedemptionOperator is BaseAction, BaseProposal {
     // TODO: replace placeholders
@@ -15,9 +16,9 @@ contract ProposeRedemptionOperator is BaseAction, BaseProposal {
     address public constant REDEMPTION_OPERATOR = Protocol.OPERATOR_REDEMPTION_PROXY;
     address public constant NEW_REUSD_ORACLE = Protocol.REUSD_ORACLE;
     address public constant UPGRADE_OPERATOR = Protocol.OPERATOR_UPGRADE;
-
     bool public constant GUARD_ENABLED = true;
     uint256 public constant PERMISSIONLESS_PRICE_THRESHOLD = .985e18;
+    uint256 public constant newProtocolRedemptionFee = 0.05e18;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -34,7 +35,7 @@ contract ProposeRedemptionOperator is BaseAction, BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        actions = new IVoter.Action[](7);
+        actions = new IVoter.Action[](8);
 
         // Set guard settings in new Redemption Handler
         actions[0] = IVoter.Action({
@@ -98,5 +99,23 @@ contract ProposeRedemptionOperator is BaseAction, BaseProposal {
             IUpgradeableOperator.upgradeToAndCall.selector,
             true
         );
+
+        // Update the default config to set the redemption split
+        address pairDeployer = registry.getAddress("PAIR_DEPLOYER");
+        ResupplyPairDeployer.ConfigData memory config = ResupplyPairDeployer(pairDeployer).defaultConfigData();
+        require(newProtocolRedemptionFee != config.protocolRedemptionFee);
+        actions[7] = IVoter.Action({
+            target: pairDeployer,
+            data: abi.encodeWithSelector(
+                ResupplyPairDeployer.setDefaultConfigData.selector,
+                config.oracle,
+                config.rateCalculator,
+                config.maxLTV,
+                config.initialBorrowLimit,
+                config.liquidationFee,
+                config.mintFee,
+                newProtocolRedemptionFee // new value
+            )
+        });
     }
 }

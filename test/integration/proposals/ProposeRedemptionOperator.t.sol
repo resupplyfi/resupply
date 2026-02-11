@@ -8,16 +8,18 @@ import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { Protocol } from "src/Constants.sol";
-import { ProposeRedemptionOperator as RedemptionOperatorProposal } from "script/proposals/ProposeRedemptionOperator.s.sol";
+import { ProposeRedemptionOperator } from "script/proposals/ProposeRedemptionOperator.s.sol";
 
 contract ProposalRedemptionOperatorTest is BaseProposalTest {
-    RedemptionOperatorProposal public proposal;
+    uint256 public constant PROP_ID = 16;
+    ProposeRedemptionOperator public proposal;
     bool public proposalExecuted;
+    ResupplyPairDeployer.ConfigData public oldDefaultConfig;
 
     function setUp() public override {
         super.setUp();
-        proposal = new RedemptionOperatorProposal();
-
+        if (isProposalProcessed(PROP_ID)) vm.skip(true);
+        proposal = new ProposeRedemptionOperator();
         if (
             proposal.NEW_REDEMPTION_HANDLER() == address(0) ||
             proposal.REDEMPTION_OPERATOR() == address(0) ||
@@ -26,7 +28,7 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
         ) {
             return;
         }
-
+        oldDefaultConfig = ResupplyPairDeployer(address(deployer)).defaultConfigData();
         uint256 proposalId = createProposal(proposal.buildProposalCalldata());
         simulatePassingVote(proposalId);
         executeProposal(proposalId);
@@ -89,5 +91,17 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
             ResupplyPairDeployer(address(deployer)).defaultConfigData();
         assertEq(cfg.rateCalculator, pair.rateCalculator());
         assertEq(cfg.protocolRedemptionFee, pair.protocolRedemptionFee());
+    }
+
+    function test_DefaultConfigUpdated() public {
+        ResupplyPairDeployer.ConfigData memory newConfig = ResupplyPairDeployer(address(deployer)).defaultConfigData();
+        assertEq(newConfig.oracle, oldDefaultConfig.oracle, "oracle changed");
+        assertEq(newConfig.maxLTV, oldDefaultConfig.maxLTV, "maxLTV changed");
+        assertEq(newConfig.initialBorrowLimit, oldDefaultConfig.initialBorrowLimit, "borrow limit changed");
+        assertEq(newConfig.liquidationFee, oldDefaultConfig.liquidationFee, "liquidation fee changed");
+        assertEq(newConfig.mintFee, oldDefaultConfig.mintFee, "mint fee changed");
+        assertEq(newConfig.rateCalculator, oldDefaultConfig.rateCalculator, "rate calculator not updated");
+        assertEq(proposal.newProtocolRedemptionFee(), newConfig.protocolRedemptionFee, "fee doesnt match");
+        assertNotEq(newConfig.protocolRedemptionFee, oldDefaultConfig.protocolRedemptionFee, "fee unchanged");
     }
 }
