@@ -10,8 +10,12 @@ import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
 import { ReusdOracle } from "src/protocol/ReusdOracle.sol";
 import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { UnsafeUpgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
+import { UnderlyingOracle } from "src/protocol/UnderlyingOracle.sol";
 
 contract DeployRedemptionOperatorSuite is BaseAction {
+    
+    address public underlyingOracle;
+
     function run() public {
         address[] memory approved = new address[](3);
 
@@ -22,12 +26,19 @@ contract DeployRedemptionOperatorSuite is BaseAction {
 
         vm.startBroadcast(loadPrivateKey());
 
+        address underlyingOracle = _deployUnderlyingOracle();
         address upgradeOperator = _deployUpgradeOperator();
         address redemptionHandler = _deployRedemptionHandler();
         address reusdOracle = _deployReusdOracle();
         address redemptionOperator = _deployRedemptionOperatorProxy(approved);
 
         vm.stopBroadcast();
+    }
+
+    function _deployUnderlyingOracle() internal returns (address deployed) {
+        UnderlyingOracle oracle = new UnderlyingOracle("Underlying Token Oracle v2");
+        underlyingOracle = address(oracle);
+        console.log("UnderlyingOracle deployed at", deployed);
     }
 
     function _deployUpgradeOperator() internal returns (address deployed) {
@@ -37,7 +48,7 @@ contract DeployRedemptionOperatorSuite is BaseAction {
     }
 
     function _deployRedemptionHandler() internal returns (address deployed) {
-        RedemptionHandler handler = new RedemptionHandler(Protocol.CORE, Protocol.REGISTRY, Protocol.UNDERLYING_ORACLE);
+        RedemptionHandler handler = new RedemptionHandler(Protocol.CORE, Protocol.REGISTRY, underlyingOracle);
         deployed = address(handler);
         console.log("RedemptionHandler deployed at", deployed);
     }
