@@ -2,6 +2,8 @@
 pragma solidity 0.8.28;
 
 interface IRedemptionHandler {
+    event GuardSettingsUpdated(bool guardEnabled, uint256 priceThreshold);
+
     function baseRedemptionFee() external view returns(uint256);
     function ratingData(address _pair) external view returns(uint64 _timestamp, uint192 _usage);
     function totalWeight() external view returns(uint256);
@@ -24,6 +26,8 @@ interface IRedemptionHandler {
     function setDiscountInfo(uint256 _rate, uint256 _maxUsage, uint256 _maxDiscount) external;
     function setBaseRedemptionFee(uint256 _fee) external;
     function updateGuardSettings(bool _guardEnabled, uint256 _permissionlessPriceThreshold) external;
+    function permissionlessPriceThreshold() external view returns (uint256);
+    function guardEnabled() external view returns (bool);
     function overWeight() external view returns(uint256);
     function overusageStart() external view returns(uint256);
     function overusageMax() external view returns(uint256);

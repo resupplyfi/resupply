@@ -7,6 +7,7 @@ import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IUnderlyingOracle } from "src/interfaces/IUnderlyingOracle.sol";
+import { IUpgradeOperator} from "src/interfaces/IUpgradeOperator.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { Protocol } from "src/Constants.sol";
 import { ProposeRedemptionOperator } from "script/proposals/ProposeRedemptionOperator.s.sol";
@@ -14,7 +15,6 @@ import { ProposeRedemptionOperator } from "script/proposals/ProposeRedemptionOpe
 contract ProposalRedemptionOperatorTest is BaseProposalTest {
     uint256 public constant PROP_ID = 16;
     ProposeRedemptionOperator public proposal;
-    bool public proposalExecuted;
     ResupplyPairDeployer.ConfigData public oldDefaultConfig;
 
     function setUp() public override {
@@ -33,11 +33,9 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
         uint256 proposalId = createProposal(proposal.buildProposalCalldata());
         simulatePassingVote(proposalId);
         executeProposal(proposalId);
-        proposalExecuted = true;
     }
 
     function test_UpgradeOperatorPermission() public {
-        if (!proposalExecuted) return;
         (bool enabled,) = core.operatorPermissions(
             proposal.UPGRADE_OPERATOR(),
             proposal.REDEMPTION_OPERATOR(),
@@ -54,24 +52,43 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
     }
 
     function test_GuardianUpdateGuardSettingsPermission() public {
-        if (!proposalExecuted) return;
         (bool enabled,) = core.operatorPermissions(
             Protocol.OPERATOR_GUARDIAN_PROXY,
             proposal.NEW_REDEMPTION_HANDLER(),
             IRedemptionHandler.updateGuardSettings.selector
         );
         assertTrue(enabled, "guardian permission not granted");
+        
+        // Upgrade Guardian proxy via manager
+        IUpgradeOperator upgradeOp = IUpgradeOperator(proposal.UPGRADE_OPERATOR());
+        address newImplementation = 0x74C85620F1459862834A947dB9441911BCEBF066;
+        address manager = upgradeOp.manager();
+        vm.prank(manager);
+        upgradeOp.upgradeToAndCall(
+            Protocol.OPERATOR_GUARDIAN_PROXY, // proxy
+            newImplementation, // new impl
+            "" // data
+        );
+
+        // already initialized, should not be re-initializeable
+        vm.expectRevert();
+        guardianContract.initialize(Protocol.DEPLOYER);
+
+        address guardianUser = guardianContract.guardian();
+        vm.prank(guardianUser);
+        guardianContract.updateRedemptionGuardSettings(false, .90e18);
+
+        assertEq(redemptionHandler.permissionlessPriceThreshold(), .90e18);
+        assertFalse(redemptionHandler.guardEnabled());
     }
 
     function test_RegistryAddressesSet() public {
-        if (!proposalExecuted) return;
         assertEq(registry.redemptionHandler(), proposal.NEW_REDEMPTION_HANDLER());
         assertEq(registry.getAddress("REDEMPTION_OPERATOR"), proposal.REDEMPTION_OPERATOR());
         assertEq(registry.getAddress("REUSD_ORACLE"), proposal.NEW_REUSD_ORACLE());
     }
 
     function test_GuardSettingsUpdated() public {
-        if (!proposalExecuted) return;
         address handler = proposal.NEW_REDEMPTION_HANDLER();
         (bool ok, bytes memory data) = handler.staticcall(abi.encodeWithSignature("guardEnabled()"));
         require(ok, "guardEnabled unavailable");
@@ -83,7 +100,6 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
     }
 
     function test_DefaultDeployConfigMatchesFirstPair() public {
-        if (!proposalExecuted) return;
         address[] memory pairs = registry.getAllPairAddresses();
         require(pairs.length > 0, "no pairs");
         IResupplyPair pair = IResupplyPair(pairs[0]);
@@ -107,8 +123,6 @@ contract ProposalRedemptionOperatorTest is BaseProposalTest {
     }
 
     function test_RedemptionHandlerOracle() public {
-        if (!proposalExecuted) return;
-
         address configuredOracle = IRedemptionHandler(proposal.NEW_REDEMPTION_HANDLER()).underlyingOracle();
         assertEq(configuredOracle, Protocol.UNDERLYING_ORACLE, "wrong underlying oracle");
         assertEq(

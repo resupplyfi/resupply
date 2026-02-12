@@ -28,6 +28,7 @@ import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
+import { IGuardianUpgradeable } from "src/interfaces/IGuardianUpgradeable.sol";
 
 // Protocol Contracts
 import { IStablecoin } from "src/interfaces/IStablecoin.sol";
@@ -113,7 +114,7 @@ contract Setup is Test {
     IRetentionReceiver public retentionReceiver = IRetentionReceiver(Protocol.RETENTION_RECEIVER);
     IRetentionIncentives public retention = IRetentionIncentives(Protocol.RETENTION_INCENTIVES);
     IBorrowLimitController public borrowLimitController = IBorrowLimitController(Protocol.BORROW_LIMIT_CONTROLLER);
-
+    IGuardianUpgradeable public guardianContract = IGuardianUpgradeable(Protocol.OPERATOR_GUARDIAN_PROXY);
 
     constructor() {}
 

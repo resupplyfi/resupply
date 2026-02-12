@@ -29,6 +29,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         bool revokeSwapperApprovals;
         bool pauseIPWithdrawals;
         bool cancelRamp;
+        bool updateRedemptionGuardSettings;
     }
 
     event GuardianSet(address indexed newGuardian);
@@ -155,6 +156,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         address swapper = registry.getAddress("SWAPPER_ODOS");
         address insurancePool = registry.getAddress("INSURANCE_POOL");
         address voter = _getVoter();
+        address redemptionHandler = _getRedemptionHandler();
         permissions.pauseAllPairs = hasPermission(address(0), IResupplyPair.pause.selector);
         permissions.cancelProposal = hasPermission(voter, IVoter.cancelProposal.selector);
         permissions.updateProposalDescription = hasPermission(voter, IVoter.updateProposalDescription.selector);
@@ -162,6 +164,8 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         permissions.revokeSwapperApprovals = hasPermission(swapper, ISwapperOdos.revokeApprovals.selector);
         permissions.pauseIPWithdrawals = hasPermission(insurancePool, IInsurancePool.setWithdrawTimers.selector);
         permissions.cancelRamp = hasPermission(address(0), IBorrowLimitController.cancelRamp.selector);
+        permissions.updateRedemptionGuardSettings =
+            hasPermission(redemptionHandler, IRedemptionHandler.updateGuardSettings.selector);
         return permissions;
     }
 
