@@ -14,22 +14,26 @@ interface IGuardianUpgradeable {
         bool revokeSwapperApprovals;
         bool pauseIPWithdrawals;
         bool cancelRamp;
+        bool updateRedemptionGuardSettings;
     }
 
     function registry() external view returns (address);
     function guardian() external view returns (address);
-    // function viewPermissions() external view returns (bool, bool, bool, bool, bool);
     function viewPermissions() external view returns (Permissions memory);
     function hasPermission(address target, bytes4 selector) external view returns (bool);
     function guardedRegistryKeys(string memory key) external view returns (bool);
     function pauseIPWithdrawals() external;
     function cancelRamp(address _pair) external;
+    function initialize(address _guardian) external;
 
     function pauseAllPairs() external;
     function pausePair(address pair) external;
     function cancelProposal(uint256 proposalId) external;
+    function updateProposalDescription(uint256 proposalId, string calldata newDescription) external;
+    function setRegistryAddress(string memory _key, address _address) external;
     function setGuardian(address _guardian) external;
     function recoverERC20(address _token) external;
     function revokeSwapperApprovals() external;
     function setGuardedRegistryKey(string memory _key, bool _guarded) external;
+    function updateRedemptionGuardSettings(bool guardEnabled, uint256 priceThreshold) external;
 }

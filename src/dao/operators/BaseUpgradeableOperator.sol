@@ -17,7 +17,7 @@ abstract contract BaseUpgradeableOperator is UUPSUpgradeable {
         _;
     }
 
-    function owner() external view returns (address) {
+    function owner() public view returns (address) {
         return CORE;
     }
 

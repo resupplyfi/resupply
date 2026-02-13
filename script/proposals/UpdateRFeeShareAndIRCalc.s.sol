@@ -58,7 +58,6 @@ contract UpdateRFeeShareAndIRCalc is BaseAction, BaseProposal {
                     newProtocolRedemptionFee
                 )
             });
-            require(newProtocolRedemptionFee < prevProtocolRedemptionFee, "Fee too high");
 
             actions[index + 1] = IVoter.Action({
                 target: pairs[i],

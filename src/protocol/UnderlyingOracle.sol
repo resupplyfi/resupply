@@ -10,9 +10,7 @@ contract UnderlyingOracle {
     address public constant crvusd = address(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E);
     address public constant crvusd_oracle = address(0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E);
     address public constant frxusd = address(0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29);
-    //note this oracle is chain link for original FRAX which should coincide with frxUSD price
-    //could be updated later on as more FRAX is moved to frxUSD
-    address public constant frxusd_oracle = address(0xB9E1E3A9feFf48998E45Fa90847ed4D467E8BcfD);
+    address public constant frxusd_oracle = address(0x9B4a96210bc8D9D55b1908B465D8B0de68B7fF83);
 
     string public name;
     uint256 public constant oracleType = 2;

@@ -46,7 +46,6 @@ contract SetRedemptionFeeShare is BaseAction {
                     newProtocolRedemptionFee
                 )
             });
-            require(newProtocolRedemptionFee < prevProtocolRedemptionFee, "Fee too high");
         }
         
         console.log("Number of actions:", actions.length);

@@ -22,7 +22,7 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
-        // if (isProposalProcessed(PROP_ID)) return;
+        if (isProposalProcessed(PROP_ID)) vm.skip(true);
         testPair = IResupplyPair(pairs[5]);
         oldRateCalculator = IResupplyPair(address(testPair)).rateCalculator();
         oldProtocolRedemptionFee = IResupplyPair(address(testPair)).protocolRedemptionFee();
@@ -39,7 +39,6 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
     }
 
     function test_RateCalculatorsUpdated() public {
-        if (isProposalProcessed(PROP_ID)) return;
         for (uint256 i = 0; i < pairs.length; i++) {
             assertEq(
                 address(IResupplyPair(pairs[i]).rateCalculator()),
@@ -55,7 +54,6 @@ contract UpdateRFeeShareAndIRCalcTest is BaseProposalTest {
     }
 
     function test_RedemptionFeeUpdated() public {
-        if (isProposalProcessed(PROP_ID)) return;
         for (uint256 i = 0; i < pairs.length; i++) {
             assertEq(
                 IResupplyPair(pairs[i]).protocolRedemptionFee(),
