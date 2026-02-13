@@ -10,14 +10,14 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
 
-contract SetPrismaVeCrvOperator is BaseAction, BaseProposal {
-    address public constant OPERATOR = Prisma.PRISMA_VECRV_OPERATOR;
-    string public constant REGISTRY_KEY = "PRISMA_VECRV_OPERATOR";
+contract ProposeVeCrvOperator is BaseAction, BaseProposal {
+    address public constant OPERATOR = Protocol.VECRV_OPERATOR;
+    string public constant REGISTRY_KEY = "VECRV_OPERATOR";
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Setup Operator for Prisma veCRV");
+        proposeVote(data, "Configure veCRV Operator");
 
         if (deployMode == DeployMode.PRODUCTION) {
             executeBatch(true);
@@ -68,7 +68,7 @@ contract SetPrismaVeCrvOperator is BaseAction, BaseProposal {
             )
         });
 
-        // Add registry key: "PRISMA_VECRV_OPERATOR"
+        // Add registry key: "VECRV_OPERATOR"
         actions[4] = IVoter.Action({
             target: Protocol.REGISTRY,
             data: abi.encodeWithSelector(

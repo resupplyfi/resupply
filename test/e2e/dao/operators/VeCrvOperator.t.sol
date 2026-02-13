@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { Setup } from "test/e2e/Setup.sol";
 import { Prisma, Mainnet, Protocol } from "src/Constants.sol";
-import { PrismaVeCrvOperator } from "src/dao/operators/PrismaVeCrvOperator.sol";
+import { VeCrvOperator } from "src/dao/operators/VeCrvOperator.sol";
 import { IPrismaVoterProxy } from "src/interfaces/prisma/IPrismaVoterProxy.sol";
 import { ICurveEscrow } from "src/interfaces/curve/ICurveEscrow.sol";
 import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
@@ -12,12 +12,12 @@ import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { CurveGovHelper } from "test/utils/CurveGovHelper.sol";
 
-contract PrismaVeCrvOperatorTest is Setup, CurveGovHelper {
-    PrismaVeCrvOperator public operator;
+contract VeCrvOperatorTest is Setup, CurveGovHelper {
+    VeCrvOperator public operator;
 
     function setUp() public override {
         super.setUp();
-        operator = new PrismaVeCrvOperator(address(core));
+        operator = new VeCrvOperator(address(core));
 
         vm.prank(Prisma.VOTER_PROXY);
         IVeBoost(Mainnet.CURVE_BOOST_DELEGATION).approve(address(operator), type(uint256).max);
@@ -72,19 +72,19 @@ contract PrismaVeCrvOperatorTest is Setup, CurveGovHelper {
 
     }
 
-    function test_ManagerDefaultsAndCanUpdate() public {
+    function test_SetManager() public {
         assertEq(operator.manager(), Protocol.DEPLOYER);
-        address newManager = address(0xBEEF);
+        address newManager = address(0x1);
 
+        // Succeed if owner
         vm.prank(address(core));
         operator.setManager(newManager);
         assertEq(operator.manager(), newManager);
-    }
 
-    function test_SetManager_NotOwner() public {
+        // Revert if not owner
         vm.prank(address(1));
         vm.expectRevert("!core");
-        operator.setManager(address(0xBEEF));
+        operator.setManager(address(0x1));
     }
 
     function test_BoostDelegation() public {

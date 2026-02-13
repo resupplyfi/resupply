@@ -10,7 +10,7 @@ import { IVeBoost } from "src/interfaces/curve/IVeBoost.sol";
 import { ICurveFeeDistributor } from "src/interfaces/curve/ICurveFeeDistributor.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 
-contract PrismaVeCrvOperator is CoreOwnable {
+contract VeCrvOperator is CoreOwnable {
     using SafeERC20 for IERC20;
 
     address public constant PRISMA_VOTER = 0x490b8C6007fFa5d3728A49c2ee199e51f05D2F7e;
@@ -22,6 +22,7 @@ contract PrismaVeCrvOperator is CoreOwnable {
     address public constant YEARN_VOTER = 0xF147b8125d2ef93FB6965Db97D6746952a133934;
     address public constant CONVEX_VOTER = 0x989AEb4d175e16225E39E87d0D97A3360524AD80;
     address public constant VE = 0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2;
+    uint256 public constant SHARE_PRECISION = 1e18;
     
     address public receiver = 0x4444444455bF42de586A88426E5412971eA48324;
     uint256 public convexBoostShare = 0.667e18;
@@ -86,7 +87,7 @@ contract PrismaVeCrvOperator is CoreOwnable {
         uint256 _endtime = extendLock();
         uint256 _amount = delegableBalance();
         if (_amount == 0) return;
-        uint256 convexAmount = _amount * convexBoostShare / 1e18;
+        uint256 convexAmount = _amount * convexBoostShare / SHARE_PRECISION;
         uint256 yearnAmount = _amount - convexAmount;
         if (_endtime <= block.timestamp) return;
         _endtime = _endtime / 1 weeks * 1 weeks;
@@ -117,8 +118,9 @@ contract PrismaVeCrvOperator is CoreOwnable {
     /// @notice Set the share of boost delegated to Convex (1e18 = 100%).
     /// @param _newConvexShare The new Convex boost share. Yearn share is the remainder.
     function setBoostShare(uint256 _newConvexShare) external onlyOwnerOrManager {
+        require(_newConvexShare <= SHARE_PRECISION, "invalid share");
         convexBoostShare = _newConvexShare;
-        emit BoostShareSet(_newConvexShare, 1e18 - _newConvexShare);
+        emit BoostShareSet(_newConvexShare, SHARE_PRECISION - _newConvexShare);
     }
 
     /// @notice Set the receiver for wrapped fee distributions.
