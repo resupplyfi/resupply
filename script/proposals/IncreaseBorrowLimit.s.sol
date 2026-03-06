@@ -9,7 +9,7 @@ import { BaseProposal } from "script/proposals/BaseProposal.sol";
 
 contract IncreaseBorrowLimit is BaseProposal {
     address public constant PAIR = 0x2fdD3c0a682e5774205F0F6D3eD3c9D1b9Cb9413;
-    uint256 public constant RAMP_DURATION = 15 days;
+    uint256 public constant RAMP_DURATION = 17 days;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
