@@ -21,6 +21,7 @@ contract IncreaseBorrowLimitTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if (isProposalProcessed(19)) vm.skip(true);
         script = new IncreaseBorrowLimit();
 
         borrowLimitBefore = IResupplyPair(script.PAIR()).borrowLimit();

@@ -23,6 +23,10 @@ contract SwapperLifi is CoreOwnable, ReentrancyGuard {
         IERC20(reusd).forceApprove(lifiRouter, type(uint256).max);
     }
 
+    function name() external pure returns (string memory) {
+        return "Resupply Swapper: LI.FI";
+    }
+
     /**
      * @notice Executes a swap through LI.FI router using an encoded payload in the path parameter
      * @dev This function accepts bytes data encoded as an address[] for compatibility with the legacy interface in PairCore
