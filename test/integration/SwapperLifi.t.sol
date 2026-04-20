@@ -18,6 +18,10 @@ contract SwapperLifiTest is PairTestBase {
         swapper = new SwapperLifi(address(core));
     }
 
+    function test_Name() public view {
+        assertEq(swapper.name(), "Resupply Swapper: LI.FI");
+    }
+
     function test_LiveLifiSwap() public {
         address collateral = address(pair.collateral());
         vm.startPrank(address(core));

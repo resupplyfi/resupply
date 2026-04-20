@@ -2,6 +2,8 @@
 pragma solidity 0.8.28;
 
 interface ISwapperLifi {
+    function name() external pure returns (string memory);
+
     function swap(address, uint256, address[] memory _path, address) external;
 
     function updateApprovals() external;
