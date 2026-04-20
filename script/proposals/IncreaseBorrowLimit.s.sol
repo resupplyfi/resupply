@@ -12,7 +12,7 @@ contract IncreaseBorrowLimit is BaseProposal {
     uint256 public constant RAMP_DURATION = 17 days;
 
     function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
+        deployMode = DeployMode.PRODUCTION;
 
         IVoter.Action[] memory data = buildProposalCalldata();
         proposeVote(data, "Ramp crvUSD/sreUSD borrow limit 2x and edit operator permission target");
