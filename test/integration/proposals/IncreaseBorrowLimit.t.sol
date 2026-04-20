@@ -5,10 +5,15 @@ import { Protocol } from "src/Constants.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
+import { IUpgradeOperator } from "src/interfaces/IUpgradeOperator.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { IncreaseBorrowLimit } from "script/proposals/IncreaseBorrowLimit.s.sol";
 
 contract IncreaseBorrowLimitTest is BaseProposalTest {
+    address public constant GUARDIAN_IMPLEMENTATION = 0x74C85620F1459862834A947dB9441911BCEBF066;
+    bytes32 internal constant ERC1967_IMPLEMENTATION_SLOT =
+        0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC;
+
     IncreaseBorrowLimit public script;
     uint256 public borrowLimitBefore;
     uint256 public targetBorrowLimit;
@@ -72,6 +77,19 @@ contract IncreaseBorrowLimitTest is BaseProposalTest {
         assertTrue(wildcardEnabled, "wildcard target permission not granted");
     }
 
+    function test_GuardianCanUpdateRedemptionGuardSettings() public {
+        _assertPreExecutionPermissionState();
+        _executeProposal();
+        _upgradeGuardianProxy();
+
+        address guardianUser = guardianContract.guardian();
+        vm.prank(guardianUser);
+        guardianContract.updateRedemptionGuardSettings(false, .90e18);
+
+        assertEq(redemptionHandler.permissionlessPriceThreshold(), .90e18);
+        assertFalse(redemptionHandler.guardEnabled());
+    }
+
     function _assertPreExecutionPermissionState() internal view {
         (bool incorrectEnabled,) = core.operatorPermissions(
             Protocol.OPERATOR_GUARDIAN_PROXY,
@@ -92,5 +110,23 @@ contract IncreaseBorrowLimitTest is BaseProposalTest {
         uint256 proposalId = createProposal(script.buildProposalCalldata());
         simulatePassingVote(proposalId);
         executeProposal(proposalId);
+    }
+
+    function _upgradeGuardianProxy() internal {
+        if (_guardianImplementation() == GUARDIAN_IMPLEMENTATION) return;
+
+        IUpgradeOperator upgradeOp = IUpgradeOperator(Protocol.OPERATOR_UPGRADE);
+        address manager = upgradeOp.manager();
+
+        vm.prank(manager);
+        upgradeOp.upgradeToAndCall(
+            Protocol.OPERATOR_GUARDIAN_PROXY,
+            GUARDIAN_IMPLEMENTATION,
+            ""
+        );
+    }
+
+    function _guardianImplementation() internal view returns (address implementation) {
+        implementation = address(uint160(uint256(vm.load(Protocol.OPERATOR_GUARDIAN_PROXY, ERC1967_IMPLEMENTATION_SLOT))));
     }
 }
