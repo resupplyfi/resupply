@@ -11,13 +11,7 @@ import { console } from "lib/forge-std/src/console.sol";
 
 contract AddLifiSwapper is BaseProposal {
     string public constant REGISTRY_KEY = "SWAPPER_LIFI";
-    address public lifiSwapper;
-
-    constructor() {
-        try vm.envAddress("LIFI_SWAPPER") returns (address _lifiSwapper) {
-            lifiSwapper = _lifiSwapper;
-        } catch { }
-    }
+    address public constant lifiSwapper = 0xd654ea19E90c593071b50EAF105F12e5fE42841B;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
@@ -54,19 +48,26 @@ contract AddLifiSwapper is BaseProposal {
         console.log("LI.FI swapper:", lifiSwapper);
     }
 
-    function setLifiSwapper(address _lifiSwapper) public {
-        lifiSwapper = _lifiSwapper;
-    }
-
     function buildDefaultSwappers(address lifiSwapper) public view returns (address[] memory swappers) {
         address[] memory currentSwappers = getDefaultSwappers();
-        if (contains(currentSwappers, lifiSwapper)) return currentSwappers;
-
-        swappers = new address[](currentSwappers.length + 1);
+        uint256 swapperCount;
+        bool hasLifiSwapper;
         for (uint256 i = 0; i < currentSwappers.length; i++) {
-            swappers[i] = currentSwappers[i];
+            if (currentSwappers[i] == Protocol.SWAPPER_ODOS) continue;
+            if (currentSwappers[i] == lifiSwapper) hasLifiSwapper = true;
+            swapperCount++;
         }
-        swappers[currentSwappers.length] = lifiSwapper;
+        if (!hasLifiSwapper) swapperCount++;
+
+        swappers = new address[](swapperCount);
+        uint256 swapperIndex;
+        for (uint256 i = 0; i < currentSwappers.length; i++) {
+            if (currentSwappers[i] == Protocol.SWAPPER_ODOS) continue;
+            swappers[swapperIndex++] = currentSwappers[i];
+        }
+        if (!hasLifiSwapper) {
+            swappers[swapperIndex] = lifiSwapper;
+        }
     }
 
     function getDefaultSwappers() public view returns (address[] memory swappers) {

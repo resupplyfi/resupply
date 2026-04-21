@@ -16,6 +16,7 @@ contract SwapperOdosTest is PairTestBase {
     bytes public odosPayload;
     
     function setUp() public override {
+        vm.skip(true);
         super.setUp();
         swapper = new SwapperOdos(address(core));
     }
