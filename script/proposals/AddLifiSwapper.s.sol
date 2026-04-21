@@ -32,16 +32,21 @@ contract AddLifiSwapper is BaseProposal {
 
         actions = new IVoter.Action[](registeredPairs.length + 4);
 
+        // Update token approvals
         actions[0] = IVoter.Action({ target: lifiSwapper, data: abi.encodeWithSelector(ISwapperLifi.updateApprovals.selector) });
 
+        // Set registry key `SWAPPER_LIFI`
         actions[1] = IVoter.Action({ target: address(registry), data: abi.encodeWithSelector(IResupplyRegistry.setAddress.selector, REGISTRY_KEY, lifiSwapper) });
 
+        // Add new swapper to default swappers
         actions[2] = IVoter.Action({ target: address(registry), data: abi.encodeWithSelector(IResupplyRegistry.setDefaultSwappers.selector, defaultSwappers) });
 
+        // Set swapper on all pairs
         for (uint256 i = 0; i < registeredPairs.length; i++) {
             actions[i + 3] = IVoter.Action({ target: registeredPairs[i], data: abi.encodeWithSelector(IResupplyPair.setSwapper.selector, lifiSwapper, true) });
         }
 
+        // Allow multisig to revoke approvals
         actions[registeredPairs.length + 3] = setOperatorPermission(Protocol.DEPLOYER, lifiSwapper, ISwapperLifi.revokeApprovals.selector, true);
 
         console.log("Number of actions:", actions.length);
@@ -50,24 +55,18 @@ contract AddLifiSwapper is BaseProposal {
 
     function buildDefaultSwappers(address lifiSwapper) public view returns (address[] memory swappers) {
         address[] memory currentSwappers = getDefaultSwappers();
-        uint256 swapperCount;
         bool hasLifiSwapper;
         for (uint256 i = 0; i < currentSwappers.length; i++) {
-            if (currentSwappers[i] == Protocol.SWAPPER_ODOS) continue;
             if (currentSwappers[i] == lifiSwapper) hasLifiSwapper = true;
-            swapperCount++;
         }
-        if (!hasLifiSwapper) swapperCount++;
 
-        swappers = new address[](swapperCount);
-        uint256 swapperIndex;
+        if (hasLifiSwapper) return currentSwappers;
+
+        swappers = new address[](currentSwappers.length + 1);
         for (uint256 i = 0; i < currentSwappers.length; i++) {
-            if (currentSwappers[i] == Protocol.SWAPPER_ODOS) continue;
-            swappers[swapperIndex++] = currentSwappers[i];
+            swappers[i] = currentSwappers[i];
         }
-        if (!hasLifiSwapper) {
-            swappers[swapperIndex] = lifiSwapper;
-        }
+        swappers[currentSwappers.length] = lifiSwapper;
     }
 
     function getDefaultSwappers() public view returns (address[] memory swappers) {
