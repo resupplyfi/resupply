@@ -33,23 +33,22 @@ contract AddLifiSwapperTest is BaseProposalTest {
         assertEq(registry.getAddress(script.REGISTRY_KEY()), lifiSwapper, "wrong registry key");
     }
 
-    function test_DefaultSwappersRemoveOdosAndAppendLifi() public view {
+    function test_DefaultSwappersPreserveExistingAndAppendLifi() public view {
         address[] memory defaultSwappersAfter = script.getDefaultSwappers();
-        assertFalse(_contains(defaultSwappersAfter, Protocol.SWAPPER_ODOS), "Odos still default swapper");
         assertTrue(_contains(defaultSwappersAfter, lifiSwapper), "LI.FI not default swapper");
+        if (_contains(defaultSwappersBefore, Protocol.SWAPPER_ODOS)) {
+            assertTrue(_contains(defaultSwappersAfter, Protocol.SWAPPER_ODOS), "Odos removed from default swappers");
+        }
 
         uint256 expectedLength = defaultSwappersBefore.length;
-        if (_contains(defaultSwappersBefore, Protocol.SWAPPER_ODOS)) expectedLength--;
         if (!_contains(defaultSwappersBefore, lifiSwapper)) expectedLength++;
         assertEq(defaultSwappersAfter.length, expectedLength, "wrong default swapper count");
 
-        uint256 afterIndex;
         for (uint256 i = 0; i < defaultSwappersBefore.length; i++) {
-            if (defaultSwappersBefore[i] == Protocol.SWAPPER_ODOS) continue;
-            assertEq(defaultSwappersAfter[afterIndex++], defaultSwappersBefore[i], "existing default changed");
+            assertEq(defaultSwappersAfter[i], defaultSwappersBefore[i], "existing default changed");
         }
         if (!_contains(defaultSwappersBefore, lifiSwapper)) {
-            assertEq(defaultSwappersAfter[afterIndex], lifiSwapper, "LI.FI not appended");
+            assertEq(defaultSwappersAfter[defaultSwappersBefore.length], lifiSwapper, "LI.FI not appended");
         }
     }
 
