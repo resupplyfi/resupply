@@ -18,8 +18,9 @@ contract AddLifiSwapperTest is BaseProposalTest {
     function setUp() public override {
         super.setUp();
         script = new AddLifiSwapper();
-        lifiSwapper = address(new SwapperLifi(address(core)));
-        script.setLifiSwapper(lifiSwapper);
+        lifiSwapper = script.lifiSwapper();
+        assertEq(lifiSwapper, 0xd654ea19E90c593071b50EAF105F12e5fE42841B, "wrong LI.FI swapper address");
+        assertGt(lifiSwapper.code.length, 0, "LI.FI swapper not deployed");
         defaultSwappersBefore = script.getDefaultSwappers();
 
         IVoter.Action[] memory actions = script.buildProposalCalldata();
@@ -32,13 +33,24 @@ contract AddLifiSwapperTest is BaseProposalTest {
         assertEq(registry.getAddress(script.REGISTRY_KEY()), lifiSwapper, "wrong registry key");
     }
 
-    function test_DefaultSwappersAreArrayAndLifiIsAppended() public view {
+    function test_DefaultSwappersRemoveOdosAndAppendLifi() public view {
         address[] memory defaultSwappersAfter = script.getDefaultSwappers();
-        assertEq(defaultSwappersAfter.length, defaultSwappersBefore.length + 1, "wrong default swapper count");
+        assertFalse(_contains(defaultSwappersAfter, Protocol.SWAPPER_ODOS), "Odos still default swapper");
+        assertTrue(_contains(defaultSwappersAfter, lifiSwapper), "LI.FI not default swapper");
+
+        uint256 expectedLength = defaultSwappersBefore.length;
+        if (_contains(defaultSwappersBefore, Protocol.SWAPPER_ODOS)) expectedLength--;
+        if (!_contains(defaultSwappersBefore, lifiSwapper)) expectedLength++;
+        assertEq(defaultSwappersAfter.length, expectedLength, "wrong default swapper count");
+
+        uint256 afterIndex;
         for (uint256 i = 0; i < defaultSwappersBefore.length; i++) {
-            assertEq(defaultSwappersAfter[i], defaultSwappersBefore[i], "existing default changed");
+            if (defaultSwappersBefore[i] == Protocol.SWAPPER_ODOS) continue;
+            assertEq(defaultSwappersAfter[afterIndex++], defaultSwappersBefore[i], "existing default changed");
         }
-        assertEq(defaultSwappersAfter[defaultSwappersAfter.length - 1], lifiSwapper, "LI.FI not appended");
+        if (!_contains(defaultSwappersBefore, lifiSwapper)) {
+            assertEq(defaultSwappersAfter[afterIndex], lifiSwapper, "LI.FI not appended");
+        }
     }
 
     function test_LifiWhitelistedOnExistingPairs() public view {
@@ -59,5 +71,12 @@ contract AddLifiSwapperTest is BaseProposalTest {
             address collateral = IResupplyPair(pairs[i]).collateral();
             assertEq(IERC20(collateral).allowance(lifiSwapper, lifiRouter), type(uint256).max, "collateral approval missing");
         }
+    }
+
+    function _contains(address[] memory addresses, address target) internal pure returns (bool) {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            if (addresses[i] == target) return true;
+        }
+        return false;
     }
 }
