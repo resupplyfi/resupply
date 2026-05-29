@@ -128,7 +128,7 @@ contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
         //that was equivalent to 1e18 assets at previous timestamp, this becomes our proper rate for 1e18 borrowed
         difference /= _deltaTime;
 
-        return _getNewRate(msg.sender, difference);
+        (_newRatePerSec,) = _getNewRate(msg.sender, difference);
     }
 
     /// @notice The ```getPairRateWithUnderlying``` function calculates interest rates using underlying rates and minimums
