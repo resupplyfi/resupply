@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { Protocol } from "src/Constants.sol";
 import { InterestRateCalculatorV2 } from "src/protocol/InterestRateCalculatorV2.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { console } from "forge-std/console.sol";
 
 contract DeployIRCalcV2 is BaseAction {
     uint256 constant MINIMUM_RATE = 2e16 / uint256(365 days) * 2;
@@ -13,7 +14,7 @@ contract DeployIRCalcV2 is BaseAction {
 
     function run() public {
         vm.startBroadcast(loadPrivateKey());
-        new InterestRateCalculatorV2(
+        InterestRateCalculatorV2 calculator = new InterestRateCalculatorV2(
             Protocol.CORE,
             MINIMUM_RATE,
             RATE_RATIO_BASE,
@@ -21,6 +22,7 @@ contract DeployIRCalcV2 is BaseAction {
             RATE_RATIO_ADDITIONAL,
             Protocol.PRICE_WATCHER
         );
+        console.log("InterestRateCalculatorV2 deployed at", address(calculator));
         vm.stopBroadcast();
     }
 }
