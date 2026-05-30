@@ -15,7 +15,7 @@ contract InterestRateCalculatorV2 is IRateCalculator, CoreOwnable {
 
     uint256 internal constant _MAJOR = 2;
     uint256 internal constant _MINOR = 1;
-    uint256 internal constant _PATCH = 0;
+    uint256 internal constant _PATCH = 1;
 
     address public constant sfrxusd = address(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6);
 
