@@ -17,7 +17,7 @@ contract AddLifiSwapper is BaseProposal {
         deployMode = DeployMode.FORK;
 
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Add LI.FI swapper");
+        proposeVote(data, "Configure LI.FI swapper");
 
         if (deployMode == DeployMode.PRODUCTION) {
             require(lifiSwapper.code.length > 0, "LI.FI swapper not deployed");
@@ -26,7 +26,6 @@ contract AddLifiSwapper is BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        require(lifiSwapper != address(0), "LI.FI swapper not set");
         address[] memory defaultSwappers = buildDefaultSwappers(lifiSwapper);
         address[] memory registeredPairs = registry.getAllPairAddresses();
 
