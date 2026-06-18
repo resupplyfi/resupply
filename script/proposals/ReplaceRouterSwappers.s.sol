@@ -6,6 +6,7 @@ import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { console } from "lib/forge-std/src/console.sol";
 
 contract ReplaceRouterSwappers is BaseAction, BaseProposal {
@@ -42,8 +43,14 @@ contract ReplaceRouterSwappers is BaseAction, BaseProposal {
         address[] memory registeredPairs = registry.getAllPairAddresses();
         address[] memory defaultSwappers = buildDefaultSwappers();
 
-        actions = new IVoter.Action[](4 + registeredPairs.length * 4);
+        actions = new IVoter.Action[](5 + registeredPairs.length * 4);
         uint256 index;
+
+        // Revoke old ODOS router approvals before replacing the registry key.
+        actions[index++] = IVoter.Action({
+            target: oldOdosSwapper,
+            data: abi.encodeWithSelector(IRouterSwapper.revokeApprovals.selector)
+        });
 
         // Register provider-specific swapper keys
         actions[index++] = IVoter.Action({

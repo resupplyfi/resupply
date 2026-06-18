@@ -23,7 +23,6 @@ contract SwapperOdosTest is PairTestBase {
     address public _stablecoin = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
     
     function setUp() public override {
-        vm.skip(true);
         super.setUp();
         swapper = new RouterSwapper(address(core), OdosApi.ODOS_ROUTER, "Resupply Swapper: ODOS");
     }
