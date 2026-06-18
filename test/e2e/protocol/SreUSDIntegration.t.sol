@@ -33,11 +33,11 @@ contract SreUSDIntegrationTest is PairTestBase {
         depositToGovStaker(1000e18);
         distributeWeeklyFees();
         vm.prank(address(core));
-        IResupplyPair(pairs[0]).setBorrowLimit(type(uint128).max);
+        pair.setBorrowLimit(type(uint128).max);
     }
 
     function test_PegBasedInterestRateChanges() public {
-        address pair = pairs[0];
+        address pair = _testPairAddress();
         // Start with peg at 1.0 (no additional fees)
         setPeg(1e18);
         uint256 initialRate = getInterestRate(pair);
@@ -55,7 +55,7 @@ contract SreUSDIntegrationTest is PairTestBase {
 
     function test_FeeDistributionToSreUSD() public {
         depositToStakedStable(1000e18);
-        address pair = pairs[0];
+        address pair = _testPairAddress();
         uint256 borrowAmount = 10_000e18;
         borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
         // Advance time and add interest to generate fees
@@ -84,7 +84,7 @@ contract SreUSDIntegrationTest is PairTestBase {
     }
 
     function test_InterestRatesIncreaseWhenOffPeg() public {
-        address pair = pairs[0];
+        address pair = _testPairAddress();
         uint256 borrowAmount = 10_000e18;
         borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
         
@@ -146,7 +146,7 @@ contract SreUSDIntegrationTest is PairTestBase {
         
         // Generate fees over multiple epochs
         for (uint256 i = 0; i < 4; i++) {
-            address pair = pairs[0];
+            address pair = _testPairAddress();
             uint256 borrowAmount = 10_000e18;
             borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
             skip(1 days);
@@ -162,7 +162,7 @@ contract SreUSDIntegrationTest is PairTestBase {
     }
 
     function test_TimeWeightedFeesAndLogger() public {
-        address pair = pairs[0];
+        address pair = _testPairAddress();
         uint256 borrowAmount = 10_000e18;
         borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
 
@@ -205,6 +205,10 @@ contract SreUSDIntegrationTest is PairTestBase {
         assertGt(feesEpoch1, 0, "Fees for epoch 1 should be greater than 0");
         assertGt(feesEpoch1, feesEpoch2, "Fees for epoch 2 should be greater than fees for epoch 1");
         assertGt(feesEpoch3, feesEpoch1, "Fees for epoch 3 should be greater than fees for epoch 1");
+    }
+
+    function _testPairAddress() internal view returns (address) {
+        return address(pair);
     }
 
     function getInterestRate(address pair) public returns (uint256) {

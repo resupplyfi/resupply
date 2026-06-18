@@ -13,7 +13,7 @@ contract DeployIRCalcV2 is BaseAction {
     uint256 constant RATE_RATIO_ADDITIONAL = 2e17;
 
     function run() public {
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
         InterestRateCalculatorV2 calculator = new InterestRateCalculatorV2(
             Protocol.CORE,
             MINIMUM_RATE,
