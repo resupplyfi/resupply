@@ -516,7 +516,7 @@ contract Setup is Test {
         defaultSwapper = new Swapper(address(core), address(registry));
         odosSwapper = new RouterSwapper(
             address(core),
-            0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559,
+            0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05,
             "Resupply Swapper: ODOS"
         );
         vm.prank(address(core));

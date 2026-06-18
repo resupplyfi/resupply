@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { SwapperLifi } from "src/protocol/SwapperLifi.sol";
+import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
 import { PairTestBase } from "test/integration/PairTestBase.t.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,96 +10,53 @@ import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { LifiApi } from "test/utils/LifiApi.sol";
 
 contract SwapperLifiTest is PairTestBase {
-    SwapperLifi public swapper;
+    RouterSwapper public swapper;
     bytes public lifiPayload;
 
     function setUp() public override {
         super.setUp();
-        swapper = new SwapperLifi(address(core));
+        swapper = new RouterSwapper(address(core), LifiApi.LIFI_ROUTER, "Resupply Swapper: LI.FI");
     }
 
     function test_Name() public view {
         assertEq(swapper.name(), "Resupply Swapper: LI.FI");
     }
 
-    function test_LiveLifiSwap() public {
-        address collateral = address(pair.collateral());
-        vm.startPrank(address(core));
-        swapper.updateApprovals();
-        pair.setSwapper(address(swapper), true);
-        vm.stopPrank();
-
-        uint256 borrowAmount = 5000e18;
-        LifiApi.Quote memory lifiQuote = LifiApi.getQuote(
-            address(stablecoin), // input token
-            collateral, // output token
-            borrowAmount, // input amount
-            20, // slippage pct
-            address(swapper), // address that calls LI.FI
-            address(pair) // recipient address
-        );
-        assertGt(lifiQuote.payload.length, 0, "API returned empty payload for leveragedPosition");
-        assertGt(lifiQuote.amountOutMin, 0, "API returned zero minimum output");
-        address[] memory path = swapper.encode(lifiQuote.payload, address(stablecoin), collateral);
-        console.log("LI.FI payload:", _bytesToFullHex(lifiQuote.payload));
-
-        uint256 initialUnderlyingAmount = 20_000e18;
-        IERC20 underlying = IERC20(pair.underlying());
-        deal(address(underlying), address(this), initialUnderlyingAmount);
-        underlying.approve(address(pair), initialUnderlyingAmount);
-        console.log("-- Leveraging position --");
-        console.log("Borrow Amt:", borrowAmount);
-        console.log("Min collateral out:", lifiQuote.amountOutMin);
-        uint256 collatBefore = pair.userCollateralBalance(address(this)) + IERC4626(collateral).convertToShares(initialUnderlyingAmount);
-        pair.leveragedPosition(
-            address(swapper),
-            borrowAmount, // borrow amount
-            initialUnderlyingAmount, // initial collateral amount
-            lifiQuote.amountOutMin, // amount collateral out min
-            path // encoded path
-        );
-        uint256 collatAfter = pair.userCollateralBalance(address(this));
-        console.log("Collateral delta:", collatAfter - collatBefore);
-
-        uint256 amount = 500e18;
-        assertGe(collatAfter - collatBefore, amount, "Not enough LI.FI collateral out");
-        lifiQuote = LifiApi.getQuote(
-            collateral, // input token
-            address(stablecoin), // output token
-            amount, // input amount
-            20, // slippage pct
-            address(swapper), // address that calls LI.FI
-            address(pair) // recipient address
-        );
-        assertGt(lifiQuote.payload.length, 0, "API returned empty payload for repayWithCollateral");
-        assertGt(lifiQuote.amountOutMin, 0, "API returned zero minimum output");
-        path = swapper.encode(lifiQuote.payload, collateral, address(stablecoin));
-        bytes memory decodedPayload = swapper.decode(path);
-        assertEq(keccak256(decodedPayload), keccak256(lifiQuote.payload), "Decoded payload does not match original payload");
-        console.log("-- Repaying with collateral --");
-        console.log("Collateral Amt:", amount);
-        console.log("Min reUSD out:", lifiQuote.amountOutMin);
-        uint256 borrowBefore = pair.userBorrowShares(address(this));
-        borrowBefore = toAmount(pair, borrowBefore);
-        pair.repayWithCollateral(
-            address(swapper), // swapper address
-            amount, // collateral amount to swap
-            lifiQuote.amountOutMin, // amount out min
-            path // path
-        );
-        uint256 borrowAfter = pair.userBorrowShares(address(this));
-        borrowAfter = toAmount(pair, borrowAfter);
-        console.log("Borrow delta:", borrowBefore - borrowAfter);
+    function test_Router() public view {
+        assertEq(swapper.router(), LifiApi.LIFI_ROUTER);
     }
 
-    function test_recoverERC20() public {
+    function test_LiveLifiSwap() public {
+        uint256 amountIn = 1_000e18;
+        deal(address(stablecoin), address(swapper), amountIn);
+
+        LifiApi.Quote memory lifiQuote = LifiApi.getQuote(
+            address(stablecoin),
+            LifiApi.USDC,
+            amountIn,
+            3,
+            address(swapper),
+            address(this)
+        );
+        assertGt(lifiQuote.payload.length, 0, "API returned empty payload");
+        assertGt(lifiQuote.amountOutMin, 0, "API returned zero minimum output");
+
+        address[] memory path = swapper.encode(lifiQuote.payload, address(stablecoin), LifiApi.USDC);
+        uint256 balanceBefore = IERC20(LifiApi.USDC).balanceOf(address(this));
+        swapper.swap(address(this), amountIn, path, address(this));
+        uint256 balanceDelta = IERC20(LifiApi.USDC).balanceOf(address(this)) - balanceBefore;
+        assertGe(balanceDelta, lifiQuote.amountOutMin, "insufficient USDC out");
+    }
+
+    function test_RecoverERC20() public {
         deal(address(stablecoin), address(swapper), 1e18);
-        address owner = swapper.owner();
-        assertEq(stablecoin.balanceOf(owner), 0);
-        vm.prank(owner);
-        swapper.recoverERC20(address(stablecoin), 1e18);
+        address recipient = address(core);
+        uint256 balanceBefore = stablecoin.balanceOf(recipient);
+        uint256 amount = stablecoin.balanceOf(address(swapper));
+        vm.prank(address(core));
+        swapper.recoverERC20(address(stablecoin), amount);
         assertEq(stablecoin.balanceOf(address(swapper)), 0);
-        assertEq(stablecoin.balanceOf(owner), 1e18);
+        assertEq(stablecoin.balanceOf(recipient) - balanceBefore, 1e18);
     }
 
     function test_UpdateApprovals() public {
@@ -111,7 +68,7 @@ contract SwapperLifiTest is PairTestBase {
         for (uint256 i = 0; i < pairs.length; i++) {
             address _pair = pairs[i];
             address collateral = address(IResupplyPair(_pair).collateral());
-            address lifiRouter = swapper.lifiRouter();
+            address lifiRouter = swapper.router();
             assertGt(IERC20(collateral).allowance(address(swapper), lifiRouter), 1e40);
         }
         assertEq(swapper.canUpdateApprovals(), false);
@@ -125,10 +82,12 @@ contract SwapperLifiTest is PairTestBase {
         for (uint256 i = 0; i < pairs.length; i++) {
             address _pair = pairs[i];
             address collateral = address(IResupplyPair(_pair).collateral());
-            address lifiRouter = swapper.lifiRouter();
+            address lifiRouter = swapper.router();
             assertEq(IERC20(collateral).allowance(address(swapper), lifiRouter), 0);
         }
-        assertEq(IERC20(swapper.reusd()).allowance(address(swapper), swapper.lifiRouter()), 0);
+        assertEq(IERC20(swapper.reusd()).allowance(address(swapper), swapper.router()), 0);
+        vm.expectRevert("approvals revoked");
+        swapper.swap(address(this), 0, new address[](0), address(this));
     }
 
     function test_EncodeDecodePayload() public {

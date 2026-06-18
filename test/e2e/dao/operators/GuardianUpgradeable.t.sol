@@ -337,7 +337,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
 
     function test_RevokeSwapperApprovals() public {
         vm.prank(guardian);
-        guardianContract.revokeSwapperApprovals();
+        guardianContract.revokeSwapperApprovals("SWAPPER_ODOS");
     }
 
     function test_RevokeSwapperApprovals_ByKey() public {
@@ -354,7 +354,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     function test_RevokeSwapperApprovals_NotGuardian() public {
         vm.prank(address(1));
         vm.expectRevert("!guardian");
-        guardianContract.revokeSwapperApprovals();
+        guardianContract.revokeSwapperApprovals("SWAPPER_ODOS");
     }
 
     function test_UpdateRedemptionGuardSettings() public {
