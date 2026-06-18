@@ -11,7 +11,7 @@ import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
-import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
+import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
@@ -81,7 +81,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         setOperatorPermission(address(guardianContract), address(0), Voter.cancelProposal.selector, true);
         setOperatorPermission(address(guardianContract), address(0), Voter.updateProposalDescription.selector, true);
         setOperatorPermission(address(guardianContract), address(registry), IResupplyRegistry.setAddress.selector, true);
-        setOperatorPermission(address(guardianContract), address(0), ISwapperOdos.revokeApprovals.selector, true);
+        setOperatorPermission(address(guardianContract), address(0), IRouterSwapper.revokeApprovals.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IBorrowLimitController.cancelRamp.selector, true);
         setOperatorPermission(address(guardianContract), address(0), IInsurancePool.setWithdrawTimers.selector, true);
         setOperatorPermission(address(guardianContract), address(redemptionHandler), IRedemptionHandler.updateGuardSettings.selector, true);
@@ -287,7 +287,7 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
         core.setOperatorPermissions(
             address(guardianContract),
             address(0),
-            ISwapperOdos.revokeApprovals.selector,
+            IRouterSwapper.revokeApprovals.selector,
             false,
             IAuthHook(address(0))
         );
@@ -338,6 +338,17 @@ contract GuardianUpgradeableTest is Setup, BaseUpgradeableOperatorTest {
     function test_RevokeSwapperApprovals() public {
         vm.prank(guardian);
         guardianContract.revokeSwapperApprovals();
+    }
+
+    function test_RevokeSwapperApprovals_ByKey() public {
+        vm.mockCall(
+            address(Protocol.REGISTRY),
+            abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "SWAPPER_LIFI"),
+            abi.encode(address(odosSwapper))
+        );
+
+        vm.prank(guardian);
+        guardianContract.revokeSwapperApprovals("SWAPPER_LIFI");
     }
 
     function test_RevokeSwapperApprovals_NotGuardian() public {
