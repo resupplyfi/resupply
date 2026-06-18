@@ -35,7 +35,7 @@ import { RedemptionHandler } from "src/protocol/RedemptionHandler.sol";
 import { LiquidationHandler } from "src/protocol/LiquidationHandler.sol";
 import { RewardHandler } from "src/protocol/RewardHandler.sol";
 import { Swapper } from "src/protocol/Swapper.sol";
-import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
+import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
 import { PriceWatcher } from "src/protocol/PriceWatcher.sol";
 import { BorrowLimitController } from "src/dao/operators/BorrowLimitController.sol";
 
@@ -103,7 +103,7 @@ contract Setup is Test {
     SimpleReceiver public insuranceEmissionsReceiver;
     PriceWatcher public priceWatcher;
     Swapper public defaultSwapper;
-    SwapperOdos public odosSwapper;
+    RouterSwapper public odosSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
     IResupplyPair public testPair;
@@ -514,7 +514,11 @@ contract Setup is Test {
 
         //deploy swapper
         defaultSwapper = new Swapper(address(core), address(registry));
-        odosSwapper = new SwapperOdos(address(core));
+        odosSwapper = new RouterSwapper(
+            address(core),
+            0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559,
+            "Resupply Swapper: ODOS"
+        );
         vm.prank(address(core));
         registry.setAddress("SWAPPER_ODOS", address(odosSwapper));
 
