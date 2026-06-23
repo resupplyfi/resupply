@@ -12,7 +12,7 @@ contract DeployRouterSwappers is BaseAction {
     address public constant ENSO_ROUTER = 0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf;
 
     function run() public {
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
         RouterSwapper odosSwapper = new RouterSwapper(Protocol.CORE, ODOS_ROUTER, "Resupply Swapper: ODOS");
         RouterSwapper lifiSwapper = new RouterSwapper(Protocol.CORE, LIFI_ROUTER, "Resupply Swapper: LI.FI");
         RouterSwapper ensoSwapper = new RouterSwapper(Protocol.CORE, ENSO_ROUTER, "Resupply Swapper: ENSO");

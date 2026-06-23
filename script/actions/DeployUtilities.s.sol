@@ -7,7 +7,7 @@ import { Utilities } from "src/protocol/Utilities.sol";
 contract DeployUtilities is BaseAction {    
     
     function run() public {
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
         Utilities utilities = new Utilities(Protocol.REGISTRY);
         vm.stopBroadcast();
     }

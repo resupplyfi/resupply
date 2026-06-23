@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import { Protocol } from "src/Constants.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { ReplaceRouterSwappers } from "script/proposals/ReplaceRouterSwappers.s.sol";
-import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
@@ -18,9 +17,9 @@ contract ReplaceRouterSwappersTest is BaseProposalTest {
     address public constant ENSO_ROUTER = 0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf;
 
     ReplaceRouterSwappers public proposal;
-    RouterSwapper public odosSwapper;
-    RouterSwapper public lifiSwapper;
-    RouterSwapper public ensoSwapper;
+    address public odosSwapper;
+    address public lifiSwapper;
+    address public ensoSwapper;
     address public oldOdosSwapper;
     address[] public defaultSwappersBefore;
 
@@ -28,13 +27,10 @@ contract ReplaceRouterSwappersTest is BaseProposalTest {
         super.setUp();
 
         oldOdosSwapper = Protocol.SWAPPER_ODOS;
-        odosSwapper = new RouterSwapper(address(core), ODOS_ROUTER, "Resupply Swapper: ODOS");
-        lifiSwapper = new RouterSwapper(address(core), LIFI_ROUTER, "Resupply Swapper: LI.FI");
-        ensoSwapper = new RouterSwapper(address(core), ENSO_ROUTER, "Resupply Swapper: ENSO");
-        odosSwapper.updateApprovals();
-        lifiSwapper.updateApprovals();
-        ensoSwapper.updateApprovals();
-        proposal = new ReplaceRouterSwappers(address(odosSwapper), address(lifiSwapper), address(ensoSwapper));
+        proposal = new ReplaceRouterSwappers();
+        odosSwapper = proposal.odosSwapper();
+        lifiSwapper = proposal.lifiSwapper();
+        ensoSwapper = proposal.ensoSwapper();
         defaultSwappersBefore = proposal.getDefaultSwappers();
 
         IVoter.Action[] memory actions = proposal.buildProposalCalldata();
@@ -44,26 +40,26 @@ contract ReplaceRouterSwappersTest is BaseProposalTest {
     }
 
     function test_RegistryKeysSet() public view {
-        assertEq(registry.getAddress(proposal.SWAPPER_ODOS_KEY()), address(odosSwapper), "wrong ODOS registry key");
-        assertEq(registry.getAddress(proposal.SWAPPER_LIFI_KEY()), address(lifiSwapper), "wrong LI.FI registry key");
-        assertEq(registry.getAddress(proposal.SWAPPER_ENSO_KEY()), address(ensoSwapper), "wrong ENSO registry key");
+        assertEq(registry.getAddress(proposal.SWAPPER_ODOS_KEY()), odosSwapper, "wrong ODOS registry key");
+        assertEq(registry.getAddress(proposal.SWAPPER_LIFI_KEY()), lifiSwapper, "wrong LI.FI registry key");
+        assertEq(registry.getAddress(proposal.SWAPPER_ENSO_KEY()), ensoSwapper, "wrong ENSO registry key");
     }
 
     function test_DefaultSwappersAreOriginalDefaultPlusProviderSet() public view {
         address[] memory defaultSwappersAfter = proposal.getDefaultSwappers();
         assertEq(defaultSwappersAfter.length, 4, "wrong default swapper count");
         assertEq(defaultSwappersAfter[0], defaultSwappersBefore[0], "original default changed");
-        assertEq(defaultSwappersAfter[1], address(odosSwapper), "replacement ODOS not default");
-        assertEq(defaultSwappersAfter[2], address(lifiSwapper), "LI.FI not default");
-        assertEq(defaultSwappersAfter[3], address(ensoSwapper), "ENSO not default");
+        assertEq(defaultSwappersAfter[1], odosSwapper, "replacement ODOS not default");
+        assertEq(defaultSwappersAfter[2], lifiSwapper, "LI.FI not default");
+        assertEq(defaultSwappersAfter[3], ensoSwapper, "ENSO not default");
     }
 
     function test_ProviderSwappersWhitelistedAndOldOdosRemoved() public view {
         for (uint256 i = 0; i < pairs.length; i++) {
             assertFalse(IResupplyPair(pairs[i]).swappers(oldOdosSwapper), "old ODOS still whitelisted");
-            assertTrue(IResupplyPair(pairs[i]).swappers(address(odosSwapper)), "replacement ODOS not whitelisted");
-            assertTrue(IResupplyPair(pairs[i]).swappers(address(lifiSwapper)), "LI.FI not whitelisted");
-            assertTrue(IResupplyPair(pairs[i]).swappers(address(ensoSwapper)), "ENSO not whitelisted");
+            assertTrue(IResupplyPair(pairs[i]).swappers(odosSwapper), "replacement ODOS not whitelisted");
+            assertTrue(IResupplyPair(pairs[i]).swappers(lifiSwapper), "LI.FI not whitelisted");
+            assertTrue(IResupplyPair(pairs[i]).swappers(ensoSwapper), "ENSO not whitelisted");
         }
     }
 
@@ -75,29 +71,29 @@ contract ReplaceRouterSwappersTest is BaseProposalTest {
         );
         assertTrue(wildcardAuthorized, "guardian revoke permission not wildcarded");
 
-        assertFalse(_hasTargetSpecificGuardianRevokePermission(address(odosSwapper)), "ODOS revoke should use wildcard");
-        assertFalse(_hasTargetSpecificGuardianRevokePermission(address(lifiSwapper)), "LI.FI revoke should use wildcard");
-        assertFalse(_hasTargetSpecificGuardianRevokePermission(address(ensoSwapper)), "ENSO revoke should use wildcard");
+        assertFalse(_hasTargetSpecificGuardianRevokePermission(odosSwapper), "ODOS revoke should use wildcard");
+        assertFalse(_hasTargetSpecificGuardianRevokePermission(lifiSwapper), "LI.FI revoke should use wildcard");
+        assertFalse(_hasTargetSpecificGuardianRevokePermission(ensoSwapper), "ENSO revoke should use wildcard");
 
         IGuardianUpgradeable guardian = IGuardianUpgradeable(Protocol.OPERATOR_GUARDIAN_PROXY);
         assertTrue(
-            guardian.hasPermission(address(odosSwapper), IRouterSwapper.revokeApprovals.selector),
+            guardian.hasPermission(odosSwapper, IRouterSwapper.revokeApprovals.selector),
             "guardian cannot revoke ODOS approvals"
         );
         assertTrue(
-            guardian.hasPermission(address(lifiSwapper), IRouterSwapper.revokeApprovals.selector),
+            guardian.hasPermission(lifiSwapper, IRouterSwapper.revokeApprovals.selector),
             "guardian cannot revoke LI.FI approvals"
         );
         assertTrue(
-            guardian.hasPermission(address(ensoSwapper), IRouterSwapper.revokeApprovals.selector),
+            guardian.hasPermission(ensoSwapper, IRouterSwapper.revokeApprovals.selector),
             "guardian cannot revoke ENSO approvals"
         );
     }
 
     function test_ApprovalsUpdated() public view {
-        _assertApprovals(address(odosSwapper), odosSwapper.router());
-        _assertApprovals(address(lifiSwapper), lifiSwapper.router());
-        _assertApprovals(address(ensoSwapper), ensoSwapper.router());
+        _assertApprovals(odosSwapper, IRouterSwapper(odosSwapper).router());
+        _assertApprovals(lifiSwapper, IRouterSwapper(lifiSwapper).router());
+        _assertApprovals(ensoSwapper, IRouterSwapper(ensoSwapper).router());
     }
 
     function test_OldOdosApprovalsRevoked() public view {

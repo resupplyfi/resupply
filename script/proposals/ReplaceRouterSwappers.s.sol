@@ -15,21 +15,15 @@ contract ReplaceRouterSwappers is BaseAction, BaseProposal {
     string public constant SWAPPER_ENSO_KEY = "SWAPPER_ENSO";
 
     address public constant oldOdosSwapper = 0x3Ae884D1a67650501278001FDa40DCa975D9194D;
-    address public immutable odosSwapper;
-    address public immutable lifiSwapper;
-    address public immutable ensoSwapper;
-
-    constructor(address _odosSwapper, address _lifiSwapper, address _ensoSwapper) {
-        odosSwapper = _odosSwapper;
-        lifiSwapper = _lifiSwapper;
-        ensoSwapper = _ensoSwapper;
-    }
+    address public constant odosSwapper = 0x094739c1fE87aadB5C79bf5fa2901E9A5FEF3dB3;
+    address public constant lifiSwapper = 0x597Db76794c75E588D3a70534FB34B7780941fCe;
+    address public constant ensoSwapper = 0x181c98113ce60BA75A0f72d8901Eb17e5065043D;
 
     function run() public isBatch(deployer) {
         deployMode = DeployMode.FORK;
 
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Replace router swappers");
+        proposeVote(data, "Add new swappers to support additional meta DEX aggregators");
 
         if (deployMode == DeployMode.PRODUCTION) {
             require(odosSwapper.code.length > 0, "ODOS swapper not deployed");

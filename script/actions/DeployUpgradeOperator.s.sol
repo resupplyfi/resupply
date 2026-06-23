@@ -8,7 +8,7 @@ import { console } from "forge-std/console.sol";
 
 contract DeployUpgradeOperator is BaseAction {
     function run() public {
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
         UpgradeOperator operator = new UpgradeOperator(Protocol.CORE, Protocol.DEPLOYER);
         console.log("UpgradeOperator deployed at", address(operator));
         vm.stopBroadcast();
