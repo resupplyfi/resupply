@@ -32,11 +32,16 @@ library EnsoApi {
             "&slippage=", vm.toString(slippageBps)
         ));
 
+        string memory apiKey = vm.envOr("ENSO_API_KEY", string(""));
+        string memory authHeader = bytes(apiKey).length == 0 ? "" : " -H \"Authorization: Bearer $ENSO_API_KEY\"";
+
         string[] memory inputs = new string[](3);
         inputs[0] = "bash";
         inputs[1] = "-lc";
         inputs[2] = string(abi.encodePacked(
-            "for i in 1 2 3 4 5 6 7 8 9 10; do out=$(curl -s '",
+            "for i in 1 2 3 4 5 6 7 8 9 10; do out=$(curl -s",
+            authHeader,
+            " '",
             url,
             "'); case $out in *'request limit'*) sleep 2 ;; *) printf '%s' \"$out\"; exit 0 ;; esac; done; printf '%s' \"$out\""
         ));

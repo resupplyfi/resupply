@@ -66,6 +66,8 @@ contract SwapperEnsoTest is PairTestBase {
     }
 
     function test_EncodeDecodePayloadFromProviderApi() public {
+        if (bytes(vm.envOr("ENSO_API_KEY", string(""))).length == 0) vm.skip(true);
+
         ensoPayload = EnsoApi.getPayload(EnsoApi.WETH, EnsoApi.USDC, 1e18, 300, address(swapper), address(this));
         ensoPayload = abi.encodePacked(ensoPayload, "111");
         bytes memory decodedPayload = swapper.decode(swapper.encode(ensoPayload, EnsoApi.WETH, EnsoApi.USDC));

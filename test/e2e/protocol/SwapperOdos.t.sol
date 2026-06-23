@@ -29,7 +29,7 @@ contract SwapperOdosTest is PairTestBase {
 
     function test_LiveOdosSwap() public {
         address[] memory pairs = _registry.getAllPairAddresses();
-        _pair = IResupplyPair(pairs[1]);
+        _pair = IResupplyPair(pairs[13]);
         address collateral = address(_pair.collateral());
         vm.startPrank(address(_core));
         swapper = new RouterSwapper(_core, OdosApi.ODOS_ROUTER, "Resupply Swapper: ODOS");
