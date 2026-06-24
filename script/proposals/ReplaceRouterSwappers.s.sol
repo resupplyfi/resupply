@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
-import { BaseProposal } from "script/proposals/BaseProposal.sol";
+import { Script } from "lib/forge-std/src/Script.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
+import { Protocol } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 
-contract ReplaceRouterSwappers is BaseAction, BaseProposal {
+contract ReplaceRouterSwappers is Script {
+    IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
+    IVoter public constant voter = IVoter(Protocol.VOTER);
+
+    string public constant DESCRIPTION = "Add new swappers to support additional meta DEX aggregators";
     string public constant SWAPPER_ODOS_KEY = "SWAPPER_ODOS";
     string public constant SWAPPER_LIFI_KEY = "SWAPPER_LIFI";
     string public constant SWAPPER_ENSO_KEY = "SWAPPER_ENSO";
@@ -19,21 +23,22 @@ contract ReplaceRouterSwappers is BaseAction, BaseProposal {
     address public constant lifiSwapper = 0x597Db76794c75E588D3a70534FB34B7780941fCe;
     address public constant ensoSwapper = 0x181c98113ce60BA75A0f72d8901Eb17e5065043D;
 
-    function run() public isBatch(deployer) {
-        deployMode = DeployMode.FORK;
-
+    function run() public {
         IVoter.Action[] memory data = buildProposalCalldata();
-        proposeVote(data, "Add new swappers to support additional meta DEX aggregators");
+        require(odosSwapper.code.length > 0, "ODOS swapper not deployed");
+        require(lifiSwapper.code.length > 0, "LI.FI swapper not deployed");
+        require(ensoSwapper.code.length > 0, "ENSO swapper not deployed");
 
-        if (deployMode == DeployMode.PRODUCTION) {
-            require(odosSwapper.code.length > 0, "ODOS swapper not deployed");
-            require(lifiSwapper.code.length > 0, "LI.FI swapper not deployed");
-            require(ensoSwapper.code.length > 0, "ENSO swapper not deployed");
-            executeBatch(true);
-        }
+        vm.startBroadcast();
+        (, address proposer,) = vm.readCallers();
+        uint256 proposalId = voter.createNewProposal(proposer, data, DESCRIPTION);
+        vm.stopBroadcast();
+
+        console.log("Proposal created by:", proposer);
+        console.log("Proposal ID:", proposalId);
     }
 
-    function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public returns (IVoter.Action[] memory actions) {
         address[] memory registeredPairs = registry.getAllPairAddresses();
         address[] memory defaultSwappers = buildDefaultSwappers();
 
