@@ -12,10 +12,14 @@ import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 contract MigratePairAdder is BaseAction, BaseProposal {
     string public constant PAIR_ADDER_KEY = "PAIR_ADDER";
     address public immutable pairAdderV2;
+    address public immutable oldPairAdder;
 
     constructor() {
         pairAdderV2 = vm.envAddress("PAIR_ADDER_V2");
         require(pairAdderV2 != address(0), "PAIR_ADDER_V2 not set");
+        oldPairAdder = registry.getAddress(PAIR_ADDER_KEY);
+        require(oldPairAdder != address(0), "PAIR_ADDER not set");
+        require(oldPairAdder != pairAdderV2, "PAIR_ADDER already migrated");
     }
 
     function run() public isBatch(deployer) {
@@ -43,6 +47,6 @@ contract MigratePairAdder is BaseAction, BaseProposal {
 
         actions[1] = PermissionHelper.buildOperatorPermissionAction(pairAdderV2, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, true);
 
-        actions[2] = PermissionHelper.buildOperatorPermissionAction(Protocol.PAIR_ADDER_OLD, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, false);
+        actions[2] = PermissionHelper.buildOperatorPermissionAction(oldPairAdder, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, false);
     }
 }

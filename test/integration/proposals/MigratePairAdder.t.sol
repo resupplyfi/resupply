@@ -34,7 +34,7 @@ contract MigratePairAdderTest is BaseProposalTest {
 
     function test_PermissionsMigrated() public {
         assertTrue(PermissionHelper.isEnabled(pairAdderV2, Protocol.REGISTRY, IResupplyRegistry.addPair.selector), "new pair adder permission missing");
-        assertFalse(PermissionHelper.isEnabled(Protocol.PAIR_ADDER_OLD, Protocol.REGISTRY, IResupplyRegistry.addPair.selector), "old pair adder permission still enabled");
+        assertFalse(PermissionHelper.isEnabled(script.oldPairAdder(), Protocol.REGISTRY, IResupplyRegistry.addPair.selector), "old pair adder permission still enabled");
     }
 
     function test_ProposalPayload() public {
@@ -48,6 +48,6 @@ contract MigratePairAdderTest is BaseProposalTest {
         assertEq(keccak256(actions[1].data), keccak256(abi.encodeWithSelector(ICore.setOperatorPermissions.selector, pairAdderV2, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, true, address(0))), "action 1 data");
 
         assertEq(actions[2].target, Protocol.CORE, "action 2 target");
-        assertEq(keccak256(actions[2].data), keccak256(abi.encodeWithSelector(ICore.setOperatorPermissions.selector, Protocol.PAIR_ADDER_OLD, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, false, address(0))), "action 2 data");
+        assertEq(keccak256(actions[2].data), keccak256(abi.encodeWithSelector(ICore.setOperatorPermissions.selector, script.oldPairAdder(), Protocol.REGISTRY, IResupplyRegistry.addPair.selector, false, address(0))), "action 2 data");
     }
 }
