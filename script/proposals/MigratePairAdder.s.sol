@@ -2,51 +2,60 @@
 pragma solidity 0.8.28;
 
 import { Protocol } from "src/Constants.sol";
-import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { Script } from "lib/forge-std/src/Script.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
+import { IPairAdder } from "src/interfaces/IPairAdder.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { console } from "lib/forge-std/src/console.sol";
-import { BaseProposal } from "script/proposals/BaseProposal.sol";
 import { PermissionHelper } from "script/utils/PermissionHelper.sol";
 
-contract MigratePairAdder is BaseAction, BaseProposal {
+contract MigratePairAdder is Script {
+    IResupplyRegistry public constant registry = IResupplyRegistry(Protocol.REGISTRY);
+    IVoter public constant voter = IVoter(Protocol.VOTER);
+
+    string public constant DESCRIPTION = "Migrate PairAdder to fixed implementation";
     string public constant PAIR_ADDER_KEY = "PAIR_ADDER";
-    address public immutable pairAdderV2;
-    address public immutable oldPairAdder;
+    address public constant PAIR_ADDER = 0x6Ba4D235B71Cb868bC4576E15dD75701DE6D6929;
+    address public immutable previousPairAdder;
 
     constructor() {
-        pairAdderV2 = vm.envAddress("PAIR_ADDER_V2");
-        require(pairAdderV2 != address(0), "PAIR_ADDER_V2 not set");
-        oldPairAdder = registry.getAddress(PAIR_ADDER_KEY);
-        require(oldPairAdder != address(0), "PAIR_ADDER not set");
-        require(oldPairAdder != pairAdderV2, "PAIR_ADDER already migrated");
+        require(PAIR_ADDER.code.length > 0, "PAIR_ADDER not deployed");
+        require(IPairAdder(PAIR_ADDER).core() == Protocol.CORE, "wrong PAIR_ADDER core");
+        require(IPairAdder(PAIR_ADDER).registry() == Protocol.REGISTRY, "wrong PAIR_ADDER registry");
+        previousPairAdder = registry.getAddress(PAIR_ADDER_KEY);
+        require(previousPairAdder != address(0), "PAIR_ADDER not set");
+        require(previousPairAdder != PAIR_ADDER, "PAIR_ADDER already migrated");
     }
 
-    function run() public isBatch(deployer) {
+    function run() public {
         IVoter.Action[] memory actions = buildProposalCalldata();
+        printCallData(actions);
 
-        proposeVote(actions, "Migrate PairAdder to fixed implementation");
-        uint256 proposalId = voter.getProposalCount() - 1;
+        vm.startBroadcast();
+        (, address proposer,) = vm.readCallers();
+        uint256 proposalId = voter.createNewProposal(proposer, actions, DESCRIPTION);
+        vm.stopBroadcast();
 
-        for (uint256 i = 0; i < actions.length; i++) {
-            (address target_, bytes memory data_) = voter.proposalPayload(proposalId, i);
-            console.log("Action", i + 1);
-            console.log(target_);
-            console.logBytes(data_);
-            console.log("--------------------------------");
-        }
-
-        deployMode = DeployMode.PRODUCTION;
-        if (deployMode == DeployMode.PRODUCTION) executeBatch(true);
+        console.log("Proposal created by:", proposer);
+        console.log("Proposal ID:", proposalId);
     }
 
-    function buildProposalCalldata() public view override returns (IVoter.Action[] memory actions) {
+    function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
         actions = new IVoter.Action[](3);
 
-        actions[0] = IVoter.Action({ target: Protocol.REGISTRY, data: abi.encodeWithSelector(IResupplyRegistry.setAddress.selector, PAIR_ADDER_KEY, pairAdderV2) });
+        actions[0] = IVoter.Action({ target: Protocol.REGISTRY, data: abi.encodeWithSelector(IResupplyRegistry.setAddress.selector, PAIR_ADDER_KEY, PAIR_ADDER) });
 
-        actions[1] = PermissionHelper.buildOperatorPermissionAction(pairAdderV2, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, true);
+        actions[1] = PermissionHelper.buildOperatorPermissionAction(PAIR_ADDER, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, true);
 
-        actions[2] = PermissionHelper.buildOperatorPermissionAction(oldPairAdder, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, false);
+        actions[2] = PermissionHelper.buildOperatorPermissionAction(previousPairAdder, Protocol.REGISTRY, IResupplyRegistry.addPair.selector, false);
+    }
+
+    function printCallData(IVoter.Action[] memory actions) public view {
+        for (uint256 i = 0; i < actions.length; i++) {
+            console.log("Action", i + 1);
+            console.log(actions[i].target);
+            console.logBytes(actions[i].data);
+            console.log("--------------------------------");
+        }
     }
 }

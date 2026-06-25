@@ -16,7 +16,6 @@ contract DeployPairAdderV2 is Script {
         require(address(deployed.core()) == Protocol.CORE, "wrong core");
         require(deployed.registry() == Protocol.REGISTRY, "wrong registry");
 
-        console.log("pair adder v2 deployed at", pairAdder);
-        console.log("set PAIR_ADDER_V2 to", pairAdder);
+        console.log("pair adder deployed at", pairAdder);
     }
 }
