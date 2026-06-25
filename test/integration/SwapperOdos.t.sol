@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
-import { SwapperOdos } from "src/protocol/SwapperOdos.sol";
+import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
 import { PairTestBase } from "test/integration/PairTestBase.t.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,14 +10,26 @@ import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { OdosApi } from "test/utils/OdosApi.sol";
 
 contract SwapperOdosTest is PairTestBase {
-    SwapperOdos public swapper;
+    RouterSwapper public swapper;
     address public weth = OdosApi.WETH;
     address public usdc = OdosApi.USDC;
     bytes public odosPayload;
     
     function setUp() public override {
         super.setUp();
-        swapper = new SwapperOdos(address(core));
+        swapper = new RouterSwapper(address(core), OdosApi.ODOS_ROUTER, "Resupply Swapper: ODOS");
+    }
+
+    function test_Name() public view {
+        assertEq(swapper.name(), "Resupply Swapper: ODOS");
+    }
+
+    function test_Router() public view {
+        assertEq(swapper.router(), OdosApi.ODOS_ROUTER);
+    }
+
+    function test_OdosApiV3RouterInfo() public {
+        assertEq(OdosApi.getRouterV3(), OdosApi.ODOS_ROUTER);
     }
 
     function test_LiveOdosSwap() public {
@@ -90,14 +102,15 @@ contract SwapperOdosTest is PairTestBase {
         console.log("Borrow delta:", borrowBefore - borrowAfter);
     }
 
-    function test_recoverERC20() public {
+    function test_RecoverERC20() public {
         deal(address(stablecoin), address(swapper), 1e18);
-        address owner = swapper.owner();
-        assertEq(stablecoin.balanceOf(owner), 0);
-        vm.prank(owner);
-        swapper.recoverERC20(address(stablecoin), 1e18);
+        address recipient = address(core);
+        uint256 balanceBefore = stablecoin.balanceOf(recipient);
+        uint256 amount = stablecoin.balanceOf(address(swapper));
+        vm.prank(address(core));
+        swapper.recoverERC20(address(stablecoin), amount);
         assertEq(stablecoin.balanceOf(address(swapper)), 0);
-        assertEq(stablecoin.balanceOf(owner), 1e18);
+        assertEq(stablecoin.balanceOf(recipient) - balanceBefore, 1e18);
     }
 
     function test_UpdateApprovals() public {
@@ -109,7 +122,7 @@ contract SwapperOdosTest is PairTestBase {
         for (uint i = 0; i < pairs.length; i++) {
             address _pair = pairs[i];
             address collateral = address(IResupplyPair(_pair).collateral());
-            address odosRouter = swapper.odosRouter();
+            address odosRouter = swapper.router();
             assertGt(IERC20(collateral).allowance(address(swapper), odosRouter), 1e40);
         }
         assertEq(swapper.canUpdateApprovals(), false);
@@ -123,18 +136,21 @@ contract SwapperOdosTest is PairTestBase {
         for (uint i = 0; i < pairs.length; i++) {
             address _pair = pairs[i];
             address collateral = address(IResupplyPair(_pair).collateral());
-            address odosRouter = swapper.odosRouter();
+            address odosRouter = swapper.router();
             assertEq(IERC20(collateral).allowance(address(swapper), odosRouter), 0);
         }
-        assertEq(IERC20(swapper.reusd()).allowance(address(swapper), swapper.odosRouter()), 0);
+        assertEq(IERC20(swapper.reusd()).allowance(address(swapper), swapper.router()), 0);
+        vm.expectRevert("approvals revoked");
+        swapper.swap(address(this), 0, new address[](0), address(this));
     }
 
     function test_EncodeDecodePayload() public {
         // At time of writing tests, our collateral tokens are not yet supported by Odos, so we use WETH/USDC for testing
         deal(weth, address(swapper), 100e18);
         vm.prank(address(swapper));
-        IERC20(weth).approve(swapper.odosRouter(), type(uint256).max);
+        IERC20(weth).approve(swapper.router(), type(uint256).max);
         odosPayload = OdosApi.getPayloadForWethToUsdc(1e18, 3, address(this));
+        if (odosPayload.length == 0) vm.skip(true);
         odosPayload = abi.encodePacked(
             odosPayload,
             "111" // add some extra data to the payload to help test that we are trimming properly

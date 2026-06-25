@@ -28,6 +28,6 @@ interface IGuardian {
     function setGuardian(address _guardian) external;
     function revertVoter() external;
     function recoverERC20(address _token) external;
-    function revokeSwapperApprovals() external;
+    function revokeSwapperApprovals(string calldata key) external;
     function setGuardedRegistryKey(string memory _key, bool _guarded) external;
 }

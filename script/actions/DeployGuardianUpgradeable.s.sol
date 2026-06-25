@@ -11,7 +11,7 @@ contract DeployGuardianUpgradeable is BaseAction {
     address public currentImplementation;
 
     function run() public {
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
         currentImplementation = Upgrades.getImplementationAddress(GUARDIAN_PROXY);
         address newImplementation = deployImplementation(
             "GuardianUpgradeable.sol:GuardianUpgradeable",

@@ -33,7 +33,7 @@ interface IGuardianUpgradeable {
     function setRegistryAddress(string memory _key, address _address) external;
     function setGuardian(address _guardian) external;
     function recoverERC20(address _token) external;
-    function revokeSwapperApprovals() external;
+    function revokeSwapperApprovals(string calldata key) external;
     function setGuardedRegistryKey(string memory _key, bool _guarded) external;
     function updateRedemptionGuardSettings(bool guardEnabled, uint256 priceThreshold) external;
 }

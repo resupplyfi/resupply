@@ -7,7 +7,7 @@ import { VeCrvOperator } from "src/dao/operators/VeCrvOperator.sol";
 contract DeployVeCrvOperator is BaseAction {    
     
     function run() public {
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
         VeCrvOperator forwarder = new VeCrvOperator(Protocol.CORE);
         vm.stopBroadcast();
     }

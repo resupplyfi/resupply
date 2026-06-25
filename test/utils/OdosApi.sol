@@ -11,6 +11,7 @@ import { Vm } from "lib/forge-std/src/Vm.sol";
 library OdosApi {
     Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
+    address public constant ODOS_ROUTER = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     
@@ -26,22 +27,7 @@ library OdosApi {
         uint256 slippagePct,
         address userAddress
     ) public returns (bytes memory) {
-        console.log("Attempting to get Odos payload for WETH->USDC swap");
-        console.log("Input amount:", inputAmount);
-        
-        // Get a quote from the Odos API
-        string memory pathId = getQuote(
-            WETH,
-            USDC,
-            inputAmount,
-            slippagePct,
-            userAddress
-        );
-        
-        // Assemble the transaction
-        bytes memory payload = assembleTransaction(pathId, userAddress);
-        
-        return payload;
+        return getPayload(WETH, USDC, inputAmount, slippagePct, userAddress);
     }
 
     function getPayload(
@@ -62,11 +48,19 @@ library OdosApi {
             slippagePct,
             userAddress
         );
-        
-        // Assemble the transaction
-        bytes memory payload = assembleTransaction(pathId, userAddress);
-        
-        return payload;
+        if (bytes(pathId).length == 0) return new bytes(0);
+        return assembleTransaction(pathId, userAddress);
+    }
+
+    function getRouterV3() public returns (address router) {
+        string[] memory inputs = new string[](3);
+        inputs[0] = "curl";
+        inputs[1] = "-s";
+        inputs[2] = "https://api.odos.xyz/info/router/v3/1";
+
+        bytes memory response = vm.ffi(inputs);
+        router = extractAddressValue(string(response), "address");
+        require(router != address(0), "Odos router info missing address");
     }
     
     /**
@@ -98,25 +92,20 @@ library OdosApi {
             "}"
         ));
         
-        string[] memory inputs = new string[](9);
-        inputs[0] = "curl";
-        inputs[1] = "-s";
-        inputs[2] = "-X";
-        inputs[3] = "POST";
-        inputs[4] = "-H";
-        inputs[5] = "Content-Type: application/json";
-        inputs[6] = "-d";
-        inputs[7] = jsonData;
-        inputs[8] = "https://api.odos.xyz/sor/quote/v2";
+        string memory endpoint = odosEndpoint("/sor/quote/v3");
         
         console.log("Curl command (quote):");
-        console.log(string(abi.encodePacked("curl -s -X POST ", inputs[8], " with data: ", jsonData)));
+        console.log(string(abi.encodePacked("curl -s -X POST ", endpoint, " with data: ", jsonData)));
         
-        bytes memory quoteResponse = vm.ffi(inputs);
+        bytes memory quoteResponse = curlPost(endpoint, jsonData);
         console.log("Quote response raw length:", quoteResponse.length);
         
         // Extract the path ID from the response
         string memory pathId = extractPathId(string(quoteResponse));
+        if (bytes(pathId).length == 0) {
+            console.log("Odos quote missing pathId");
+            return "";
+        }
         console.log("Extracted pathId:", pathId);
         
         return pathId;
@@ -140,29 +129,117 @@ library OdosApi {
             "}"
         ));
         
-        string[] memory inputs = new string[](9);
-        inputs[0] = "curl";
-        inputs[1] = "-s";
-        inputs[2] = "-X";
-        inputs[3] = "POST";
-        inputs[4] = "-H";
-        inputs[5] = "Content-Type: application/json";
-        inputs[6] = "-d";
-        inputs[7] = assembleJsonData;
-        inputs[8] = "https://api.odos.xyz/sor/assemble";
+        string memory endpoint = odosEndpoint("/sor/assemble");
         
         console.log("Curl command (assemble):");
-        console.log(string(abi.encodePacked("curl -s -X POST ", inputs[8], " with data: ", assembleJsonData)));
+        console.log(string(abi.encodePacked("curl -s -X POST ", endpoint, " with data: ", assembleJsonData)));
         
-        bytes memory assembleResponse = vm.ffi(inputs);
+        bytes memory assembleResponse = curlPost(endpoint, assembleJsonData);
         
-        // Extract the transaction data from the response
-        bytes memory payload = extractTransactionData(string(assembleResponse));
+        string memory assembleResponseString = string(assembleResponse);
+        address transactionTarget = extractTransactionTo(assembleResponseString);
+        uint256 transactionValue = extractTransactionValue(assembleResponseString);
+        if (transactionTarget != ODOS_ROUTER || transactionValue != 0) {
+            console.log("Odos assemble returned invalid transaction");
+            return new bytes(0);
+        }
+
+        bytes memory payload = extractTransactionData(assembleResponseString);
+        if (payload.length == 0) {
+            console.log("Odos assemble missing payload");
+            return new bytes(0);
+        }
         console.log("Extracted payload length:", payload.length);
         
         return payload;
     }
+
+    function odosEndpoint(string memory path) internal view returns (string memory) {
+        string memory apiKey = vm.envOr("ODOS_API_KEY", string(""));
+        string memory baseUrl = bytes(apiKey).length == 0 ? "https://api.odos.xyz" : "https://enterprise-api.odos.xyz";
+        return string(abi.encodePacked(baseUrl, path));
+    }
+
+    function curlPost(string memory endpoint, string memory jsonData) internal returns (bytes memory) {
+        string memory apiKey = vm.envOr("ODOS_API_KEY", string(""));
+        string memory apiKeyHeader = bytes(apiKey).length == 0 ? "" : " -H \"x-api-key: $ODOS_API_KEY\"";
+        string[] memory inputs = new string[](3);
+        inputs[0] = "bash";
+        inputs[1] = "-lc";
+        inputs[2] = string(abi.encodePacked(
+            "curl -s -X POST -H 'Content-Type: application/json'",
+            apiKeyHeader,
+            " -d '",
+            jsonData,
+            "' '",
+            endpoint,
+            "'"
+        ));
+
+        return vm.ffi(inputs);
+    }
     
+
+    function extractTransactionTo(string memory response) internal pure returns (address) {
+        string memory toAddress = extractTransactionStringValue(response, "to");
+        if (bytes(toAddress).length == 0) return address(0);
+        return stringToAddress(toAddress);
+    }
+
+    function extractTransactionValue(string memory response) internal pure returns (uint256) {
+        return parseUint(extractTransactionStringValue(response, "value"));
+    }
+
+    function extractTransactionStringValue(string memory response, string memory field) internal pure returns (string memory) {
+        bytes memory responseBytes = bytes(response);
+        bytes memory transactionKey = bytes("\"transaction\":");
+        bytes memory fieldKey = bytes(string(abi.encodePacked("\"", field, "\":\"")));
+
+        uint startPos = indexOf(responseBytes, transactionKey);
+        if (startPos == type(uint).max) return "";
+
+        startPos = indexOf(responseBytes, fieldKey, startPos);
+        if (startPos == type(uint).max) return "";
+
+        startPos += fieldKey.length;
+        uint endPos = indexOf(responseBytes, bytes("\""), startPos);
+        if (endPos == type(uint).max) return "";
+
+        bytes memory value = new bytes(endPos - startPos);
+        for (uint i = 0; i < value.length; i++) {
+            value[i] = responseBytes[startPos + i];
+        }
+
+        return string(value);
+    }
+
+    function extractAddressValue(string memory response, string memory field) internal pure returns (address parsedAddress) {
+        bytes memory responseBytes = bytes(response);
+        bytes memory key = bytes(string(abi.encodePacked("\"", field, "\":\"")));
+        uint startPos = indexOf(responseBytes, key);
+        if (startPos == type(uint).max) return address(0);
+
+        startPos += key.length;
+        uint endPos = indexOf(responseBytes, bytes("\""), startPos);
+        if (endPos == type(uint).max) return address(0);
+
+        bytes memory addressBytes = new bytes(endPos - startPos);
+        for (uint i = 0; i < addressBytes.length; i++) {
+            addressBytes[i] = responseBytes[startPos + i];
+        }
+
+        parsedAddress = stringToAddress(string(addressBytes));
+    }
+
+    function parseUint(string memory value) internal pure returns (uint256 amount) {
+        bytes memory amountBytes = bytes(value);
+        for (uint256 i = 0; i < amountBytes.length; i++) {
+            bytes1 char = amountBytes[i];
+            if (char < "0" || char > "9") revert("Invalid amount");
+            amount = amount * 10 + uint8(char) - uint8(bytes1("0"));
+        }
+    }
+
     /**
      * @notice Extract the path ID from a quote response
      * @param response The JSON response from the Odos API
@@ -315,4 +392,26 @@ library OdosApi {
         }
         revert("Invalid hex character");
     }
+    function stringToAddress(string memory addressString) internal pure returns (address) {
+        bytes memory bStr = bytes(addressString);
+        uint start = 0;
+        if (bStr.length >= 2 && bStr[0] == "0" && (bStr[1] == "x" || bStr[1] == "X")) {
+            start = 2;
+        }
+        require(bStr.length == start + 40, "Invalid address");
+
+        uint160 parsed;
+        for (uint i = 0; i < 40; i++) {
+            parsed = parsed * 16 + uint160(hexCharToInt(bStr[start + i]));
+        }
+
+        return address(parsed);
+    }
+
+    function slippageString(uint256 slippagePct) internal view returns (string memory) {
+        require(slippagePct <= 100, "Invalid slippage");
+        if (slippagePct == 100) return "100";
+        return vm.toString(slippagePct);
+    }
+
 }

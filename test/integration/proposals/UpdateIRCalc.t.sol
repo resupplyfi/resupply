@@ -9,6 +9,7 @@ import { UpdateIRCalc } from "script/proposals/UpdateIRCalc.s.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
 contract UpdateIRCalcTest is BaseProposalTest {
+    uint256 public constant PROP_ID = 20;
     UpdateIRCalc public script;
     address public newRateCalculator;
     ResupplyPairDeployer.ConfigData public oldDefaultConfig;
@@ -16,6 +17,7 @@ contract UpdateIRCalcTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if (isProposalProcessed(PROP_ID)) vm.skip(true);
         script = new UpdateIRCalc();
         newRateCalculator = script.NEW_RATE_CALCULATOR();
         oldDefaultConfig = ResupplyPairDeployer(address(deployer)).defaultConfigData();

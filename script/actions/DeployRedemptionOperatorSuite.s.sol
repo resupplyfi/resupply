@@ -24,7 +24,7 @@ contract DeployRedemptionOperatorSuite is BaseAction {
         approved[1] = 0x1ba323F8a6544b81Dc1F068b1400A6ebe7Ea0f52;
         approved[2] = 0x051C42Ee7A529410a10E5Ec11B9E9b8bA7cbb795;
 
-        vm.startBroadcast(loadPrivateKey());
+        vm.startBroadcast();
 
         address underlyingOracle = _deployUnderlyingOracle();
         address upgradeOperator = _deployUpgradeOperator();

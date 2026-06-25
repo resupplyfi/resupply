@@ -24,7 +24,7 @@ contract SreUsdTest is BaseProposalTest, CreateXHelper {
         launchScript = new LaunchSreUsd();
         // setRegistryValues();
         // deployContracts();
-        if(isProposalProcessed(9)) return;
+        if(isProposalProcessed(9)) vm.skip(true);
         console.log("Deployed contracts");
         IVoter.Action[] memory actions = launchScript.buildProposalCalldata();
         uint256 proposalId = createProposal(actions);

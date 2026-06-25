@@ -11,7 +11,7 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
-import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
+import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
@@ -86,7 +86,7 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.setMinTimeBetweenProposals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IVoter.updateProposalDescription.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IBorrowLimitController.cancelRamp.selector, true);
-        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), ISwapperOdos.revokeApprovals.selector, true);
+        permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, address(0), IRouterSwapper.revokeApprovals.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.INSURANCE_POOL, IInsurancePool.setWithdrawTimers.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.OPERATOR_GUARDIAN_PROXY, Protocol.REGISTRY, IResupplyRegistry.setAddress.selector, true);
 
@@ -124,7 +124,7 @@ contract LaunchOperatorsAndPermissions is BaseAction, BaseProposal {
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.CORE, ICore.setVoter.selector, true);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.VEST_MANAGER, IVestManager.setLockPenaltyMerkleRoot.selector, false);
         permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.VOTER_DEPRECATED_3, IVoter.updateProposalDescription.selector, false);
-        permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector, false);
+        permissions[i++] = PermissionUpdate(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, IRouterSwapper.revokeApprovals.selector, false);
         
         return permissions;
     }

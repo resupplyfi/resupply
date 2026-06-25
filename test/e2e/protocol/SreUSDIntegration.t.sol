@@ -33,21 +33,21 @@ contract SreUSDIntegrationTest is PairTestBase {
         depositToGovStaker(1000e18);
         distributeWeeklyFees();
         vm.prank(address(core));
-        pair.setBorrowLimit(type(uint128).max);
+        IResupplyPair(address(pair)).setBorrowLimit(type(uint128).max);
     }
 
     function test_PegBasedInterestRateChanges() public {
-        address pair = _testPairAddress();
+        address activePair = address(pair);
         // Start with peg at 1.0 (no additional fees)
         setPeg(1e18);
-        uint256 initialRate = getInterestRate(pair);
+        uint256 initialRate = getInterestRate(activePair);
         console.log("Initial rate at peg 1.0:", initialRate);
 
         // Move peg to 0.99 and checkpoint (should increase fees)
         setPeg(0.99e18);
-        IResupplyPair(pair).addInterest(false);
+        IResupplyPair(activePair).addInterest(false);
         skip(epochLength);
-        uint256 newRate = getInterestRate(pair);
+        uint256 newRate = getInterestRate(activePair);
         console.log("New rate at peg 0.99:", newRate);
         console.log("Rate increase:", newRate - initialRate);
         assertGt(newRate, initialRate, "Interest rate should increase when off peg");
@@ -55,12 +55,12 @@ contract SreUSDIntegrationTest is PairTestBase {
 
     function test_FeeDistributionToSreUSD() public {
         depositToStakedStable(1000e18);
-        address pair = _testPairAddress();
+        address activePair = address(pair);
         uint256 borrowAmount = 10_000e18;
-        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(activePair), borrowAmount, borrowAmount*2);
         // Advance time and add interest to generate fees
         skip(1 days);
-        IResupplyPair(pair).addInterest(false);
+        IResupplyPair(activePair).addInterest(false);
         uint256 initialSreUSDBalance = asset.balanceOf(address(stakedStable));
         
         // Advance two epochs needed to realize fee distribution
@@ -84,47 +84,47 @@ contract SreUSDIntegrationTest is PairTestBase {
     }
 
     function test_InterestRatesIncreaseWhenOffPeg() public {
-        address pair = _testPairAddress();
+        address activePair = address(pair);
         uint256 borrowAmount = 10_000e18;
-        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(activePair), borrowAmount, borrowAmount*2);
         
         // Step 1
         setPeg(1e18);
-        IResupplyPair(pair).addInterest(false);
-        uint256 rate = getInterestRate(pair);
+        IResupplyPair(activePair).addInterest(false);
+        uint256 rate = getInterestRate(activePair);
         console.log("Step 1 rate:", rate);
         advanceEpochs(1);
 
         // Step 2
         setPeg(0.995e18);
-        IResupplyPair(pair).addInterest(false);
-        console.log("Step 2 rate:", rate, "--->", getInterestRate(pair));
-        assertLt(rate, getInterestRate(pair), "Rate should decrease when off peg");
-        rate = getInterestRate(pair);
+        IResupplyPair(activePair).addInterest(false);
+        console.log("Step 2 rate:", rate, "--->", getInterestRate(activePair));
+        assertLt(rate, getInterestRate(activePair), "Rate should decrease when off peg");
+        rate = getInterestRate(activePair);
         advanceEpochs(1);
         
         // Step 3
         setPeg(0.99e18);
-        IResupplyPair(pair).addInterest(false);
-        console.log("Step 3 rate:", rate, "--->", getInterestRate(pair));
-        assertLt(rate, getInterestRate(pair), "Rate should decrease when off peg");
-        rate = getInterestRate(pair);
+        IResupplyPair(activePair).addInterest(false);
+        console.log("Step 3 rate:", rate, "--->", getInterestRate(activePair));
+        assertLt(rate, getInterestRate(activePair), "Rate should decrease when off peg");
+        rate = getInterestRate(activePair);
         advanceEpochs(1);
 
         // Step 4: Peg is lowered, but off-peg weight is clamped at 1e16 so should produce same rate as step 3
         setPeg(0.98e18);
-        IResupplyPair(pair).addInterest(false);
-        console.log("Step 4 rate:", rate, "--->", getInterestRate(pair));
-        assertLt(rate, getInterestRate(pair), "Rate should decrease when off peg");
-        rate = getInterestRate(pair);
+        IResupplyPair(activePair).addInterest(false);
+        console.log("Step 4 rate:", rate, "--->", getInterestRate(activePair));
+        assertLt(rate, getInterestRate(activePair), "Rate should decrease when off peg");
+        rate = getInterestRate(activePair);
         advanceEpochs(1);
 
         // Step 5: Back to peg
         setPeg(1e18);
-        IResupplyPair(pair).addInterest(false);
-        console.log("Step 5 rate:", rate, "--->", getInterestRate(pair));
-        assertGt(rate, getInterestRate(pair), "Rate should increase when back to peg");
-        rate = getInterestRate(pair);
+        IResupplyPair(activePair).addInterest(false);
+        console.log("Step 5 rate:", rate, "--->", getInterestRate(activePair));
+        assertGt(rate, getInterestRate(activePair), "Rate should increase when back to peg");
+        rate = getInterestRate(activePair);
         advanceEpochs(1);
         
         advanceEpochsWithdrawFeesAndDistributeFees(2);
@@ -146,11 +146,11 @@ contract SreUSDIntegrationTest is PairTestBase {
         
         // Generate fees over multiple epochs
         for (uint256 i = 0; i < 4; i++) {
-            address pair = _testPairAddress();
+            address activePair = address(pair);
             uint256 borrowAmount = 10_000e18;
-            borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
+            borrow(IResupplyPair(activePair), borrowAmount, borrowAmount*2);
             skip(1 days);
-            IResupplyPair(pair).addInterest(false);
+            IResupplyPair(activePair).addInterest(false);
             advanceEpochsWithdrawFeesAndDistributeFees(1);
             stakedStable.syncRewardsAndDistribution();
         }
@@ -162,9 +162,9 @@ contract SreUSDIntegrationTest is PairTestBase {
     }
 
     function test_TimeWeightedFeesAndLogger() public {
-        address pair = _testPairAddress();
+        address activePair = address(pair);
         uint256 borrowAmount = 10_000e18;
-        borrow(IResupplyPair(pair), borrowAmount, borrowAmount*2);
+        borrow(IResupplyPair(activePair), borrowAmount, borrowAmount*2);
 
         // Start at peg and skip to fresh epoch
         setPeg(1e18);
@@ -173,13 +173,13 @@ contract SreUSDIntegrationTest is PairTestBase {
         // EPOCH 1: Variable peg
         uint256 startEpoch = feeDeposit.getEpoch();
         skip(1 days);
-        IResupplyPair(pair).addInterest(false);
+        IResupplyPair(activePair).addInterest(false);
         setPeg(0.98e18);
         skip(2 days);
-        IResupplyPair(pair).addInterest(false);
+        IResupplyPair(activePair).addInterest(false);
         setPeg(1e18);
         skip(1 days);
-        IResupplyPair(pair).addInterest(false);
+        IResupplyPair(activePair).addInterest(false);
         advanceEpochsWithdrawFeesAndDistributeFees(1);
 
         // EPOCH 2: Fixed at peg        

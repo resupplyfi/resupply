@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { Keeper } from "src/helpers/keepers/Keeper.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { Protocol } from "src/Constants.sol";
 
 contract DeployKeeper is BaseAction {
     uint256 constant MIN_PROFIT = 100e18;
@@ -11,11 +12,18 @@ contract DeployKeeper is BaseAction {
         address[] memory ops = new address[](1);
         ops[0] = 0x21862cA8d044c104ac9EB728c86Bc38B8625BeCD;
 
-        uint256 pk = loadPrivateKey();
-        address deployer = vm.addr(pk);
+        address owner = keeperOwner();
 
-        vm.startBroadcast(pk);
-        new Keeper(deployer, ops, MIN_PROFIT);
+        vm.startBroadcast();
+        new Keeper(owner, ops, MIN_PROFIT);
         vm.stopBroadcast();
+    }
+
+    function keeperOwner() internal returns (address owner) {
+        try vm.envAddress("KEEPER_OWNER") returns (address configuredOwner) {
+            owner = configuredOwner;
+        } catch {
+            owner = Protocol.DEPLOYER;
+        }
     }
 }

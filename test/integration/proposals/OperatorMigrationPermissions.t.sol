@@ -10,7 +10,7 @@ import { ITreasuryManagerUpgradeable } from "src/interfaces/ITreasuryManagerUpgr
 import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { IPrismaFeeReceiver } from "src/interfaces/prisma/IPrismaFeeReceiver.sol";
 import { IVestManager } from "src/interfaces/IVestManager.sol";
-import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
+import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { ICore } from "src/interfaces/ICore.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
@@ -85,6 +85,6 @@ contract OperatorMigrationPermissionsTest is BaseProposalTest {
         // Other
         assertFalse(PermissionHelper.isEnabled(Protocol.DEPLOYER, Protocol.VEST_MANAGER, IVestManager.setLockPenaltyMerkleRoot.selector));
         assertFalse(PermissionHelper.isEnabled(Protocol.DEPLOYER, Protocol.VOTER_DEPRECATED_3, IVoter.updateProposalDescription.selector));
-        assertFalse(PermissionHelper.isEnabled(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, ISwapperOdos.revokeApprovals.selector));
+        assertFalse(PermissionHelper.isEnabled(Protocol.DEPLOYER, Protocol.SWAPPER_ODOS, IRouterSwapper.revokeApprovals.selector));
     }
 }

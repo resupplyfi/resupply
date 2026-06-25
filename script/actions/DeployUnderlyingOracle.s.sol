@@ -7,8 +7,7 @@ import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 contract DeployUnderlyingOracle is BaseAction {
 
     function run() public {
-        uint256 pk = loadPrivateKey();
-        vm.startBroadcast(pk);
+        vm.startBroadcast();
         new UnderlyingOracle("Underlying Token Oracle v2");
         vm.stopBroadcast();
     }

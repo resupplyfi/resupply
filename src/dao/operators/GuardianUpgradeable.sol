@@ -8,7 +8,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
-import { ISwapperOdos } from "src/interfaces/ISwapperOdos.sol";
+import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { IInsurancePool } from "src/interfaces/IInsurancePool.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
@@ -96,11 +96,15 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         );
     }
 
-    function revokeSwapperApprovals() external onlyGuardian {
-        address swapper = registry.getAddress("SWAPPER_ODOS");
+    function revokeSwapperApprovals(string calldata key) external onlyGuardian {
+        _revokeSwapperApprovals(key);
+    }
+
+    function _revokeSwapperApprovals(string memory key) internal {
+        address swapper = registry.getAddress(key);
         core.execute(
             address(swapper),
-            abi.encodeWithSelector(ISwapperOdos.revokeApprovals.selector)
+            abi.encodeWithSelector(IRouterSwapper.revokeApprovals.selector)
         );
     }
 
@@ -161,7 +165,7 @@ contract GuardianUpgradeable is BaseUpgradeableOperator {
         permissions.cancelProposal = hasPermission(voter, IVoter.cancelProposal.selector);
         permissions.updateProposalDescription = hasPermission(voter, IVoter.updateProposalDescription.selector);
         permissions.setRegistryAddress = hasPermission(address(registry), IResupplyRegistry.setAddress.selector);
-        permissions.revokeSwapperApprovals = hasPermission(swapper, ISwapperOdos.revokeApprovals.selector);
+        permissions.revokeSwapperApprovals = hasPermission(swapper, IRouterSwapper.revokeApprovals.selector);
         permissions.pauseIPWithdrawals = hasPermission(insurancePool, IInsurancePool.setWithdrawTimers.selector);
         permissions.cancelRamp = hasPermission(address(0), IBorrowLimitController.cancelRamp.selector);
         permissions.updateRedemptionGuardSettings =
