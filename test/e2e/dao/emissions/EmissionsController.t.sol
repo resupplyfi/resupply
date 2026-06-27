@@ -95,8 +95,8 @@ contract EmissionsControllerTest is Setup {
         }
     }
 
-    function test_UpdateScheduleBeforeReceiversAreRegisteredDoesNotMint() public {
-        uint256 startSupply = govToken.totalSupply();
+    function test_UpdateScheduleBeforeReceiversAreRegisteredMintsClaimableEpochs() public {
+        uint256 startSupply = govToken.globalSupply();
         uint256[] memory rates = new uint256[](2);
         rates[0] = 100;
         rates[1] = 101;
@@ -105,19 +105,119 @@ contract EmissionsControllerTest is Setup {
 
         skipToFirstEmissionsEpoch();
 
-        // Make sure emissions cannot mint without receivers
         skip(epochLength*5);
         vm.prank(address(core));
         emissionsController.setEmissionsSchedule(rates, epochsPer, tailRate);
-        assertEq(govToken.totalSupply(), startSupply);
+        uint256 historicalEmissions = govToken.globalSupply() - startSupply;
+        assertGt(historicalEmissions, 0);
+        assertEq(govToken.balanceOf(address(emissionsController)), historicalEmissions);
+        assertEq(emissionsController.unallocated(), 0);
 
-        // Ensure all new mints go to first receiver, and none go to unallocated
+        // Historical no-receiver emissions remain claimable by the first receiver.
         vm.prank(address(core));
         emissionsController.registerReceiver(address(mockReceiver1));
         vm.prank(address(mockReceiver1));
-        emissionsController.fetchEmissions();
-        assertGt(govToken.totalSupply(), startSupply);
+        uint256 amount = emissionsController.fetchEmissions();
+        assertEq(amount, historicalEmissions);
         assertEq(emissionsController.unallocated(), 0);
+    }
+
+    function test_SetEmissionsScheduleAppliesInNextEpoch() public {
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+
+        skip(epochLength);
+        vm.prank(address(mockReceiver1));
+        emissionsController.fetchEmissions();
+
+        uint256 currentEpoch = getEpoch();
+        uint256[] memory rates = new uint256[](1);
+        rates[0] = 2e18;
+
+        vm.prank(address(core));
+        emissionsController.setEmissionsSchedule(rates, 10, 0);
+
+        assertEq(emissionsController.emissionsRate(), rates[0]);
+        assertEq(emissionsController.getScheduleLength(), 0);
+        assertEq(emissionsController.lastEmissionsUpdate(), currentEpoch);
+
+        skip(epochLength);
+        uint256 expected = getExpectedEmissions(
+            emissionsController,
+            rates[0],
+            govToken.globalSupply(),
+            getEpoch()
+        );
+
+        vm.prank(address(mockReceiver1));
+        uint256 amount = emissionsController.fetchEmissions();
+        assertEq(amount, expected);
+    }
+
+    function test_SetEmissionsScheduleFirstRateLastsEpochsPer() public {
+        vm.prank(address(core));
+        emissionsController.registerReceiver(address(mockReceiver1));
+
+        skip(epochLength);
+        vm.prank(address(mockReceiver1));
+        emissionsController.fetchEmissions();
+
+        uint256[] memory rates = new uint256[](1);
+        rates[0] = 1e18;
+
+        vm.prank(address(core));
+        emissionsController.setEmissionsSchedule(rates, 3, 0);
+
+        assertNextFetchUsesRate(1e18);
+        assertNextFetchUsesRate(1e18);
+        assertNextFetchUsesRate(1e18);
+        assertNextFetchUsesRate(0);
+        assertEq(emissionsController.emissionsRate(), 0);
+    }
+
+    function test_SetEmissionsScheduleDuringBootstrap() public {
+        uint256[] memory initialRates = new uint256[](1);
+        initialRates[0] = 1e16;
+
+        vm.startPrank(address(core));
+        emissionsController = new EmissionsController(
+            address(core),
+            address(govToken),
+            initialRates,
+            2,
+            0,
+            5
+        );
+        govToken.setMinter(address(emissionsController));
+        mockReceiver1 = new MockReceiver(address(core), address(emissionsController), "Bootstrap Receiver");
+        emissionsController.registerReceiver(address(mockReceiver1));
+        vm.stopPrank();
+
+        skip(epochLength * 3);
+
+        uint256[] memory rates = new uint256[](1);
+        rates[0] = 2e16;
+
+        vm.prank(address(core));
+        emissionsController.setEmissionsSchedule(rates, 2, 0);
+
+        assertEq(emissionsController.lastMintEpoch(), 5);
+        assertEq(emissionsController.lastEmissionsUpdate(), 5);
+        assertEq(emissionsController.emissionsRate(), 2e16);
+
+        skip(epochLength * 3);
+        uint256 expected = getExpectedEmissions(
+            emissionsController,
+            2e16,
+            govToken.globalSupply(),
+            getEpoch()
+        );
+        vm.prank(address(mockReceiver1));
+        uint256 amount = emissionsController.fetchEmissions();
+        assertEq(amount, expected);
+
+        assertNextFetchUsesRate(2e16);
+        assertNextFetchUsesRate(0);
     }
 
     function test_AddMultipleReceiversAndWeights() public {
@@ -329,7 +429,7 @@ contract EmissionsControllerTest is Setup {
             vm.prank(address(mockReceiver1));
             emissionsController.fetchEmissions();
             // if schedule is exhausted, assert that tail rate is active
-            if (getEpoch() - startEpoch > epochsUntilTail) {
+            if (getEpoch() - startEpoch >= epochsUntilTail) {
                 assertEq(emissionsController.emissionsRate(), tailRate);
             }
             else {
@@ -404,6 +504,19 @@ contract EmissionsControllerTest is Setup {
 
     function getEpoch() public view returns (uint256) {
         return emissionsController.getEpoch();
+    }
+
+    function assertNextFetchUsesRate(uint256 rate) internal {
+        skip(epochLength);
+        uint256 expected = getExpectedEmissions(
+            emissionsController,
+            rate,
+            govToken.globalSupply(),
+            getEpoch()
+        );
+        vm.prank(address(mockReceiver1));
+        uint256 amount = emissionsController.fetchEmissions();
+        assertEq(amount, expected);
     }
 
     /// @notice Skips to the first emissions epoch

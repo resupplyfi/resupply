@@ -321,11 +321,17 @@ contract EmissionsController is CoreOwnable, EpochTracker {
         for (uint256 i = 0; i < _rates.length - 1; i++) {
             require(_rates[i] <= _rates[i + 1], "Rate greater than predecessor");
         }
-        // before updating, and only if receiver(s) are registered, mint current epoch emissions at old rate
-        if (nextReceiverId > 0) _mintEmissions(getEpoch());
+        // Freeze elapsed epochs under the old policy before replacing the schedule.
+        // If no receiver exists yet, those minted epochs remain claimable by receiver 0.
+        _mintEmissions(getEpoch());
+        uint256 nextRate = _rates[_rates.length - 1];
         emissionsSchedule = _rates;
+        emissionsSchedule.pop();
         epochsPer = _epochsPer;
         tailRate = _tailRate;
+        emissionsRate = nextRate;
+        lastEmissionsUpdate = lastMintEpoch;
+        emit EmissionsRateUpdated(lastMintEpoch, nextRate);
         emit EmissionsScheduleSet(_rates, _epochsPer, _tailRate);
     }
 
