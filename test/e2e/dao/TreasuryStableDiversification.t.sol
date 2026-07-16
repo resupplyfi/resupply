@@ -793,7 +793,9 @@ contract TreasuryStableDiversificationTest is Test {
 
 contract TreasuryStableDiversificationMainnetForkTest is Test {
     uint256 internal constant FULL_BPS = 10_000;
-    uint256 internal constant MAX_DEVIATION_BPS = 1_000;
+    uint256 internal constant MAX_DEVIATION_BPS = 4;
+    uint16 internal constant EXECUTION_BUFFER_BPS = 4;
+    uint256 internal constant MAX_PRICE = 1.001e18;
 
     address internal constant CRVUSD = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
     address internal constant SCRVUSD = 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367;
@@ -809,6 +811,7 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
     function setUp() public {
         mainnetRpcUrl = vm.envOr("MAINNET_RPC_URL", string(""));
         if (bytes(mainnetRpcUrl).length == 0) mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        if (bytes(mainnetRpcUrl).length == 0) mainnetRpcUrl = vm.envOr("MAINNET_URL", string(""));
         if (bytes(mainnetRpcUrl).length != 0) vm.createSelectFork(mainnetRpcUrl);
     }
 
@@ -844,9 +847,9 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
             vault: address(0),
             inputToken: address(0),
             stakedAsset: address(0),
-            maxPrice: 1.01e18,
-            maxSpotEmaDeviationBps: 1_000,
-            executionBufferBps: 100
+            maxPrice: MAX_PRICE,
+            maxSpotEmaDeviationBps: uint16(MAX_DEVIATION_BPS),
+            executionBufferBps: EXECUTION_BUFFER_BPS
         });
         targets[2] = TreasuryStableDiversification.Target({
             token: SFRXUSD,
@@ -855,9 +858,9 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
             vault: address(0),
             inputToken: FRXUSD,
             stakedAsset: address(0),
-            maxPrice: 1.01e18,
-            maxSpotEmaDeviationBps: 1_000,
-            executionBufferBps: 100
+            maxPrice: MAX_PRICE,
+            maxSpotEmaDeviationBps: uint16(MAX_DEVIATION_BPS),
+            executionBufferBps: EXECUTION_BUFFER_BPS
         });
         vm.prank(address(core));
         diversifier.setTargets(targets);

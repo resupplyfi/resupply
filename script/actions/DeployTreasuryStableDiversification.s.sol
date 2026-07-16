@@ -19,10 +19,10 @@ contract DeployTreasuryStableDiversification is Script {
     address public constant CRVUSD_FRXUSD_POOL = 0x13e12BB0E6A2f1A3d6901a59a9d585e89A6243e1;
     address public constant FRXUSD_SFRXUSD_POOL = 0xF292eB6c5dcb693Eaaf392D0562a01C3710E5978;
 
-    uint16 public constant MAX_DEVIATION_BPS = 1_000;
-    uint16 public constant PRICE_GUARD_DEVIATION_BPS = 1_000;
-    uint16 public constant EXECUTION_BUFFER_BPS = 100;
-    uint256 public constant MAX_PRICE = 1.01e18;
+    uint16 public constant MAX_DEVIATION_BPS = 4;
+    uint16 public constant PRICE_GUARD_DEVIATION_BPS = 4;
+    uint16 public constant EXECUTION_BUFFER_BPS = 4;
+    uint256 public constant MAX_PRICE = 1.001e18;
 
     function run() external returns (TreasuryStableDiversification diversifier) {
         vm.startBroadcast();
