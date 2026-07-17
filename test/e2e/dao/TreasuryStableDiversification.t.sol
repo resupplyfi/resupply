@@ -13,6 +13,11 @@ import {Core} from "src/dao/Core.sol";
 import {Treasury} from "src/dao/Treasury.sol";
 import {TreasuryStableDiversification} from "src/dao/TreasuryStableDiversification.sol";
 
+interface ICurvePoolView {
+    function get_dy(int128 i, int128 j, uint256 dx) external view returns (uint256);
+    function stored_rates() external view returns (uint256[] memory);
+}
+
 contract MockDiversificationToken is ERC20 {
     uint8 private immutable _TOKEN_DECIMALS;
 
@@ -661,6 +666,50 @@ contract TreasuryStableDiversificationTest is Test {
         assertEq(sdola.balanceOf(address(treasury)), 99.5e18 - 1);
     }
 
+    function test_swapWithPriceGuardDoesNotDoubleCountVaultTargetPps() public {
+        MockDiversificationVault vaultTarget = new MockDiversificationVault(IERC20(address(asset)));
+        MockCurveStableSwapPool vaultPool = new MockCurveStableSwapPool(vaultTarget, asset);
+        vaultPool.setUseVaultRates(true);
+        vaultPool.setRawPrices(0.98e18, 0.98e18);
+
+        address yieldOwner = makeAddr("yieldOwner");
+        asset.mint(yieldOwner, 100e18);
+        vm.startPrank(yieldOwner);
+        asset.approve(address(vaultTarget), 100e18);
+        vaultTarget.deposit(100e18, yieldOwner);
+        vm.stopPrank();
+        asset.mint(address(vaultTarget), 100e18);
+
+        asset.mint(address(this), 1_000e18);
+        asset.approve(address(vaultTarget), 1_000e18);
+        vaultTarget.deposit(1_000e18, address(vaultPool));
+        asset.mint(address(treasury), 100e18);
+
+        TreasuryStableDiversification.Target[] memory targets = new TreasuryStableDiversification.Target[](1);
+        targets[0] = TreasuryStableDiversification.Target({
+            token: address(vaultTarget),
+            weight: 1,
+            swapPool: address(vaultPool),
+            vault: address(0),
+            inputToken: address(0),
+            stakedAsset: address(0),
+            maxPrice: 1.01e18,
+            maxSpotEmaDeviationBps: 100,
+            executionBufferBps: 100
+        });
+        vm.prank(address(core));
+        diversifier.setTargets(targets);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryStableDiversification.TreasuryStableDiversification_PriceOutOfRange.selector,
+                1_020_408_163_265_306_123,
+                1.01e18
+            )
+        );
+        diversifier.swap(100e18);
+    }
+
     function test_swapWithPriceGuardRevertsWhenSpotAboveMaxPrice() public {
         MockCurveStableSwapPool usdcPool = new MockCurveStableSwapPool(asset, usdc);
         usdcPool.setRawPrices(1.02e18, 1.02e18);
@@ -865,6 +914,27 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
         vm.prank(address(core));
         diversifier.setTargets(targets);
 
+        uint256[] memory sdolaScrvRates = ICurvePoolView(SDOLA_SCRVUSD_POOL).stored_rates();
+        assertApproxEqAbs(sdolaScrvRates[0], IERC4626(SCRVUSD).convertToAssets(1e18), 1);
+        assertApproxEqAbs(sdolaScrvRates[1], IERC4626(SDOLA).convertToAssets(1e18), 1);
+
+        uint256[] memory sfrxUsdRates = ICurvePoolView(FRXUSD_SFRXUSD_POOL).stored_rates();
+        assertApproxEqAbs(sfrxUsdRates[0], IERC4626(SFRXUSD).convertToAssets(1e18), 1);
+        assertEq(sfrxUsdRates[1], 1e18);
+
+        uint256 sdolaSourceAssets = amount * targets[0].weight / diversifier.totalWeight();
+        uint256 expectedScrvUsdShares = IERC4626(SCRVUSD).convertToShares(sdolaSourceAssets);
+        uint256 expectedScrvUsdAssets = IERC4626(SCRVUSD).convertToAssets(expectedScrvUsdShares);
+        uint256 expectedSdolaShares = ICurvePoolView(SDOLA_SCRVUSD_POOL).get_dy(0, 1, expectedScrvUsdShares);
+        uint256 minSdolaShares = IERC4626(SDOLA).convertToShares(expectedScrvUsdAssets)
+            * (FULL_BPS - MAX_DEVIATION_BPS) / FULL_BPS;
+
+        uint256 sfrxUsdSourceAssets = amount * targets[1].weight / diversifier.totalWeight();
+        uint256 expectedFrxUsd = ICurvePoolView(CRVUSD_FRXUSD_POOL).get_dy(1, 0, sfrxUsdSourceAssets);
+        uint256 expectedSfrxUsdShares = ICurvePoolView(FRXUSD_SFRXUSD_POOL).get_dy(1, 0, expectedFrxUsd);
+        uint256 minSfrxUsdShares = IERC4626(SFRXUSD).convertToShares(expectedFrxUsd * 1e18 / MAX_PRICE)
+            * (FULL_BPS - EXECUTION_BUFFER_BPS) / FULL_BPS;
+
         uint256 assetAmount = diversifier.swap(amount);
 
         assertEq(assetAmount, amount);
@@ -878,9 +948,17 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
         assertGt(IERC20(SDOLA).balanceOf(address(treasury)), 0);
         assertGt(IERC20(SFRXUSD).balanceOf(address(treasury)), 0);
 
-        uint256 expectedSfrxUsdAssets = amount * targets[1].weight / diversifier.totalWeight();
-        uint256 sfrxUsdAssets = IERC4626(SFRXUSD).convertToAssets(IERC20(SFRXUSD).balanceOf(address(treasury)));
-        assertGe(sfrxUsdAssets, expectedSfrxUsdAssets * (FULL_BPS - MAX_DEVIATION_BPS) / FULL_BPS);
+        uint256 sdolaShares = IERC20(SDOLA).balanceOf(address(treasury));
+        uint256 sfrxUsdShares = IERC20(SFRXUSD).balanceOf(address(treasury));
+        assertApproxEqAbs(sdolaShares, expectedSdolaShares, 1);
+        assertApproxEqAbs(sfrxUsdShares, expectedSfrxUsdShares, 1);
+        assertGe(sdolaShares, minSdolaShares);
+        assertGe(sfrxUsdShares, minSfrxUsdShares);
+
+        uint256 sdolaAssets = IERC4626(SDOLA).convertToAssets(sdolaShares);
+        uint256 sfrxUsdAssets = IERC4626(SFRXUSD).convertToAssets(sfrxUsdShares);
+        assertGe(sdolaAssets, expectedScrvUsdAssets * (FULL_BPS - MAX_DEVIATION_BPS) / FULL_BPS);
+        assertGe(sfrxUsdAssets, sfrxUsdSourceAssets * (FULL_BPS - MAX_DEVIATION_BPS) / FULL_BPS);
     }
 
     modifier forkConfigured() {

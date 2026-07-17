@@ -360,36 +360,20 @@ contract TreasuryStableDiversification is Ownable2Step, ReentrancyGuard {
         view
         returns (uint256)
     {
+        if (rawPrice == 0) revert TreasuryStableDiversification_InvalidOraclePrice(target.swapPool);
         int128 inputIndex = _curveCoinIndex(target.swapPool, inputToken);
         int128 targetIndex = _curveCoinIndex(target.swapPool, target.token);
-        uint256 targetAmount = _tokenAmountForStableValue(target.token, PRICE_PRECISION, 18);
-        uint256 inputAmount = _inputAmountAtRawPrice(
-            target.swapPool, rawPrice, inputIndex, targetIndex, inputToken, target.token, targetAmount
-        );
-        (uint256 inputStableAmount, uint8 inputStableDecimals) = _stableAmountForToken(inputToken, inputAmount);
-        return _scaleAmount(inputStableAmount, inputStableDecimals, 18);
-    }
-
-    function _inputAmountAtRawPrice(
-        address pool,
-        uint256 rawPrice,
-        int128 inputIndex,
-        int128 targetIndex,
-        address inputToken,
-        address targetToken,
-        uint256 targetAmount
-    ) internal view returns (uint256) {
-        if (rawPrice == 0) revert TreasuryStableDiversification_InvalidOraclePrice(pool);
-        uint256 targetAmount18 = _scaleAmount(targetAmount, _tokenDecimals(targetToken), 18);
+        // Curve NG oracle/spot prices are already rate-adjusted via stored_rates.
+        // ERC4626 PPS conversion belongs in min-out sizing, not in oracle normalization.
         uint256 inputAmount18;
         if (inputIndex == 0 && targetIndex == 1) {
-            inputAmount18 = Math.mulDiv(targetAmount18, rawPrice, PRICE_PRECISION, Math.Rounding.Ceil);
+            inputAmount18 = rawPrice;
         } else if (inputIndex == 1 && targetIndex == 0) {
-            inputAmount18 = Math.mulDiv(targetAmount18, PRICE_PRECISION, rawPrice, Math.Rounding.Ceil);
+            inputAmount18 = Math.mulDiv(PRICE_PRECISION, PRICE_PRECISION, rawPrice, Math.Rounding.Ceil);
         } else {
-            revert TreasuryStableDiversification_InvalidOraclePrice(pool);
+            revert TreasuryStableDiversification_InvalidOraclePrice(target.swapPool);
         }
-        return _scaleAmount(inputAmount18, 18, _tokenDecimals(inputToken));
+        return inputAmount18;
     }
 
     function _curveSpotRawPrice(address pool) internal view returns (uint256) {
