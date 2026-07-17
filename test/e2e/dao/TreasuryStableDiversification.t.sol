@@ -400,6 +400,101 @@ contract TreasuryStableDiversificationTest is Test {
         assertEq(asset.balanceOf(address(diversifier)), 0);
     }
 
+    function test_swapUsesOutputDeltaForMinOut() public {
+        MockCurveStableSwapPool usdcPool = new MockCurveStableSwapPool(asset, usdc);
+        usdcPool.setOutputBps(9_800);
+        usdcPool.setEnforceMinOut(false);
+        usdc.mint(address(usdcPool), 1_000_000e6);
+        usdc.mint(address(diversifier), 1e6);
+        asset.mint(address(treasury), 100e18);
+
+        TreasuryStableDiversification.Target[] memory targets = new TreasuryStableDiversification.Target[](1);
+        targets[0] = TreasuryStableDiversification.Target({
+            token: address(usdc),
+            weight: 1,
+            swapPool: address(usdcPool),
+            vault: address(0),
+            inputToken: address(0),
+            stakedAsset: address(0),
+            maxPrice: 0,
+            maxSpotEmaDeviationBps: 0,
+            executionBufferBps: 0
+        });
+        vm.prank(address(core));
+        diversifier.setTargets(targets);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryStableDiversification.TreasuryStableDiversification_InsufficientOutput.selector,
+                address(usdc),
+                99e6,
+                98e6
+            )
+        );
+        diversifier.swap(100e18);
+    }
+
+    function test_swapReturnsDonatedOutputAfterDeltaMinOutCheck() public {
+        MockCurveStableSwapPool usdcPool = new MockCurveStableSwapPool(asset, usdc);
+        usdc.mint(address(usdcPool), 1_000_000e6);
+        usdc.mint(address(diversifier), 1e6);
+        asset.mint(address(treasury), 100e18);
+
+        TreasuryStableDiversification.Target[] memory targets = new TreasuryStableDiversification.Target[](1);
+        targets[0] = TreasuryStableDiversification.Target({
+            token: address(usdc),
+            weight: 1,
+            swapPool: address(usdcPool),
+            vault: address(0),
+            inputToken: address(0),
+            stakedAsset: address(0),
+            maxPrice: 0,
+            maxSpotEmaDeviationBps: 0,
+            executionBufferBps: 0
+        });
+        vm.prank(address(core));
+        diversifier.setTargets(targets);
+
+        uint256 assetAmount = diversifier.swap(100e18);
+
+        assertEq(assetAmount, 100e18);
+        assertEq(usdc.balanceOf(address(treasury)), 101e6);
+        assertEq(usdc.balanceOf(address(diversifier)), 0);
+    }
+
+    function test_swapIncludesDirectlyTransferredStakedAssetBalance() public {
+        MockDiversificationVault stakedAsset = new MockDiversificationVault(IERC20(address(asset)));
+        MockCurveStableSwapPool sdolaPool = new MockCurveStableSwapPool(stakedAsset, sdola);
+        sdola.mint(address(sdolaPool), 1_000_000e18);
+        asset.mint(address(this), 10e18);
+        asset.mint(address(treasury), 100e18);
+
+        asset.approve(address(stakedAsset), 10e18);
+        stakedAsset.deposit(10e18, address(diversifier));
+
+        TreasuryStableDiversification.Target[] memory targets = new TreasuryStableDiversification.Target[](1);
+        targets[0] = TreasuryStableDiversification.Target({
+            token: address(sdola),
+            weight: 1,
+            swapPool: address(sdolaPool),
+            vault: address(0),
+            inputToken: address(0),
+            stakedAsset: address(stakedAsset),
+            maxPrice: 0,
+            maxSpotEmaDeviationBps: 0,
+            executionBufferBps: 0
+        });
+        vm.prank(address(core));
+        diversifier.setTargets(targets);
+
+        uint256 assetAmount = diversifier.swap(100e18);
+
+        assertEq(assetAmount, 100e18);
+        assertEq(stakedAsset.balanceOf(address(diversifier)), 0);
+        assertEq(sdola.balanceOf(address(treasury)), 110e18);
+        assertEq(sdola.balanceOf(address(diversifier)), 0);
+    }
+
     function test_swapCanStakeAssetBeforeSwappingTarget() public {
         MockDiversificationVault stakedAsset = new MockDiversificationVault(IERC20(address(asset)));
         MockCurveStableSwapPool sdolaPool = new MockCurveStableSwapPool(stakedAsset, sdola);

@@ -195,14 +195,15 @@ contract TreasuryStableDiversification is Ownable2Step, ReentrancyGuard {
             } else {
                 sourceAmount = IERC20(sourceToken).balanceOf(address(this));
             }
-            if (sourceAmount == 0) continue;
-
             address inputToken = sourceToken;
             uint256 swapInputAmount = sourceAmount;
             if (target.stakedAsset != address(0)) {
                 inputToken = target.stakedAsset;
-                swapInputAmount = _stakeAsset(IERC20(sourceToken), target.stakedAsset, sourceAmount);
+                uint256 existingShares = IERC20(inputToken).balanceOf(address(this));
+                uint256 newShares = sourceAmount == 0 ? 0 : _stakeAsset(IERC20(sourceToken), target.stakedAsset, sourceAmount);
+                swapInputAmount = existingShares + newShares;
             }
+            if (swapInputAmount == 0) continue;
             uint256 minOut = _minTargetAmount(target, inputToken, swapInputAmount);
 
             uint256 received = target.token == inputToken
@@ -213,10 +214,12 @@ contract TreasuryStableDiversification is Ownable2Step, ReentrancyGuard {
             }
 
             uint256 shares;
+            uint256 targetAmount = received;
             if (!_isInputForLaterTarget(i, target.token)) {
-                shares = _returnOrDeposit(target.token, target.vault, received);
+                targetAmount = IERC20(target.token).balanceOf(address(this));
+                shares = _returnOrDeposit(target.token, target.vault, targetAmount);
             }
-            emit TargetSwapped(i, target.token, sourceAmount, received, target.vault, shares);
+            emit TargetSwapped(i, target.token, sourceAmount, targetAmount, target.vault, shares);
         }
 
         emit SwapExecuted(amount, assetAmount);
@@ -254,12 +257,13 @@ contract TreasuryStableDiversification is Ownable2Step, ReentrancyGuard {
     ) internal returns (uint256 received) {
         int128 assetIndex = _curveCoinIndex(target.swapPool, inputTokenAddress);
         int128 targetIndex = _curveCoinIndex(target.swapPool, target.token);
+        uint256 balanceBefore = IERC20(target.token).balanceOf(address(this));
 
         inputToken.forceApprove(target.swapPool, inputAmount);
         ICurveStableSwapPool(target.swapPool).exchange(assetIndex, targetIndex, inputAmount, minOut);
         inputToken.forceApprove(target.swapPool, 0);
 
-        received = IERC20(target.token).balanceOf(address(this));
+        received = IERC20(target.token).balanceOf(address(this)) - balanceBefore;
     }
 
     function _returnOrDeposit(address token, address vault, uint256 amount) internal returns (uint256 shares) {
