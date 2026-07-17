@@ -805,6 +805,63 @@ contract TreasuryStableDiversificationTest is Test {
         diversifier.swap(100e18);
     }
 
+    function test_swapCanUseSpotEmaGuardWithoutMaxPrice() public {
+        MockCurveStableSwapPool usdcPool = new MockCurveStableSwapPool(asset, usdc);
+        usdcPool.setOutputBps(9_900);
+        usdcPool.setRawPrices(2e18, 2e18);
+        usdc.mint(address(usdcPool), 1_000_000e6);
+        asset.mint(address(treasury), 100e18);
+
+        TreasuryStableDiversification.Target[] memory targets = new TreasuryStableDiversification.Target[](1);
+        targets[0] = TreasuryStableDiversification.Target({
+            token: address(usdc),
+            weight: 1,
+            swapPool: address(usdcPool),
+            vault: address(0),
+            inputToken: address(0),
+            stakedAsset: address(0),
+            maxPrice: 0,
+            maxSpotEmaDeviationBps: 100,
+            executionBufferBps: 0
+        });
+        vm.prank(address(core));
+        diversifier.setTargets(targets);
+
+        uint256 assetAmount = diversifier.swap(100e18);
+
+        assertEq(assetAmount, 100e18);
+        assertEq(usdc.balanceOf(address(treasury)), 99e6);
+    }
+
+    function test_swapWithSpotEmaGuardWithoutMaxPriceRevertsWhenDeviationTooWide() public {
+        MockCurveStableSwapPool usdcPool = new MockCurveStableSwapPool(asset, usdc);
+        usdcPool.setRawPrices(1.02e18, 1e18);
+        usdc.mint(address(usdcPool), 1_000_000e6);
+        asset.mint(address(treasury), 100e18);
+
+        TreasuryStableDiversification.Target[] memory targets = new TreasuryStableDiversification.Target[](1);
+        targets[0] = TreasuryStableDiversification.Target({
+            token: address(usdc),
+            weight: 1,
+            swapPool: address(usdcPool),
+            vault: address(0),
+            inputToken: address(0),
+            stakedAsset: address(0),
+            maxPrice: 0,
+            maxSpotEmaDeviationBps: 100,
+            executionBufferBps: 0
+        });
+        vm.prank(address(core));
+        diversifier.setTargets(targets);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryStableDiversification.TreasuryStableDiversification_OracleVolatile.selector, 1e18, 1.02e18, 100
+            )
+        );
+        diversifier.swap(100e18);
+    }
+
     function test_swapWithPriceGuardRevertsWhenSpotAboveMaxPrice() public {
         MockCurveStableSwapPool usdcPool = new MockCurveStableSwapPool(asset, usdc);
         usdcPool.setRawPrices(1.02e18, 1.02e18);
@@ -981,7 +1038,7 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
             inputToken: address(0),
             stakedAsset: SCRVUSD,
             maxPrice: 0,
-            maxSpotEmaDeviationBps: 0,
+            maxSpotEmaDeviationBps: uint16(MAX_DEVIATION_BPS),
             executionBufferBps: 0
         });
         targets[1] = TreasuryStableDiversification.Target({

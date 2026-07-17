@@ -54,7 +54,7 @@ contract DeployTreasuryStableDiversification is Script {
             inputToken: address(0),
             stakedAsset: SCRVUSD,
             maxPrice: 0,
-            maxSpotEmaDeviationBps: 0,
+            maxSpotEmaDeviationBps: PRICE_GUARD_DEVIATION_BPS,
             executionBufferBps: 0
         });
         targets[1] = TreasuryStableDiversification.Target({

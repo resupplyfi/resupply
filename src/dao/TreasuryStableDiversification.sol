@@ -282,8 +282,11 @@ contract TreasuryStableDiversification is Ownable2Step, ReentrancyGuard {
         view
         returns (uint256)
     {
-        if (target.maxPrice != 0) {
+        if (target.maxSpotEmaDeviationBps != 0) {
             _requireCurvePriceGuard(target, sourceToken);
+        }
+        if (target.maxPrice != 0) {
+            if (target.maxSpotEmaDeviationBps == 0) _requireCurvePriceGuard(target, sourceToken);
             uint256 pricedTargetAmount =
                 _targetAmountAtMaxPrice(target.token, sourceToken, sourceAmount, target.maxPrice);
             return Math.mulDiv(pricedTargetAmount, FULL_BPS - uint256(target.executionBufferBps), FULL_BPS);
@@ -354,7 +357,7 @@ contract TreasuryStableDiversification is Ownable2Step, ReentrancyGuard {
         if (_deviationBps(emaPrice, spotPrice) > target.maxSpotEmaDeviationBps) {
             revert TreasuryStableDiversification_OracleVolatile(emaPrice, spotPrice, target.maxSpotEmaDeviationBps);
         }
-        if (spotPrice > target.maxPrice) {
+        if (target.maxPrice != 0 && spotPrice > target.maxPrice) {
             revert TreasuryStableDiversification_PriceOutOfRange(spotPrice, target.maxPrice);
         }
     }
