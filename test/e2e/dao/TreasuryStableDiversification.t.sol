@@ -957,8 +957,8 @@ contract TreasuryStableDiversificationMainnetForkTest is Test {
 
         uint256 sdolaAssets = IERC4626(SDOLA).convertToAssets(sdolaShares);
         uint256 sfrxUsdAssets = IERC4626(SFRXUSD).convertToAssets(sfrxUsdShares);
-        assertGe(sdolaAssets, expectedScrvUsdAssets * (FULL_BPS - MAX_DEVIATION_BPS) / FULL_BPS);
-        assertGe(sfrxUsdAssets, sfrxUsdSourceAssets * (FULL_BPS - MAX_DEVIATION_BPS) / FULL_BPS);
+        assertGe(sdolaAssets, IERC4626(SDOLA).convertToAssets(minSdolaShares));
+        assertGe(sfrxUsdAssets, IERC4626(SFRXUSD).convertToAssets(minSfrxUsdShares));
     }
 
     modifier forkConfigured() {
