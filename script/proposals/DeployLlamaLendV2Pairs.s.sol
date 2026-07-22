@@ -7,7 +7,7 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { BaseProposal } from "script/proposals/BaseProposal.sol";
 
 contract DeployLlamaLendV2Pairs is BaseProposal {
-    string public constant DESCRIPTION = "Add CurveLendV2 support and deploy and register the sDOLA/crvUSD and sfrxUSD/crvUSD lender-vault pairs";
+    string public constant DESCRIPTION = "Add CurveLendV2 support and deploy and register the sDOLA/crvUSD and sfrxUSD/crvUSD pairs";
 
     string public constant PROTOCOL_NAME = "CurveLendV2";
     uint256 public constant AMOUNT_TO_BURN = 1e18;
