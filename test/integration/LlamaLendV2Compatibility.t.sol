@@ -14,6 +14,9 @@ interface ICurveLendV2Vault is IERC4626 {
     function collateral_token() external view returns (address);
 }
 
+/// @notice Fixed-block regression for the boundary between live LlamaLend v2
+/// lender vaults and Resupply. The proposal test covers governance calldata;
+/// this test independently covers vault discovery, pricing, and user flows.
 contract LlamaLendV2CompatibilityTest is Test {
     uint256 internal constant FORK_BLOCK = 25_583_871;
     address internal constant SDOLA_V2_VAULT = 0x2b5a321C3cb1F33e1ABECD047C2649D0b4C47eBa;
@@ -32,24 +35,34 @@ contract LlamaLendV2CompatibilityTest is Test {
     }
 
     function _exerciseVault(address vault) internal {
-        (address borrowToken, address collateralToken) = DEPLOYER.getBorrowAndCollateralTokens(0, vault);
+        // Resupply discovers a Curve market from the vault's asset and
+        // collateral selectors. These assertions guard the LLv2 ABI boundary
+        // and the share-to-asset price consumed by BasicVaultOracle.
+        (address borrowToken, address collateralToken) = DEPLOYER.getBorrowAndCollateralTokens(Protocol.PROTOCOL_ID_CURVE, vault);
         assertEq(borrowToken, Mainnet.CRVUSD_ERC20);
         assertEq(collateralToken, ICurveLendV2Vault(vault).collateral_token());
         assertEq(IERC4626(vault).decimals(), 18);
         assertEq(IERC4626(vault).asset(), Mainnet.CRVUSD_ERC20);
         assertEq(IERC4626(vault).convertToAssets(1e18), IOracle(Protocol.BASIC_VAULT_ORACLE).getPrices(vault));
 
+        // LLv2 lender shares have no Convex staking wrapper, so both staking
+        // arguments are deliberately zero.
         vm.prank(Protocol.DEPLOYER);
-        IResupplyPair pair = IResupplyPair(DEPLOYER.deployWithDefaultConfig(0, vault, address(0), 0));
+        IResupplyPair pair = IResupplyPair(DEPLOYER.deployWithDefaultConfig(Protocol.PROTOCOL_ID_CURVE, vault, address(0), 0));
 
         assertEq(pair.collateral(), vault);
         assertEq(pair.underlying(), Mainnet.CRVUSD_ERC20);
         assertEq(pair.convexBooster(), address(0));
         assertEq(pair.convexPid(), 0);
 
+        // Registration is part of the compatibility boundary because only a
+        // registered pair may mint reUSD during the borrow below.
         vm.prank(Protocol.CORE);
         REGISTRY.addPair(address(pair));
 
+        // Exercise the full path used by a Resupply borrower: crvUSD enters
+        // the LLv2 ERC-4626 vault, its shares become pair collateral, and the
+        // user borrows reUSD against those shares.
         address user = address(uint160(uint256(keccak256(abi.encode(vault)))));
         deal(Mainnet.CRVUSD_ERC20, user, 5000e18);
 
@@ -64,12 +77,16 @@ contract LlamaLendV2CompatibilityTest is Test {
         assertGt(borrowShares, 0);
         assertEq(IERC20(Protocol.STABLECOIN).balanceOf(user), 1000e18);
 
+        // Accruing after a time jump proves the pair's rate calculator can
+        // consume the LLv2 vault accounting, not just complete a same-block
+        // deposit and withdrawal.
         vm.warp(block.timestamp + 1 days);
         pair.addInterest(false);
         (uint64 lastTimestamp,, uint128 lastShares) = pair.currentRateInfo();
         assertEq(lastTimestamp, block.timestamp);
         assertGt(lastShares, 0);
 
+        // Supply extra reUSD to cover the interest accrued after the borrow.
         deal(Protocol.STABLECOIN, user, 2000e18);
         IERC20(Protocol.STABLECOIN).approve(address(pair), type(uint256).max);
         pair.repay(borrowShares, user);
