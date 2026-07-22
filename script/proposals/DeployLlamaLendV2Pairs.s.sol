@@ -21,8 +21,20 @@ contract DeployLlamaLendV2Pairs is BaseProposal {
     }
 
     function buildProposalCalldata() public override returns (IVoter.Action[] memory actions) {
-        (address sdolaPair, bytes memory deploySdolaPair) = getPairDeploymentAddressAndCallData(Protocol.PROTOCOL_ID_CURVE, SDOLA_VAULT, address(0), 0);
-        (address sfrxUsdPair, bytes memory deploySfrxUsdPair) = getPairDeploymentAddressAndCallData(Protocol.PROTOCOL_ID_CURVE, SFRXUSD_VAULT, address(0), 0);
+        (address sdolaPair, bytes memory deploySdolaPair) =
+            getPairDeploymentAddressAndCallData(
+                Protocol.PROTOCOL_ID_CURVE,
+                SDOLA_VAULT,
+                address(0),
+                0
+            );
+        (address sfrxUsdPair, bytes memory deploySfrxUsdPair) =
+            getPairDeploymentAddressAndCallData(
+                Protocol.PROTOCOL_ID_CURVE,
+                SFRXUSD_VAULT,
+                address(0),
+                0
+            );
 
         actions = new IVoter.Action[](4);
         actions[0] = IVoter.Action({ target: address(pairDeployer), data: deploySdolaPair });
