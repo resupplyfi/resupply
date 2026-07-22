@@ -7,6 +7,7 @@ library Protocol {
     address constant DEPLOYER = 0xFE11a5009f2121622271e7dd0FD470264e076af6;
     uint256 constant PROTOCOL_ID_CURVE = 0;
     uint256 constant PROTOCOL_ID_FRAX = 1;
+    uint256 constant PROTOCOL_ID_CURVE_V2 = 2;
 
     // Core Protocol
     address constant CORE = 0xc07e000044F95655c11fda4cD37F70A94d7e0a7d;
