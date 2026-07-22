@@ -50,6 +50,14 @@ contract DeployLlamaLendV2Pairs is BaseProposal {
             BORROW_TOKEN_SELECTOR,
             COLLATERAL_TOKEN_SELECTOR
         );
+
+        // deployWithDefaultConfig reads the deployer's stored defaults when
+        // each action executes. At proposal authoring, those defaults are:
+        // - oracle: BasicVaultOracle (0xa346BA5E838D6Ee40204A69549c81AB982644150)
+        // - rate calculator: InterestRateCalculator v2.1.1 (0xD3d5C6fc52f3bc29C3aB017d57D9A94A036Ca90f)
+        // - max LTV: 95%; initial borrow limit: 1,000,000 reUSD
+        // - liquidation fee: 5%; mint fee: 0%
+        // - protocol redemption share: 5% of the redemption fee
         bytes memory deploySdolaPair = abi.encodeWithSelector(
             IResupplyPairDeployer.deployWithDefaultConfig.selector,
             Protocol.PROTOCOL_ID_CURVE_V2,
