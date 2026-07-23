@@ -1,1 +1,1 @@
-- In Solidity proposal scripts, format long `IVoter.Action` values and encoded call arguments one per line, adding brief action comments when helpful for human review.
+- In Solidity proposal scripts, format long `IVoter.Action` values and encoded call arguments one per line, adding brief action comments and inline labels for non-obvious parameters.

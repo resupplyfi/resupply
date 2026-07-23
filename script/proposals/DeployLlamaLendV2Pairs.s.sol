@@ -62,11 +62,11 @@ contract DeployLlamaLendV2Pairs is Script {
 
         bytes memory addProtocol = abi.encodeWithSelector(
             IResupplyPairDeployer.addSupportedProtocol.selector,
-            PROTOCOL_NAME,
-            AMOUNT_TO_BURN,
-            MIN_SHARE_BURN_AMOUNT,
-            BORROW_TOKEN_SELECTOR,
-            COLLATERAL_TOKEN_SELECTOR
+            PROTOCOL_NAME, // protocol name
+            AMOUNT_TO_BURN, // borrow tokens deposited to mint burned shares
+            MIN_SHARE_BURN_AMOUNT, // minimum vault shares sent to the burn address
+            BORROW_TOKEN_SELECTOR, // borrow token getter
+            COLLATERAL_TOKEN_SELECTOR // collateral token getter
         );
 
         // deployWithDefaultConfig reads the deployer's stored defaults when
@@ -78,17 +78,17 @@ contract DeployLlamaLendV2Pairs is Script {
         // - protocol redemption share: 5% of the redemption fee
         bytes memory deploySdolaPair = abi.encodeWithSelector(
             IResupplyPairDeployer.deployWithDefaultConfig.selector,
-            Protocol.PROTOCOL_ID_CURVE_V2,
-            SDOLA_VAULT,
-            Mainnet.CONVEX_BOOSTER,
-            SDOLA_CONVEX_PID
+            Protocol.PROTOCOL_ID_CURVE_V2, // protocol ID
+            SDOLA_VAULT, // collateral vault
+            Mainnet.CONVEX_BOOSTER, // staking contract
+            SDOLA_CONVEX_PID // staking pool ID
         );
         bytes memory deploySfrxUsdPair = abi.encodeWithSelector(
             IResupplyPairDeployer.deployWithDefaultConfig.selector,
-            Protocol.PROTOCOL_ID_CURVE_V2,
-            SFRXUSD_VAULT,
-            Mainnet.CONVEX_BOOSTER,
-            SFRXUSD_CONVEX_PID
+            Protocol.PROTOCOL_ID_CURVE_V2, // protocol ID
+            SFRXUSD_VAULT, // collateral vault
+            Mainnet.CONVEX_BOOSTER, // staking contract
+            SFRXUSD_CONVEX_PID // staking pool ID
         );
         uint256 rampEndTime = block.timestamp + voter.votingPeriod() + voter.executionDelay() + RAMP_DURATION;
 
@@ -115,14 +115,14 @@ contract DeployLlamaLendV2Pairs is Script {
             target: Protocol.REGISTRY,
             data: abi.encodeWithSelector(
                 IResupplyRegistry.addPair.selector,
-                SDOLA_PAIR
+                SDOLA_PAIR // pair to register
             )
         });
         actions[4] = IVoter.Action({
             target: Protocol.REGISTRY,
             data: abi.encodeWithSelector(
                 IResupplyRegistry.addPair.selector,
-                SFRXUSD_PAIR
+                SFRXUSD_PAIR // pair to register
             )
         });
 
@@ -131,18 +131,18 @@ contract DeployLlamaLendV2Pairs is Script {
             target: Protocol.BORROW_LIMIT_CONTROLLER,
             data: abi.encodeWithSelector(
                 IBorrowLimitController.setPairBorrowLimitRamp.selector,
-                SDOLA_PAIR,
-                SDOLA_TARGET_BORROW_LIMIT,
-                rampEndTime
+                SDOLA_PAIR, // pair
+                SDOLA_TARGET_BORROW_LIMIT, // target borrow limit
+                rampEndTime // ramp end timestamp
             )
         });
         actions[6] = IVoter.Action({
             target: Protocol.BORROW_LIMIT_CONTROLLER,
             data: abi.encodeWithSelector(
                 IBorrowLimitController.setPairBorrowLimitRamp.selector,
-                SFRXUSD_PAIR,
-                SFRXUSD_TARGET_BORROW_LIMIT,
-                rampEndTime
+                SFRXUSD_PAIR, // pair
+                SFRXUSD_TARGET_BORROW_LIMIT, // target borrow limit
+                rampEndTime // ramp end timestamp
             )
         });
     }
