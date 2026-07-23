@@ -15,11 +15,10 @@ interface ICurveLendV2Vault is IERC4626 {
     function collateral_token() external view returns (address);
 }
 
-/// @notice Fixed-block regression for the boundary between live LlamaLend v2
-/// lender vaults and Resupply. The proposal test covers governance calldata;
+/// @notice Latest-mainnet regression for the boundary between live LlamaLend
+/// v2 lender vaults and Resupply. The proposal test covers governance calldata;
 /// this test independently covers vault discovery, pricing, and user flows.
 contract LlamaLendV2CompatibilityTest is Test {
-    uint256 internal constant FORK_BLOCK = 25_583_871;
     address internal constant SDOLA_V2_VAULT = 0x2b5a321C3cb1F33e1ABECD047C2649D0b4C47eBa;
     address internal constant SFRXUSD_V2_VAULT = 0x3Da0F110079012387F47C6Fc6e878F10262E300a;
     uint256 internal constant SDOLA_CONVEX_PID = 570;
@@ -29,7 +28,7 @@ contract LlamaLendV2CompatibilityTest is Test {
     IResupplyRegistry internal constant REGISTRY = IResupplyRegistry(Protocol.REGISTRY);
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("MAINNET_URL"), FORK_BLOCK);
+        vm.createSelectFork(vm.envString("MAINNET_URL"));
 
         // Production adds this metadata in the governance proposal before
         // deploying either pair. Add it here so this standalone compatibility
