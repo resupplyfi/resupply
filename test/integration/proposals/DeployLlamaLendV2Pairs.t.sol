@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { Mainnet, Protocol } from "src/Constants.sol";
@@ -21,8 +22,9 @@ contract DeployLlamaLendV2PairsTest is BaseProposalTest {
     uint256 public pairCountBefore;
 
     uint256 public protocolCountBefore;
+    uint256 public rampEndTime;
 
-    address[5] internal actionTargets;
+    address[7] internal actionTargets;
     bytes[] internal actionData;
 
     function setUp() public override {
@@ -35,6 +37,7 @@ contract DeployLlamaLendV2PairsTest is BaseProposalTest {
         sfrxUsdPair = script.SFRXUSD_PAIR();
         sdolaPairName = "Resupply Pair (CurveLendV2: crvUSD/sDOLA) - 1";
         sfrxUsdPairName = "Resupply Pair (CurveLendV2: crvUSD/sfrxUSD) - 1";
+        rampEndTime = block.timestamp + voter.votingPeriod() + voter.executionDelay() + script.RAMP_DURATION();
 
         IVoter.Action[] memory actions = script.buildProposalCalldata();
         for (uint256 i = 0; i < actions.length; i++) {
@@ -69,8 +72,29 @@ contract DeployLlamaLendV2PairsTest is BaseProposalTest {
         _assertPair(sfrxUsdPair, script.SFRXUSD_VAULT(), sfrxUsdPairName, script.SFRXUSD_CONVEX_PID());
     }
 
+    function test_ProposalConfiguresBorrowLimitRamps() public {
+        _assertRamp(sdolaPair, script.SDOLA_TARGET_BORROW_LIMIT());
+        _assertRamp(sfrxUsdPair, script.SFRXUSD_TARGET_BORROW_LIMIT());
+
+        skip(script.RAMP_DURATION() / 2);
+        borrowLimitController.updatePairBorrowLimit(sdolaPair);
+        borrowLimitController.updatePairBorrowLimit(sfrxUsdPair);
+
+        assertGt(IResupplyPair(sdolaPair).borrowLimit(), 1_000_000e18, "sDOLA limit did not increase");
+        assertLt(IResupplyPair(sdolaPair).borrowLimit(), script.SDOLA_TARGET_BORROW_LIMIT(), "sDOLA limit reached target early");
+        assertGt(IResupplyPair(sfrxUsdPair).borrowLimit(), 1_000_000e18, "sfrxUSD limit did not increase");
+        assertLt(IResupplyPair(sfrxUsdPair).borrowLimit(), script.SFRXUSD_TARGET_BORROW_LIMIT(), "sfrxUSD limit reached target early");
+
+        skip(script.RAMP_DURATION() / 2);
+        borrowLimitController.updatePairBorrowLimit(sdolaPair);
+        borrowLimitController.updatePairBorrowLimit(sfrxUsdPair);
+
+        assertEq(IResupplyPair(sdolaPair).borrowLimit(), script.SDOLA_TARGET_BORROW_LIMIT(), "sDOLA target limit mismatch");
+        assertEq(IResupplyPair(sfrxUsdPair).borrowLimit(), script.SFRXUSD_TARGET_BORROW_LIMIT(), "sfrxUSD target limit mismatch");
+    }
+
     function test_ProposalPayload() public view {
-        assertEq(actionData.length, 5, "unexpected action count");
+        assertEq(actionData.length, 7, "unexpected action count");
 
         assertEq(actionTargets[0], Protocol.PAIR_DEPLOYER_V2, "action 0 target");
         assertEq(keccak256(actionData[0]), keccak256(abi.encodeWithSelector(IResupplyPairDeployer.addSupportedProtocol.selector, script.PROTOCOL_NAME(), script.AMOUNT_TO_BURN(), script.MIN_SHARE_BURN_AMOUNT(), script.BORROW_TOKEN_SELECTOR(), script.COLLATERAL_TOKEN_SELECTOR())), "action 0 calldata");
@@ -78,14 +102,29 @@ contract DeployLlamaLendV2PairsTest is BaseProposalTest {
         assertEq(actionTargets[1], Protocol.PAIR_DEPLOYER_V2, "action 1 target");
         assertEq(keccak256(actionData[1]), keccak256(abi.encodeWithSelector(IResupplyPairDeployer.deployWithDefaultConfig.selector, Protocol.PROTOCOL_ID_CURVE_V2, script.SDOLA_VAULT(), Mainnet.CONVEX_BOOSTER, script.SDOLA_CONVEX_PID())), "action 1 calldata");
 
-        assertEq(actionTargets[2], Protocol.REGISTRY, "action 2 target");
-        assertEq(keccak256(actionData[2]), keccak256(abi.encodeWithSelector(IResupplyRegistry.addPair.selector, sdolaPair)), "action 2 calldata");
+        assertEq(actionTargets[2], Protocol.PAIR_DEPLOYER_V2, "action 2 target");
+        assertEq(keccak256(actionData[2]), keccak256(abi.encodeWithSelector(IResupplyPairDeployer.deployWithDefaultConfig.selector, Protocol.PROTOCOL_ID_CURVE_V2, script.SFRXUSD_VAULT(), Mainnet.CONVEX_BOOSTER, script.SFRXUSD_CONVEX_PID())), "action 2 calldata");
 
-        assertEq(actionTargets[3], Protocol.PAIR_DEPLOYER_V2, "action 3 target");
-        assertEq(keccak256(actionData[3]), keccak256(abi.encodeWithSelector(IResupplyPairDeployer.deployWithDefaultConfig.selector, Protocol.PROTOCOL_ID_CURVE_V2, script.SFRXUSD_VAULT(), Mainnet.CONVEX_BOOSTER, script.SFRXUSD_CONVEX_PID())), "action 3 calldata");
+        assertEq(actionTargets[3], Protocol.REGISTRY, "action 3 target");
+        assertEq(keccak256(actionData[3]), keccak256(abi.encodeWithSelector(IResupplyRegistry.addPair.selector, sdolaPair)), "action 3 calldata");
 
         assertEq(actionTargets[4], Protocol.REGISTRY, "action 4 target");
         assertEq(keccak256(actionData[4]), keccak256(abi.encodeWithSelector(IResupplyRegistry.addPair.selector, sfrxUsdPair)), "action 4 calldata");
+
+        assertEq(actionTargets[5], Protocol.BORROW_LIMIT_CONTROLLER, "action 5 target");
+        assertEq(keccak256(actionData[5]), keccak256(abi.encodeWithSelector(IBorrowLimitController.setPairBorrowLimitRamp.selector, sdolaPair, script.SDOLA_TARGET_BORROW_LIMIT(), rampEndTime)), "action 5 calldata");
+
+        assertEq(actionTargets[6], Protocol.BORROW_LIMIT_CONTROLLER, "action 6 target");
+        assertEq(keccak256(actionData[6]), keccak256(abi.encodeWithSelector(IBorrowLimitController.setPairBorrowLimitRamp.selector, sfrxUsdPair, script.SFRXUSD_TARGET_BORROW_LIMIT(), rampEndTime)), "action 6 calldata");
+    }
+
+    function _assertRamp(address pair, uint256 targetBorrowLimit) internal view {
+        IBorrowLimitController.PairBorrowLimit memory ramp = borrowLimitController.pairLimits(pair);
+        assertEq(ramp.prevBorrowLimit, 1_000_000e18, "unexpected starting borrow limit");
+        assertEq(ramp.targetBorrowLimit, targetBorrowLimit, "target borrow limit mismatch");
+        assertEq(uint256(ramp.startTime), block.timestamp, "ramp start time mismatch");
+        assertEq(uint256(ramp.endTime), rampEndTime, "ramp end time mismatch");
+        assertEq(uint256(ramp.endTime) - uint256(ramp.startTime), script.RAMP_DURATION(), "ramp duration mismatch");
     }
 
     function _assertPair(address pairAddress, address vault, string memory expectedName, uint256 expectedPid) internal view {
