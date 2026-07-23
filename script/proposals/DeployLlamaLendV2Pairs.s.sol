@@ -93,18 +93,57 @@ contract DeployLlamaLendV2Pairs is Script {
         uint256 rampEndTime = block.timestamp + voter.votingPeriod() + voter.executionDelay() + RAMP_DURATION;
 
         actions = new IVoter.Action[](7);
-        actions[0] = IVoter.Action({ target: address(pairDeployer), data: addProtocol });
-        actions[1] = IVoter.Action({ target: address(pairDeployer), data: deploySdolaPair });
-        actions[2] = IVoter.Action({ target: address(pairDeployer), data: deploySfrxUsdPair });
-        actions[3] = IVoter.Action({ target: Protocol.REGISTRY, data: abi.encodeWithSelector(IResupplyRegistry.addPair.selector, SDOLA_PAIR) });
-        actions[4] = IVoter.Action({ target: Protocol.REGISTRY, data: abi.encodeWithSelector(IResupplyRegistry.addPair.selector, SFRXUSD_PAIR) });
+
+        // Add CurveLend V2 protocol support.
+        actions[0] = IVoter.Action({
+            target: address(pairDeployer),
+            data: addProtocol
+        });
+
+        // Deploy both pairs.
+        actions[1] = IVoter.Action({
+            target: address(pairDeployer),
+            data: deploySdolaPair
+        });
+        actions[2] = IVoter.Action({
+            target: address(pairDeployer),
+            data: deploySfrxUsdPair
+        });
+
+        // Register both pairs.
+        actions[3] = IVoter.Action({
+            target: Protocol.REGISTRY,
+            data: abi.encodeWithSelector(
+                IResupplyRegistry.addPair.selector,
+                SDOLA_PAIR
+            )
+        });
+        actions[4] = IVoter.Action({
+            target: Protocol.REGISTRY,
+            data: abi.encodeWithSelector(
+                IResupplyRegistry.addPair.selector,
+                SFRXUSD_PAIR
+            )
+        });
+
+        // Configure both borrow limit ramps.
         actions[5] = IVoter.Action({
             target: Protocol.BORROW_LIMIT_CONTROLLER,
-            data: abi.encodeWithSelector(IBorrowLimitController.setPairBorrowLimitRamp.selector, SDOLA_PAIR, SDOLA_TARGET_BORROW_LIMIT, rampEndTime)
+            data: abi.encodeWithSelector(
+                IBorrowLimitController.setPairBorrowLimitRamp.selector,
+                SDOLA_PAIR,
+                SDOLA_TARGET_BORROW_LIMIT,
+                rampEndTime
+            )
         });
         actions[6] = IVoter.Action({
             target: Protocol.BORROW_LIMIT_CONTROLLER,
-            data: abi.encodeWithSelector(IBorrowLimitController.setPairBorrowLimitRamp.selector, SFRXUSD_PAIR, SFRXUSD_TARGET_BORROW_LIMIT, rampEndTime)
+            data: abi.encodeWithSelector(
+                IBorrowLimitController.setPairBorrowLimitRamp.selector,
+                SFRXUSD_PAIR,
+                SFRXUSD_TARGET_BORROW_LIMIT,
+                rampEndTime
+            )
         });
     }
 
