@@ -29,7 +29,7 @@ contract LlamaLendV2CompatibilityTest is Test {
     IResupplyRegistry internal constant REGISTRY = IResupplyRegistry(Protocol.REGISTRY);
 
     function setUp() public {
-        vm.createSelectFork("http://wavey:8545", FORK_BLOCK);
+        vm.createSelectFork(vm.envString("MAINNET_URL"), FORK_BLOCK);
 
         // Production adds this metadata in the governance proposal before
         // deploying either pair. Add it here so this standalone compatibility
