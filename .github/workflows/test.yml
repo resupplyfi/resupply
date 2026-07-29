@@ -6,7 +6,6 @@ on:
   pull_request:
 
 env:
-  FOUNDRY_PROFILE: ci
   MAINNET_URL: ${{ secrets.MAINNET_URL }}
 
 jobs:
