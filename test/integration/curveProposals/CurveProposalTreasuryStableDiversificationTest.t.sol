@@ -65,7 +65,7 @@ contract CurveProposalTreasuryStableDiversificationTest is BaseCurveProposalTest
 
     function test_CanSwapTreasuryCrvUsdToSdolaAndSfrxUsdAfterProposal() public {
         uint256 amount = 100e18;
-        assertGe(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(CURVE_TREASURY), amount);
+        deal(Mainnet.CRVUSD_ERC20, CURVE_TREASURY, amount);
 
         uint256 treasuryCrvUsdBefore = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(CURVE_TREASURY);
         uint256 treasurySdolaBefore = IERC20(SDOLA).balanceOf(CURVE_TREASURY);
