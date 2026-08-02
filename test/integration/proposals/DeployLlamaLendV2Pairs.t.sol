@@ -13,6 +13,8 @@ import { DeployLlamaLendV2Pairs } from "script/proposals/DeployLlamaLendV2Pairs.
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 
 contract DeployLlamaLendV2PairsTest is BaseProposalTest {
+    uint256 internal constant PRE_PROPOSAL_BLOCK = 25_655_448;
+
     DeployLlamaLendV2Pairs public script;
 
     address public sdolaPair;
@@ -29,6 +31,12 @@ contract DeployLlamaLendV2PairsTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+
+        // The proposal has executed on mainnet. Pin its regression test to the
+        // final block before execution so the protocol-registration action and
+        // deterministic pair predictions remain reproducible.
+        vm.createSelectFork(vm.envString("MAINNET_URL"), PRE_PROPOSAL_BLOCK);
+        deployer = IResupplyPairDeployer(registry.getAddress("PAIR_DEPLOYER"));
 
         script = new DeployLlamaLendV2Pairs();
         pairCountBefore = registry.registeredPairsLength();
