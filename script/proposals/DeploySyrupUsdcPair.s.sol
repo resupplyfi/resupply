@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { Mainnet, Protocol } from "src/Constants.sol";
+import { Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
 import { CurveLendV2PairDeployer } from "script/actions/dependencies/CurveLendV2PairDeployer.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
@@ -13,22 +14,12 @@ contract DeploySyrupUsdcPair is BaseAction {
     IVoter public constant voter = IVoter(Protocol.VOTER);
 
     string public constant DESCRIPTION =
-        "Deploy and register the CurveLendV2 crvUSD/syrupUSDC Resupply pair with borrowing disabled";
+        "Deploy the CurveLendV2 crvUSD/syrupUSDC pair and ramp its borrow limit to 7.5M";
 
-    address public constant SYRUP_USDC = 0x80ac24aA929eaF5013f6436cdA2a7ba190f5Cc0b;
     address public constant SYRUP_USDC_VAULT = 0xD0D347E14fbF1872affeaCb49d0b8B7182680E6C;
     uint256 public constant SYRUP_USDC_CONVEX_PID = 579;
-
-    // Freeze the current standard pair configuration in proposal calldata,
-    // except for the deliberately disabled initial borrow limit.
-    address public constant ORACLE = Protocol.BASIC_VAULT_ORACLE;
-    address public constant RATE_CALCULATOR = 0xD3d5C6fc52f3bc29C3aB017d57D9A94A036Ca90f;
-    uint256 public constant MAX_LTV = 95_000;
-    uint256 public constant INITIAL_BORROW_LIMIT = 0;
-    uint256 public constant EXPECTED_DEFAULT_BORROW_LIMIT = 1_000_000e18;
-    uint256 public constant LIQUIDATION_FEE = 5_000;
-    uint256 public constant MINT_FEE = 0;
-    uint256 public constant PROTOCOL_REDEMPTION_FEE = 0.05e18;
+    uint256 public constant TARGET_BORROW_LIMIT = 7_500_000e18;
+    uint256 public constant RAMP_DURATION = 5 weeks;
 
     function run() public {
         IVoter.Action[] memory actions = buildProposalCalldata();
@@ -49,30 +40,43 @@ contract DeploySyrupUsdcPair is BaseAction {
                 address(pairDeployer),
             "Unexpected pair deployer"
         );
-
         _validateDefaultConfig();
+
         (address predictedPair, bytes memory deployPairData) =
             CurveLendV2PairDeployer.getDeployment(
                 pairDeployer,
-                _curveMarket(),
-                INITIAL_BORROW_LIMIT
+                SYRUP_USDC_VAULT,
+                SYRUP_USDC_CONVEX_PID
             );
         require(predictedPair.code.length == 0, "syrupUSDC pair already deployed");
+        uint256 rampEndTime =
+            block.timestamp + voter.votingPeriod() + voter.executionDelay() + RAMP_DURATION;
 
-        actions = new IVoter.Action[](2);
+        actions = new IVoter.Action[](3);
 
-        // Deploy the Resupply pair with borrowing disabled.
+        // Deploy the Resupply pair using the standard configuration.
         actions[0] = IVoter.Action({
             target: address(pairDeployer),
             data: deployPairData
         });
 
-        // Register the newly deployed pair without scheduling a borrow-limit ramp.
+        // Register the newly deployed pair.
         actions[1] = IVoter.Action({
             target: Protocol.REGISTRY,
             data: abi.encodeWithSelector(
                 IResupplyRegistry.addPair.selector,
                 predictedPair // pair to register
+            )
+        });
+
+        // Ramp the borrow limit to 7.5M over five weeks after execution.
+        actions[2] = IVoter.Action({
+            target: Protocol.BORROW_LIMIT_CONTROLLER,
+            data: abi.encodeWithSelector(
+                IBorrowLimitController.setPairBorrowLimitRamp.selector,
+                predictedPair, // pair
+                TARGET_BORROW_LIMIT, // target borrow limit
+                rampEndTime // ramp end timestamp
             )
         });
     }
@@ -81,8 +85,8 @@ contract DeploySyrupUsdcPair is BaseAction {
         _validateDefaultConfig();
         (pair,) = CurveLendV2PairDeployer.getDeployment(
             pairDeployer,
-            _curveMarket(),
-            INITIAL_BORROW_LIMIT
+            SYRUP_USDC_VAULT,
+            SYRUP_USDC_CONVEX_PID
         );
     }
 
@@ -90,39 +94,35 @@ contract DeploySyrupUsdcPair is BaseAction {
         ResupplyPairDeployer.ConfigData memory defaults =
             ResupplyPairDeployer(address(pairDeployer)).defaultConfigData();
 
-        require(defaults.oracle == ORACLE, "Unexpected default oracle");
+        require(defaults.oracle == Protocol.BASIC_VAULT_ORACLE, "Unexpected default oracle");
         require(
-            defaults.rateCalculator == RATE_CALCULATOR,
+            defaults.rateCalculator == 0xD3d5C6fc52f3bc29C3aB017d57D9A94A036Ca90f,
             "Unexpected default rate calculator"
         );
-        require(defaults.maxLTV == MAX_LTV, "Unexpected default max LTV");
-        require(
-            defaults.initialBorrowLimit == EXPECTED_DEFAULT_BORROW_LIMIT,
-            "Unexpected default borrow limit"
-        );
-        require(
-            defaults.liquidationFee == LIQUIDATION_FEE,
-            "Unexpected default liquidation fee"
-        );
-        require(defaults.mintFee == MINT_FEE, "Unexpected default mint fee");
-        require(
-            defaults.protocolRedemptionFee == PROTOCOL_REDEMPTION_FEE,
-            "Unexpected default redemption fee"
-        );
+        require(defaults.maxLTV == 95_000, "Unexpected default max LTV");
+        require(defaults.initialBorrowLimit == 1_000_000e18, "Unexpected default borrow limit");
+        require(defaults.liquidationFee == 5_000, "Unexpected default liquidation fee");
+        require(defaults.mintFee == 0, "Unexpected default mint fee");
+        require(defaults.protocolRedemptionFee == 0.05e18, "Unexpected default redemption fee");
     }
 
-    function _curveMarket() internal pure returns (CurveLendV2PairDeployer.Market memory market) {
-        market = CurveLendV2PairDeployer.Market({
-            factory: Mainnet.CURVE_LEND_V2_FACTORY,
-            vault: SYRUP_USDC_VAULT,
-            borrowedToken: Mainnet.CRVUSD_ERC20,
-            collateralToken: SYRUP_USDC,
-            convexPid: SYRUP_USDC_CONVEX_PID
-        });
+    function printDefaultConfig() public view {
+        ResupplyPairDeployer.ConfigData memory defaults =
+            ResupplyPairDeployer(address(pairDeployer)).defaultConfigData();
+
+        console.log("Default pair config");
+        console.log("Oracle:", defaults.oracle);
+        console.log("Rate calculator:", defaults.rateCalculator);
+        console.log("Max LTV:", defaults.maxLTV);
+        console.log("Initial borrow limit:", defaults.initialBorrowLimit);
+        console.log("Liquidation fee:", defaults.liquidationFee);
+        console.log("Mint fee:", defaults.mintFee);
+        console.log("Protocol redemption fee:", defaults.protocolRedemptionFee);
     }
 
     function printCallData(IVoter.Action[] memory actions) public view {
         console.log("syrupUSDC pair:", getPairAddress());
+        printDefaultConfig();
         for (uint256 i = 0; i < actions.length; i++) {
             console.log("Action", i + 1);
             console.log(actions[i].target);

@@ -25,9 +25,7 @@ contract DeployLlamaLendV2Pairs is BaseAction {
 
     // New Pair Settings
     address public constant SDOLA_VAULT = 0x2b5a321C3cb1F33e1ABECD047C2649D0b4C47eBa;
-    address public constant SDOLA_COLLATERAL = 0xb45ad160634c528Cc3D2926d9807104FA3157305;
     address public constant SFRXUSD_VAULT = 0x3Da0F110079012387F47C6Fc6e878F10262E300a;
-    address public constant SFRXUSD_COLLATERAL = 0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6;
     uint256 public constant SDOLA_CONVEX_PID = 570;
     uint256 public constant SFRXUSD_CONVEX_PID = 571;
 
@@ -56,12 +54,8 @@ contract DeployLlamaLendV2Pairs is BaseAction {
     }
 
     function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
-        CurveLendV2PairDeployer.validate(
-            _curveMarket(SDOLA_VAULT, SDOLA_COLLATERAL, SDOLA_CONVEX_PID)
-        );
-        CurveLendV2PairDeployer.validate(
-            _curveMarket(SFRXUSD_VAULT, SFRXUSD_COLLATERAL, SFRXUSD_CONVEX_PID)
-        );
+        CurveLendV2PairDeployer.validate(SDOLA_VAULT, SDOLA_CONVEX_PID);
+        CurveLendV2PairDeployer.validate(SFRXUSD_VAULT, SFRXUSD_CONVEX_PID);
 
         require(
             pairDeployer.supportedProtocolsLength() ==
@@ -153,20 +147,6 @@ contract DeployLlamaLendV2Pairs is BaseAction {
                 SFRXUSD_TARGET_BORROW_LIMIT, // target borrow limit
                 rampEndTime // ramp end timestamp
             )
-        });
-    }
-
-    function _curveMarket(
-        address vault,
-        address collateralToken,
-        uint256 convexPid
-    ) internal pure returns (CurveLendV2PairDeployer.Market memory market) {
-        market = CurveLendV2PairDeployer.Market({
-            factory: Mainnet.CURVE_LEND_V2_FACTORY,
-            vault: vault,
-            borrowedToken: Mainnet.CRVUSD_ERC20,
-            collateralToken: collateralToken,
-            convexPid: convexPid
         });
     }
 

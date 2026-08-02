@@ -19,3 +19,7 @@ interface ICurveLendV2Factory {
 
     function markets(uint256 marketIndex) external view returns (Market memory);
 }
+
+interface ICurveLendV2Vault {
+    function factory() external view returns (address);
+}

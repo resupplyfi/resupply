@@ -12,21 +12,31 @@ import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
+import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 
+contract MockCurveLendV2Vault {
+    address public immutable factory;
+
+    constructor(address factory_) {
+        factory = factory_;
+    }
+}
+
 contract CurveLendV2PairDeploymentHarness is BaseAction {
-    function validate(CurveLendV2PairDeployer.Market memory market) external view {
-        CurveLendV2PairDeployer.validate(market);
+    function validate(address vault, uint256 convexPid) external view returns (bool) {
+        CurveLendV2PairDeployer.validate(vault, convexPid);
+        return true;
     }
 
     function build(
-        CurveLendV2PairDeployer.Market memory market,
-        uint256 initialBorrowLimit
+        address vault,
+        uint256 convexPid
     ) external view returns (address, bytes memory) {
         return CurveLendV2PairDeployer.getDeployment(
             pairDeployer,
-            market,
-            initialBorrowLimit
+            vault,
+            convexPid
         );
     }
 }
@@ -39,7 +49,9 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     address public helperPredictedPair;
     bytes public helperDeploymentData;
     uint256 public pairCountBefore;
-    address[2] internal actionTargets;
+    uint256 public rampEndTime;
+    ResupplyPairDeployer.ConfigData internal defaults;
+    address[3] internal actionTargets;
     bytes[] internal actionData;
 
     function setUp() public override {
@@ -48,11 +60,14 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         script = new DeploySyrupUsdcPair();
         helper = new CurveLendV2PairDeploymentHarness();
         pairCountBefore = registry.registeredPairsLength();
+        defaults = ResupplyPairDeployer(address(deployer)).defaultConfigData();
         syrupUsdcPair = script.getPairAddress();
         (helperPredictedPair, helperDeploymentData) = helper.build(
-            _market(),
-            script.INITIAL_BORROW_LIMIT()
+            script.SYRUP_USDC_VAULT(),
+            script.SYRUP_USDC_CONVEX_PID()
         );
+        rampEndTime =
+            block.timestamp + voter.votingPeriod() + voter.executionDelay() + script.RAMP_DURATION();
 
         IVoter.Action[] memory actions = script.buildProposalCalldata();
         for (uint256 i = 0; i < actions.length; i++) {
@@ -65,7 +80,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         executeProposal(proposalId);
     }
 
-    function test_ProposalDeploysAndRegistersDisabledPair() public view {
+    function test_ProposalDeploysAndRegistersDefaultPair() public view {
         IResupplyPair pair = IResupplyPair(syrupUsdcPair);
         (uint40 protocolId, uint40 deployTime) = deployer.deployInfo(syrupUsdcPair);
         (address oracleAddress,,) = pair.exchangeRateInfo();
@@ -82,15 +97,15 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         assertEq(pair.underlying(), Mainnet.CRVUSD_ERC20, "pair underlying mismatch");
         assertEq(pair.convexBooster(), Mainnet.CONVEX_BOOSTER, "staking contract mismatch");
         assertEq(pair.convexPid(), script.SYRUP_USDC_CONVEX_PID(), "staking pool mismatch");
-        assertEq(oracleAddress, script.ORACLE(), "oracle mismatch");
-        assertEq(pair.rateCalculator(), script.RATE_CALCULATOR(), "rate calculator mismatch");
-        assertEq(pair.maxLTV(), script.MAX_LTV(), "max LTV mismatch");
-        assertEq(pair.borrowLimit(), 0, "pair should start disabled");
-        assertEq(pair.liquidationFee(), script.LIQUIDATION_FEE(), "liquidation fee mismatch");
-        assertEq(pair.mintFee(), script.MINT_FEE(), "mint fee mismatch");
+        assertEq(oracleAddress, defaults.oracle, "oracle mismatch");
+        assertEq(pair.rateCalculator(), defaults.rateCalculator, "rate calculator mismatch");
+        assertEq(pair.maxLTV(), defaults.maxLTV, "max LTV mismatch");
+        assertEq(pair.borrowLimit(), defaults.initialBorrowLimit, "initial borrow limit mismatch");
+        assertEq(pair.liquidationFee(), defaults.liquidationFee, "liquidation fee mismatch");
+        assertEq(pair.mintFee(), defaults.mintFee, "mint fee mismatch");
         assertEq(
             pair.protocolRedemptionFee(),
-            script.PROTOCOL_REDEMPTION_FEE(),
+            defaults.protocolRedemptionFee,
             "redemption fee mismatch"
         );
 
@@ -112,26 +127,26 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         );
     }
 
-    function test_ProposalHasNoBorrowLimitRamp() public view {
+    function test_ProposalConfiguresBorrowLimitRamp() public view {
         IBorrowLimitController.PairBorrowLimit memory ramp = borrowLimitController.pairLimits(syrupUsdcPair);
 
-        assertEq(ramp.prevBorrowLimit, 0, "unexpected previous limit");
-        assertEq(ramp.targetBorrowLimit, 0, "unexpected target limit");
-        assertEq(ramp.startTime, 0, "unexpected ramp start");
-        assertEq(ramp.endTime, 0, "unexpected ramp end");
+        assertEq(ramp.prevBorrowLimit, defaults.initialBorrowLimit, "previous limit mismatch");
+        assertEq(ramp.targetBorrowLimit, script.TARGET_BORROW_LIMIT(), "target limit mismatch");
+        assertGt(ramp.startTime, 0, "ramp not started");
+        assertEq(ramp.endTime, rampEndTime, "ramp end mismatch");
     }
 
     function test_ProposalPayload() public view {
-        assertEq(actionData.length, 2, "unexpected action count");
+        assertEq(actionData.length, 3, "unexpected action count");
 
         assertEq(actionTargets[0], Protocol.PAIR_DEPLOYER_V2, "action 0 target");
         assertEq(
             keccak256(actionData[0]),
             keccak256(
                 abi.encodeWithSelector(
-                    IResupplyPairDeployer.deploy.selector,
+                    IResupplyPairDeployer.deployWithDefaultConfig.selector,
                     Protocol.PROTOCOL_ID_CURVE_V2,
-                    _expectedConfigData(),
+                    script.SYRUP_USDC_VAULT(),
                     Mainnet.CONVEX_BOOSTER,
                     script.SYRUP_USDC_CONVEX_PID()
                 )
@@ -150,12 +165,26 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
             ),
             "action 1 calldata"
         );
+
+        assertEq(actionTargets[2], Protocol.BORROW_LIMIT_CONTROLLER, "action 2 target");
+        assertEq(
+            keccak256(actionData[2]),
+            keccak256(
+                abi.encodeWithSelector(
+                    IBorrowLimitController.setPairBorrowLimitRamp.selector,
+                    syrupUsdcPair,
+                    script.TARGET_BORROW_LIMIT(),
+                    rampEndTime
+                )
+            ),
+            "action 2 calldata"
+        );
     }
 
-    function test_PairSupportsCollateralRoundTripWhileBorrowingIsDisabled() public {
+    function test_PairSupportsBorrowAndCollateralRoundTrip() public {
         IResupplyPair pair = IResupplyPair(syrupUsdcPair);
         address user = address(0xA11CE);
-        uint256 assets = 100e18;
+        uint256 assets = 2_000e18;
 
         deal(Mainnet.CRVUSD_ERC20, user, assets);
         vm.startPrank(user);
@@ -164,8 +193,9 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         uint256 collateralShares = pair.userCollateralBalance(user);
         assertGt(collateralShares, 0, "no collateral shares received");
 
-        vm.expectRevert();
-        pair.borrow(1e18, 0, user);
+        uint256 borrowShares = pair.borrow(1_000e18, 0, user);
+        IERC20(Protocol.STABLECOIN).approve(syrupUsdcPair, type(uint256).max);
+        pair.repay(borrowShares, user);
 
         pair.removeCollateral(collateralShares, user);
         vm.stopPrank();
@@ -175,47 +205,32 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     }
 
     function test_HelperAcceptsCanonicalSyrupMarket() public view {
-        helper.validate(_market());
+        assertTrue(
+            _isValid(
+                script.SYRUP_USDC_VAULT(),
+                script.SYRUP_USDC_CONVEX_PID()
+            )
+        );
     }
 
     function test_HelperRejectsUnrecognizedFactory() public {
-        CurveLendV2PairDeployer.Market memory market = _market();
-        market.factory = Mainnet.CURVE_ONE_WAY_LENDING_FACTORY;
+        address vault = address(new MockCurveLendV2Vault(Mainnet.CURVE_ONE_WAY_LENDING_FACTORY));
+        uint256 convexPid = script.SYRUP_USDC_CONVEX_PID();
 
-        vm.expectRevert(bytes("Unrecognized LLv2 factory"));
-        helper.validate(market);
+        assertFalse(_isValid(vault, convexPid));
     }
 
     function test_HelperRejectsNonVaultFactoryContract() public {
-        CurveLendV2PairDeployer.Market memory market = _market();
-        market.vault = 0x2fb54c8eae57767A9A509A395b9C4FA0702e2675; // syrupUSDC controller
+        address vault = address(new MockCurveLendV2Vault(Mainnet.CURVE_LEND_V2_FACTORY));
+        uint256 convexPid = script.SYRUP_USDC_CONVEX_PID();
 
-        vm.expectRevert(bytes("LLv2 asset is not a factory vault"));
-        helper.validate(market);
-    }
-
-    function test_HelperRejectsUnexpectedBorrowedToken() public {
-        CurveLendV2PairDeployer.Market memory market = _market();
-        market.borrowedToken = address(0xB0);
-
-        vm.expectRevert(bytes("Unexpected LLv2 borrowed token"));
-        helper.validate(market);
-    }
-
-    function test_HelperRejectsUnexpectedCollateralToken() public {
-        CurveLendV2PairDeployer.Market memory market = _market();
-        market.collateralToken = address(0xC0);
-
-        vm.expectRevert(bytes("Unexpected LLv2 collateral token"));
-        helper.validate(market);
+        assertFalse(_isValid(vault, convexPid));
     }
 
     function test_HelperRejectsWrongConvexPool() public {
-        CurveLendV2PairDeployer.Market memory market = _market();
-        market.convexPid = 578;
+        address vault = script.SYRUP_USDC_VAULT();
 
-        vm.expectRevert(bytes("Staking pool collateral mismatch"));
-        helper.validate(market);
+        assertFalse(_isValid(vault, 578));
     }
 
     function test_HelperBuildsExpectedDeployment() public view {
@@ -227,26 +242,11 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         );
     }
 
-    function _market() internal view returns (CurveLendV2PairDeployer.Market memory market) {
-        market = CurveLendV2PairDeployer.Market({
-            factory: Mainnet.CURVE_LEND_V2_FACTORY,
-            vault: script.SYRUP_USDC_VAULT(),
-            borrowedToken: Mainnet.CRVUSD_ERC20,
-            collateralToken: script.SYRUP_USDC(),
-            convexPid: script.SYRUP_USDC_CONVEX_PID()
-        });
+    function _isValid(address vault, uint256 convexPid) internal view returns (bool) {
+        (bool success,) = address(helper).staticcall(
+            abi.encodeCall(helper.validate, (vault, convexPid))
+        );
+        return success;
     }
 
-    function _expectedConfigData() internal view returns (bytes memory) {
-        return abi.encode(
-            script.SYRUP_USDC_VAULT(), // collateral vault
-            script.ORACLE(), // oracle
-            script.RATE_CALCULATOR(), // rate calculator
-            script.MAX_LTV(), // max LTV
-            script.INITIAL_BORROW_LIMIT(), // initial borrow limit: disabled
-            script.LIQUIDATION_FEE(), // liquidation fee
-            script.MINT_FEE(), // mint fee
-            script.PROTOCOL_REDEMPTION_FEE() // protocol share of redemption fees
-        );
-    }
 }
