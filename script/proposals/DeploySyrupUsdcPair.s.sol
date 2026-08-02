@@ -14,12 +14,12 @@ contract DeploySyrupUsdcPair is BaseAction {
     IVoter public constant voter = IVoter(Protocol.VOTER);
 
     string public constant DESCRIPTION =
-        "Deploy the CurveLendV2 crvUSD/syrupUSDC pair and ramp its borrow limit to 7.5M";
+        "Deploy the CurveLendV2 crvUSD/syrupUSDC pair and ramp its borrow limit to 10M";
 
     address public constant SYRUP_USDC_VAULT = 0xD0D347E14fbF1872affeaCb49d0b8B7182680E6C;
     uint256 public constant SYRUP_USDC_CONVEX_PID = 579;
-    uint256 public constant TARGET_BORROW_LIMIT = 7_500_000e18;
-    uint256 public constant RAMP_DURATION = 5 weeks;
+    uint256 public constant TARGET_BORROW_LIMIT = 10_000_000e18;
+    uint256 public constant RAMP_DURATION = 45 days;
 
     function run() public {
         IVoter.Action[] memory actions = buildProposalCalldata();
@@ -69,7 +69,7 @@ contract DeploySyrupUsdcPair is BaseAction {
             )
         });
 
-        // Ramp the borrow limit to 7.5M over five weeks after execution.
+        // Ramp the borrow limit to 10M over 45 days after execution.
         actions[2] = IVoter.Action({
             target: Protocol.BORROW_LIMIT_CONTROLLER,
             data: abi.encodeWithSelector(

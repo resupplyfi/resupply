@@ -131,9 +131,14 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         IBorrowLimitController.PairBorrowLimit memory ramp = borrowLimitController.pairLimits(syrupUsdcPair);
 
         assertEq(ramp.prevBorrowLimit, defaults.initialBorrowLimit, "previous limit mismatch");
-        assertEq(ramp.targetBorrowLimit, script.TARGET_BORROW_LIMIT(), "target limit mismatch");
+        assertEq(ramp.targetBorrowLimit, 10_000_000e18, "target limit mismatch");
         assertGt(ramp.startTime, 0, "ramp not started");
         assertEq(ramp.endTime, rampEndTime, "ramp end mismatch");
+        assertEq(
+            uint256(ramp.endTime) - uint256(ramp.startTime),
+            45 days,
+            "ramp duration mismatch"
+        );
     }
 
     function test_ProposalPayload() public view {
