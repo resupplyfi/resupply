@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { Mainnet, Protocol } from "src/Constants.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { CurveLendV2PairDeployer } from "script/actions/dependencies/CurveLendV2PairDeployer.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
@@ -51,7 +52,11 @@ contract DeploySyrupUsdcPair is BaseAction {
 
         _validateDefaultConfig();
         (address predictedPair, bytes memory deployPairData) =
-            _getCurveLendV2PairDeployment(_curveMarket(), INITIAL_BORROW_LIMIT);
+            CurveLendV2PairDeployer.getDeployment(
+                pairDeployer,
+                _curveMarket(),
+                INITIAL_BORROW_LIMIT
+            );
         require(predictedPair.code.length == 0, "syrupUSDC pair already deployed");
 
         actions = new IVoter.Action[](2);
@@ -74,7 +79,11 @@ contract DeploySyrupUsdcPair is BaseAction {
 
     function getPairAddress() public view returns (address pair) {
         _validateDefaultConfig();
-        (pair,) = _getCurveLendV2PairDeployment(_curveMarket(), INITIAL_BORROW_LIMIT);
+        (pair,) = CurveLendV2PairDeployer.getDeployment(
+            pairDeployer,
+            _curveMarket(),
+            INITIAL_BORROW_LIMIT
+        );
     }
 
     function _validateDefaultConfig() internal view {
@@ -102,8 +111,8 @@ contract DeploySyrupUsdcPair is BaseAction {
         );
     }
 
-    function _curveMarket() internal pure returns (CurveLendV2Market memory market) {
-        market = CurveLendV2Market({
+    function _curveMarket() internal pure returns (CurveLendV2PairDeployer.Market memory market) {
+        market = CurveLendV2PairDeployer.Market({
             factory: Mainnet.CURVE_LEND_V2_FACTORY,
             vault: SYRUP_USDC_VAULT,
             borrowedToken: Mainnet.CRVUSD_ERC20,

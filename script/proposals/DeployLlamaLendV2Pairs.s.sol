@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { Mainnet, Protocol } from "src/Constants.sol";
 import { console } from "lib/forge-std/src/console.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { CurveLendV2PairDeployer } from "script/actions/dependencies/CurveLendV2PairDeployer.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
@@ -55,10 +56,10 @@ contract DeployLlamaLendV2Pairs is BaseAction {
     }
 
     function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
-        _validateCurveLendV2Market(
+        CurveLendV2PairDeployer.validate(
             _curveMarket(SDOLA_VAULT, SDOLA_COLLATERAL, SDOLA_CONVEX_PID)
         );
-        _validateCurveLendV2Market(
+        CurveLendV2PairDeployer.validate(
             _curveMarket(SFRXUSD_VAULT, SFRXUSD_COLLATERAL, SFRXUSD_CONVEX_PID)
         );
 
@@ -159,8 +160,8 @@ contract DeployLlamaLendV2Pairs is BaseAction {
         address vault,
         address collateralToken,
         uint256 convexPid
-    ) internal pure returns (CurveLendV2Market memory market) {
-        market = CurveLendV2Market({
+    ) internal pure returns (CurveLendV2PairDeployer.Market memory market) {
+        market = CurveLendV2PairDeployer.Market({
             factory: Mainnet.CURVE_LEND_V2_FACTORY,
             vault: vault,
             borrowedToken: Mainnet.CRVUSD_ERC20,

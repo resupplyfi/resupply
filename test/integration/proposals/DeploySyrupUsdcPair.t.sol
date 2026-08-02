@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { CurveLendV2PairDeployer } from "script/actions/dependencies/CurveLendV2PairDeployer.sol";
 import { DeploySyrupUsdcPair } from "script/proposals/DeploySyrupUsdcPair.s.sol";
 import { Mainnet, Protocol } from "src/Constants.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
@@ -14,15 +15,19 @@ import { IVoter } from "src/interfaces/IVoter.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 
 contract CurveLendV2PairDeploymentHarness is BaseAction {
-    function validate(CurveLendV2Market memory market) external view {
-        _validateCurveLendV2Market(market);
+    function validate(CurveLendV2PairDeployer.Market memory market) external view {
+        CurveLendV2PairDeployer.validate(market);
     }
 
     function build(
-        CurveLendV2Market memory market,
+        CurveLendV2PairDeployer.Market memory market,
         uint256 initialBorrowLimit
     ) external view returns (address, bytes memory) {
-        return _getCurveLendV2PairDeployment(market, initialBorrowLimit);
+        return CurveLendV2PairDeployer.getDeployment(
+            pairDeployer,
+            market,
+            initialBorrowLimit
+        );
     }
 }
 
@@ -174,7 +179,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     }
 
     function test_HelperRejectsUnrecognizedFactory() public {
-        BaseAction.CurveLendV2Market memory market = _market();
+        CurveLendV2PairDeployer.Market memory market = _market();
         market.factory = Mainnet.CURVE_ONE_WAY_LENDING_FACTORY;
 
         vm.expectRevert(bytes("Unrecognized LLv2 factory"));
@@ -182,7 +187,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     }
 
     function test_HelperRejectsNonVaultFactoryContract() public {
-        BaseAction.CurveLendV2Market memory market = _market();
+        CurveLendV2PairDeployer.Market memory market = _market();
         market.vault = 0x2fb54c8eae57767A9A509A395b9C4FA0702e2675; // syrupUSDC controller
 
         vm.expectRevert(bytes("LLv2 asset is not a factory vault"));
@@ -190,7 +195,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     }
 
     function test_HelperRejectsUnexpectedBorrowedToken() public {
-        BaseAction.CurveLendV2Market memory market = _market();
+        CurveLendV2PairDeployer.Market memory market = _market();
         market.borrowedToken = address(0xB0);
 
         vm.expectRevert(bytes("Unexpected LLv2 borrowed token"));
@@ -198,7 +203,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     }
 
     function test_HelperRejectsUnexpectedCollateralToken() public {
-        BaseAction.CurveLendV2Market memory market = _market();
+        CurveLendV2PairDeployer.Market memory market = _market();
         market.collateralToken = address(0xC0);
 
         vm.expectRevert(bytes("Unexpected LLv2 collateral token"));
@@ -206,7 +211,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
     }
 
     function test_HelperRejectsWrongConvexPool() public {
-        BaseAction.CurveLendV2Market memory market = _market();
+        CurveLendV2PairDeployer.Market memory market = _market();
         market.convexPid = 578;
 
         vm.expectRevert(bytes("Staking pool collateral mismatch"));
@@ -222,8 +227,8 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
         );
     }
 
-    function _market() internal view returns (BaseAction.CurveLendV2Market memory market) {
-        market = BaseAction.CurveLendV2Market({
+    function _market() internal view returns (CurveLendV2PairDeployer.Market memory market) {
+        market = CurveLendV2PairDeployer.Market({
             factory: Mainnet.CURVE_LEND_V2_FACTORY,
             vault: script.SYRUP_USDC_VAULT(),
             borrowedToken: Mainnet.CRVUSD_ERC20,

@@ -7,26 +7,13 @@ import { ITreasury } from "src/interfaces/ITreasury.sol";
 import { Upgrades, Options } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
-import { ICurveLendV2Factory, ICurveLendV2Vault } from "src/interfaces/curve/ICurveLendV2Factory.sol";
-import { ResupplyPairDeployer } from "src/protocol/ResupplyPairDeployer.sol";
 
 contract BaseAction is TenderlyHelper {
-    uint256 internal constant CURVE_LEND_V2_VAULT_TYPE = 1;
-    bytes32 internal constant CURVE_LEND_V2_VERSION_HASH = keccak256("2.0.0");
-
-    struct CurveLendV2Market {
-        address factory;
-        address vault;
-        address borrowedToken;
-        address collateralToken;
-        uint256 convexPid;
-    }
-
     address public core = Protocol.CORE;
     uint256 public epochLength;
     uint256 public startTime;
     IResupplyPairDeployer public pairDeployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
-
+    
     constructor() {
         epochLength = ICore(core).epochLength();
         startTime = ICore(core).startTime();
@@ -128,15 +115,16 @@ contract BaseAction is TenderlyHelper {
         return implementation;
     }
 
-    /// @notice Builds a default-config deployment after validating its staking target.
-    function getPairDeploymentAddressAndCallData(
-        uint256 _protocolId,
-        address _collateral,
-        address _staking,
-        uint256 _stakingId
-    ) public view returns (address, bytes memory) {
-        _validateStaking(_collateral, _staking, _stakingId);
-
+    // Uses default config
+    function getPairDeploymentAddressAndCallData(uint256 _protocolId, address _collateral, address _staking, uint256 _stakingId) public returns(address, bytes memory){
+        // Validate staking ID is not shutdown
+        if (_staking == Mainnet.CONVEX_BOOSTER) {
+            (address lptoken, , , , , bool shutdown) = IConvexStaking(_staking).poolInfo(_stakingId);
+            require(!shutdown, string.concat("Staking ID: ", vm.toString(_stakingId), " is shutdown"));
+            require(lptoken != address(0), "Invalid staking ID: no LP token found");
+            require(lptoken == _collateral, "Staking ID must the collateral for the staking");
+        }
+        
         address predictedAddress = pairDeployer.predictPairAddress(
             _protocolId,
             _collateral,
@@ -151,132 +139,5 @@ contract BaseAction is TenderlyHelper {
             _stakingId
         );
         return (predictedAddress, callData);
-    }
-
-    /// @notice Builds a validated LLv2 pair using today's defaults and a deliberate borrow limit.
-    function _getCurveLendV2PairDeployment(
-        CurveLendV2Market memory _market,
-        uint256 _initialBorrowLimit
-    ) internal view returns (address, bytes memory) {
-        _validateCurveLendV2Market(_market);
-
-        (address deployerBorrowedToken, address deployerCollateralToken) = pairDeployer
-            .getBorrowAndCollateralTokens(Protocol.PROTOCOL_ID_CURVE_V2, _market.vault);
-        require(
-            deployerBorrowedToken == _market.borrowedToken,
-            "Unexpected pair deployer borrowed token"
-        );
-        require(
-            deployerCollateralToken == _market.collateralToken,
-            "Unexpected pair deployer collateral token"
-        );
-
-        ResupplyPairDeployer.ConfigData memory config =
-            ResupplyPairDeployer(address(pairDeployer)).defaultConfigData();
-        config.initialBorrowLimit = _initialBorrowLimit;
-
-        return _getPairDeploymentAddressAndCallData(
-            Protocol.PROTOCOL_ID_CURVE_V2,
-            abi.encode(
-                _market.vault,
-                config.oracle,
-                config.rateCalculator,
-                config.maxLTV,
-                config.initialBorrowLimit,
-                config.liquidationFee,
-                config.mintFee,
-                config.protocolRedemptionFee
-            ),
-            Mainnet.CONVEX_BOOSTER,
-            _market.convexPid
-        );
-    }
-
-    function _getPairDeploymentAddressAndCallData(
-        uint256 _protocolId,
-        bytes memory _configData,
-        address _staking,
-        uint256 _stakingId
-    ) internal view returns (address, bytes memory) {
-        (address collateral,,,,,,,) = abi.decode(
-            _configData,
-            (address, address, address, uint256, uint256, uint256, uint256, uint256)
-        );
-        _validateStaking(collateral, _staking, _stakingId);
-
-        address predictedAddress = pairDeployer.predictPairAddress(
-            _protocolId,
-            _configData,
-            _staking,
-            _stakingId
-        );
-        bytes memory callData = abi.encodeWithSelector(
-            pairDeployer.deploy.selector,
-            _protocolId,
-            _configData,
-            _staking,
-            _stakingId
-        );
-        return (predictedAddress, callData);
-    }
-
-    /// @notice Explicit trust roots for permissionless LLv2 market discovery.
-    /// @dev Add future reviewed LLv2 factories here before using them in proposals.
-    function _isRecognizedCurveLendV2Factory(address _factory) internal pure returns (bool) {
-        return _factory == Mainnet.CURVE_LEND_V2_FACTORY;
-    }
-
-    /// @notice Proves that a proposed lender vault is a canonical market from a recognized LLv2 factory.
-    function _validateCurveLendV2Market(CurveLendV2Market memory _market) internal view {
-        require(
-            _isRecognizedCurveLendV2Factory(_market.factory),
-            "Unrecognized LLv2 factory"
-        );
-        require(_market.factory.code.length > 0, "LLv2 factory not deployed");
-        require(_market.vault.code.length > 0, "LLv2 vault not deployed");
-
-        ICurveLendV2Factory factory = ICurveLendV2Factory(_market.factory);
-        require(
-            keccak256(bytes(factory.version())) == CURVE_LEND_V2_VERSION_HASH,
-            "Unsupported LLv2 factory version"
-        );
-
-        (uint256 marketIndex, uint256 contractType) = factory.check_contract(_market.vault);
-        require(contractType == CURVE_LEND_V2_VAULT_TYPE, "LLv2 asset is not a factory vault");
-        require(marketIndex < factory.market_count(), "Invalid LLv2 market index");
-
-        ICurveLendV2Factory.Market memory market = factory.markets(marketIndex);
-        require(market.vault == _market.vault, "LLv2 factory vault mismatch");
-        require(
-            market.borrowedToken == _market.borrowedToken,
-            "Unexpected LLv2 borrowed token"
-        );
-        require(
-            market.collateralToken == _market.collateralToken,
-            "Unexpected LLv2 collateral token"
-        );
-        require(market.controller.code.length > 0, "LLv2 controller not deployed");
-        require(market.amm.code.length > 0, "LLv2 AMM not deployed");
-        require(market.priceOracle.code.length > 0, "LLv2 oracle not deployed");
-        require(market.monetaryPolicy.code.length > 0, "LLv2 policy not deployed");
-
-        ICurveLendV2Vault vault = ICurveLendV2Vault(_market.vault);
-        require(vault.factory() == _market.factory, "Unexpected LLv2 vault factory");
-        require(vault.asset() == market.borrowedToken, "LLv2 vault asset mismatch");
-        require(vault.borrowed_token() == market.borrowedToken, "LLv2 vault borrowed token mismatch");
-        require(vault.collateral_token() == market.collateralToken, "LLv2 vault collateral token mismatch");
-        require(vault.controller() == market.controller, "LLv2 vault controller mismatch");
-        require(vault.amm() == market.amm, "LLv2 vault AMM mismatch");
-
-        _validateStaking(_market.vault, Mainnet.CONVEX_BOOSTER, _market.convexPid);
-    }
-
-    function _validateStaking(address _collateral, address _staking, uint256 _stakingId) internal view {
-        if (_staking == Mainnet.CONVEX_BOOSTER) {
-            (address lpToken,,,,, bool shutdown) = IConvexStaking(_staking).poolInfo(_stakingId);
-            require(!shutdown, "Staking pool is shutdown");
-            require(lpToken != address(0), "Invalid staking pool");
-            require(lpToken == _collateral, "Staking pool collateral mismatch");
-        }
     }
 }

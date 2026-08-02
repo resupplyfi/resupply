@@ -15,24 +15,7 @@ interface ICurveLendV2Factory {
 
     function version() external view returns (string memory);
 
-    function market_count() external view returns (uint256);
-
     function check_contract(address account) external view returns (uint256 marketIndex, uint256 contractType);
 
     function markets(uint256 marketIndex) external view returns (Market memory);
-}
-
-/// @notice Lender-vault getters used to cross-check a LlamaLend v2 market tuple.
-interface ICurveLendV2Vault {
-    function factory() external view returns (address);
-
-    function asset() external view returns (address);
-
-    function borrowed_token() external view returns (address);
-
-    function collateral_token() external view returns (address);
-
-    function controller() external view returns (address);
-
-    function amm() external view returns (address);
 }
