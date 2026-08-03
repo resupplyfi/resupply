@@ -43,7 +43,9 @@ contract KeeperOperationsTest is Test {
         keeper = new Keeper(address(this), new address[](0), MIN_PROFIT);
     }
 
-    function test_CanWorkWhenSwapperApprovalsNeedUpdate() public view {
+    function test_CanWorkWhenSwapperApprovalsNeedUpdate() public {
+        _disableBorrowLimitUpdates();
+
         assertTrue(keeper.canUpdateSwapperApprovals());
         assertTrue(keeper.canWork());
     }
@@ -52,25 +54,19 @@ contract KeeperOperationsTest is Test {
         _disableSwapperUpdates();
 
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
-        assertFalse(keeper.canWork());
-        assertTrue(keeper.canWork(_borrowLimitPairs()));
+        assertTrue(keeper.canWork());
     }
 
     function test_WorkUpdatesSwapperApprovals() public {
         assertEq(lifi.nextPairIndex(), 19);
         assertEq(enso.nextPairIndex(), 19);
 
-        uint256 sdolaBorrowLimit = sdolaPair.borrowLimit();
-        uint256 sfrxUsdBorrowLimit = sfrxUsdPair.borrowLimit();
         keeper.work();
 
         assertEq(lifi.nextPairIndex(), 21);
         assertEq(enso.nextPairIndex(), 21);
-        assertEq(sdolaPair.borrowLimit(), sdolaBorrowLimit);
-        assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdBorrowLimit);
         assertFalse(keeper.canUpdateSwapperApprovals());
         assertFalse(keeper.canWork());
-        assertTrue(keeper.canWork(_borrowLimitPairs()));
     }
 
     function test_CanWorkWhenOperatorProfitIsAvailable() public {
@@ -112,7 +108,7 @@ contract KeeperOperationsTest is Test {
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertTrue(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
 
-        keeper.work(_borrowLimitPairs());
+        keeper.work();
 
         assertEq(sdolaPair.borrowLimit(), sdolaPreview);
         assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdPreview);
@@ -121,16 +117,18 @@ contract KeeperOperationsTest is Test {
     }
 
     function test_BorrowLimitUpdatesAreRateLimited() public {
-        keeper.work(_borrowLimitPairs());
+        keeper.work();
 
         skip(12 hours);
         assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertFalse(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
+        assertFalse(keeper.canWork());
 
         IBorrowLimitController.PairBorrowLimit memory limit = borrowLimitController.pairLimits(address(sdolaPair));
         skip((limit.endTime - limit.startTime) / 10_000 + 1);
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertTrue(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
+        assertTrue(keeper.canWork());
     }
 
     function test_SkipsPausedBorrowLimitRamp() public view {
@@ -150,7 +148,7 @@ contract KeeperOperationsTest is Test {
         uint256 externallyUpdatedLimit = sdolaPair.borrowLimit();
 
         assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
-        keeper.work(_borrowLimitPairs());
+        keeper.work();
         assertEq(sdolaPair.borrowLimit(), externallyUpdatedLimit);
     }
 
@@ -159,7 +157,7 @@ contract KeeperOperationsTest is Test {
         vm.warp(limit.endTime);
 
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
-        keeper.work(_borrowLimitPairs());
+        keeper.work();
 
         limit = borrowLimitController.pairLimits(address(sdolaPair));
         assertEq(sdolaPair.borrowLimit(), limit.targetBorrowLimit);
@@ -170,7 +168,7 @@ contract KeeperOperationsTest is Test {
         vm.mockCallRevert(address(borrowLimitController), abi.encodeWithSelector(IBorrowLimitController.updatePairBorrowLimit.selector, address(sdolaPair)), "update failed");
 
         vm.expectRevert("update failed");
-        keeper.work(_borrowLimitPairs());
+        keeper.work();
     }
 
     function _disableSwapperUpdates() internal {
@@ -180,12 +178,6 @@ contract KeeperOperationsTest is Test {
 
     function _disableBorrowLimitUpdates() internal {
         vm.mockCall(address(borrowLimitController), IBorrowLimitController.pairLimits.selector, abi.encode(0, 0, 0, 0));
-    }
-
-    function _borrowLimitPairs() internal pure returns (address[] memory pairs) {
-        pairs = new address[](2);
-        pairs[0] = address(sdolaPair);
-        pairs[1] = address(sfrxUsdPair);
     }
 
     function _setOnlyDefaultSwapper(address swapper) internal {

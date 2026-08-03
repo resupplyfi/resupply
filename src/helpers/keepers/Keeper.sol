@@ -56,21 +56,13 @@ contract Keeper {
     }
 
     function work() external {
-        _work();
-    }
-
-    /// @param _borrowLimitPairs Pairs prefiltered offchain with canUpdateBorrowLimit.
-    function work(address[] calldata _borrowLimitPairs) external {
-        _work();
-        _updateBorrowLimits(_borrowLimitPairs);
-    }
-
-    function _work() internal {
         if (canDistributeWeeklyFees()) _getFeeDepositController().distribute();
         if (canSyncSreUsdRewards()) sreUsd.syncRewardsAndDistribution();
         address[] memory pairs = registry.getAllPairAddresses();
+        IBorrowLimitController controller = _getBorrowLimitController();
         for (uint256 i = 0; i < pairs.length; i++) {
             if (canWithdrawFees(pairs[i])) IResupplyPair(pairs[i]).withdrawFees();
+            if (_canUpdateBorrowLimit(controller, pairs[i])) controller.updatePairBorrowLimit(pairs[i]);
         }
         if (canClaimRetentionEmissions()) _getRetentionReceiver().claimEmissions();
         for (uint256 i = 0; i < operators.length; i++) {
@@ -80,26 +72,14 @@ contract Keeper {
     }
 
     function canWork() external view returns (bool) {
-        return _canWork();
-    }
-
-    /// @param _borrowLimitPairs Pairs to check for borrow-limit upkeep.
-    function canWork(address[] calldata _borrowLimitPairs) external view returns (bool) {
-        if (_canWork()) return true;
-        IBorrowLimitController controller = _getBorrowLimitController();
-        for (uint256 i = 0; i < _borrowLimitPairs.length; i++) {
-            if (_canUpdateBorrowLimit(controller, _borrowLimitPairs[i])) return true;
-        }
-        return false;
-    }
-
-    function _canWork() internal view returns (bool) {
         address[] memory pairs = registry.getAllPairAddresses();
         if (canDistributeWeeklyFees()) return true;
         if (canSyncSreUsdRewards()) return true;
         if (canClaimRetentionEmissions()) return true;
+        IBorrowLimitController controller = _getBorrowLimitController();
         for (uint256 i = 0; i < pairs.length; i++) {
             if (canWithdrawFees(pairs[i])) return true;
+            if (_canUpdateBorrowLimit(controller, pairs[i])) return true;
         }
         for (uint256 i = 0; i < operators.length; i++) {
             if (canWithdrawProfit(operators[i])) return true;
@@ -187,13 +167,6 @@ contract Keeper {
             }
 
             if (canUpdate) IRouterSwapper(swapper).updateApprovals();
-        }
-    }
-
-    function _updateBorrowLimits(address[] calldata _pairs) internal {
-        IBorrowLimitController controller = _getBorrowLimitController();
-        for (uint256 i = 0; i < _pairs.length; i++) {
-            if (_canUpdateBorrowLimit(controller, _pairs[i])) controller.updatePairBorrowLimit(_pairs[i]);
         }
     }
 
