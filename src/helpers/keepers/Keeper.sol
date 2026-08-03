@@ -8,6 +8,7 @@ import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IEmissionsController } from "src/interfaces/IEmissionsController.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
+import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 
 interface IOperator {
     function profit() external view returns (uint256);
@@ -24,6 +25,7 @@ contract Keeper {
     ISreUsd public constant sreUsd = ISreUsd(0x557AB1e003951A73c12D16F0fEA8490E39C33C35);
     uint256 public constant startTime = 1_741_824_000;
     uint256 public constant epochLength = 1 weeks;
+    uint256 public constant borrowLimitUpdateInterval = 12 hours;
 
     address public owner;
     address[] public operators;
@@ -53,7 +55,8 @@ contract Keeper {
         return operators;
     }
 
-    function work() external {
+    /// @param _borrowLimitPairs Pairs prefiltered offchain with canUpdateBorrowLimit.
+    function work(address[] calldata _borrowLimitPairs) external {
         if (canDistributeWeeklyFees()) _getFeeDepositController().distribute();
         if (canSyncSreUsdRewards()) sreUsd.syncRewardsAndDistribution();
         address[] memory pairs = registry.getAllPairAddresses();
@@ -65,6 +68,7 @@ contract Keeper {
             if (canWithdrawProfit(operators[i])) IOperator(operators[i]).withdraw_profit();
         }
         _updateSwapperApprovals();
+        _updateBorrowLimits(_borrowLimitPairs);
     }
 
     function canWork() external view returns (bool) {
@@ -78,7 +82,12 @@ contract Keeper {
         for (uint256 i = 0; i < operators.length; i++) {
             if (canWithdrawProfit(operators[i])) return true;
         }
-        return canUpdateSwapperApprovals();
+        if (canUpdateSwapperApprovals()) return true;
+        IBorrowLimitController controller = _getBorrowLimitController();
+        for (uint256 i = 0; i < pairs.length; i++) {
+            if (_canUpdateBorrowLimit(controller, pairs[i])) return true;
+        }
+        return false;
     }
 
     function canDistributeWeeklyFees() public view returns (bool) {
@@ -115,6 +124,10 @@ contract Keeper {
         return false;
     }
 
+    function canUpdateBorrowLimit(address _pair) public view returns (bool) {
+        return _canUpdateBorrowLimit(_getBorrowLimitController(), _pair);
+    }
+
     function canSyncSreUsdRewards() public view returns (bool) {
         uint256 lastRewardsDistribution = sreUsd.lastRewardsDistribution();
         return ((lastRewardsDistribution - startTime) / epochLength) < getEpoch();
@@ -136,6 +149,10 @@ contract Keeper {
         return IEmissionsController(registry.getAddress("EMISSIONS_CONTROLLER"));
     }
 
+    function _getBorrowLimitController() internal view returns (IBorrowLimitController) {
+        return IBorrowLimitController(registry.getAddress("BORROW_LIMIT_CONTROLLER"));
+    }
+
     function _updateSwapperApprovals() internal {
         for (uint256 i = 0;; i++) {
             address swapper;
@@ -154,6 +171,34 @@ contract Keeper {
 
             if (canUpdate) IRouterSwapper(swapper).updateApprovals();
         }
+    }
+
+    function _updateBorrowLimits(address[] calldata _pairs) internal {
+        IBorrowLimitController controller = _getBorrowLimitController();
+        for (uint256 i = 0; i < _pairs.length; i++) {
+            if (_canUpdateBorrowLimit(controller, _pairs[i])) controller.updatePairBorrowLimit(_pairs[i]);
+        }
+    }
+
+    function _canUpdateBorrowLimit(IBorrowLimitController _controller, address _pair) internal view returns (bool) {
+        IBorrowLimitController.PairBorrowLimit memory limit = _controller.pairLimits(_pair);
+        if (limit.startTime == 0) return false;
+
+        uint256 current = IResupplyPair(_pair).borrowLimit();
+        if (current == 0 || current < limit.prevBorrowLimit || current > limit.targetBorrowLimit) return false;
+        if (block.timestamp >= limit.endTime) return true;
+
+        uint256 borrowDelta = limit.targetBorrowLimit - limit.prevBorrowLimit;
+        uint256 duration = limit.endTime - limit.startTime;
+        uint256 previewProgress = (block.timestamp - limit.startTime) * 10_000 / duration;
+        uint256 preview = (borrowDelta * previewProgress) / 10_000 + limit.prevBorrowLimit;
+        if (preview <= current) return false;
+
+        uint256 currentProgress = ((current - limit.prevBorrowLimit) * 10_000 + borrowDelta - 1) / borrowDelta;
+
+        // Add one ramp basis point because the applied limit does not preserve the exact update timestamp.
+        uint256 minimumProgress = (borrowLimitUpdateInterval * 10_000 + duration - 1) / duration + 1;
+        return previewProgress >= currentProgress + minimumProgress;
     }
 
     function getEpoch() public view returns (uint256) {
