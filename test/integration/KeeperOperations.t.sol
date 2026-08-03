@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { Test } from "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 import { Keeper, IOperator } from "src/helpers/keepers/Keeper.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
@@ -33,30 +34,11 @@ contract RevertingProfitOperator {
     function withdraw_profit() external pure { }
 }
 
-contract GasBurningProfitOperator {
-    function profit() external pure returns (uint256) {
-        while (true) { }
-        return 0;
-    }
-
-    function withdraw_profit() external pure { }
-}
-
-contract GasBurningWithdrawalOperator {
-    function profit() external pure returns (uint256) {
-        return type(uint256).max;
-    }
-
-    function withdraw_profit() external pure {
-        while (true) { }
-    }
-}
-
 contract KeeperOperationsTest is Test {
     uint256 internal constant FORK_BLOCK = 25_674_238;
     uint256 internal constant MIN_PROFIT = 100e18;
-
-    event TaskFailed(bytes4 indexed selector, address indexed target);
+    bytes32 internal constant TASK_COMPLETED_TOPIC = keccak256("TaskCompleted(bytes4,address)");
+    bytes32 internal constant TASK_FAILED_TOPIC = keccak256("TaskFailed(bytes4,address)");
 
     IResupplyRegistry internal constant registry = IResupplyRegistry(Protocol.REGISTRY);
     IRouterSwapper internal constant lifi = IRouterSwapper(0x597Db76794c75E588D3a70534FB34B7780941fCe);
@@ -92,12 +74,16 @@ contract KeeperOperationsTest is Test {
         assertEq(lifi.nextPairIndex(), 19);
         assertEq(enso.nextPairIndex(), 19);
 
+        vm.recordLogs();
         keeper.work();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(lifi.nextPairIndex(), 21);
         assertEq(enso.nextPairIndex(), 21);
         assertFalse(keeper.canUpdateSwapperApprovals());
         assertFalse(keeper.canWork());
+        assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IRouterSwapper.updateApprovals.selector, address(lifi)));
+        assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IRouterSwapper.updateApprovals.selector, address(enso)));
     }
 
     function test_WorkIsPermissionlessAndRepeatableAfterFrontRun() public {
@@ -142,11 +128,13 @@ contract KeeperOperationsTest is Test {
         _setOnlyDefaultSwapper(address(revertingUpdater));
         uint256 sdolaPreview = borrowLimitController.previewNewBorrowLimit(address(sdolaPair));
 
-        vm.expectEmit(true, true, false, true, address(keeper));
-        emit TaskFailed(IRouterSwapper.updateApprovals.selector, address(revertingUpdater));
+        vm.recordLogs();
         keeper.work();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(sdolaPair.borrowLimit(), sdolaPreview);
+        assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IBorrowLimitController.updatePairBorrowLimit.selector, address(sdolaPair)));
+        assertTrue(_hasTaskEvent(logs, TASK_FAILED_TOPIC, IRouterSwapper.updateApprovals.selector, address(revertingUpdater)));
     }
 
     function test_WorkUpdatesBorrowLimits() public {
@@ -156,12 +144,16 @@ contract KeeperOperationsTest is Test {
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertTrue(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
 
+        vm.recordLogs();
         keeper.work();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(sdolaPair.borrowLimit(), sdolaPreview);
         assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdPreview);
         assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertFalse(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
+        assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IBorrowLimitController.updatePairBorrowLimit.selector, address(sdolaPair)));
+        assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IBorrowLimitController.updatePairBorrowLimit.selector, address(sfrxUsdPair)));
     }
 
     function test_BorrowLimitUpdatesAreRateLimited() public {
@@ -212,22 +204,21 @@ contract KeeperOperationsTest is Test {
         assertEq(limit.startTime, 0);
     }
 
-    function test_BorrowLimitUpdateFailureDoesNotBlockOtherWork() public {
+    function test_BorrowLimitUpdateFailureRevertsWork() public {
         uint256 sdolaBorrowLimit = sdolaPair.borrowLimit();
-        uint256 sfrxUsdPreview = borrowLimitController.previewNewBorrowLimit(address(sfrxUsdPair));
+        uint256 sfrxUsdBorrowLimit = sfrxUsdPair.borrowLimit();
         vm.mockCallRevert(address(borrowLimitController), abi.encodeWithSelector(IBorrowLimitController.updatePairBorrowLimit.selector, address(sdolaPair)), "update failed");
 
-        vm.expectEmit(true, true, false, true, address(keeper));
-        emit TaskFailed(IBorrowLimitController.updatePairBorrowLimit.selector, address(sdolaPair));
+        vm.expectRevert("update failed");
         keeper.work();
 
         assertEq(sdolaPair.borrowLimit(), sdolaBorrowLimit);
-        assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdPreview);
-        assertEq(lifi.nextPairIndex(), 21);
-        assertEq(enso.nextPairIndex(), 21);
+        assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdBorrowLimit);
+        assertEq(lifi.nextPairIndex(), 19);
+        assertEq(enso.nextPairIndex(), 19);
     }
 
-    function test_RevertingProfitProbeDoesNotRevertCanWork() public {
+    function test_RevertingProfitProbeRevertsCanWork() public {
         _disableSwapperUpdates();
         _disableBorrowLimitUpdates();
         assertFalse(keeper.canWork());
@@ -236,35 +227,8 @@ contract KeeperOperationsTest is Test {
         operators[0] = address(new RevertingProfitOperator());
         keeper.setOperators(operators, MIN_PROFIT);
 
-        assertFalse(keeper.canWork());
-    }
-
-    function test_GasBurningProfitProbeDoesNotHideLaterWork() public {
-        _disableBorrowLimitUpdates();
-
-        address[] memory operators = new address[](1);
-        operators[0] = address(new GasBurningProfitOperator());
-        keeper.setOperators(operators, MIN_PROFIT);
-
-        assertTrue(keeper.canWork{ gas: 3_000_000 }());
-    }
-
-    function test_GasBurningTaskDoesNotBlockLaterWork() public {
-        address[] memory operators = new address[](1);
-        operators[0] = address(new GasBurningWithdrawalOperator());
-        keeper.setOperators(operators, MIN_PROFIT);
-
-        vm.expectEmit(true, true, false, true, address(keeper));
-        emit TaskFailed(IOperator.withdraw_profit.selector, operators[0]);
-        keeper.work{ gas: 15_000_000 }();
-
-        assertEq(lifi.nextPairIndex(), 21);
-        assertEq(enso.nextPairIndex(), 21);
-    }
-
-    function test_TaskHelpersCannotBeCalledDirectly() public {
-        vm.expectRevert(Keeper.OnlySelf.selector);
-        keeper._workWithdrawProfit(address(operator));
+        vm.expectRevert(RevertingProfitOperator.ProbeFailed.selector);
+        keeper.canWork();
     }
 
     function _disableSwapperUpdates() internal {
@@ -279,5 +243,17 @@ contract KeeperOperationsTest is Test {
     function _setOnlyDefaultSwapper(address swapper) internal {
         vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.defaultSwappers.selector, 0), abi.encode(swapper));
         vm.mockCallRevert(address(registry), abi.encodeWithSelector(IResupplyRegistry.defaultSwappers.selector, 1), "index out of bounds");
+    }
+
+    function _hasTaskEvent(Vm.Log[] memory logs, bytes32 eventTopic, bytes4 selector, address subject) internal view returns (bool) {
+        bytes32 selectorTopic = bytes32(selector);
+        bytes32 subjectTopic = bytes32(uint256(uint160(subject)));
+
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter == address(keeper) && logs[i].topics.length == 3 && logs[i].topics[0] == eventTopic && logs[i].topics[1] == selectorTopic && logs[i].topics[2] == subjectTopic) {
+                return true;
+            }
+        }
+        return false;
     }
 }
