@@ -8,6 +8,8 @@ import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
+import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol";
 import { Protocol } from "src/Constants.sol";
 
 contract RevertingApprovalUpdater {
@@ -34,6 +36,20 @@ contract RevertingProfitOperator {
     function withdraw_profit() external pure { }
 }
 
+contract ProfitOperator {
+    uint256 public profit;
+    uint256 public withdrawals;
+
+    constructor(uint256 _profit) {
+        profit = _profit;
+    }
+
+    function withdraw_profit() external {
+        profit = 0;
+        withdrawals++;
+    }
+}
+
 contract KeeperOperationsTest is Test {
     uint256 internal constant FORK_BLOCK = 25_674_238;
     uint256 internal constant MIN_PROFIT = 100e18;
@@ -43,7 +59,6 @@ contract KeeperOperationsTest is Test {
     IResupplyRegistry internal constant registry = IResupplyRegistry(Protocol.REGISTRY);
     IRouterSwapper internal constant lifi = IRouterSwapper(0x597Db76794c75E588D3a70534FB34B7780941fCe);
     IRouterSwapper internal constant enso = IRouterSwapper(0x181c98113ce60BA75A0f72d8901Eb17e5065043D);
-    IOperator internal constant operator = IOperator(0x21862cA8d044c104ac9EB728c86Bc38B8625BeCD);
     IBorrowLimitController internal constant borrowLimitController = IBorrowLimitController(Protocol.BORROW_LIMIT_CONTROLLER);
     IResupplyPair internal constant sdolaPair = IResupplyPair(0xEcceF525b3063705DA5075a1ce5De1892D24C25A);
     IResupplyPair internal constant sfrxUsdPair = IResupplyPair(0x0837E20D15585B4cA5c1a3fCedCCF8f72855Cb56);
@@ -99,18 +114,43 @@ contract KeeperOperationsTest is Test {
         assertFalse(keeper.canWork());
     }
 
-    function test_CanWorkWhenOperatorProfitIsAvailable() public {
+    function test_OperatorProfitDoesNotTriggerOrRunNonWeeklyWork() public {
         _disableSwapperUpdates();
         _disableBorrowLimitUpdates();
-        assertFalse(keeper.canUpdateSwapperApprovals());
-        assertFalse(keeper.canWork());
+        ProfitOperator profitOperator = new ProfitOperator(MIN_PROFIT + 1);
 
         address[] memory operators = new address[](1);
-        operators[0] = address(operator);
+        operators[0] = address(profitOperator);
         keeper.setOperators(operators, MIN_PROFIT);
 
-        assertGt(operator.profit(), MIN_PROFIT);
+        assertTrue(keeper.canWithdrawProfit(address(profitOperator)));
+        assertFalse(keeper.canWork());
+
+        keeper.work();
+
+        assertEq(profitOperator.withdrawals(), 0);
+        assertEq(profitOperator.profit(), MIN_PROFIT + 1);
+    }
+
+    function test_WeeklyWorkWithdrawsOperatorProfit() public {
+        _disableSwapperUpdates();
+        _disableBorrowLimitUpdates();
+        _enableWeeklyFeeDistribution();
+        ProfitOperator profitOperator = new ProfitOperator(MIN_PROFIT + 1);
+
+        address[] memory operators = new address[](1);
+        operators[0] = address(profitOperator);
+        keeper.setOperators(operators, MIN_PROFIT);
+
         assertTrue(keeper.canWork());
+
+        vm.recordLogs();
+        keeper.work();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        assertEq(profitOperator.withdrawals(), 1);
+        assertEq(profitOperator.profit(), 0);
+        assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IOperator.withdraw_profit.selector, address(profitOperator)));
     }
 
     function test_SkipsSwappersWithoutUpdaterInterface() public {
@@ -150,6 +190,7 @@ contract KeeperOperationsTest is Test {
 
         assertEq(sdolaPair.borrowLimit(), sdolaPreview);
         assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdPreview);
+        assertEq(keeper.lastBorrowLimitUpdate(), block.timestamp);
         assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertFalse(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
         assertTrue(_hasTaskEvent(logs, TASK_COMPLETED_TOPIC, IBorrowLimitController.updatePairBorrowLimit.selector, address(sdolaPair)));
@@ -158,17 +199,60 @@ contract KeeperOperationsTest is Test {
 
     function test_BorrowLimitUpdatesAreRateLimited() public {
         keeper.work();
+        uint256 lastUpdate = keeper.lastBorrowLimitUpdate();
 
-        skip(12 hours);
+        skip(12 hours - 1);
         assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertFalse(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
         assertFalse(keeper.canWork());
 
-        IBorrowLimitController.PairBorrowLimit memory limit = borrowLimitController.pairLimits(address(sdolaPair));
-        skip((limit.endTime - limit.startTime) / 10_000 + 1);
+        skip(1);
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
         assertTrue(keeper.canUpdateBorrowLimit(address(sfrxUsdPair)));
         assertTrue(keeper.canWork());
+
+        keeper.work();
+        assertEq(keeper.lastBorrowLimitUpdate(), lastUpdate + 12 hours);
+    }
+
+    function test_BorrowLimitCooldownSkipsAllRampReads() public {
+        keeper.work();
+        uint256 lastUpdate = keeper.lastBorrowLimitUpdate();
+
+        vm.mockCallRevert(address(registry), abi.encodeWithSelector(IResupplyRegistry.getAddress.selector, "BORROW_LIMIT_CONTROLLER"), "borrow limit controller should not be read");
+        vm.mockCallRevert(address(borrowLimitController), IBorrowLimitController.pairLimits.selector, "borrow limit ramps should not be read");
+
+        assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
+        assertFalse(keeper.canWork());
+        keeper.work();
+        assertEq(keeper.lastBorrowLimitUpdate(), lastUpdate);
+    }
+
+    function test_WorkWithoutBorrowLimitUpdateDoesNotStartCooldown() public {
+        _disableBorrowLimitUpdates();
+
+        keeper.work();
+
+        assertEq(keeper.lastBorrowLimitUpdate(), 0);
+    }
+
+    function test_OwnerCanConfigureBorrowLimitUpdateInterval() public {
+        assertEq(keeper.borrowLimitUpdateInterval(), 12 hours);
+        keeper.work();
+
+        skip(6 hours);
+        assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
+
+        keeper.setBorrowLimitUpdateInterval(6 hours);
+
+        assertEq(keeper.borrowLimitUpdateInterval(), 6 hours);
+        assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
+    }
+
+    function test_NonOwnerCannotConfigureBorrowLimitUpdateInterval() public {
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("!owner");
+        keeper.setBorrowLimitUpdateInterval(6 hours);
     }
 
     function test_SkipsPausedBorrowLimitRamp() public view {
@@ -179,17 +263,11 @@ contract KeeperOperationsTest is Test {
         assertFalse(keeper.canUpdateBorrowLimit(address(pausedFxSavePair)));
     }
 
-    function test_ExternalBorrowLimitUpdateResetsInterval() public {
+    function test_ExternalBorrowLimitUpdateDoesNotStartKeeperCooldown() public {
         borrowLimitController.updatePairBorrowLimit(address(sdolaPair));
-        assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
 
-        skip(12 hours);
-        borrowLimitController.updatePairBorrowLimit(address(sdolaPair));
-        uint256 externallyUpdatedLimit = sdolaPair.borrowLimit();
-
+        assertEq(keeper.lastBorrowLimitUpdate(), 0);
         assertFalse(keeper.canUpdateBorrowLimit(address(sdolaPair)));
-        keeper.work();
-        assertEq(sdolaPair.borrowLimit(), externallyUpdatedLimit);
     }
 
     function test_CompletesBorrowLimitRamp() public {
@@ -218,7 +296,7 @@ contract KeeperOperationsTest is Test {
         assertEq(enso.nextPairIndex(), 19);
     }
 
-    function test_RevertingProfitProbeRevertsCanWork() public {
+    function test_NonWeeklyWorkDoesNotProbeOperators() public {
         _disableSwapperUpdates();
         _disableBorrowLimitUpdates();
         assertFalse(keeper.canWork());
@@ -227,8 +305,8 @@ contract KeeperOperationsTest is Test {
         operators[0] = address(new RevertingProfitOperator());
         keeper.setOperators(operators, MIN_PROFIT);
 
-        vm.expectRevert(RevertingProfitOperator.ProbeFailed.selector);
-        keeper.canWork();
+        assertFalse(keeper.canWork());
+        keeper.work();
     }
 
     function _disableSwapperUpdates() internal {
@@ -238,6 +316,11 @@ contract KeeperOperationsTest is Test {
 
     function _disableBorrowLimitUpdates() internal {
         vm.mockCall(address(borrowLimitController), IBorrowLimitController.pairLimits.selector, abi.encode(0, 0, 0, 0));
+    }
+
+    function _enableWeeklyFeeDistribution() internal {
+        vm.mockCall(registry.feeDeposit(), IFeeDeposit.lastDistributedEpoch.selector, abi.encode(0));
+        vm.mockCall(registry.getAddress("FEE_DEPOSIT_CONTROLLER"), IFeeDepositController.distribute.selector, bytes(""));
     }
 
     function _setOnlyDefaultSwapper(address swapper) internal {
