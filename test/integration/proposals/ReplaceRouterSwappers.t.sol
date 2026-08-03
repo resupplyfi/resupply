@@ -11,6 +11,8 @@ import { IGuardianUpgradeable } from "src/interfaces/IGuardianUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ReplaceRouterSwappersTest is BaseProposalTest {
+    uint256 internal constant PRE_PROPOSAL_BLOCK = 25_447_518;
+
     address public constant ODOS_ROUTER = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
     address public constant OLD_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant LIFI_ROUTER = 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE;
@@ -25,6 +27,13 @@ contract ReplaceRouterSwappersTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+
+        // The proposal has executed on mainnet and the replacement ODOS
+        // swapper was subsequently guardian-revoked. Replay the proposal from
+        // the final pre-execution block so its original transition remains
+        // reproducible.
+        vm.createSelectFork(vm.envString("MAINNET_URL"), PRE_PROPOSAL_BLOCK);
+        pairs = registry.getAllPairAddresses();
 
         oldOdosSwapper = Protocol.SWAPPER_ODOS;
         proposal = new ReplaceRouterSwappers();

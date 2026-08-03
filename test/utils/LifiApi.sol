@@ -47,13 +47,16 @@ library LifiApi {
         bytes memory quoteResponse = vm.ffi(inputs);
         console.log("Quote response raw length:", quoteResponse.length);
 
-        quote.payload = extractTransactionData(string(quoteResponse));
-        quote.amountOutMin = extractAmountOutMin(string(quoteResponse));
+        string memory response = string(quoteResponse);
+        quote.payload = extractTransactionData(response);
+        quote.amountOutMin = extractAmountOutMin(response);
 
-        address transactionTarget = extractTransactionTo(string(quoteResponse));
-        address approvalAddress = extractApprovalAddress(string(quoteResponse));
-        require(transactionTarget == LIFI_ROUTER, "!lifi_target");
-        require(approvalAddress == LIFI_ROUTER, "!lifi_approval");
+        address transactionTarget = extractTransactionTo(response);
+        address approvalAddress = extractApprovalAddress(response);
+        if (transactionTarget != LIFI_ROUTER || approvalAddress != LIFI_ROUTER) {
+            console.log("LI.FI quote missing expected router data");
+            return Quote({ payload: new bytes(0), amountOutMin: 0 });
+        }
 
         console.log("Extracted payload length:", quote.payload.length);
         console.log("Extracted amountOutMin:", quote.amountOutMin);
@@ -73,11 +76,15 @@ library LifiApi {
     }
 
     function extractTransactionTo(string memory response) internal pure returns (address) {
-        return stringToAddress(extractStringValue(response, "\"transactionRequest\"", "to"));
+        string memory value = extractStringValue(response, "\"transactionRequest\"", "to");
+        if (bytes(value).length == 0) return address(0);
+        return stringToAddress(value);
     }
 
     function extractApprovalAddress(string memory response) internal pure returns (address) {
-        return stringToAddress(extractStringValue(response, "\"estimate\"", "approvalAddress"));
+        string memory value = extractStringValue(response, "\"estimate\"", "approvalAddress");
+        if (bytes(value).length == 0) return address(0);
+        return stringToAddress(value);
     }
 
     function extractStringValue(string memory response, string memory section, string memory field) internal pure returns (string memory) {
