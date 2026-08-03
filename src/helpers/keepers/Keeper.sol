@@ -55,8 +55,17 @@ contract Keeper {
         return operators;
     }
 
+    function work() external {
+        _work();
+    }
+
     /// @param _borrowLimitPairs Pairs prefiltered offchain with canUpdateBorrowLimit.
     function work(address[] calldata _borrowLimitPairs) external {
+        _work();
+        _updateBorrowLimits(_borrowLimitPairs);
+    }
+
+    function _work() internal {
         if (canDistributeWeeklyFees()) _getFeeDepositController().distribute();
         if (canSyncSreUsdRewards()) sreUsd.syncRewardsAndDistribution();
         address[] memory pairs = registry.getAllPairAddresses();
@@ -68,10 +77,23 @@ contract Keeper {
             if (canWithdrawProfit(operators[i])) IOperator(operators[i]).withdraw_profit();
         }
         _updateSwapperApprovals();
-        _updateBorrowLimits(_borrowLimitPairs);
     }
 
     function canWork() external view returns (bool) {
+        return _canWork();
+    }
+
+    /// @param _borrowLimitPairs Pairs to check for borrow-limit upkeep.
+    function canWork(address[] calldata _borrowLimitPairs) external view returns (bool) {
+        if (_canWork()) return true;
+        IBorrowLimitController controller = _getBorrowLimitController();
+        for (uint256 i = 0; i < _borrowLimitPairs.length; i++) {
+            if (_canUpdateBorrowLimit(controller, _borrowLimitPairs[i])) return true;
+        }
+        return false;
+    }
+
+    function _canWork() internal view returns (bool) {
         address[] memory pairs = registry.getAllPairAddresses();
         if (canDistributeWeeklyFees()) return true;
         if (canSyncSreUsdRewards()) return true;
@@ -82,12 +104,7 @@ contract Keeper {
         for (uint256 i = 0; i < operators.length; i++) {
             if (canWithdrawProfit(operators[i])) return true;
         }
-        if (canUpdateSwapperApprovals()) return true;
-        IBorrowLimitController controller = _getBorrowLimitController();
-        for (uint256 i = 0; i < pairs.length; i++) {
-            if (_canUpdateBorrowLimit(controller, pairs[i])) return true;
-        }
-        return false;
+        return canUpdateSwapperApprovals();
     }
 
     function canDistributeWeeklyFees() public view returns (bool) {

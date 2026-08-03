@@ -52,19 +52,25 @@ contract KeeperOperationsTest is Test {
         _disableSwapperUpdates();
 
         assertTrue(keeper.canUpdateBorrowLimit(address(sdolaPair)));
-        assertTrue(keeper.canWork());
+        assertFalse(keeper.canWork());
+        assertTrue(keeper.canWork(_borrowLimitPairs()));
     }
 
     function test_WorkUpdatesSwapperApprovals() public {
         assertEq(lifi.nextPairIndex(), 19);
         assertEq(enso.nextPairIndex(), 19);
 
-        keeper.work(_borrowLimitPairs());
+        uint256 sdolaBorrowLimit = sdolaPair.borrowLimit();
+        uint256 sfrxUsdBorrowLimit = sfrxUsdPair.borrowLimit();
+        keeper.work();
 
         assertEq(lifi.nextPairIndex(), 21);
         assertEq(enso.nextPairIndex(), 21);
+        assertEq(sdolaPair.borrowLimit(), sdolaBorrowLimit);
+        assertEq(sfrxUsdPair.borrowLimit(), sfrxUsdBorrowLimit);
         assertFalse(keeper.canUpdateSwapperApprovals());
         assertFalse(keeper.canWork());
+        assertTrue(keeper.canWork(_borrowLimitPairs()));
     }
 
     function test_CanWorkWhenOperatorProfitIsAvailable() public {
@@ -88,7 +94,7 @@ contract KeeperOperationsTest is Test {
 
         assertFalse(keeper.canUpdateSwapperApprovals());
         assertFalse(keeper.canWork());
-        keeper.work(new address[](0));
+        keeper.work();
     }
 
     function test_UpdateApprovalFailureRevertsWork() public {
@@ -96,7 +102,7 @@ contract KeeperOperationsTest is Test {
         _setOnlyDefaultSwapper(address(revertingUpdater));
 
         vm.expectRevert(RevertingApprovalUpdater.UpdateFailed.selector);
-        keeper.work(new address[](0));
+        keeper.work();
     }
 
     function test_WorkUpdatesBorrowLimits() public {
