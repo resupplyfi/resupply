@@ -30,11 +30,13 @@ contract LlamaLendV2CompatibilityTest is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString("MAINNET_URL"));
 
-        // Production adds this metadata in the governance proposal before
-        // deploying either pair. Add it here so this standalone compatibility
-        // test exercises the same protocol ID and selectors.
-        vm.prank(Protocol.CORE);
-        DEPLOYER.addSupportedProtocol("CurveLendV2", 1e18, 1e20, bytes4(keccak256("asset()")), bytes4(keccak256("collateral_token()")));
+        // Add the production metadata only when running against a fork from
+        // before the LLv2 proposal executed. Latest mainnet already has it.
+        if (DEPLOYER.supportedProtocolsLength() <= Protocol.PROTOCOL_ID_CURVE_V2) {
+            vm.prank(Protocol.CORE);
+            DEPLOYER.addSupportedProtocol("CurveLendV2", 1e18, 1e20, bytes4(keccak256("asset()")), bytes4(keccak256("collateral_token()")));
+        }
+        assertEq(DEPLOYER.platformNameById(Protocol.PROTOCOL_ID_CURVE_V2), "CurveLendV2");
     }
 
     function test_liveV2VaultsSupportFullResupplyRoundTrip() public {

@@ -2,15 +2,15 @@
 pragma solidity 0.8.28;
 
 import { Mainnet, Protocol } from "src/Constants.sol";
-import { Script } from "lib/forge-std/src/Script.sol";
 import { console } from "lib/forge-std/src/console.sol";
+import { BaseAction } from "script/actions/dependencies/BaseAction.sol";
+import { CurveLendV2PairDeployer } from "script/actions/dependencies/CurveLendV2PairDeployer.sol";
 import { IBorrowLimitController } from "src/interfaces/IBorrowLimitController.sol";
 import { IResupplyPairDeployer } from "src/interfaces/IResupplyPairDeployer.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 
-contract DeployLlamaLendV2Pairs is Script {
-    IResupplyPairDeployer public constant pairDeployer = IResupplyPairDeployer(Protocol.PAIR_DEPLOYER_V2);
+contract DeployLlamaLendV2Pairs is BaseAction {
     IVoter public constant voter = IVoter(Protocol.VOTER);
 
     string public constant DESCRIPTION = "Add CurveLendV2 support and deploy and register the sDOLA/crvUSD and sfrxUSD/crvUSD pairs";
@@ -54,6 +54,9 @@ contract DeployLlamaLendV2Pairs is Script {
     }
 
     function buildProposalCalldata() public view returns (IVoter.Action[] memory actions) {
+        CurveLendV2PairDeployer.validate(SDOLA_VAULT, SDOLA_CONVEX_PID);
+        CurveLendV2PairDeployer.validate(SFRXUSD_VAULT, SFRXUSD_CONVEX_PID);
+
         require(
             pairDeployer.supportedProtocolsLength() ==
                 Protocol.PROTOCOL_ID_CURVE_V2,
