@@ -7,6 +7,7 @@ import { IFeeDepositController } from "src/interfaces/IFeeDepositController.sol"
 import { IFeeDeposit } from "src/interfaces/IFeeDeposit.sol";
 import { IRetentionReceiver } from "src/interfaces/IRetentionReceiver.sol";
 import { IEmissionsController } from "src/interfaces/IEmissionsController.sol";
+import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 
 interface IOperator {
     function profit() external view returns (uint256);
@@ -21,7 +22,7 @@ interface ISreUsd {
 contract Keeper {
     IResupplyRegistry public constant registry = IResupplyRegistry(0x10101010E0C3171D894B71B3400668aF311e7D94);
     ISreUsd public constant sreUsd = ISreUsd(0x557AB1e003951A73c12D16F0fEA8490E39C33C35);
-    uint256 public constant startTime = 1741824000;
+    uint256 public constant startTime = 1_741_824_000;
     uint256 public constant epochLength = 1 weeks;
 
     address public owner;
@@ -63,6 +64,7 @@ contract Keeper {
         for (uint256 i = 0; i < operators.length; i++) {
             if (canWithdrawProfit(operators[i])) IOperator(operators[i]).withdraw_profit();
         }
+        _updateSwapperApprovals();
     }
 
     function canWork() external view returns (bool) {
@@ -70,9 +72,13 @@ contract Keeper {
         if (canDistributeWeeklyFees()) return true;
         if (canSyncSreUsdRewards()) return true;
         if (canClaimRetentionEmissions()) return true;
-        for (uint256 i = 0; i < pairs.length; i++) 
+        for (uint256 i = 0; i < pairs.length; i++) {
             if (canWithdrawFees(pairs[i])) return true;
-        return false;
+        }
+        for (uint256 i = 0; i < operators.length; i++) {
+            if (canWithdrawProfit(operators[i])) return true;
+        }
+        return canUpdateSwapperApprovals();
     }
 
     function canDistributeWeeklyFees() public view returns (bool) {
@@ -96,6 +102,19 @@ contract Keeper {
         return IOperator(_operator).profit() > minProfit;
     }
 
+    function canUpdateSwapperApprovals() public view returns (bool) {
+        for (uint256 i = 0;; i++) {
+            try registry.defaultSwappers(i) returns (address swapper) {
+                try IRouterSwapper(swapper).canUpdateApprovals() returns (bool _canUpdate) {
+                    if (_canUpdate) return true;
+                } catch { }
+            } catch {
+                break;
+            }
+        }
+        return false;
+    }
+
     function canSyncSreUsdRewards() public view returns (bool) {
         uint256 lastRewardsDistribution = sreUsd.lastRewardsDistribution();
         return ((lastRewardsDistribution - startTime) / epochLength) < getEpoch();
@@ -115,6 +134,26 @@ contract Keeper {
 
     function _getEmissionsController() internal view returns (IEmissionsController) {
         return IEmissionsController(registry.getAddress("EMISSIONS_CONTROLLER"));
+    }
+
+    function _updateSwapperApprovals() internal {
+        for (uint256 i = 0;; i++) {
+            address swapper;
+            try registry.defaultSwappers(i) returns (address _swapper) {
+                swapper = _swapper;
+            } catch {
+                return;
+            }
+
+            bool canUpdate;
+            try IRouterSwapper(swapper).canUpdateApprovals() returns (bool _canUpdate) {
+                canUpdate = _canUpdate;
+            } catch {
+                continue;
+            }
+
+            if (canUpdate) IRouterSwapper(swapper).updateApprovals();
+        }
     }
 
     function getEpoch() public view returns (uint256) {
