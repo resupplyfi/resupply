@@ -196,6 +196,7 @@ library Mainnet {
     address internal constant CURVELEND_SFRXUSD_CRVUSD = 0x8E3009b59200668e1efda0a2F2Ac42b24baa2982;
     address internal constant CURVELEND_SDOLA2_CRVUSD = 0x992B77179A5cF876bcD566FF4b3EAE6482012B90;
     address internal constant CURVELEND_SREUSD_CRVUSD = 0xC32B0Cf36e06c790A568667A17DE80cba95A5Aad;
+    address internal constant CURVELEND_SREUSD_CRVUSD_OPERATOR = 0x21862cA8d044c104ac9EB728c86Bc38B8625BeCD;
     uint256 internal constant CURVELEND_SDOLA_CRVUSD_ID = 384;
     uint256 internal constant CURVELEND_SUSDE_CRVUSD_ID = 361;
     uint256 internal constant CURVELEND_USDE_CRVUSD_ID = 371;
