@@ -14,7 +14,6 @@ import { ICurveLendOperator } from "src/interfaces/curve/ICurveLendOperator.sol"
 ///      (0xb7400D2E…, the ControllerFactory admin), followed by setMintLimit on the live
 ///      operator (callable by the Ownership Agent = operator admin).
 contract CurveProposalRaiseMintLimit is BaseCurveProposal {
-
     address public deployer = Mainnet.CONVEX_DEPLOYER;
 
     /// @notice Build and broadcast the proposal (requires the deployer key in the signer).
@@ -32,11 +31,11 @@ contract CurveProposalRaiseMintLimit is BaseCurveProposal {
         // ControllerFactory.admin() == Curve eDAO admin proxy (0xb7400D2E…), so the call is
         // wrapped in eDAOproxy.execute() to make msg.sender == admin — identical to vote #1259.
         actions[0] = _executeViaMintFactoryEDAOProxy(
-            Mainnet.CURVE_CRVUSD_CONTROLLER,   // crvUSD ControllerFactory (debt-ceiling setter)
+            Mainnet.CURVE_CRVUSD_CONTROLLER, // crvUSD ControllerFactory (debt-ceiling setter)
             abi.encodeWithSelector(
                 ICrvusdController.set_debt_ceiling.selector,
                 Mainnet.CURVE_LENDING_FACTORY, // CurveLendMinterFactory (ceiling subject)
-                30_000_000e18                  // new debt ceiling
+                30_000_000e18 // new debt ceiling
             )
         );
 
@@ -48,7 +47,7 @@ contract CurveProposalRaiseMintLimit is BaseCurveProposal {
             target: Mainnet.CURVELEND_SREUSD_CRVUSD_OPERATOR,
             data: abi.encodeWithSelector(
                 ICurveLendOperator.setMintLimit.selector,
-                30_000_000e18                  // new mint limit (operator mints up to it)
+                30_000_000e18 // new mint limit (operator mints up to it)
             )
         });
 
@@ -61,18 +60,14 @@ contract CurveProposalRaiseMintLimit is BaseCurveProposal {
     }
 
     /// @notice Propose on the live Curve Voting Ownership (0xE478de…).
-    /// @dev BaseCurveProposal.proposeOwnershipVote encodes newVote(bytes,string,bool,bool), but
-    ///      the deployed Voting app only implements newVote(bytes,string) (selector 0xd5db2c80 —
-    ///      the signature the prior 15M raise vote #1259 was created with). Call the 2-arg
-    ///      overload directly against the verified on-chain ABI.
+    /// @dev The Voting app (impl 0xa4D1a2…) overloads newVote: newVote(bytes,string) [0xd5db2c80] and
+    ///      newVote(bytes,string,bool,bool) [0xf4b00513] both exist on-chain. The 2-arg (legacy aragon)
+    ///      form is used here deliberately: it auto-votes the proposer YEA (castVote=true,
+    ///      executesIfDecided=true), which is how the prior 15M raise (vote #1259) was proposed and
+    ///      passed. BaseCurveProposal.proposeOwnershipVote uses the 4-arg form with castVote=false.
     function proposeRaise(bytes memory script, string memory metadata) public returns (uint256 proposalId) {
-        (bool ok, bytes memory ret) = address(ownershipVoting).call(
-            abi.encodeWithSelector(bytes4(0xd5db2c80), script, metadata)
-        );
-        require(ok, "newVote(bytes,string) failed");
-
-        proposalId = abi.decode(ret, (uint256));
-        (,,uint64 start, , ,, , , , bytes memory _script) = ownershipVoting.getVote(proposalId);
+        proposalId = ownershipVoting.newVote(script, metadata);
+        (,, uint64 start,,,,,,, bytes memory _script) = ownershipVoting.getVote(proposalId);
         console.log("start: ", start);
         console.logBytes(_script);
     }
