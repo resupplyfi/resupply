@@ -47,3 +47,14 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: Validate RedemptionOperator storage layout
+        env:
+          RUN_STORAGE_LAYOUT_VALIDATION: "true"
+          FOUNDRY_OUT: out/storage-validation
+          FOUNDRY_CACHE_PATH: cache/storage-validation
+        run: |
+          forge test --force \
+            --match-path test/integration/RedemptionOperator.t.sol \
+            --match-test test_StorageLayoutIsCompatibleWithProductionImplementation \
+            -vvv

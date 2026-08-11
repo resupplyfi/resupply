@@ -845,6 +845,9 @@ contract RedemptionOperatorTest is Setup {
     }
 
     function test_StorageLayoutIsCompatibleWithProductionImplementation() public {
+        // OpenZeppelin validates every build-info shard, so CI runs this with an isolated output directory.
+        if (!vm.envOr("RUN_STORAGE_LAYOUT_VALIDATION", false)) vm.skip(true);
+
         Options memory options;
         options.referenceContract = STORAGE_REFERENCE;
         Upgrades.validateUpgrade("RedemptionOperator.sol:RedemptionOperator", options);
