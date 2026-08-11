@@ -42,6 +42,8 @@ contract CurveLendV2PairDeploymentHarness is BaseAction {
 }
 
 contract DeploySyrupUsdcPairTest is BaseProposalTest {
+    uint256 public constant PROP_ID = 26;
+
     DeploySyrupUsdcPair public script;
     CurveLendV2PairDeploymentHarness public helper;
 
@@ -56,6 +58,7 @@ contract DeploySyrupUsdcPairTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if (isProposalProcessed(PROP_ID)) vm.skip(true);
 
         script = new DeploySyrupUsdcPair();
         helper = new CurveLendV2PairDeploymentHarness();

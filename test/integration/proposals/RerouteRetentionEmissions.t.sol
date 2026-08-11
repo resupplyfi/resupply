@@ -10,6 +10,8 @@ import { RerouteRetentionEmissions } from "script/proposals/RerouteRetentionEmis
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 
 contract RerouteRetentionEmissionsTest is BaseProposalTest {
+    uint256 public constant PROP_ID = 25;
+
     RerouteRetentionEmissions public script;
 
     uint256 public borrowerReceiverId;
@@ -19,6 +21,7 @@ contract RerouteRetentionEmissionsTest is BaseProposalTest {
 
     function setUp() public override {
         super.setUp();
+        if (isProposalProcessed(PROP_ID)) vm.skip(true);
 
         script = new RerouteRetentionEmissions();
         borrowerReceiverId = emissionsController.receiverToId(Protocol.DEBT_RECEIVER);
