@@ -8,29 +8,57 @@ import { IERC3156FlashBorrower } from "@openzeppelin/contracts/interfaces/IERC31
 import { IERC3156FlashLender } from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
-import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
-import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IMorpho, IMorphoFlashLoanCallback } from "src/interfaces/IMorpho.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
-import { IFraxLoan, IFraxLoanCallback } from "src/interfaces/IFraxLoan.sol";
+import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
 
-contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeable, IERC3156FlashBorrower, IFraxLoanCallback {
+contract RedemptionOperator is
+    BaseUpgradeableOperator,
+    ReentrancyGuardUpgradeable,
+    IERC3156FlashBorrower,
+    IMorphoFlashLoanCallback
+{
     using SafeERC20 for IERC20;
 
-    bytes32 private constant FLASH_CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
+    enum Route {
+        Invalid,
+        CrvUsdToCrvUsd,
+        CrvUsdToFrxUsd,
+        UsdcToFrxUsd
+    }
 
-    uint256 public constant MIN_FLASH = 5_000e18;
-    uint256 public constant MIN_PROFIT = 5e18;
+    struct CallbackData {
+        address caller;
+        address pair;
+        address loanAsset;
+        uint256 flashAmount;
+        uint256 minReusdFromSwap;
+        uint256 minProfit;
+        uint256 maxFeePct;
+    }
+
+    struct FundingQuote {
+        uint256 crvFlashFee;
+        uint256 reusdForCrvPair;
+        uint256 reusdForFrxPair;
+        uint256 frxForUsdc;
+    }
+
+    bytes32 private constant FLASH_CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     address public constant registry = 0x10101010E0C3171D894B71B3400668aF311e7D94;
     address public constant reusd = 0x57aB1E0003F623289CD798B1824Be09a793e4Bec;
     address public constant treasury = 0x4444444455bF42de586A88426E5412971eA48324;
     address public constant crvUsd = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E;
     address public constant frxUsd = 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29;
+    address public constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant sCrvUsd = 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367;
     address public constant sFrxUsd = 0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6;
     address public constant crvUsdFlashLender = 0x26dE7861e213A5351F6ED767d00e0839930e9eE1;
-    address public constant frxUsdFlashLender = 0xeeb6b2Feef7BeDb28b9Fa70E1724ea5FC37d42AB;
+    address public constant morpho = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    address public constant frxUsdCustodian = 0x4F95C5bA0C7c69FB2f9340E190cCeE890B3bd87c;
     address public constant reusdScrvPool = 0xc522A6606BBA746d7960404F22a3DB936B6F4F50;
     address public constant reusdSfrxPool = 0xed785Af60bEd688baa8990cD5c4166221599A441;
     address public constant frxusdSfrxusdPool = 0xF292eB6c5dcb693Eaaf392D0562a01C3710E5978;
@@ -61,7 +89,10 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
     );
     event Swept(address indexed token, address indexed to, uint256 amount);
 
-    constructor() {_disableInitializers();}
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
 
     modifier onlyApproved() {
         require(approvedCallers[msg.sender], "caller !approved");
@@ -90,8 +121,14 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         }
     }
 
-    function setApprovals() external {
+    function setApprovals() external onlyOwnerOrManager {
         _setApprovals();
+    }
+
+    function revokeIntegrationApprovals() external onlyOwnerOrManager {
+        IERC20(usdc).forceApprove(frxUsdCustodian, 0);
+        IERC20(frxUsd).forceApprove(frxUsdCustodian, 0);
+        IERC20(usdc).forceApprove(morpho, 0);
     }
 
     function setManager(address _manager) external onlyOwner {
@@ -106,155 +143,141 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         emit CallerApproved(_caller, _status);
     }
 
-
-    /// @notice Approved-only redemption with caller-supplied parameters.
+    /// @notice Executes one caller-selected redemption funding route.
     /// @param bestPair Pair to redeem against.
-    /// @param flashAmount Amount to flash borrow for the attempt.
-    /// @param minReusdFromSwap Minimum reUSD out from the Curve swap.
-    /// @param minProfit Minimum profit required in the borrowed asset.
+    /// @param loanAsset crvUSD or USDC flash-loan asset.
+    /// @param flashAmount Amount to flash borrow in the loan asset's native units.
+    /// @param minReusdFromSwap Minimum reUSD acquired before redemption.
+    /// @param minProfit Minimum realized profit, denominated in crvUSD.
     /// @param maxFeePct Max redemption fee percentage (1e18 precision).
     function executeRedemption(
         address bestPair,
+        address loanAsset,
         uint256 flashAmount,
         uint256 minReusdFromSwap,
         uint256 minProfit,
         uint256 maxFeePct
     ) external onlyApproved nonReentrant {
         require(flashAmount != 0, "invalid flash amount");
+        require(minProfit != 0, "invalid min profit");
 
-        IResupplyPair pair = IResupplyPair(bestPair);
-        address underlyingAsset = pair.underlying();
-        address loanAsset = underlyingAsset;
-        if (underlyingAsset == frxUsd) {
-            uint256 frxAvailable = IERC20(frxUsd).balanceOf(frxUsdFlashLender);
-            if (flashAmount > frxAvailable) {
-                loanAsset = crvUsd;
-            }
-        }
+        Route route = _classifyRoute(loanAsset, IResupplyPair(bestPair).underlying());
+        require(route != Route.Invalid, "unsupported route");
 
         bytes memory data = abi.encode(
-            msg.sender,
-            bestPair,
-            underlyingAsset,
-            loanAsset,
-            flashAmount,
-            minReusdFromSwap,
-            minProfit,
-            maxFeePct
+            CallbackData({
+                caller: msg.sender,
+                pair: bestPair,
+                loanAsset: loanAsset,
+                flashAmount: flashAmount,
+                minReusdFromSwap: minReusdFromSwap,
+                minProfit: minProfit,
+                maxFeePct: maxFeePct
+            })
         );
+
         if (loanAsset == crvUsd) {
-            IERC3156FlashLender(crvUsdFlashLender).flashLoan(
+            bool success = IERC3156FlashLender(crvUsdFlashLender).flashLoan(
                 IERC3156FlashBorrower(address(this)),
-                loanAsset,
+                crvUsd,
                 flashAmount,
                 data
             );
+            require(success, "flash loan failed");
         } else {
-            IFraxLoan(frxUsdFlashLender).getFraxloan(loanAsset, flashAmount, data);
+            IMorpho(morpho).flashLoan(usdc, flashAmount, data);
         }
     }
 
-    /// @notice Simulates profitability across all pairs for a flash amount.
-    /// @param flashAmount Amount to flash borrow for simulation.
-    /// @return bestPair Pair with the highest expected profit.
-    /// @return profit Expected profit for the best pair.
-    /// @return redeemAmount Expected reUSD redeem amount for the best pair.
-    function isProfitable(uint256 flashAmount)
+    /// @notice Finds the most profitable pair for one explicit funding asset.
+    /// @dev Profit is always denominated in crvUSD.
+    function isProfitable(uint256 flashAmount, address loanAsset)
         public
         view
         returns (address bestPair, uint256 profit, uint256 redeemAmount)
     {
-        if (flashAmount == 0) {
+        if (flashAmount == 0) return (address(0), 0, 0);
+
+        FundingQuote memory funding;
+
+        if (loanAsset == crvUsd) {
+            IERC3156FlashLender lender = IERC3156FlashLender(crvUsdFlashLender);
+            if (lender.maxFlashLoan(crvUsd) < flashAmount) return (address(0), 0, 0);
+
+            funding.crvFlashFee = lender.flashFee(crvUsd, flashAmount);
+            funding.reusdForCrvPair = _quoteAcquisition(Route.CrvUsdToCrvUsd, flashAmount);
+            funding.reusdForFrxPair = _quoteAcquisition(Route.CrvUsdToFrxUsd, flashAmount);
+        } else if (loanAsset == usdc) {
+            if (IERC20(usdc).balanceOf(morpho) < flashAmount) return (address(0), 0, 0);
+            if (IERC4626(frxUsdCustodian).maxDeposit(address(this)) < flashAmount) {
+                return (address(0), 0, 0);
+            }
+
+            funding.reusdForFrxPair = _quoteAcquisition(Route.UsdcToFrxUsd, flashAmount);
+            funding.frxForUsdc = IERC4626(frxUsdCustodian).previewWithdraw(flashAmount);
+        } else {
             return (address(0), 0, 0);
         }
-        uint256 maxCrvFlash = IERC3156FlashLender(crvUsdFlashLender).maxFlashLoan(crvUsd);
-        bool crvAllowed = flashAmount <= maxCrvFlash;
-        bool frxAllowed = IERC20(frxUsd).balanceOf(frxUsdFlashLender) >= flashAmount;
 
         address[] memory pairs = IResupplyRegistry(registry).getAllPairAddresses();
-        uint256 length = pairs.length;
         address handler = _redemptionHandler();
 
-        for (uint256 i = 0; i < length; i++) {
-            address pair = pairs[i];
-            address underlyingAsset = IResupplyPair(pair).underlying();
-            address loanAsset = underlyingAsset;
-            if (underlyingAsset == crvUsd) {
-                if (!crvAllowed) continue;
-            } else if (underlyingAsset == frxUsd) {
-                if (frxAllowed) {
-                    loanAsset = frxUsd;
-                } else if (crvAllowed) {
-                    loanAsset = crvUsd;
-                } else {
-                    continue;
-                }
-            } else {
-                continue;
-            }
+        for (uint256 i = 0; i < pairs.length; i++) {
+            address pairAddress = pairs[i];
+            (uint256 candidateProfit, uint256 reusdOut) =
+                _quotePair(pairAddress, handler, loanAsset, flashAmount, funding);
 
-            uint256 maxRedeemable = IRedemptionHandler(handler).getMaxRedeemableDebt(pair);
-            if (maxRedeemable == 0) continue;
-
-            uint256 reusdOut;
-            if (underlyingAsset == frxUsd) {
-                uint256 frxAmount = flashAmount;
-                if (loanAsset == crvUsd) {
-                    frxAmount = ICurveExchange(crvUsdFrxUsdPool).get_dy(
-                        crvUsdIndexFrxPool,
-                        frxUsdIndexFrxPool,
-                        flashAmount
-                    );
-                }
-                uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).get_dy(
-                    frxusdIndexFraxPool,
-                    sfrxusdIndexFraxPool,
-                    frxAmount
-                );
-                reusdOut = ICurveExchange(reusdSfrxPool).get_dy(
-                    sfrxIndex,
-                    reusdIndexSfrx,
-                    sfrxOut
-                );
-            } else {
-                (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(underlyingAsset);
-                uint256 shares = IERC4626(vault).previewDeposit(flashAmount);
-                reusdOut = ICurveExchange(pool).get_dy(vaultIndex, reusdIndex, shares);
-            }
-            if (reusdOut == 0) continue;
-            if (reusdOut > maxRedeemable) continue;
-            if (reusdOut < IResupplyPair(pair).minimumRedemption()) continue;
-
-            IERC4626 collateralVault = IERC4626(IResupplyPair(pair).collateral());
-            uint256 requiredShares = collateralVault.convertToShares(reusdOut);
-            if (requiredShares > collateralVault.maxRedeem(pair)) continue;
-
-            (uint256 expectedUnderlying,,) = IRedemptionHandler(handler).previewRedeem(pair, reusdOut);
-            if (expectedUnderlying == 0) continue;
-
-            uint256 grossUnderlying = expectedUnderlying;
-            if (underlyingAsset == frxUsd && loanAsset == crvUsd) {
-                grossUnderlying = ICurveExchange(crvUsdFrxUsdPool).get_dy(
-                    frxUsdIndexFrxPool,
-                    crvUsdIndexFrxPool,
-                    expectedUnderlying
-                );
-            }
-
-            uint256 feeEstimate = _flashFeeEstimate(loanAsset, flashAmount);
-            if (grossUnderlying <= flashAmount + feeEstimate) continue;
-            uint256 candidateProfit = grossUnderlying - flashAmount - feeEstimate;
-            if (candidateProfit > 0) {
-                if (
-                    candidateProfit > profit ||
-                    (candidateProfit == profit && (redeemAmount == 0 || reusdOut < redeemAmount))
-                ) {
-                    profit = candidateProfit;
-                    bestPair = pair;
-                    redeemAmount = reusdOut;
-                }
+            if (candidateProfit > profit) {
+                bestPair = pairAddress;
+                profit = candidateProfit;
+                redeemAmount = reusdOut;
             }
         }
+    }
+
+    function _quotePair(
+        address pairAddress,
+        address handler,
+        address loanAsset,
+        uint256 flashAmount,
+        FundingQuote memory funding
+    ) internal view returns (uint256 candidateProfit, uint256 reusdOut) {
+        IResupplyPair pair = IResupplyPair(pairAddress);
+        Route route = _classifyRoute(loanAsset, pair.underlying());
+        if (route == Route.Invalid) return (0, 0);
+
+        reusdOut = route == Route.CrvUsdToCrvUsd
+            ? funding.reusdForCrvPair
+            : funding.reusdForFrxPair;
+        if (reusdOut == 0 || reusdOut < pair.minimumRedemption()) return (0, 0);
+
+        (uint256 underlyingOut, uint256 collateralShares,) =
+            IRedemptionHandler(handler).previewRedeem(pairAddress, reusdOut);
+        if (underlyingOut == 0) return (0, 0);
+        if (collateralShares > IERC4626(pair.collateral()).maxRedeem(pairAddress)) return (0, 0);
+
+        if (route == Route.UsdcToFrxUsd) {
+            if (underlyingOut <= funding.frxForUsdc) return (0, 0);
+            candidateProfit = ICurveExchange(crvUsdFrxUsdPool).get_dy(
+                frxUsdIndexFrxPool,
+                crvUsdIndexFrxPool,
+                underlyingOut - funding.frxForUsdc
+            );
+            return (candidateProfit, reusdOut);
+        }
+
+        uint256 crvProceeds = underlyingOut;
+        if (route == Route.CrvUsdToFrxUsd) {
+            crvProceeds = ICurveExchange(crvUsdFrxUsdPool).get_dy(
+                frxUsdIndexFrxPool,
+                crvUsdIndexFrxPool,
+                underlyingOut
+            );
+        }
+
+        uint256 repayment = flashAmount + funding.crvFlashFee;
+        if (crvProceeds <= repayment) return (0, 0);
+        return (crvProceeds - repayment, reusdOut);
     }
 
     function onFlashLoan(
@@ -264,157 +287,180 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         uint256 fee,
         bytes calldata data
     ) external override returns (bytes32) {
+        require(_reentrancyGuardEntered(), "inactive callback");
         require(msg.sender == crvUsdFlashLender, "invalid callback caller");
-        require(initiator == address(this), "invalid callback caller");
+        require(initiator == address(this), "invalid initiator");
         require(token == crvUsd, "invalid token");
-        _handleFlashCallback(token, amount, fee, data);
+
+        CallbackData memory callbackData = abi.decode(data, (CallbackData));
+        require(callbackData.loanAsset == token && callbackData.flashAmount == amount, "invalid callback data");
+        _handleFlashCallback(callbackData, fee);
         return FLASH_CALLBACK_SUCCESS;
     }
 
-    function onFraxLoan(address asset, uint256 amount, bytes calldata data) external override {
-        require(msg.sender == frxUsdFlashLender, "invalid callback caller");
-        require(asset == frxUsd, "invalid token");
-        uint256 fee = _fraxFee(amount);
-        _handleFlashCallback(asset, amount, fee, data);
+    function onMorphoFlashLoan(uint256 assets, bytes calldata data) external override {
+        require(_reentrancyGuardEntered(), "inactive callback");
+        require(msg.sender == morpho, "invalid callback caller");
+
+        CallbackData memory callbackData = abi.decode(data, (CallbackData));
+        require(callbackData.loanAsset == usdc && callbackData.flashAmount == assets, "invalid callback data");
+        _handleFlashCallback(callbackData, 0);
     }
 
-    function _handleFlashCallback(address asset, uint256 amount, uint256 fee, bytes calldata data) internal {
-        (
-            address caller,
-            address pair,
-            address assetExpected,
-            address loanAsset,
-            uint256 amountExpected,
-            uint256 minReusdFromSwap,
-            uint256 minProfit,
-            uint256 maxFeePct
-        ) = abi.decode(data, (address, address, address, address, uint256, uint256, uint256, uint256));
-        require(asset == loanAsset && amount == amountExpected, "invalid callback data");
+    function _handleFlashCallback(CallbackData memory data, uint256 flashFee) internal {
+        require(data.flashAmount != 0, "invalid flash amount");
+        require(data.minProfit != 0, "invalid min profit");
 
-        uint256 reusdOut;
-        uint256 swapInputAmount = amount;
-        if (loanAsset == crvUsd && assetExpected == frxUsd) {
-            swapInputAmount = ICurveExchange(crvUsdFrxUsdPool).exchange(
+        IResupplyPair pair = IResupplyPair(data.pair);
+        Route route = _classifyRoute(data.loanAsset, pair.underlying());
+        require(route != Route.Invalid, "unsupported route");
+
+        uint256 reusdOut = _acquireReusd(route, data.flashAmount, data.minReusdFromSwap);
+        require(reusdOut >= data.minReusdFromSwap, "insufficient reusd");
+        require(reusdOut >= pair.minimumRedemption(), "redeem below min");
+
+        uint256 underlyingOut = IRedemptionHandler(_redemptionHandler()).redeemFromPair(
+            data.pair,
+            reusdOut,
+            data.maxFeePct,
+            address(this),
+            true
+        );
+
+        uint256 crvProceeds;
+        if (route == Route.CrvUsdToCrvUsd) {
+            crvProceeds = underlyingOut;
+        } else if (route == Route.CrvUsdToFrxUsd) {
+            crvProceeds = _swapFrxToCrv(underlyingOut);
+        } else {
+            uint256 frxBurned = IERC4626(frxUsdCustodian).withdraw(
+                data.flashAmount,
+                address(this),
+                address(this)
+            );
+            require(underlyingOut >= frxBurned, "insufficient frxusd");
+
+            uint256 frxSurplus = underlyingOut - frxBurned;
+            if (frxSurplus != 0) crvProceeds = _swapFrxToCrv(frxSurplus);
+        }
+
+        uint256 profit;
+        if (route == Route.UsdcToFrxUsd) {
+            require(crvProceeds >= data.minProfit, "not profitable");
+            profit = crvProceeds;
+        } else {
+            uint256 totalOwed = data.flashAmount + flashFee;
+            require(crvProceeds >= totalOwed + data.minProfit, "not profitable");
+            IERC20(crvUsd).safeTransfer(crvUsdFlashLender, totalOwed);
+            profit = crvProceeds - totalOwed;
+        }
+
+        IERC20(crvUsd).safeTransfer(treasury, profit);
+        emit RedemptionExecuted(
+            data.caller,
+            data.pair,
+            data.loanAsset,
+            data.flashAmount,
+            reusdOut,
+            profit
+        );
+    }
+
+    function _quoteAcquisition(Route route, uint256 amount) internal view returns (uint256) {
+        if (route == Route.CrvUsdToCrvUsd) {
+            uint256 shares = IERC4626(sCrvUsd).previewDeposit(amount);
+            return ICurveExchange(reusdScrvPool).get_dy(scrvIndex, reusdIndexScrv, shares);
+        }
+
+        uint256 frxAmount;
+        if (route == Route.CrvUsdToFrxUsd) {
+            frxAmount = ICurveExchange(crvUsdFrxUsdPool).get_dy(
+                crvUsdIndexFrxPool,
+                frxUsdIndexFrxPool,
+                amount
+            );
+        } else if (route == Route.UsdcToFrxUsd) {
+            frxAmount = IERC4626(frxUsdCustodian).previewDeposit(amount);
+        } else {
+            revert("unsupported route");
+        }
+
+        uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).get_dy(
+            frxusdIndexFraxPool,
+            sfrxusdIndexFraxPool,
+            frxAmount
+        );
+        return ICurveExchange(reusdSfrxPool).get_dy(sfrxIndex, reusdIndexSfrx, sfrxOut);
+    }
+
+    function _acquireReusd(Route route, uint256 amount, uint256 minReusdFromSwap)
+        internal
+        returns (uint256)
+    {
+        if (route == Route.CrvUsdToCrvUsd) {
+            uint256 shares = IERC4626(sCrvUsd).deposit(amount, address(this));
+            return ICurveExchange(reusdScrvPool).exchange(
+                scrvIndex,
+                reusdIndexScrv,
+                shares,
+                minReusdFromSwap,
+                address(this)
+            );
+        }
+
+        uint256 frxAmount;
+        if (route == Route.CrvUsdToFrxUsd) {
+            frxAmount = ICurveExchange(crvUsdFrxUsdPool).exchange(
                 crvUsdIndexFrxPool,
                 frxUsdIndexFrxPool,
                 amount,
                 0,
                 address(this)
             );
-        }
-
-        if (assetExpected == crvUsd) {
-            (address pool, address vault, int128 vaultIndex, int128 reusdIndex) = _poolConfig(assetExpected);
-            uint256 shares = IERC4626(vault).deposit(swapInputAmount, address(this));
-            reusdOut = ICurveExchange(pool).exchange(
-                vaultIndex,
-                reusdIndex,
-                shares,
-                minReusdFromSwap,
-                address(this)
-            );
         } else {
-            uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).exchange(
-                frxusdIndexFraxPool,
-                sfrxusdIndexFraxPool,
-                swapInputAmount,
-                0,
-                address(this)
-            );
-            reusdOut = ICurveExchange(reusdSfrxPool).exchange(
-                sfrxIndex,
-                reusdIndexSfrx,
-                sfrxOut,
-                minReusdFromSwap,
-                address(this)
-            );
+            frxAmount = IERC4626(frxUsdCustodian).deposit(amount, address(this));
         }
 
-        uint256 redeemAmount;
-        uint256 underlyingFromRedeem;
-        uint256 minRedemption = IResupplyPair(pair).minimumRedemption();
-        address handler = _redemptionHandler();
-        uint256 maxRedeemable = IRedemptionHandler(handler).getMaxRedeemableDebt(pair);
-
-        require(reusdOut >= minRedemption, "redeem below min");
-        require(reusdOut <= maxRedeemable, "redeem exceeds max");
-
-        redeemAmount = reusdOut;
-        underlyingFromRedeem = IRedemptionHandler(handler).redeemFromPair(
-            pair,
-            redeemAmount,
-            maxFeePct,
-            address(this),
-            true
+        uint256 sfrxOut = ICurveExchange(frxusdSfrxusdPool).exchange(
+            frxusdIndexFraxPool,
+            sfrxusdIndexFraxPool,
+            frxAmount,
+            0,
+            address(this)
         );
-        if (loanAsset == crvUsd && assetExpected == frxUsd) {
-            underlyingFromRedeem = ICurveExchange(crvUsdFrxUsdPool).exchange(
-                frxUsdIndexFrxPool,
-                crvUsdIndexFrxPool,
-                underlyingFromRedeem,
-                0,
-                address(this)
-            );
-        }
+        return ICurveExchange(reusdSfrxPool).exchange(
+            sfrxIndex,
+            reusdIndexSfrx,
+            sfrxOut,
+            minReusdFromSwap,
+            address(this)
+        );
+    }
 
-        uint256 totalOwed = amount + fee;
-        uint256 balance = IERC20(asset).balanceOf(address(this));
-        require(balance >= totalOwed + minProfit, "not profitable");
-
-        if (asset == crvUsd) {
-            // crvUSD flash lender expects push repayment (balance delta), not allowance pull.
-            IERC20(asset).safeTransfer(crvUsdFlashLender, totalOwed);
-        } else {
-            IERC20(asset).safeTransfer(frxUsdFlashLender, totalOwed);
-        }
-
-        uint256 profit = balance - totalOwed;
-        if (profit > 0) {
-            IERC20(asset).safeTransfer(treasury, profit);
-        }
-
-        emit RedemptionExecuted(
-            caller,
-            pair,
-            loanAsset,
+    function _swapFrxToCrv(uint256 amount) internal returns (uint256) {
+        return ICurveExchange(crvUsdFrxUsdPool).exchange(
+            frxUsdIndexFrxPool,
+            crvUsdIndexFrxPool,
             amount,
-            redeemAmount,
-            profit
+            0,
+            address(this)
         );
+    }
+
+    function _classifyRoute(address loanAsset, address pairUnderlying) internal pure returns (Route) {
+        if (loanAsset == crvUsd) {
+            if (pairUnderlying == crvUsd) return Route.CrvUsdToCrvUsd;
+            if (pairUnderlying == frxUsd) return Route.CrvUsdToFrxUsd;
+        } else if (loanAsset == usdc && pairUnderlying == frxUsd) {
+            return Route.UsdcToFrxUsd;
+        }
+        return Route.Invalid;
     }
 
     function sweep(address token, address to, uint256 amount) external onlyOwnerOrManager {
         require(to != address(0), "invalid recipient");
         IERC20(token).safeTransfer(to, amount);
         emit Swept(token, to, amount);
-    }
-
-    function _flashFeeEstimate(address flashAsset, uint256 flashAmount) internal view returns (uint256) {
-        if (flashAsset == crvUsd) {
-            return IERC3156FlashLender(crvUsdFlashLender).flashFee(flashAsset, flashAmount);
-        }
-
-        if (IFraxLoan(frxUsdFlashLender).isExempt(address(this))) return 0;
-        return IFraxLoan(frxUsdFlashLender).calcFee(flashAmount);
-    }
-
-    function _fraxFee(uint256 flashAmount) internal view returns (uint256) {
-        if (IFraxLoan(frxUsdFlashLender).isExempt(address(this))) return 0;
-        return IFraxLoan(frxUsdFlashLender).calcFee(flashAmount);
-    }
-
-    function _poolConfig(address flashAsset)
-        internal
-        view
-        returns (address pool, address vault, int128 vaultIndex, int128 reusdIndex)
-    {
-        if (flashAsset == crvUsd) {
-            return (reusdScrvPool, sCrvUsd, scrvIndex, reusdIndexScrv);
-        }
-        if (flashAsset == frxUsd) {
-            return (reusdSfrxPool, sFrxUsd, sfrxIndex, reusdIndexSfrx);
-        }
-        require(false, "invalid flash asset");
     }
 
     function _redemptionHandler() internal view returns (address) {
@@ -437,8 +483,11 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         IERC20(sFrxUsd).forceApprove(frxusdSfrxusdPool, type(uint256).max);
         IERC20(crvUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
         IERC20(frxUsd).forceApprove(crvUsdFrxUsdPool, type(uint256).max);
-        // approve current RH
+
+        IERC20(usdc).forceApprove(frxUsdCustodian, type(uint256).max);
+        IERC20(frxUsd).forceApprove(frxUsdCustodian, type(uint256).max);
+        IERC20(usdc).forceApprove(morpho, type(uint256).max);
+
         approveRH();
     }
-
 }
