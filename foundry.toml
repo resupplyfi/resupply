@@ -50,15 +50,16 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 
-[profile.test]
+[profile.ci]
 src = "_"
 script = "_"
 sparse_mode = true
 optimizer = false
 build_info = false
 extra_output = []
-verbosity = 3
-isolate = true
+gas_reports = []
+verbosity = 1
+isolate = false
 
 # Network configurations
 [rpc_endpoints]
