@@ -8,6 +8,7 @@ import { IERC3156FlashBorrower } from "@openzeppelin/contracts/interfaces/IERC31
 import { IERC3156FlashLender } from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
+import { IFrxUsd } from "src/interfaces/frax/IFrxUsd.sol";
 import { IMorpho, IMorphoFlashLoanCallback } from "src/interfaces/IMorpho.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IRedemptionOperatorKeeper } from "src/interfaces/IRedemptionOperatorKeeper.sol";
@@ -207,18 +208,21 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
     }
 
     function _quoteFundingRoutes(uint256 notionalWad) internal view returns (FundingQuotes memory funding) {
+        IFrxUsd frxUsdToken = IFrxUsd(frxUsd);
+        bool frxUsdEnabled = !frxUsdToken.isPaused();
+
         IERC3156FlashLender crvLender = IERC3156FlashLender(crvUsdFlashLender);
         if (crvLender.maxFlashLoan(crvUsd) >= notionalWad) {
             uint256 repaymentAmount = notionalWad + crvLender.flashFee(crvUsd, notionalWad);
             uint256 crvPairRedeem = _quoteAcquisition(ROUTE_CRVUSD_TO_CRVUSD, notionalWad);
-            uint256 frxPairRedeem = _quoteAcquisition(ROUTE_CRVUSD_TO_FRXUSD, notionalWad);
+            uint256 frxPairRedeem = frxUsdEnabled ? _quoteAcquisition(ROUTE_CRVUSD_TO_FRXUSD, notionalWad) : 0;
 
             funding.crvToCrv = FundingQuote({ available: crvPairRedeem != 0, routeId: ROUTE_CRVUSD_TO_CRVUSD, loanAmount: notionalWad, redeemAmount: crvPairRedeem, settlementAmount: repaymentAmount });
             funding.crvToFrx = FundingQuote({ available: frxPairRedeem != 0, routeId: ROUTE_CRVUSD_TO_FRXUSD, loanAmount: notionalWad, redeemAmount: frxPairRedeem, settlementAmount: repaymentAmount });
         }
 
         uint256 usdcLoanAmount = notionalWad / USDC_WAD_SCALE;
-        if (usdcLoanAmount != 0 && IERC20(usdc).balanceOf(morpho) >= usdcLoanAmount && IERC4626(frxUsdCustodian).maxDeposit(address(this)) >= usdcLoanAmount) {
+        if (frxUsdEnabled && usdcLoanAmount != 0 && IERC20(usdc).balanceOf(morpho) >= usdcLoanAmount && IERC4626(frxUsdCustodian).maxDeposit(address(this)) >= usdcLoanAmount && frxUsdToken.minters(frxUsdCustodian)) {
             uint256 redeemAmount = _quoteAcquisition(ROUTE_USDC_TO_FRXUSD, usdcLoanAmount);
             if (redeemAmount == 0) return funding;
 

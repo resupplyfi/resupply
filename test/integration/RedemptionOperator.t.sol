@@ -12,6 +12,7 @@ import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
 import { IRedemptionOperatorKeeper } from "src/interfaces/IRedemptionOperatorKeeper.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
+import { IFrxUsd } from "src/interfaces/frax/IFrxUsd.sol";
 import { IAuthHook } from "src/interfaces/IAuthHook.sol";
 import { IMorpho } from "src/interfaces/IMorpho.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -231,6 +232,76 @@ contract RedemptionOperatorTest is Setup {
         vm.mockCall(redemptionOperator.frxUsdCustodian(), abi.encodeCall(IERC4626.maxDeposit, (address(redemptionOperator))), abi.encode(usdcLoanAmount - 1));
 
         _assertNoQuote(_quote(notionalWad));
+    }
+
+    function test_IsProfitable_FrxUsdPauseFallsBackToCrvUsdRoute() public {
+        uint256 notionalWad = 10_000e18;
+        uint256 redeemAmount = 10_000e18;
+        uint256 underlyingAmount = 11_000e18;
+
+        RedemptionVaultMock vault = new RedemptionVaultMock();
+        RedemptionPairMock crvPair = new RedemptionPairMock(Mainnet.CRVUSD_ERC20, address(vault));
+        RedemptionPairMock frxPair = new RedemptionPairMock(Mainnet.FRXUSD_ERC20, address(vault));
+        RedemptionHandlerMock handler = new RedemptionHandlerMock(address(stablecoin), Mainnet.CRVUSD_ERC20);
+        address[] memory pairs = new address[](2);
+        pairs[0] = address(crvPair);
+        pairs[1] = address(frxPair);
+
+        vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.redemptionHandler.selector), abi.encode(address(handler)));
+        vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector), abi.encode(pairs));
+        vm.mockCall(redemptionOperator.frxUsd(), abi.encodeCall(IFrxUsd.isPaused, ()), abi.encode(true));
+        _mockCrvUsdFunding(notionalWad, 0);
+        vm.mockCall(redemptionOperator.sCrvUsd(), abi.encodeCall(IERC4626.previewDeposit, (notionalWad)), abi.encode(notionalWad));
+        vm.mockCall(redemptionOperator.reusdScrvPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.scrvIndex(), redemptionOperator.reusdIndexScrv(), notionalWad)), abi.encode(redeemAmount));
+        vm.mockCall(redemptionOperator.crvUsdFrxUsdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.crvUsdIndexFrxPool(), redemptionOperator.frxUsdIndexFrxPool(), notionalWad)), abi.encode(redeemAmount));
+        vm.mockCall(redemptionOperator.frxusdSfrxusdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.frxusdIndexFraxPool(), redemptionOperator.sfrxusdIndexFraxPool(), redeemAmount)), abi.encode(redeemAmount));
+        vm.mockCall(redemptionOperator.reusdSfrxPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.sfrxIndex(), redemptionOperator.reusdIndexSfrx(), redeemAmount)), abi.encode(redeemAmount));
+        vm.mockCall(redemptionOperator.crvUsdFrxUsdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.frxUsdIndexFrxPool(), redemptionOperator.crvUsdIndexFrxPool(), underlyingAmount)), abi.encode(notionalWad + 2000e18));
+        deal(redemptionOperator.usdc(), redemptionOperator.morpho(), 0);
+
+        KeeperQuote memory quote = _quote(notionalWad);
+        assertEq(quote.pair, address(crvPair));
+        assertEq(quote.routeId, ROUTE_CRVUSD_TO_CRVUSD);
+        assertEq(quote.expectedProfit, 1000e18);
+    }
+
+    function test_IsProfitable_DisabledCustodianMinterFallsBackToCrvUsdRoute() public {
+        uint256 notionalWad = 10_000e18;
+        uint256 usdcLoanAmount = 10_000e6;
+        uint256 crvAcquiredFrxUsd = 10_000e18;
+        uint256 usdcAcquiredFrxUsd = 12_000e18;
+        uint256 crvUnderlyingAmount = 11_000e18;
+        uint256 usdcUnderlyingAmount = 13_200e18;
+        uint256 frxUsdForRepayment = 10_000e18;
+
+        RedemptionVaultMock vault = new RedemptionVaultMock();
+        RedemptionPairMock pair = new RedemptionPairMock(Mainnet.FRXUSD_ERC20, address(vault));
+        RedemptionHandlerMock handler = new RedemptionHandlerMock(address(stablecoin), Mainnet.FRXUSD_ERC20);
+        address[] memory onlyPair = new address[](1);
+        onlyPair[0] = address(pair);
+
+        vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.redemptionHandler.selector), abi.encode(address(handler)));
+        vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector), abi.encode(onlyPair));
+        vm.mockCall(redemptionOperator.frxUsd(), abi.encodeCall(IFrxUsd.isPaused, ()), abi.encode(false));
+        vm.mockCall(redemptionOperator.frxUsd(), abi.encodeCall(IFrxUsd.minters, (redemptionOperator.frxUsdCustodian())), abi.encode(false));
+        _mockCrvUsdFunding(notionalWad, 0);
+        vm.mockCall(redemptionOperator.crvUsdFrxUsdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.crvUsdIndexFrxPool(), redemptionOperator.frxUsdIndexFrxPool(), notionalWad)), abi.encode(crvAcquiredFrxUsd));
+        vm.mockCall(redemptionOperator.frxusdSfrxusdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.frxusdIndexFraxPool(), redemptionOperator.sfrxusdIndexFraxPool(), crvAcquiredFrxUsd)), abi.encode(crvAcquiredFrxUsd));
+        vm.mockCall(redemptionOperator.reusdSfrxPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.sfrxIndex(), redemptionOperator.reusdIndexSfrx(), crvAcquiredFrxUsd)), abi.encode(crvAcquiredFrxUsd));
+        vm.mockCall(redemptionOperator.crvUsdFrxUsdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.frxUsdIndexFrxPool(), redemptionOperator.crvUsdIndexFrxPool(), crvUnderlyingAmount)), abi.encode(notionalWad + 1500e18));
+
+        deal(redemptionOperator.usdc(), redemptionOperator.morpho(), usdcLoanAmount);
+        vm.mockCall(redemptionOperator.frxUsdCustodian(), abi.encodeCall(IERC4626.maxDeposit, (address(redemptionOperator))), abi.encode(type(uint256).max));
+        vm.mockCall(redemptionOperator.frxUsdCustodian(), abi.encodeCall(IERC4626.previewDeposit, (usdcLoanAmount)), abi.encode(usdcAcquiredFrxUsd));
+        vm.mockCall(redemptionOperator.frxUsdCustodian(), abi.encodeCall(IERC4626.previewWithdraw, (usdcLoanAmount)), abi.encode(frxUsdForRepayment));
+        vm.mockCall(redemptionOperator.frxusdSfrxusdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.frxusdIndexFraxPool(), redemptionOperator.sfrxusdIndexFraxPool(), usdcAcquiredFrxUsd)), abi.encode(usdcAcquiredFrxUsd));
+        vm.mockCall(redemptionOperator.reusdSfrxPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.sfrxIndex(), redemptionOperator.reusdIndexSfrx(), usdcAcquiredFrxUsd)), abi.encode(usdcAcquiredFrxUsd));
+        vm.mockCall(redemptionOperator.crvUsdFrxUsdPool(), abi.encodeCall(ICurveExchange.get_dy, (redemptionOperator.frxUsdIndexFrxPool(), redemptionOperator.crvUsdIndexFrxPool(), usdcUnderlyingAmount - frxUsdForRepayment)), abi.encode(3000e18));
+
+        KeeperQuote memory quote = _quote(notionalWad);
+        assertEq(quote.pair, address(pair));
+        assertEq(quote.routeId, ROUTE_CRVUSD_TO_FRXUSD);
+        assertEq(quote.expectedProfit, 1500e18);
     }
 
     function test_IsProfitable_UsdcUsesCustodianPreviewRounding() public {
