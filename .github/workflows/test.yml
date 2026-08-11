@@ -9,52 +9,138 @@ env:
   MAINNET_URL: ${{ secrets.MAINNET_URL }}
 
 jobs:
-  check:
-    strategy:
-      fail-fast: true
-
-    name: Foundry project
+  build:
+    name: Production build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
 
-      - name: Show Forge version
-        run: |
-          forge --version
+      - name: Resolve Forge version
+        id: forge-version
+        run: echo "version=$(forge --version | awk 'NR == 1 { print $3 }')" >> "$GITHUB_OUTPUT"
 
-      - run: npm i
+      - run: npm install
 
-      - name: Update Forge dependencies
-        run: |
-          forge update
+      - name: Restore Forge build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.svm
+            out
+            cache
+          key: ${{ runner.os }}-forge-${{ steps.forge-version.outputs.version }}-build-${{ hashFiles('foundry.toml', 'package.json', 'remappings.txt', 'src/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-forge-${{ steps.forge-version.outputs.version }}-build-
 
-      - name: Run Forge build
-        run: |
-          forge build
-        id: build
+      - name: Build production contracts and scripts
+        run: forge build --skip test
 
-      - name: Run Forge tests
+  test:
+    strategy:
+      fail-fast: true
+      matrix:
+        shard:
+          - e2e
+          - non-e2e
+
+    name: Tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    env:
+      FOUNDRY_PROFILE: ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Resolve Forge version
+        id: forge-version
+        run: echo "version=$(forge --version | awk 'NR == 1 { print $3 }')" >> "$GITHUB_OUTPUT"
+
+      - run: npm install
+
+      - name: Restore Forge test cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.svm
+            out
+            cache
+          key: ${{ runner.os }}-forge-${{ steps.forge-version.outputs.version }}-${{ matrix.shard }}-${{ hashFiles('foundry.toml', 'package.json', 'remappings.txt', 'src/**/*.sol', 'script/**/*.sol', 'test/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-forge-${{ steps.forge-version.outputs.version }}-${{ matrix.shard }}-
+
+      - name: Run ${{ matrix.shard }} tests
+        shell: bash
         run: |
-          forge test -vvv
-        id: test
+          if [[ "${{ matrix.shard }}" == "e2e" ]]; then
+            forge test --match-path 'test/e2e/**/*.sol'
+          else
+            forge test --no-match-path 'test/e2e/**/*.sol'
+          fi
+
+  storage-layout:
+    name: RedemptionOperator storage layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Resolve Forge version
+        id: forge-version
+        run: echo "version=$(forge --version | awk 'NR == 1 { print $3 }')" >> "$GITHUB_OUTPUT"
+
+      - run: npm install
+
+      - name: Restore Forge storage-validation cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.svm
+            out
+            cache
+          key: ${{ runner.os }}-forge-${{ steps.forge-version.outputs.version }}-storage-${{ hashFiles('foundry.toml', 'package.json', 'remappings.txt', 'src/**/*.sol', 'test/integration/Setup.sol', 'test/integration/RedemptionOperator.t.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-forge-${{ steps.forge-version.outputs.version }}-storage-
 
       - name: Validate RedemptionOperator storage layout
         env:
           RUN_STORAGE_LAYOUT_VALIDATION: "true"
+          FOUNDRY_SRC: "_"
+          FOUNDRY_SCRIPT: "_"
+          FOUNDRY_SPARSE_MODE: "true"
           FOUNDRY_OUT: out/storage-validation
           FOUNDRY_CACHE_PATH: cache/storage-validation
         run: |
           forge test --force \
             --match-path test/integration/RedemptionOperator.t.sol \
-            --match-test test_StorageLayoutIsCompatibleWithProductionImplementation \
-            -vvv
+            --match-test test_StorageLayoutIsCompatibleWithProductionImplementation

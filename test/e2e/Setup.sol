@@ -106,8 +106,8 @@ contract Setup is Test {
     RouterSwapper public odosSwapper;
     IERC20 public frxusdToken;
     IERC20 public crvusdToken;
-    IResupplyPair public testPair;
-    IResupplyPair public testPair2;
+    IResupplyPair internal testPair;
+    IResupplyPair internal testPair2;
     ICurveExchange public swapPoolsCrvUsd;
     ICurveExchange public swapPoolsFrxusd;
     FeeLogger public feeLogger;
