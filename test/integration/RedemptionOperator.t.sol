@@ -6,6 +6,7 @@ import { RedemptionOperator } from "src/dao/operators/RedemptionOperator.sol";
 import { BaseUpgradeableOperator } from "src/dao/operators/BaseUpgradeableOperator.sol";
 import { UpgradeOperator } from "src/dao/operators/UpgradeOperator.sol";
 import { IUpgradeableOperator } from "src/interfaces/IUpgradeableOperator.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IRedemptionHandler } from "src/interfaces/IRedemptionHandler.sol";
@@ -41,6 +42,14 @@ contract RedemptionPairMock {
     function minimumRedemption() external pure returns (uint256) {
         return 100e18;
     }
+
+    function convexPid() external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalCollateral() external pure returns (uint256) {
+        return type(uint256).max;
+    }
 }
 
 contract RedemptionHandlerMock {
@@ -75,6 +84,9 @@ contract RedemptionOperatorTest is Setup {
     using SafeERC20 for IERC20;
 
     uint256 internal constant FORK_BLOCK = 25_726_592;
+    uint256 internal constant STAKED_COLLATERAL_FORK_BLOCK = 25_764_482;
+    address internal constant STAKED_CRVUSD_PAIR = 0xC5184cccf85b81EDdc661330acB3E41bd89F34A1;
+    address internal constant ELECTRO_WORKER = 0x1ba323F8a6544b81Dc1F068b1400A6ebe7Ea0f52;
     uint8 internal constant ROUTE_NONE = 0;
     uint8 internal constant ROUTE_CRVUSD_TO_CRVUSD = 1;
     uint8 internal constant ROUTE_CRVUSD_TO_FRXUSD = 2;
@@ -148,20 +160,26 @@ contract RedemptionOperatorTest is Setup {
         assertEq(loanAmount, 0);
     }
 
-    function test_CrvUsdToCrvUsd_RoundTrip() public {
+    function test_CrvUsdToCrvUsd_StakedCollateralRoundTrip() public {
         RedemptionVaultMock vault = new RedemptionVaultMock();
         RedemptionPairMock pair = new RedemptionPairMock(Mainnet.CRVUSD_ERC20, address(vault));
         RedemptionHandlerMock handler = new RedemptionHandlerMock(address(stablecoin), Mainnet.CRVUSD_ERC20);
+        uint256 convexPid = 1;
+        address gauge = address(0xCAFE);
 
         vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.redemptionHandler.selector), abi.encode(address(handler)));
         address[] memory onlyPair = new address[](1);
         onlyPair[0] = address(pair);
         vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector), abi.encode(onlyPair));
+        vm.mockCall(address(pair), abi.encodeCall(IResupplyPair.convexPid, ()), abi.encode(convexPid));
+        vm.mockCall(redemptionOperator.convexBooster(), abi.encodeCall(IConvexStaking.poolInfo, (convexPid)), abi.encode(address(vault), address(0), gauge, address(0), address(0), false));
+        vm.mockCall(address(vault), abi.encodeCall(IERC4626.maxRedeem, (address(pair))), abi.encode(0));
         _deployRedemptionOperator();
         deal(Mainnet.CRVUSD_ERC20, address(handler), 1_000_000e18);
         (address[6] memory dustTokens, uint256[6] memory dust) = _seedOperatorDust();
 
         uint256 notionalWad = 10_000e18;
+        assertEq(vault.maxRedeem(address(pair)), 0);
         KeeperQuote memory quote = _quote(notionalWad);
         assertEq(quote.pair, address(pair));
         assertEq(quote.routeId, ROUTE_CRVUSD_TO_CRVUSD);
@@ -464,20 +482,24 @@ contract RedemptionOperatorTest is Setup {
         assertEq(quote.expectedProfit, 1000e18);
     }
 
-    function test_IsProfitable_CollateralCappedPairFallsBackToNextPair() public {
+    function test_IsProfitable_InsufficientPairCollateralFallsBackToNextPair() public {
         uint256 notionalWad = 10_000e18;
         uint256 redeemAmount = 10_000e18;
         RedemptionVaultMock vault = new RedemptionVaultMock();
         RedemptionPairMock cappedPair = new RedemptionPairMock(Mainnet.CRVUSD_ERC20, address(vault));
         RedemptionPairMock fallbackPair = new RedemptionPairMock(Mainnet.CRVUSD_ERC20, address(vault));
         RedemptionHandlerMock handler = new RedemptionHandlerMock(address(stablecoin), Mainnet.CRVUSD_ERC20);
+        uint256 convexPid = 1;
+        address gauge = address(0xCAFE);
         address[] memory pairs = new address[](2);
         pairs[0] = address(cappedPair);
         pairs[1] = address(fallbackPair);
 
         vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.redemptionHandler.selector), abi.encode(address(handler)));
         vm.mockCall(address(registry), abi.encodeWithSelector(IResupplyRegistry.getAllPairAddresses.selector), abi.encode(pairs));
-        vm.mockCall(address(vault), abi.encodeCall(IERC4626.maxRedeem, (address(cappedPair))), abi.encode(redeemAmount - 1));
+        vm.mockCall(address(cappedPair), abi.encodeCall(IResupplyPair.convexPid, ()), abi.encode(convexPid));
+        vm.mockCall(redemptionOperator.convexBooster(), abi.encodeCall(IConvexStaking.poolInfo, (convexPid)), abi.encode(address(vault), address(0), gauge, address(0), address(0), false));
+        vm.mockCall(address(cappedPair), abi.encodeCall(IResupplyPair.totalCollateral, ()), abi.encode(redeemAmount - 1));
         _mockOnlyCrvUsdToCrvUsdFunding(notionalWad, redeemAmount);
 
         KeeperQuote memory quote = _quote(notionalWad);
@@ -892,8 +914,37 @@ contract RedemptionOperatorTest is Setup {
         production.onMorphoFlashLoan(1, bytes(""));
     }
 
+    function test_ForkUpgradeProductionProxy_StakedCrvUsdRouteExecutes() public {
+        vm.createSelectFork(vm.envString("MAINNET_URL"), STAKED_COLLATERAL_FORK_BLOCK);
+
+        RedemptionOperator production = RedemptionOperator(Protocol.OPERATOR_REDEMPTION_PROXY);
+        IRedemptionOperatorKeeper productionKeeper = IRedemptionOperatorKeeper(address(production));
+        uint256 notionalWad = 120_000e18;
+        _assertNoQuote(_quote(productionKeeper, notionalWad));
+
+        address implementation = address(new RedemptionOperator());
+        vm.prank(address(core));
+        IUpgradeableOperator(address(production)).upgradeToAndCall(implementation, abi.encodeCall(RedemptionOperator.setApprovals, ()));
+
+        KeeperQuote memory quote = _quote(productionKeeper, notionalWad);
+        assertEq(quote.pair, STAKED_CRVUSD_PAIR);
+        assertEq(quote.routeId, ROUTE_CRVUSD_TO_CRVUSD);
+        assertGt(quote.expectedProfit, 0);
+        assertEq(IERC4626(IResupplyPair(quote.pair).collateral()).maxRedeem(quote.pair), 0);
+
+        uint256 treasuryBefore = IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY);
+        assertTrue(production.approvedCallers(ELECTRO_WORKER));
+        vm.prank(ELECTRO_WORKER);
+        productionKeeper.executeRedemption(quote.pair, quote.routeId, quote.loanAmount, quote.redeemAmount * 9980 / 10_000, quote.expectedProfit, type(uint256).max);
+        assertEq(IERC20(Mainnet.CRVUSD_ERC20).balanceOf(Protocol.TREASURY) - treasuryBefore, quote.expectedProfit);
+    }
+
     function _quote(uint256 notionalWad) internal view returns (KeeperQuote memory quote) {
-        (quote.pair, quote.expectedProfit, quote.redeemAmount, quote.routeId, quote.loanAsset, quote.loanAmount) = keeper.isProfitable(notionalWad);
+        return _quote(keeper, notionalWad);
+    }
+
+    function _quote(IRedemptionOperatorKeeper quoteSource, uint256 notionalWad) internal view returns (KeeperQuote memory quote) {
+        (quote.pair, quote.expectedProfit, quote.redeemAmount, quote.routeId, quote.loanAsset, quote.loanAmount) = quoteSource.isProfitable(notionalWad);
     }
 
     function _assertNoQuote(KeeperQuote memory quote) internal pure {

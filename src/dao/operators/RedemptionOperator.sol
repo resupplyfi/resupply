@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC3156FlashBorrower } from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 import { IERC3156FlashLender } from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
+import { IConvexStaking } from "src/interfaces/convex/IConvexStaking.sol";
 import { ICurveExchange } from "src/interfaces/curve/ICurveExchange.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { IFrxUsd } from "src/interfaces/frax/IFrxUsd.sol";
@@ -76,6 +77,7 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
     address public constant sCrvUsd = 0x0655977FEb2f289A4aB78af67BAB0d17aAb84367;
     address public constant sFrxUsd = 0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6;
     address public constant crvUsdFlashLender = 0x26dE7861e213A5351F6ED767d00e0839930e9eE1;
+    address public constant convexBooster = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
     address public constant morpho = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
     address public constant frxUsdCustodian = 0x4F95C5bA0C7c69FB2f9340E190cCeE890B3bd87c;
     address public constant reusdScrvPool = 0xc522A6606BBA746d7960404F22a3DB936B6F4F50;
@@ -236,9 +238,18 @@ contract RedemptionOperator is BaseUpgradeableOperator, ReentrancyGuardUpgradeab
         RedemptionQuote memory redemption = _previewRedemption(pairAddress, handler, funding, minimumRedemption);
         if (!redemption.available) return best;
 
-        uint256 maxCollateralRedeem = IERC4626(pair.collateral()).maxRedeem(pairAddress);
-        if (redemption.collateralShares > maxCollateralRedeem) return best;
+        if (redemption.collateralShares > _maxRedeemableCollateral(pairAddress, pair)) return best;
         return _score(best, pairAddress, funding, redemption.underlyingAmount);
+    }
+
+    function _maxRedeemableCollateral(address pairAddress, IResupplyPair pair) internal view returns (uint256) {
+        uint256 pid = pair.convexPid();
+        if (pid == 0) return IERC4626(pair.collateral()).maxRedeem(pairAddress);
+
+        (,, address gauge,,,) = IConvexStaking(convexBooster).poolInfo(pid);
+        uint256 maxRedeem = IERC4626(pair.collateral()).maxRedeem(gauge);
+        uint256 totalCollateral = pair.totalCollateral();
+        return totalCollateral < maxRedeem ? totalCollateral : maxRedeem;
     }
 
     function _scoreFrxUsdPair(BestQuote memory best, address pairAddress, IResupplyPair pair, address handler, FundingQuotes memory funding) internal view returns (BestQuote memory) {
