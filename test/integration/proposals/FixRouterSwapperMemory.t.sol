@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { Protocol } from "src/Constants.sol";
 import { FixRouterSwapperMemory } from "script/proposals/FixRouterSwapperMemory.s.sol";
-import { DeployPatchedRouterSwappers } from "script/actions/DeployPatchedRouterSwappers.s.sol";
+import { DeployRouterSwappers } from "script/actions/DeployRouterSwappers.s.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
@@ -24,7 +24,7 @@ contract FixRouterSwapperMemoryTest is BaseProposalTest {
         vm.createSelectFork(vm.envString("MAINNET_URL"), FORK_BLOCK);
         pairs = registry.getAllPairAddresses();
         script = new FixRouterSwapperMemory();
-        (ensoSwapper, lifiSwapper) = new DeployPatchedRouterSwappers().run();
+        (ensoSwapper, lifiSwapper) = new DeployRouterSwappers().run();
         odosSwapper = registry.getAddress("SWAPPER_ODOS");
     }
 

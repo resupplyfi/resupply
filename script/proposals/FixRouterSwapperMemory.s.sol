@@ -16,9 +16,9 @@ contract FixRouterSwapperMemory is Script {
 
     address public constant OLD_ENSO_SWAPPER = 0x181c98113ce60BA75A0f72d8901Eb17e5065043D;
     address public constant OLD_LIFI_SWAPPER = 0x597Db76794c75E588D3a70534FB34B7780941fCe;
-    string public constant DESCRIPTION = "Replace Enso and LI.FI swappers with a single-allocation route decoder";
+    string public constant DESCRIPTION = "Migrate Enso and LI.FI swappers to gas-optimized versions";
 
-    /// @dev Run DeployPatchedRouterSwappers to deploy and initialize approvals, then
+    /// @dev Run DeployRouterSwappers to deploy and initialize approvals, then
     ///      verify both deployments and pass their addresses to run(address,address).
     ///      Coordinate pair registration during voting: this proposal snapshots the pair
     ///      list and defaults at creation. Before execution, refresh replacement approvals,
