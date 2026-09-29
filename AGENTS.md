@@ -1,2 +1,0 @@
-- In Solidity proposal scripts, format long `IVoter.Action` values and encoded call arguments one per line, adding brief action comments and inline labels for non-obvious parameters.
-- Put `// Action N: [short description]` above each fixed governance action, numbered from 1 in execution order. For actions generated in loops, use `// Action: [short description]` without an index expression. Include actions constructed through helpers.
