@@ -3,18 +3,20 @@ pragma solidity 0.8.28;
 
 import { console } from "lib/forge-std/src/console.sol";
 import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
-import { PairTestBase } from "test/integration/PairTestBase.t.sol";
+import { Setup } from "test/integration/Setup.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "src/interfaces/IERC4626.sol";
 import { LifiApi } from "test/utils/LifiApi.sol";
 
-contract SwapperLifiTest is PairTestBase {
+contract SwapperLifiTest is Setup {
     RouterSwapper public swapper;
     bytes public lifiPayload;
+    string internal fixture;
 
     function setUp() public override {
-        super.setUp();
+        fixture = vm.readFile("test/fixtures/lifi-reusd-usdc.json");
+        vm.createSelectFork(vm.envString("MAINNET_URL"), vm.parseJsonUint(fixture, ".blockNumber"));
         swapper = new RouterSwapper(address(core), LifiApi.LIFI_ROUTER, "Resupply Swapper: LI.FI");
     }
 
@@ -26,30 +28,20 @@ contract SwapperLifiTest is PairTestBase {
         assertEq(swapper.router(), LifiApi.LIFI_ROUTER);
     }
 
-    function test_LiveLifiSwap() public {
-        uint256 amountIn = 1_000e18;
+    function test_PinnedLifiSwap() public {
+        uint256 amountIn = vm.parseJsonUint(fixture, ".amountIn");
+        uint256 amountOutMin = vm.parseJsonUint(fixture, ".minimumAmountOut");
+        address recipient = vm.parseJsonAddress(fixture, ".recipient");
+        bytes memory payload = vm.parseJsonBytes(fixture, ".data");
+        assertGt(amountOutMin, 0);
         deal(address(stablecoin), address(swapper), amountIn);
 
-        LifiApi.Quote memory lifiQuote = LifiApi.getQuote(
-            address(stablecoin),
-            LifiApi.USDC,
-            amountIn,
-            3,
-            address(swapper),
-            address(this)
-        );
-        if (lifiQuote.payload.length == 0 || lifiQuote.amountOutMin == 0) vm.skip(true);
-        assertGt(lifiQuote.payload.length, 0, "API returned empty payload");
-        assertGt(lifiQuote.amountOutMin, 0, "API returned zero minimum output");
-
-        address[] memory path = swapper.encode(lifiQuote.payload, address(stablecoin), LifiApi.USDC);
-        uint256 balanceBefore = IERC20(LifiApi.USDC).balanceOf(address(this));
-        try swapper.swap(address(this), amountIn, path, address(this)) {}
-        catch {
-            vm.skip(true);
-        }
-        uint256 balanceDelta = IERC20(LifiApi.USDC).balanceOf(address(this)) - balanceBefore;
-        assertGe(balanceDelta, lifiQuote.amountOutMin, "insufficient USDC out");
+        address[] memory path = swapper.encode(payload, address(stablecoin), LifiApi.USDC);
+        uint256 balanceBefore = IERC20(LifiApi.USDC).balanceOf(recipient);
+        swapper.swap(address(this), amountIn, path, recipient);
+        uint256 balanceDelta = IERC20(LifiApi.USDC).balanceOf(recipient) - balanceBefore;
+        assertGe(balanceDelta, amountOutMin, "insufficient USDC out");
+        assertEq(stablecoin.balanceOf(address(swapper)), 0, "input not spent");
     }
 
     function test_RecoverERC20() public {
@@ -95,13 +87,12 @@ contract SwapperLifiTest is PairTestBase {
     }
 
     function test_EncodeDecodePayload() public {
-        lifiPayload = LifiApi.getPayload(LifiApi.WETH, LifiApi.USDC, 1e18, 3, address(swapper), address(this));
-        if (lifiPayload.length == 0) vm.skip(true);
+        lifiPayload = vm.parseJsonBytes(fixture, ".data");
         lifiPayload = abi.encodePacked(
             lifiPayload,
             "111" // add some extra data to the payload to help test that we are trimming properly
         );
-        bytes memory decodedPayload = swapper.decode(swapper.encode(lifiPayload, LifiApi.WETH, LifiApi.USDC));
+        bytes memory decodedPayload = swapper.decode(swapper.encode(lifiPayload, address(stablecoin), LifiApi.USDC));
         assertEq(keccak256(lifiPayload), keccak256(decodedPayload), "Original and decoded payloads don't match");
     }
 
