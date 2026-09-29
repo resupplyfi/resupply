@@ -6,6 +6,7 @@ import { Upgrades } from "@openzeppelin/foundry-upgrades/Upgrades.sol";
 import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { KeeperV1 } from "src/helpers/keepers/KeeperV1.sol";
 import { KeeperV2 } from "src/helpers/keepers/KeeperV2.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract KeeperTest is Setup {
     address proxy;
@@ -50,13 +51,13 @@ contract KeeperTest is Setup {
     }
 
     function test_Reinitialize() public {
-        vm.expectRevert(bytes("InvalidInitialization()"));
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
         KeeperV1(proxy).initialize(address(1));
 
         KeeperV1(proxy).upgradeToAndCall(implV2, "");
 
         // V2 contains an initializer but it's a no-op. Nonetheless should still revert thanks to the modifier.
-        vm.expectRevert(bytes("InvalidInitialization()"));
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
         KeeperV2(proxy).initialize();
     }
 }

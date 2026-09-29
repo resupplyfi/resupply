@@ -71,6 +71,10 @@ local = "http://127.0.0.1:8545"
 [etherscan]
 fraxtal = {key = "${FRAXTAL_API_KEY}", url = "${FRAXTAL_VERIFIER_URL}", chain = "252"}
 
+[lint]
+# Foundry v1.8.3's missing-events-arithmetic lint exhausts memory on this project.
+exclude_lints = ["missing-events-arithmetic"]
+
 # Formatting settings
 [fmt]
 line_length = 1000
