@@ -7,7 +7,6 @@ on:
 
 env:
   MAINNET_URL: ${{ secrets.MAINNET_URL }}
-  FOUNDRY_VERSION: v1.8.1
 
 jobs:
   build:
@@ -25,7 +24,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: ${{ env.FOUNDRY_VERSION }}
+          version: stable
 
       - name: Resolve Forge version
         id: forge-version
@@ -71,7 +70,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: ${{ env.FOUNDRY_VERSION }}
+          version: stable
 
       - name: Resolve Forge version
         id: forge-version
@@ -114,7 +113,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: ${{ env.FOUNDRY_VERSION }}
+          version: stable
 
       - name: Resolve Forge version
         id: forge-version

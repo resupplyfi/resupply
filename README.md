@@ -8,7 +8,7 @@ Resupply is a CDP-based stablecoin protocol that enables users to maximize yield
 
 ### Prerequisites
 
-- [Foundry](https://book.getfoundry.sh/getting-started/installation) v1.8.1 (matching CI)
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
 
 ### Build
 
