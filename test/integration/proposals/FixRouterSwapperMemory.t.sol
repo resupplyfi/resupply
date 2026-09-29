@@ -3,10 +3,12 @@ pragma solidity 0.8.28;
 
 import { Protocol } from "src/Constants.sol";
 import { FixRouterSwapperMemory } from "script/proposals/FixRouterSwapperMemory.s.sol";
+import { DeployPatchedRouterSwappers } from "script/actions/DeployPatchedRouterSwappers.s.sol";
 import { BaseProposalTest } from "test/integration/proposals/BaseProposalTest.sol";
 import { RouterSwapper } from "src/protocol/swappers/RouterSwapper.sol";
 import { IRouterSwapper } from "src/interfaces/IRouterSwapper.sol";
 import { IResupplyPair } from "src/interfaces/IResupplyPair.sol";
+import { IResupplyRegistry } from "src/interfaces/IResupplyRegistry.sol";
 import { IGuardianUpgradeable } from "src/interfaces/IGuardianUpgradeable.sol";
 import { IVoter } from "src/interfaces/IVoter.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -22,8 +24,7 @@ contract FixRouterSwapperMemoryTest is BaseProposalTest {
         vm.createSelectFork(vm.envString("MAINNET_URL"), FORK_BLOCK);
         pairs = registry.getAllPairAddresses();
         script = new FixRouterSwapperMemory();
-        ensoSwapper = new RouterSwapper(Protocol.CORE, IRouterSwapper(script.OLD_ENSO_SWAPPER()).router(), "Resupply Swapper: ENSO");
-        lifiSwapper = new RouterSwapper(Protocol.CORE, IRouterSwapper(script.OLD_LIFI_SWAPPER()).router(), "Resupply Swapper: LI.FI");
+        (ensoSwapper, lifiSwapper) = new DeployPatchedRouterSwappers().run();
         odosSwapper = registry.getAddress("SWAPPER_ODOS");
     }
 
@@ -37,7 +38,7 @@ contract FixRouterSwapperMemoryTest is BaseProposalTest {
         assertEq(expectedDefaults[3], address(ensoSwapper));
 
         IVoter.Action[] memory actions = script.buildProposalCalldata(address(ensoSwapper), address(lifiSwapper));
-        assertEq(actions.length, 7 + pairs.length * 4);
+        assertEq(actions.length, 5 + pairs.length * 4);
         uint256 gasBefore = gasleft();
         uint256 proposalId = createProposal(actions);
         assertLt(gasBefore - gasleft(), 15_000_000, "proposal creation gas too high");
@@ -60,6 +61,46 @@ contract FixRouterSwapperMemoryTest is BaseProposalTest {
 
         _assertReplacement(script.OLD_ENSO_SWAPPER(), ensoSwapper);
         _assertReplacement(script.OLD_LIFI_SWAPPER(), lifiSwapper);
+    }
+
+    function test_ProposalPayload() public view {
+        IVoter.Action[] memory actions = script.buildProposalCalldata(address(ensoSwapper), address(lifiSwapper));
+        assertEq(actions.length, 5 + pairs.length * 4);
+        _assertAction(actions[0], script.OLD_ENSO_SWAPPER(), abi.encodeCall(IRouterSwapper.revokeApprovals, ()));
+        _assertAction(actions[1], script.OLD_LIFI_SWAPPER(), abi.encodeCall(IRouterSwapper.revokeApprovals, ()));
+        _assertAction(actions[2], Protocol.REGISTRY, abi.encodeCall(IResupplyRegistry.setAddress, ("SWAPPER_ENSO", address(ensoSwapper))));
+        _assertAction(actions[3], Protocol.REGISTRY, abi.encodeCall(IResupplyRegistry.setAddress, ("SWAPPER_LIFI", address(lifiSwapper))));
+
+        address[] memory defaults = new address[](4);
+        defaults[0] = registry.defaultSwappers(0);
+        defaults[1] = odosSwapper;
+        defaults[2] = address(lifiSwapper);
+        defaults[3] = address(ensoSwapper);
+        _assertAction(actions[4], Protocol.REGISTRY, abi.encodeCall(IResupplyRegistry.setDefaultSwappers, (defaults)));
+
+        for (uint256 i; i < pairs.length; i++) {
+            uint256 offset = 5 + i * 4;
+            _assertAction(actions[offset], pairs[i], abi.encodeCall(IResupplyPair.setSwapper, (script.OLD_ENSO_SWAPPER(), false)));
+            _assertAction(actions[offset + 1], pairs[i], abi.encodeCall(IResupplyPair.setSwapper, (address(ensoSwapper), true)));
+            _assertAction(actions[offset + 2], pairs[i], abi.encodeCall(IResupplyPair.setSwapper, (script.OLD_LIFI_SWAPPER(), false)));
+            _assertAction(actions[offset + 3], pairs[i], abi.encodeCall(IResupplyPair.setSwapper, (address(lifiSwapper), true)));
+        }
+    }
+
+    function test_ProposalRequiresInitializedApprovals() public {
+        RouterSwapper uninitializedEnso = new RouterSwapper(Protocol.CORE, ensoSwapper.router(), "Resupply Swapper: ENSO");
+        vm.expectRevert("Replacement approvals incomplete");
+        script.buildProposalCalldata(address(uninitializedEnso), address(lifiSwapper));
+
+        uninitializedEnso.updateApprovals();
+        script.buildProposalCalldata(address(uninitializedEnso), address(lifiSwapper));
+
+        RouterSwapper uninitializedLifi = new RouterSwapper(Protocol.CORE, lifiSwapper.router(), "Resupply Swapper: LI.FI");
+        vm.expectRevert("Replacement approvals incomplete");
+        script.buildProposalCalldata(address(ensoSwapper), address(uninitializedLifi));
+
+        uninitializedLifi.updateApprovals();
+        script.buildProposalCalldata(address(ensoSwapper), address(uninitializedLifi));
     }
 
     function test_ProposalRejectsInvalidReplacements() public {
@@ -122,5 +163,10 @@ contract FixRouterSwapperMemoryTest is BaseProposalTest {
             assertEq(IERC20(pair.collateral()).allowance(address(replacement), router), type(uint256).max);
         }
         assertTrue(IGuardianUpgradeable(Protocol.OPERATOR_GUARDIAN_PROXY).hasPermission(address(replacement), IRouterSwapper.revokeApprovals.selector), "guardian cannot revoke replacement");
+    }
+
+    function _assertAction(IVoter.Action memory action, address target, bytes memory data) internal pure {
+        assertEq(action.target, target);
+        assertEq(action.data, data);
     }
 }

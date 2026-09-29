@@ -18,10 +18,11 @@ contract FixRouterSwapperMemory is Script {
     address public constant OLD_LIFI_SWAPPER = 0x597Db76794c75E588D3a70534FB34B7780941fCe;
     string public constant DESCRIPTION = "Replace Enso and LI.FI swappers with a single-allocation route decoder";
 
-    /// @dev Deploy and verify the patched RouterSwapper for each existing router first,
-    ///      with Protocol.CORE as owner. Pass those addresses to run(address,address).
+    /// @dev Run DeployPatchedRouterSwappers to deploy and initialize approvals, then
+    ///      verify both deployments and pass their addresses to run(address,address).
     ///      Coordinate pair registration during voting: this proposal snapshots the pair
-    ///      list at creation. Re-simulate before execution and cover any newly added pairs.
+    ///      list and defaults at creation. Before execution, refresh replacement approvals,
+    ///      re-simulate, and cover any newly added pairs or changed defaults.
     function run(address ensoSwapper, address lifiSwapper) public {
         IVoter.Action[] memory actions = buildProposalCalldata(ensoSwapper, lifiSwapper);
         printCallData(actions);
@@ -41,9 +42,6 @@ contract FixRouterSwapperMemory is Script {
         string[2] memory keys = [string("SWAPPER_ENSO"), "SWAPPER_LIFI"];
         address[] memory registeredPairs = REGISTRY.getAllPairAddresses();
         address[] memory defaults = buildDefaultSwappers(ensoSwapper, lifiSwapper);
-        actions = new IVoter.Action[](7 + registeredPairs.length * 4);
-        uint256 index;
-
         for (uint256 i; i < oldSwappers.length; i++) {
             address oldSwapper = oldSwappers[i];
             address newSwapper = newSwappers[i];
@@ -53,58 +51,94 @@ contract FixRouterSwapperMemory is Script {
             require(RouterSwapper(newSwapper).owner() == Protocol.CORE, "Wrong replacement owner");
             require(IRouterSwapper(newSwapper).router() == IRouterSwapper(oldSwapper).router(), "Wrong replacement router");
             require(!IRouterSwapper(newSwapper).approvalsRevoked(), "Replacement revoked");
-
-            // Initialize collateral approvals on the replacement at execution time.
-            actions[index++] = IVoter.Action({
-                target: newSwapper,
-                data: abi.encodeWithSelector(IRouterSwapper.updateApprovals.selector)
-            });
-
-            // Point the provider's registry key at the patched deployment.
-            actions[index++] = IVoter.Action({
-                target: Protocol.REGISTRY,
-                data: abi.encodeWithSelector(
-                    IResupplyRegistry.setAddress.selector,
-                    keys[i], // provider registry key
-                    newSwapper
-                )
-            });
-
-            for (uint256 j; j < registeredPairs.length; j++) {
-                // Replace the provider's allowed swapper on every existing pair.
-                actions[index++] = IVoter.Action({
-                    target: registeredPairs[j],
-                    data: abi.encodeWithSelector(
-                        IResupplyPair.setSwapper.selector,
-                        oldSwapper,
-                        false // approved
-                    )
-                });
-                actions[index++] = IVoter.Action({
-                    target: registeredPairs[j],
-                    data: abi.encodeWithSelector(
-                        IResupplyPair.setSwapper.selector,
-                        newSwapper,
-                        true // approved
-                    )
-                });
-            }
-
-            // Permanently disable the retired wrapper and clear its router allowances.
-            actions[index++] = IVoter.Action({
-                target: oldSwapper,
-                data: abi.encodeWithSelector(IRouterSwapper.revokeApprovals.selector)
-            });
+            require(!IRouterSwapper(newSwapper).canUpdateApprovals(), "Replacement approvals incomplete");
         }
 
-        // Future pairs inherit the replacements; unrelated defaults stay unchanged.
-        actions[index] = IVoter.Action({
+        actions = new IVoter.Action[](5 + registeredPairs.length * 4);
+        uint256 index;
+
+        // Action 1: Revoke old Enso router approvals.
+        actions[index++] = IVoter.Action({
+            target: OLD_ENSO_SWAPPER,
+            data: abi.encodeWithSelector(IRouterSwapper.revokeApprovals.selector)
+        });
+
+        // Action 2: Revoke old LI.FI router approvals.
+        actions[index++] = IVoter.Action({
+            target: OLD_LIFI_SWAPPER,
+            data: abi.encodeWithSelector(IRouterSwapper.revokeApprovals.selector)
+        });
+
+        // Action 3: Register the replacement Enso swapper.
+        actions[index++] = IVoter.Action({
+            target: Protocol.REGISTRY,
+            data: abi.encodeWithSelector(
+                IResupplyRegistry.setAddress.selector,
+                "SWAPPER_ENSO",
+                ensoSwapper
+            )
+        });
+
+        // Action 4: Register the replacement LI.FI swapper.
+        actions[index++] = IVoter.Action({
+            target: Protocol.REGISTRY,
+            data: abi.encodeWithSelector(
+                IResupplyRegistry.setAddress.selector,
+                "SWAPPER_LIFI",
+                lifiSwapper
+            )
+        });
+
+        // Action 5: Set replacement defaults for future pairs, preserving unrelated swappers.
+        actions[index++] = IVoter.Action({
             target: Protocol.REGISTRY,
             data: abi.encodeWithSelector(
                 IResupplyRegistry.setDefaultSwappers.selector,
                 defaults
             )
         });
+
+        for (uint256 j; j < registeredPairs.length; j++) {
+            // Action: Disable the old Enso swapper on this pair.
+            actions[index++] = IVoter.Action({
+                target: registeredPairs[j],
+                data: abi.encodeWithSelector(
+                    IResupplyPair.setSwapper.selector,
+                    OLD_ENSO_SWAPPER,
+                    false // approved
+                )
+            });
+
+            // Action: Enable the replacement Enso swapper on this pair.
+            actions[index++] = IVoter.Action({
+                target: registeredPairs[j],
+                data: abi.encodeWithSelector(
+                    IResupplyPair.setSwapper.selector,
+                    ensoSwapper,
+                    true // approved
+                )
+            });
+
+            // Action: Disable the old LI.FI swapper on this pair.
+            actions[index++] = IVoter.Action({
+                target: registeredPairs[j],
+                data: abi.encodeWithSelector(
+                    IResupplyPair.setSwapper.selector,
+                    OLD_LIFI_SWAPPER,
+                    false // approved
+                )
+            });
+
+            // Action: Enable the replacement LI.FI swapper on this pair.
+            actions[index++] = IVoter.Action({
+                target: registeredPairs[j],
+                data: abi.encodeWithSelector(
+                    IResupplyPair.setSwapper.selector,
+                    lifiSwapper,
+                    true // approved
+                )
+            });
+        }
     }
 
     function buildDefaultSwappers(address ensoSwapper, address lifiSwapper) public view returns (address[] memory defaults) {
