@@ -473,7 +473,7 @@ contract ResupplyAccountingTest is Setup {
         uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
         (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
         uint userCollateralValueBefore = collateral.previewRedeem(userCollateralBalanceBefore);
-        uint liquidationIncentive = liquidationHandler.liquidateIncentive();
+        uint liquidationIncentive = liquidationHandler.maxLiquidateIncentive();
         liquidationHandler.liquidate(
             address(pair),
             toLiquidate
