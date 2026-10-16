@@ -20,26 +20,39 @@ contract LiquidationHandler is CoreOwnable{
     address public immutable insurancePool;
     mapping(address => uint256) public debtByCollateral;
 
-    uint256 public liquidateIncentive;
+    uint256 public constant BPS = 10_000;
+    uint256 public liquidateIncentiveShareBps;
+    uint256 public maxLiquidateIncentive;
     address transient _liquidationCaller;
 
     event CollateralProccessed(address indexed _collateral, uint256 _debtBurned, uint256 _amountWithdrawn);
     event CollateralDistributedAndDebtCleared(address indexed _collateral, uint256 _collateralAmount, uint256 _debtAmount);
     event CollateralMigrated(address indexed _collateral, uint256 _collateralAmount, address _newHandler);
-    event SetLiquidationIncentive(uint256 _incentive);
+    event SetLiquidateIncentiveShareBps(uint256 _shareBps);
+    event SetMaxLiquidateIncentive(uint256 _maxIncentive);
 
     constructor(address _core, address _registry, address _insurancePool) CoreOwnable(_core){
         registry = _registry;
         insurancePool = _insurancePool;
-        liquidateIncentive = 25e18;
-        emit SetLiquidationIncentive(liquidateIncentive);
+        liquidateIncentiveShareBps = 5_000;
+        maxLiquidateIncentive = 25e18;
+        emit SetLiquidateIncentiveShareBps(liquidateIncentiveShareBps);
+        emit SetMaxLiquidateIncentive(maxLiquidateIncentive);
     }
 
-    /// @notice Sets Liquidation incentive
-    /// @param _incentive the incentive to call liquidate()
-    function setLiquidationIncentive(uint256 _incentive) external onlyOwner{
-        liquidateIncentive = _incentive;
-        emit SetLiquidationIncentive(_incentive);
+    /// @notice Sets the share of the liquidation fee paid as an incentive
+    /// @param _shareBps the incentive share in basis points
+    function setLiquidateIncentiveShareBps(uint256 _shareBps) external onlyOwner{
+        require(_shareBps <= BPS, "!share");
+        liquidateIncentiveShareBps = _shareBps;
+        emit SetLiquidateIncentiveShareBps(_shareBps);
+    }
+
+    /// @notice Sets the maximum liquidation incentive
+    /// @param _maxIncentive the maximum incentive in underlying tokens
+    function setMaxLiquidateIncentive(uint256 _maxIncentive) external onlyOwner{
+        maxLiquidateIncentive = _maxIncentive;
+        emit SetMaxLiquidateIncentive(_maxIncentive);
     }
 
 
@@ -121,18 +134,23 @@ contract LiquidationHandler is CoreOwnable{
         //add to debt needed to burn
         debtByCollateral[_collateral] += _debtAmount;
 
-        //reward caller
-        uint256 withdrawable = IERC4626(_collateral).maxWithdraw(address(this));
-        if(withdrawable >= liquidateIncentive){
-            try IERC4626(_collateral).withdraw(liquidateIncentive, _liquidationCaller, address(this)){}catch{}
-        }else{
-            uint256 incentiveShares = IERC4626(_collateral).convertToShares(liquidateIncentive);
-            incentiveShares = incentiveShares > _collateralAmount ? _collateralAmount : incentiveShares;
+        //reward caller with a share of the realized liquidation fee, capped in underlying tokens
+        address liquidationCaller = _liquidationCaller;
+        _liquidationCaller = address(0);
+        if(liquidationCaller != address(0)){
+            (,, uint256 exchangeRate) = IResupplyPair(msg.sender).exchangeRateInfo();
+            //debt rounds up in the pair, so the resulting fee is conservative
+            uint256 principalCollateral = (_debtAmount * exchangeRate) / 1e18;
+            uint256 feeCollateral = _collateralAmount > principalCollateral ? _collateralAmount - principalCollateral : 0;
+            uint256 incentiveShares = feeCollateral * liquidateIncentiveShareBps / BPS;
+            uint256 maxIncentiveShares = IERC4626(_collateral).convertToShares(maxLiquidateIncentive);
+            incentiveShares = incentiveShares > maxIncentiveShares ? maxIncentiveShares : incentiveShares;
             if(incentiveShares > 0){
-                IERC20(_collateral).safeTransfer(_liquidationCaller, incentiveShares);
+                try IERC4626(_collateral).redeem(incentiveShares, liquidationCaller, address(this)){}catch{
+                    IERC20(_collateral).safeTransfer(liquidationCaller, incentiveShares);
+                }
             }
         }
-        _liquidationCaller = address(0);
 
         //process
         processCollateral(_collateral);
