@@ -473,11 +473,13 @@ contract ResupplyAccountingTest is Setup {
         uint userCollateralBalanceBefore = pair.userCollateralBalance(toLiquidate);
         (uint totalBorrowAmountBefore, ) =  pair.totalBorrow();
         uint userCollateralValueBefore = collateral.previewRedeem(userCollateralBalanceBefore);
-        uint liquidationIncentive = liquidationHandler.maxLiquidateIncentive();
+        uint callerUnderlyingBefore = IERC20(pair.underlying()).balanceOf(address(this));
         liquidationHandler.liquidate(
             address(pair),
             toLiquidate
         );
+        uint liquidationIncentive = IERC20(pair.underlying()).balanceOf(address(this)) - callerUnderlyingBefore;
+        assertLe(liquidationIncentive, liquidationHandler.maxLiquidateIncentive(), "// THEN: liquidation incentive exceeds maximum");
 
         (uint totalBorrowAmountAfter, ) =  pair.totalBorrow();
         uint256 ipUnderlyingDiff = IERC20(pair.underlying()).balanceOf(address(insurancePool)) - insurancePoolBalanceUnderlyingBefore;
