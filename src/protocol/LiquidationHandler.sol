@@ -113,7 +113,7 @@ contract LiquidationHandler is CoreOwnable{
                 IERC20(_collateral).safeTransfer(insurancePool, collateralBalance);
             }
 
-            emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, debtByCollateral[_collateral]);
+            emit CollateralDistributedAndDebtCleared(_collateral, collateralBalance, collateralDebt);
         }
     }
 
