@@ -10,6 +10,22 @@ import { IResupplyPairErrors } from "src/protocol/pair/IResupplyPairErrors.sol";
 
 contract LiquidationHandlerTest is PairTestBase {
 
+    uint256 internal constant TEST_BPS = 10_000;
+    uint256 internal constant FULL_FEE_COLLATERAL_RATIO_BPS = 10_510;
+    uint256 internal constant PARTIAL_FEE_COLLATERAL_RATIO_BPS = 10_200;
+    uint256 internal constant BAD_DEBT_COLLATERAL_RATIO_BPS = 9_900;
+
+    struct IncentivePreview {
+        uint256 seizedShares;
+        uint256 userCollateralShares;
+        uint256 feeShares;
+        uint256 nominalFeeShares;
+        uint256 rawRewardShares;
+        uint256 maxRewardShares;
+        uint256 rewardShares;
+        uint256 rewardAssets;
+    }
+
     MockOracle mockOracle;
 
     function setUp() public override {
@@ -63,6 +79,107 @@ contract LiquidationHandlerTest is PairTestBase {
         assertEq(insurancePool.totalSupply(), ipTotalSupply, 'total supply should not change');
         assertLt(insurancePool.totalAssets(), ipTotalAssets, 'total assets should decrease');
         assertLt(pair.totalCollateral(), pairCollateralBalance, 'pair collateral balance should decrease');
+    }
+
+    function test_LiquidationIncentiveCappedAtDefaultMaximum() public {
+        buildLiquidatablePositionAtRatio(5_000e18, FULL_FEE_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertLt(preview.seizedShares, preview.userCollateralShares, 'collateral should not be capped');
+        assertGt(preview.rawRewardShares, preview.maxRewardShares, 'raw reward should exceed maximum');
+        assertEq(preview.rewardShares, preview.maxRewardShares, 'reward should equal maximum shares');
+
+        executeLiquidationAndAssertReward(preview.rewardAssets);
+        assertApproxEqAbs(preview.rewardAssets, liquidationHandler.maxLiquidateIncentive(), 1, 'wrong default maximum');
+    }
+
+    function test_LiquidationIncentiveCappedAtConfiguredMaximum() public {
+        uint256 configuredMaximum = 10e18;
+        vm.prank(address(core));
+        liquidationHandler.setMaxLiquidateIncentive(configuredMaximum);
+        buildLiquidatablePositionAtRatio(5_000e18, FULL_FEE_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertGt(preview.rawRewardShares, preview.maxRewardShares, 'raw reward should exceed maximum');
+        assertEq(preview.rewardShares, preview.maxRewardShares, 'reward should equal maximum shares');
+
+        executeLiquidationAndAssertReward(preview.rewardAssets);
+        assertApproxEqAbs(preview.rewardAssets, configuredMaximum, 1, 'wrong configured maximum');
+    }
+
+    function test_LiquidationIncentivePaysUncappedShareOfFullFee() public {
+        vm.prank(address(core));
+        liquidationHandler.setLiquidateIncentiveShareBps(2_500);
+        buildLiquidatablePositionAtRatio(1_000e18, FULL_FEE_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertLt(preview.seizedShares, preview.userCollateralShares, 'collateral should not be capped');
+        assertGt(preview.feeShares, 0, 'fee should be positive');
+        assertLt(preview.rawRewardShares, preview.maxRewardShares, 'reward should be below maximum');
+        assertEq(preview.rewardShares, preview.rawRewardShares, 'reward should be proportional fee share');
+
+        executeLiquidationAndAssertReward(preview.rewardAssets);
+    }
+
+    function test_LiquidationIncentivePaysUncappedShareOfPartialFee() public {
+        buildLiquidatablePositionAtRatio(1_000e18, PARTIAL_FEE_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertEq(preview.seizedShares, preview.userCollateralShares, 'collateral should be capped');
+        assertGt(preview.feeShares, 0, 'partial fee should be positive');
+        assertLt(preview.feeShares, preview.nominalFeeShares, 'fee should be below nominal fee');
+        assertLt(preview.rawRewardShares, preview.maxRewardShares, 'reward should be below maximum');
+        assertEq(preview.rewardShares, preview.rawRewardShares, 'reward should be proportional partial fee share');
+
+        executeLiquidationAndAssertReward(preview.rewardAssets);
+    }
+
+    function test_LiquidationIncentiveIsZeroForBadDebt() public {
+        buildLiquidatablePositionAtRatio(1_000e18, BAD_DEBT_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertEq(preview.seizedShares, preview.userCollateralShares, 'all collateral should be seized');
+        assertEq(preview.feeShares, 0, 'bad debt must not produce a fee');
+        assertEq(preview.rewardShares, 0, 'bad debt must not produce a reward');
+
+        executeLiquidationAndAssertReward(0);
+    }
+
+    function test_LiquidationIncentiveIgnoresExistingHandlerCollateral() public {
+        uint256 existingHandlerCollateral = IERC4626(address(collateral)).convertToShares(100e18);
+        deal(address(collateral), address(liquidationHandler), existingHandlerCollateral);
+        buildLiquidatablePositionAtRatio(1_000e18, BAD_DEBT_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertGt(collateral.balanceOf(address(liquidationHandler)), 0, 'handler should have existing collateral');
+        assertEq(preview.feeShares, 0, 'current liquidation should have no fee');
+        assertEq(preview.rewardShares, 0, 'existing collateral must not subsidize reward');
+
+        executeLiquidationAndAssertReward(0);
+    }
+
+    function test_LiquidationIncentiveIsZeroWhenShareIsZero() public {
+        vm.prank(address(core));
+        liquidationHandler.setLiquidateIncentiveShareBps(0);
+        buildLiquidatablePositionAtRatio(1_000e18, FULL_FEE_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertGt(preview.feeShares, 0, 'fee should be positive');
+        assertEq(preview.rewardShares, 0, 'zero share must produce zero reward');
+
+        executeLiquidationAndAssertReward(0);
+    }
+
+    function test_LiquidationIncentiveIsZeroWhenMaximumIsZero() public {
+        vm.prank(address(core));
+        liquidationHandler.setMaxLiquidateIncentive(0);
+        buildLiquidatablePositionAtRatio(1_000e18, FULL_FEE_COLLATERAL_RATIO_BPS);
+        IncentivePreview memory preview = previewIncentive();
+
+        assertGt(preview.feeShares, 0, 'fee should be positive');
+        assertEq(preview.rewardShares, 0, 'zero maximum must produce zero reward');
+
+        executeLiquidationAndAssertReward(0);
     }
 
     function test_LiquidateSolventBorrowerFails() public {
@@ -169,6 +286,60 @@ contract LiquidationHandlerTest is PairTestBase {
         uint256 borrowAmount = pair.minimumBorrowAmount() > DEFAULT_BORROW_AMOUNT ? pair.minimumBorrowAmount() : DEFAULT_BORROW_AMOUNT;
         borrow(pair, borrowAmount, calculateMinUnderlyingNeededForBorrow(borrowAmount)); // borrow while adding collateral
         setOraclePrice(1e10);
+    }
+
+    function buildLiquidatablePositionAtRatio(uint256 _borrowAmount, uint256 _collateralRatioBps) internal {
+        borrow(pair, _borrowAmount, calculateMinUnderlyingNeededForBorrow(_borrowAmount));
+        skip(1);
+
+        uint256 debtAmount = pair.toBorrowAmount(pair.userBorrowShares(address(this)), true, true);
+        uint256 userCollateral = pair.userCollateralBalance(address(this));
+        uint256 targetPrincipalCollateral = userCollateral * TEST_BPS / _collateralRatioBps;
+        uint256 targetExchangeRate = targetPrincipalCollateral * EXCHANGE_PRECISION / debtAmount;
+
+        mockOracle.setPrice(1e36 / targetExchangeRate);
+        pair.updateExchangeRate();
+
+        assertGt(getCurrentLTV(pair, address(this)), pair.maxLTV(), 'position should be liquidatable');
+    }
+
+    function previewIncentive() internal returns(IncentivePreview memory preview) {
+        uint256 borrowShares = pair.userBorrowShares(address(this));
+        uint256 debtDown = pair.toBorrowAmount(borrowShares, false, true);
+        uint256 debtUp = pair.toBorrowAmount(borrowShares, true, true);
+        (,, uint256 exchangeRate) = pair.exchangeRateInfo();
+
+        uint256 principalDown = debtDown * exchangeRate / EXCHANGE_PRECISION;
+        uint256 nominalSeizedShares = principalDown * (LIQ_PRECISION + pair.liquidationFee()) / LIQ_PRECISION;
+        preview.userCollateralShares = pair.userCollateralBalance(address(this));
+        preview.seizedShares = nominalSeizedShares > preview.userCollateralShares
+            ? preview.userCollateralShares
+            : nominalSeizedShares;
+        preview.nominalFeeShares = nominalSeizedShares - principalDown;
+
+        uint256 principalUp = debtUp * exchangeRate / EXCHANGE_PRECISION;
+        preview.feeShares = preview.seizedShares > principalUp ? preview.seizedShares - principalUp : 0;
+        preview.rawRewardShares = preview.feeShares * liquidationHandler.liquidateIncentiveShareBps() / TEST_BPS;
+        preview.maxRewardShares = IERC4626(address(collateral)).convertToShares(liquidationHandler.maxLiquidateIncentive());
+        preview.rewardShares = preview.rawRewardShares > preview.maxRewardShares
+            ? preview.maxRewardShares
+            : preview.rawRewardShares;
+        preview.rewardAssets = IERC4626(address(collateral)).previewRedeem(preview.rewardShares);
+    }
+
+    function executeLiquidationAndAssertReward(uint256 _expectedRewardAssets) internal {
+        uint256 underlyingBefore = underlying.balanceOf(address(this));
+        uint256 collateralBefore = collateral.balanceOf(address(this));
+
+        liquidationHandler.liquidate(address(pair), address(this));
+
+        assertApproxEqAbs(
+            underlying.balanceOf(address(this)) - underlyingBefore,
+            _expectedRewardAssets,
+            1,
+            'wrong underlying reward'
+        );
+        assertEq(collateral.balanceOf(address(this)), collateralBefore, 'unexpected collateral-share reward');
     }
 
     function withdrawLiquidityFromMarket() public {
