@@ -7,6 +7,7 @@ import { Options } from "@openzeppelin/foundry-upgrades/Options.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { KeeperV1 } from "src/helpers/keepers/KeeperV1.sol";
 import { KeeperV2 } from "src/helpers/keepers/KeeperV2.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract KeeperTest is Setup {
     address proxy;

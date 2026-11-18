@@ -76,7 +76,11 @@ abstract contract BaseUpgradeableOperatorTest is Test {
         // V1 should not be reinitializable
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         initialize();
-    
+
+        vm.prank(CORE);
+        UUPSUpgradeable(proxy).upgradeToAndCall(implV2, "");
+        assertEq(Upgrades.getImplementationAddress(proxy), implV2);
+
         // V2 should also not be reinitializable
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         initialize();

@@ -94,33 +94,30 @@ contract RouterSwapper is CoreOwnable, ReentrancyGuard {
     function decode(address[] memory path) public pure returns (bytes memory payload) {
         require(path.length > 2, "Invalid path");
         uint256 totalLen = uint256(uint160(path[1]));
-        uint256 dataStartIndex = 2;
-        uint256 lastDataIndex = path.length - 2;
-        for (uint256 i = dataStartIndex; i < lastDataIndex;) {
-            payload = abi.encodePacked(payload, path[i]);
-            unchecked {
-                i++;
+        uint256 chunkCount = (totalLen + 19) / 20;
+        require(totalLen > 0 && path.length == chunkCount + 3, "Length mismatch");
+
+        // Allocate once. The extra word keeps overlapping 32-byte stores in bounds,
+        // including a partial final 20-byte chunk.
+        payload = new bytes(totalLen + 32);
+        for (uint256 i = 0; i < chunkCount; i++) {
+            address chunk = path[i + 2];
+            assembly ("memory-safe") {
+                mstore(add(add(payload, 32), mul(i, 20)), shl(96, chunk))
             }
         }
-        uint256 remainingBytes = totalLen % 20;
-        if (remainingBytes == 0) {
-            remainingBytes = 20;
+
+        assembly ("memory-safe") {
+            // Discard final-chunk padding and restore the actual payload length.
+            mstore(add(add(payload, 32), totalLen), 0)
+            mstore(payload, totalLen)
         }
-        payload = abi.encodePacked(payload, addressToBytes(path[lastDataIndex], remainingBytes));
-        require(payload.length == totalLen, "Length mismatch");
     }
 
     function bytesToAddress(bytes memory b) internal pure returns (address a) {
         require(b.length == 20, "Chunk must be 20 bytes");
         assembly {
             a := mload(add(b, 20))
-        }
-    }
-
-    function addressToBytes(address a, uint256 size) internal pure returns (bytes memory b) {
-        b = new bytes(size);
-        assembly {
-            mstore(add(b, 32), shl(96, a))
         }
     }
 }
